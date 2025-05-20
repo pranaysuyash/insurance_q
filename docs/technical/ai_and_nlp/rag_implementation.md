@@ -2136,3 +2136,53 @@ To keep the Insurance Policy Parser & QA App at the cutting edge, the following 
   - Add a changelog section to each doc to track upgrades and library/model changes.
 
 See other technical docs for details on each upgrade area.
+
+# Appendix: MVP Streamlit + FAISS Hybrid RAG Demo
+
+## Overview
+A minimal working prototype (`policy_rag_hybrid.py`) was built using Streamlit, FAISS, and LangChain to test health insurance policy QA with GPT-4-class models. This MVP demonstrates the core RAG workflow and rapid prototyping for insurance document QA.
+
+**How to run:**
+```
+streamlit run policy_rag_hybrid.py
+```
+
+## Flow
+- Upload one or more policy PDFs (scanned or digital).
+- The app extracts text (OCR for scanned, direct for digital) and parses tables.
+- User asks a free-form question (e.g., "since when am I with Niva Bupa").
+- The system:
+  1. Answers instantly from extracted metadata if possible (e.g., dates).
+  2. Otherwise, runs a vector RAG search using FAISS and OpenAI embeddings.
+  3. If RAG fails, does a full reread with the LLM as a last resort.
+- Shows the answer and the source context chunks.
+
+## Key Features
+- **PDF Parsing:** Handles both scanned (OCR via pytesseract) and digital PDFs.
+- **Table Extraction:** Uses pdfplumber and pandas to flatten tables into JSON rows for retrieval.
+- **Metadata Extraction:** Fast-path answers for common queries (dates, insured since, etc.).
+- **Vector Search:** Uses FAISS for local vector DB, OpenAI embeddings, and LangChain retrievers.
+- **LLM QA:** Uses OpenAI GPT-4o (or similar) for answer generation and fallback rescue.
+- **Streamlit UI:** Simple, interactive, and easy to extend.
+
+## Architecture Summary
+- **Frontend:** Streamlit (file upload, question input, answer display)
+- **Backend:**
+  - PDF parsing (pdfplumber, PyPDFLoader, pytesseract, pdf2image)
+  - Table extraction (pandas)
+  - Embeddings (OpenAI, LangChain)
+  - Vector DB (FAISS)
+  - RAG pipeline (LangChain ConversationalRetrievalChain)
+  - LLM (OpenAI GPT-4o via LangChain)
+- **Rescue Mode:** If RAG fails, reread the full text with the LLM.
+
+## Lessons & Next Steps
+- **Rapid Prototyping:** Streamlit + LangChain enables fast iteration and user feedback.
+- **Hybrid Retrieval:** Combining metadata, table rows, and full text improves answer accuracy.
+- **Fallbacks:** Multi-stage answering (metadata → RAG → full reread) increases robustness.
+- **Extensibility:** The MVP can be extended with local LLMs, better embeddings, and more advanced table/NER extraction as described in the main docs.
+
+## Code Location
+- See `policy_rag_hybrid.py` in the repo root for the full MVP code.
+
+This MVP served as a practical testbed for the architecture and informed the design of the production RAG pipeline described above.

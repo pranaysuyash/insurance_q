@@ -46,4 +46,13 @@ This document serves as the single source of truth for the Insurance Policy Pars
 - [OCR Implementation](implementation/extraction/ocr_implementation.md)
 - [Comprehensive Architecture](unified_architecture/comprehensive_architecture.md)
 
-This file should be updated whenever a major stack or architecture change is made. 
+This file should be updated whenever a major stack or architecture change is made.
+
+## Mobile App
+- The primary client is a Flutter mobile app (Android/iOS), integrating with Firebase Auth and the backend API.
+- See [Mobile App Architecture](../user_experience/mobile_app_architecture.md) for details on mobile flows, packages, and integration.
+
+# Changelog
+
+- 2024-06-XX: Added mobile-first Flutter app architecture and documentation.
+- 2024-06-XX: Decision: Flutter chosen as the primary mobile framework for cross-platform support and Firebase integration. 

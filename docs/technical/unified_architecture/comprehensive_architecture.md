@@ -914,3 +914,9 @@ async def get_current_user(request: Request):
 ## Notes
 - Use Firebase Auth for authentication only; manage user profiles, family members, and policies in your backend database.
 - See the [Modern Stack Overview](modern_stack_overview.md) for more on authentication and user management options.
+
+## Mobile-First Approach
+
+- The primary user interface is a cross-platform Flutter mobile app (Android/iOS), designed for Indian insurance users.
+- The mobile app integrates with Firebase Auth for authentication (email, phone/OTP, Google) and communicates with the backend API for all core features.
+- See [Mobile App Architecture](../../user_experience/mobile_app_architecture.md) for details on mobile flows, integration, and packages.
