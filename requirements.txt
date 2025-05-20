@@ -1,0 +1,57 @@
+# Core dependencies
+fastapi
+uvicorn
+python-multipart
+pydantic
+
+# New API Clients
+huggingface-hub
+openai
+
+# RAG Pipeline (Vector DB and Cache)
+qdrant-client
+redis
+
+# Image & PDF Processing (Still needed for preparing data for APIs)
+pillow
+pymupdf # fitz, for PDF to image conversion
+# pypdf # Review if still needed, PyMuPDF is powerful
+# pdfplumber # Review if still needed
+
+# Utilities
+python-dotenv
+structlog
+
+# Monitoring
+prometheus-client
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
+
+# Testing
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+pytest-mock
+aioresponses
+
+# Commented out as local heavy model inference is removed
+# sentence-transformers
+# transformers
+# torch
+# paddleocr
+# paddlepaddle
+# pytesseract
+
+# Document processing
+PyMuPDF  # For PDF text extraction
+redis    # For caching
+
+# Data handling
+pydantic
+python-dotenv
+
+# Testing
+pytest
+pytest-asyncio 

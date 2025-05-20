@@ -1,0 +1,33 @@
+{
+  "name": "insurance_app",
+  "version": "1.0.0",
+  "description": "An intelligent system for parsing insurance policy documents and answering questions using OCR and RAG (Retrieval Augmented Generation).",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "npx tailwindcss -i ./src/frontend/static/css/tailwind.css -o ./src/frontend/static/css/main.css --watch",
+    "build": "npx tailwindcss -i ./src/frontend/static/css/tailwind.css -o ./src/frontend/static/css/main.css --minify",
+    "clean": "rm -rf ./src/frontend/static/css/main.css",
+    "test": "pytest tests/",
+    "start": "uvicorn src.frontend.app:app --reload --port 8080"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pranaysuyash/insurance_q.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pranaysuyash/insurance_q/issues"
+  },
+  "homepage": "https://github.com/pranaysuyash/insurance_q#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.2"
+  }
+}

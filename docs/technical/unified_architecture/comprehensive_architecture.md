@@ -1,6 +1,267 @@
-# Modern Technical Architecture & Stack (2024)
+# Comprehensive System Architecture (2024)
 
-This section provides a quick reference for the recommended technical stack and architecture for the Insurance Policy Parser & QA App, reflecting the latest best practices and open-source/cloud tools as of 2024.
+## Overview
+
+This document provides a comprehensive overview of the Insurance Policy Parser & QA System's architecture, incorporating modern technologies and best practices as of 2024. The system is designed to be scalable, maintainable, and capable of handling complex insurance document processing tasks.
+
+## System Architecture
+
+```mermaid
+graph TD
+    A[Document Upload] --> B[Document Processor]
+    B --> C[OCR Pipeline]
+    B --> D[Digital PDF Pipeline]
+    C --> E[Document Understanding]
+    D --> E
+    E --> F[Knowledge Base]
+    F --> G[RAG System]
+    G --> H[Query Interface]
+    
+    subgraph "Document Processing"
+    B
+    C
+    D
+    end
+    
+    subgraph "Intelligence Layer"
+    E
+    F
+    G
+    end
+    
+    subgraph "User Interface"
+    A
+    H
+    end
+```
+
+## Core Components
+
+### 1. Document Processing Layer
+
+#### Modern OCR Pipeline
+- **Primary Engine:** PaddleOCR
+- **Layout Analysis:** LayoutLMv3
+- **Table Extraction:** Table Transformer + Camelot
+- **Quality Assurance:** ML-based validation
+
+#### Digital Document Processing
+- **PDF Processing:** pypdf + pdfplumber
+- **Structure Analysis:** LayoutLMv3
+- **Content Extraction:** Custom extractors
+
+### 2. Intelligence Layer
+
+#### Document Understanding
+```python
+from transformers import AutoTokenizer, AutoModel
+from sentence_transformers import SentenceTransformer
+
+class DocumentUnderstanding:
+    def __init__(self):
+        self.layout_model = AutoModel.from_pretrained("microsoft/layoutlmv3-base")
+        self.text_embedder = SentenceTransformer('intfloat/e5-large-v2')
+        self.tokenizer = AutoTokenizer.from_pretrained("microsoft/layoutlmv3-base")
+        
+    async def process_document(self, document):
+        """Process document through the understanding pipeline"""
+        # Extract layout and structure
+        layout_features = await self._extract_layout_features(document)
+        
+        # Generate semantic embeddings
+        embeddings = await self._generate_embeddings(document)
+        
+        # Combine understanding
+        understanding = self._combine_understanding(layout_features, embeddings)
+        
+        return understanding
+```
+
+#### Knowledge Base
+- **Vector Store:** Qdrant
+- **Metadata Store:** PostgreSQL
+- **Document Store:** MinIO (S3-compatible)
+
+#### RAG System
+```python
+class ModernRAGSystem:
+    def __init__(self):
+        self.embedder = SentenceTransformer('intfloat/e5-large-v2')
+        self.vector_store = QdrantClient()
+        self.llm = MixtralInterface()  # Custom interface to Mixtral
+        
+    async def process_query(self, query: str) -> QueryResponse:
+        # Generate query embedding
+        query_embedding = self.embedder.encode(query)
+        
+        # Retrieve relevant contexts
+        contexts = await self._retrieve_contexts(query_embedding)
+        
+        # Generate response
+        response = await self._generate_response(query, contexts)
+        
+        return QueryResponse(
+            answer=response.answer,
+            sources=response.sources,
+            confidence=response.confidence
+        )
+```
+
+### 3. API Layer
+
+#### FastAPI Implementation
+```python
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from typing import List, Optional
+
+app = FastAPI(title="Insurance Policy Parser & QA API")
+
+@app.post("/documents/upload")
+async def upload_document(
+    file: UploadFile,
+    process_type: Optional[str] = "auto"
+) -> DocumentResponse:
+    """Upload and process insurance document"""
+    try:
+        processor = DocumentProcessor()
+        result = await processor.process(file, process_type)
+        return DocumentResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/query")
+async def query_system(
+    query: str,
+    filters: Optional[dict] = None
+) -> QueryResponse:
+    """Query the system using natural language"""
+    try:
+        rag = ModernRAGSystem()
+        response = await rag.process_query(query, filters)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+## Infrastructure
+
+### Deployment Architecture
+```mermaid
+graph TD
+    A[Load Balancer] --> B[API Servers]
+    B --> C[Document Processors]
+    B --> D[Query Processors]
+    C --> E[OCR Workers]
+    C --> F[PDF Workers]
+    D --> G[RAG Workers]
+    E --> H[Storage]
+    F --> H
+    G --> H
+    H --> I[Vector Store]
+    H --> J[Document Store]
+    H --> K[Metadata Store]
+```
+
+### Scalability
+- Kubernetes-based deployment
+- Autoscaling based on queue length
+- Resource optimization
+
+### Monitoring
+```python
+from opentelemetry import trace, metrics
+from prometheus_client import Counter, Histogram
+
+class SystemMonitoring:
+    def __init__(self):
+        self.tracer = trace.get_tracer(__name__)
+        self.processing_time = Histogram(
+            'document_processing_seconds',
+            'Time spent processing documents'
+        )
+        self.error_counter = Counter(
+            'processing_errors_total',
+            'Total processing errors'
+        )
+```
+
+## Security & Compliance
+
+### Data Protection
+- End-to-end encryption
+- Secure data transmission
+- Access control and authentication
+
+### Compliance Framework
+- HIPAA compliance
+- GDPR requirements
+- SOC 2 controls
+
+## Performance Optimization
+
+### Caching Strategy
+```python
+from redis import Redis
+from typing import Optional
+
+class CacheManager:
+    def __init__(self):
+        self.redis = Redis()
+        
+    async def get_cached_result(
+        self,
+        query_hash: str
+    ) -> Optional[QueryResponse]:
+        """Retrieve cached query result"""
+        cached = await self.redis.get(query_hash)
+        return QueryResponse.from_cache(cached) if cached else None
+        
+    async def cache_result(
+        self,
+        query_hash: str,
+        response: QueryResponse
+    ):
+        """Cache query result"""
+        await self.redis.setex(
+            query_hash,
+            3600,  # 1 hour TTL
+            response.to_cache()
+        )
+```
+
+### Resource Management
+- Memory-efficient processing
+- Batch operations
+- Async processing
+
+## Future Roadmap
+
+### Planned Enhancements
+1. Multi-modal document understanding
+2. Advanced table extraction
+3. Improved accuracy metrics
+4. Enhanced security features
+
+### Experimental Features
+1. Zero-shot document classification
+2. Automated quality improvement
+3. Cross-document reference resolution
+
+## Development Guidelines
+
+### Code Quality
+- Type hints
+- Comprehensive testing
+- Documentation standards
+- Code review process
+
+### Deployment Process
+- CI/CD pipeline
+- Automated testing
+- Canary deployments
+- Rollback procedures
+
+## Conclusion
 
 ## Architecture Overview
 - **Frontend:** React (Material-UI, Ant Design, or Tailwind CSS), Streamlit (for MVP/prototyping)

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insurance Policy Parser & QA</title>
+    <link href="/static/css/main.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">Insurance Policy Parser & QA</h1>
+        
+        <!-- Upload Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Upload Insurance Document</h2>
+            <form id="uploadForm" class="space-y-4">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input type="file" id="fileInput" class="hidden" accept=".pdf,.doc,.docx">
+                    <label for="fileInput" class="cursor-pointer text-blue-600 hover:text-blue-800">
+                        Click to upload or drag and drop
+                    </label>
+                    <p class="text-sm text-gray-500 mt-2">Supported formats: PDF, DOC, DOCX</p>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
+                    Upload Document
+                </button>
+            </form>
+        </div>
+
+        <!-- OCR Results Section -->
+        <div id="ocrResults" class="bg-white rounded-lg shadow-md p-6 mb-8 hidden">
+            <h2 class="text-xl font-semibold mb-4">Document Analysis</h2>
+            
+            <!-- Processing Status -->
+            <div class="mb-6">
+                <h3 class="font-semibold text-gray-700">Status</h3>
+                <p id="processingStatus" class="text-green-600"></p>
+            </div>
+
+            <!-- Extracted Sections -->
+            <div class="mb-6">
+                <h3 class="font-semibold text-gray-700 mb-2">Extracted Sections</h3>
+                <div id="extractedSections" class="space-y-4">
+                    <!-- Sections will be added here dynamically -->
+                </div>
+            </div>
+
+            <!-- Full Text -->
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-2">Full Text</h3>
+                <div id="fullText" class="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto text-sm">
+                    <!-- Full text will be added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Query Section -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Ask Questions</h2>
+            <form id="queryForm" class="space-y-4">
+                <div>
+                    <textarea id="queryInput" rows="3" 
+                        class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Ask a question about the insurance policy..."></textarea>
+                </div>
+                <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700">
+                    Submit Question
+                </button>
+            </form>
+            <div id="answer" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+                <h3 class="font-semibold mb-2">Answer:</h3>
+                <p id="answerText" class="text-gray-700"></p>
+                <div id="sourcesSection" class="mt-4 text-sm text-gray-600">
+                    <h4 class="font-semibold">Sources:</h4>
+                    <ul id="sourcesList" class="list-disc pl-5 mt-2">
+                        <!-- Sources will be added here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // File upload handling
+        const uploadForm = document.getElementById('uploadForm');
+        const ocrResults = document.getElementById('ocrResults');
+        const processingStatus = document.getElementById('processingStatus');
+        const extractedSections = document.getElementById('extractedSections');
+        const fullText = document.getElementById('fullText');
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                processingStatus.textContent = 'Processing document...';
+                ocrResults.classList.remove('hidden');
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                // Update status
+                processingStatus.textContent = data.message;
+
+                // Display extracted sections
+                if (data.sections) {
+                    extractedSections.innerHTML = Object.entries(data.sections)
+                        .map(([key, value]) => `
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-gray-700">${key}</h4>
+                                <p class="text-sm mt-2">${value}</p>
+                            </div>
+                        `).join('');
+                }
+
+                // Display full text
+                if (data.text) {
+                    fullText.textContent = data.text;
+                }
+
+            } catch (error) {
+                processingStatus.textContent = 'Error: ' + error.message;
+                processingStatus.classList.remove('text-green-600');
+                processingStatus.classList.add('text-red-600');
+            }
+        });
+
+        // Query handling
+        const queryForm = document.getElementById('queryForm');
+        queryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = document.getElementById('queryInput').value;
+            if (!query) return;
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                const data = await response.json();
+                
+                // Display answer
+                const answerDiv = document.getElementById('answer');
+                const answerText = document.getElementById('answerText');
+                const sourcesList = document.getElementById('sourcesList');
+                
+                answerText.textContent = data.answer;
+                
+                // Display sources if available
+                if (data.sources && data.sources.length > 0) {
+                    sourcesList.innerHTML = data.sources
+                        .map(source => `<li>${source}</li>`)
+                        .join('');
+                    document.getElementById('sourcesSection').classList.remove('hidden');
+                } else {
+                    document.getElementById('sourcesSection').classList.add('hidden');
+                }
+                
+                answerDiv.classList.remove('hidden');
+            } catch (error) {
+                alert('Error querying document: ' + error.message);
+            }
+        });
+
+        // Drag and drop handling
+        const dropZone = document.querySelector('.border-dashed');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('border-blue-500', 'bg-blue-50');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            document.getElementById('fileInput').files = files;
+        }
+    </script>
+</body>
+</html> 

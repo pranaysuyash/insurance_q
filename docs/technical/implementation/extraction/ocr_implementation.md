@@ -2,39 +2,200 @@
 
 This section summarizes the latest recommended open-source and cloud tools for OCR, table extraction, and document parsing in the Insurance Policy Parser & QA App. It is designed to help developers avoid outdated dependencies and leverage the best available tools as of 2024.
 
-## OCR
-- **Primary:** [`pytesseract`](https://github.com/madmaze/pytesseract) (Tesseract OCR, open-source, robust for most cases)
-- **Deep Learning Alternative:** [`easyocr`](https://github.com/JaidedAI/EasyOCR) (multi-language, good for noisy scans)
-- **Cloud Fallbacks:**
-  - [`google-cloud-vision`](https://cloud.google.com/vision) (API, high accuracy, especially for complex layouts)
-  - [`boto3`] (Amazon Textract, API, good for forms and tables)
-- **Selection Strategy:**
-  - Use Tesseract for most documents
-  - Use Google Vision for complex layouts or when Tesseract fails
-  - Use Textract for low-quality scans or forms
+## OCR Stack (2024 Update)
 
-## Table Extraction
-- **Digital PDFs:** [`camelot-py`](https://github.com/camelot-dev/camelot) (best for native PDFs)
-- **Alternative:** [`tabula-py`](https://github.com/chezou/tabula-py) (Java dependency, robust)
-- **Scanned Tables:** [`layoutparser`](https://github.com/Layout-Parser/layout-parser) + OCR (detects table regions, then runs OCR)
+### Primary Stack
+- **Base OCR:** PaddleOCR (state-of-the-art open-source OCR)
+  - Superior accuracy compared to Tesseract
+  - Built-in layout analysis
+  - Multi-language support
+  - GPU acceleration
+- **Layout Analysis:** Microsoft's LayoutLMv3
+  - Pre-trained on document understanding
+  - Joint OCR and layout analysis
+  - Superior form and table understanding
 
-## Document Parsing & Structure
-- **PDF Parsing:** [`pdfplumber`](https://github.com/jsvine/pdfplumber), [`PyPDF2`](https://github.com/py-pdf/PyPDF2), [`pypdf`](https://github.com/py-pdf/pypdf)
-- **PDF to Image:** [`pdf2image`](https://github.com/Belval/pdf2image)
-- **NER & Structure:** [`spaCy`](https://spacy.io/), [`transformers`](https://huggingface.co/transformers/) (for custom NER)
+### Backup Solutions
+- **Cloud Services:**
+  - Azure Form Recognizer (best for forms and structured documents)
+  - Google Cloud Vision API (excellent for complex layouts)
+  - Amazon Textract (strong table extraction)
+- **Traditional:** Tesseract 5.0+ (fallback for simple documents)
 
-## Fallback & Quality Strategy
-- Always start with open-source (Tesseract, Camelot)
-- If extraction fails or quality is low, escalate to cloud APIs (Google Vision, Textract)
-- For tables in scanned docs, use `layoutparser` to detect and crop table regions, then OCR
-- Use post-processing (spellcheck, normalization) to improve OCR output
+## Table Extraction (2024 Stack)
 
-## General Guidelines
-- **No legacy or unmaintained libraries** (e.g., avoid old wrappers or abandoned projects)
-- **Python 3.10+** for best compatibility
-- **All dependencies should be actively maintained and support modern Python**
+### Modern Approach
+1. **Layout Detection:**
+   - LayoutLMv3 for table boundary detection
+   - PaddleOCR's table structure recognition
+   
+2. **Extraction Tools:**
+   - Camelot-py 0.11+ (for digital PDFs)
+   - Table Transformer (DETR) for scanned tables
+   - Nougat for complex academic/technical tables
 
----
+3. **Post-processing:**
+   - Structure validation with pandas
+   - Cell content normalization
+   - Table relationship mapping
+
+## Document Processing Pipeline
+
+```python
+from paddleocr import PaddleOCR
+from transformers import LayoutLMv3Processor, LayoutLMv3ForSequenceClassification
+import torch
+
+class ModernOCRPipeline:
+    def __init__(self):
+        # Initialize PaddleOCR with latest model
+        self.ocr = PaddleOCR(
+            use_angle_cls=True,
+            lang='en',
+            use_gpu=torch.cuda.is_available(),
+            show_log=False
+        )
+        
+        # Initialize LayoutLM
+        self.layout_processor = LayoutLMv3Processor.from_pretrained(
+            "microsoft/layoutlmv3-base"
+        )
+        self.layout_model = LayoutLMv3ForSequenceClassification.from_pretrained(
+            "microsoft/layoutlmv3-base"
+        )
+        
+    async def process_document(self, image_path):
+        """Process document with modern OCR pipeline"""
+        # Perform OCR with PaddleOCR
+        result = await self.ocr.ocr(image_path, cls=True)
+        
+        # Extract layout information
+        layout_info = self._analyze_layout(image_path, result)
+        
+        # Structure recognition
+        structured_data = self._extract_structured_data(result, layout_info)
+        
+        return {
+            'text': structured_data['text'],
+            'tables': structured_data['tables'],
+            'forms': structured_data['forms'],
+            'layout': layout_info,
+            'confidence': structured_data['confidence']
+        }
+```
+
+## Quality Assurance (2024 Standards)
+
+### Automated QA Pipeline
+1. **Content Validation:**
+   - Language model-based text coherence check
+   - Domain-specific terminology verification
+   - Table structure validation
+
+2. **Quality Metrics:**
+   - Character-level confidence scores
+   - Layout consistency checks
+   - Table structure completeness
+
+3. **Error Detection:**
+   ```python
+   def validate_extraction(self, extraction_result):
+       """Validate extraction results using modern QA pipeline"""
+       validations = {
+           'text_quality': self._validate_text_quality(extraction_result['text']),
+           'table_structure': self._validate_tables(extraction_result['tables']),
+           'layout_consistency': self._check_layout_consistency(extraction_result['layout'])
+       }
+       
+       return ValidationResult(
+           is_valid=all(v['passed'] for v in validations.values()),
+           details=validations,
+           confidence=self._calculate_overall_confidence(validations)
+       )
+   ```
+
+## Performance Optimization
+
+### Hardware Acceleration
+- CUDA support for GPU acceleration
+- Batch processing for multiple documents
+- Async processing pipeline
+
+### Memory Management
+- Streaming large documents
+- Efficient image preprocessing
+- Resource pooling
+
+## Integration Guidelines
+
+### API Design
+```python
+from fastapi import FastAPI, File, UploadFile
+from typing import List
+
+app = FastAPI()
+
+@app.post("/process-document")
+async def process_document(
+    file: UploadFile,
+    options: DocumentProcessingOptions
+) -> ProcessingResult:
+    """
+    Process document with modern OCR pipeline
+    """
+    async with ModernOCRPipeline() as pipeline:
+        result = await pipeline.process_document(file)
+        return ProcessingResult(
+            text=result['text'],
+            tables=result['tables'],
+            metadata=result['metadata'],
+            confidence=result['confidence']
+        )
+```
+
+### Error Handling
+- Graceful degradation strategy
+- Automatic retries with exponential backoff
+- Comprehensive error reporting
+
+## Monitoring & Observability
+
+### Metrics Collection
+- Processing time per page
+- OCR confidence scores
+- Error rates and types
+- Resource utilization
+
+### Logging
+```python
+import structlog
+
+logger = structlog.get_logger()
+
+class OCRMonitoring:
+    async def track_processing(self, document_id: str, metrics: dict):
+        """Track OCR processing metrics"""
+        logger.info(
+            "document_processed",
+            document_id=document_id,
+            processing_time=metrics['processing_time'],
+            confidence_score=metrics['confidence'],
+            error_rate=metrics['error_rate'],
+            resource_usage=metrics['resource_usage']
+        )
+```
+
+## Security Considerations
+
+### Data Protection
+- Document encryption at rest
+- Secure processing pipeline
+- Access control and audit logging
+
+### Compliance
+- HIPAA compliance for medical documents
+- GDPR requirements for PII
+- SOC 2 compliance measures
 
 # OCR Implementation
 

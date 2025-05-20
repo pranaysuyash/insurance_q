@@ -1,0 +1,276 @@
+"""
+OCR service for processing documents using Hugging Face APIs via OCRPipeline,
+and then triggering ingestion into the RAG service.
+"""
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi.middleware.cors import CORSMiddleware
+import os
+import redis
+import httpx # For making requests to RAG service
+from typing import Optional, Dict, Any, List # Added List
+import json
+import logging
+
+# Correct import for Docker and local
+from src.ocr.pipeline import OCRPipeline # Refactored pipeline
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
+
+app = FastAPI(
+    title="Insurance Policy OCR Service (HF API based)",
+    description="Service for extracting text and structure using Hugging Face APIs, and triggering RAG ingestion.",
+    version="2.0.0" # Version updated
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Adjust for production - Corrected escaping
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Service Configurations ---
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8001") # Default internal Docker URL for RAG service
+
+# --- Initialize Redis Client ---
+redis_client: Optional[redis.Redis] = None
+try:
+    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True) # decode_responses=True for text
+    redis_client.ping()
+    logger.info(f"Successfully connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+except redis.exceptions.ConnectionError as e:
+    logger.error(f"Could not connect to Redis at {REDIS_HOST}:{REDIS_PORT}: {e}. Caching will be disabled.")
+    redis_client = None # Allow service to run, but caching features will be affected
+
+# --- Initialize OCR Pipeline ---
+try:
+    # The refactored OCRPipeline uses os.getenv internally for its HF_TOKEN
+    ocr_pipeline = OCRPipeline()
+    logger.info("OCRPipeline initialized successfully.")
+except Exception as e:
+    logger.error(f"Critical error initializing OCRPipeline: {e}", exc_info=True)
+    ocr_pipeline = None # Service will be unhealthy if pipeline fails to init
+
+# --- HTTP Client for Inter-Service Communication ---
+# It's good practice to manage the client's lifecycle, e.g., with context managers or FastAPI lifespan events.
+# For simplicity here, a global client is used. Consider lifespan management for production.
+http_client = httpx.AsyncClient(timeout=30.0) # Timeout for requests to RAG service
+
+# --- Helper for Redis ---
+def store_in_redis(key: str, data: Dict[str, Any], ex: Optional[int] = 3600): # ex in seconds (1 hour)
+    if redis_client:
+        try:
+            redis_client.set(key, json.dumps(data), ex=ex)
+            logger.debug(f"Stored data in Redis with key: {key}")
+        except redis.exceptions.RedisError as e:
+            logger.warning(f"Failed to store data in Redis for key {key}: {e}")
+
+def get_from_redis(key: str) -> Optional[Dict[str, Any]]:
+    if redis_client:
+        try:
+            cached_data_json = redis_client.get(key)
+            if cached_data_json:
+                logger.debug(f"Retrieved data from Redis for key: {key}")
+                return json.loads(cached_data_json)
+        except redis.exceptions.RedisError as e:
+            logger.warning(f"Failed to get data from Redis for key {key}: {e}")
+    return None
+
+# --- API Endpoints ---
+
+@app.post("/process_and_ingest")
+async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
+    """
+    Processes an uploaded document using OCRPipeline.
+    If successful, triggers ingestion of the structured data into the RAG service.
+    Stores the full OCR result in Redis for caching/debugging.
+    """
+    if ocr_pipeline is None:
+        logger.error("Process attempt failed: OCR Pipeline is not available.")
+        raise HTTPException(status_code=503, detail="OCR Pipeline is not available. Service might be misconfigured.")
+
+    # Basic file type validation
+    allowed_extensions = ('.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp')
+    file_ext = ""
+    if file.filename:
+        file_ext = os.path.splitext(file.filename.lower())[1]
+    
+    if not file.filename or file_ext not in allowed_extensions:
+        supported_formats_str = ', '.join(allowed_extensions)
+        detail_msg = f"Unsupported file format. Supported: {supported_formats_str}"
+        raise HTTPException(status_code=400, detail=detail_msg)
+    
+    file_type_for_pipeline = file_ext.strip('.')
+    document_id = file.filename # Using filename as document_id, ensure it's unique or generate one
+    
+    logger.info(f"Processing document: {document_id}, type: {file_type_for_pipeline}")
+
+    try:
+        content = await file.read()
+        
+        # Define layout questions for the OCR pipeline (can be customized)
+        # Example: Could be loaded from a config file or passed via request in a more advanced setup
+        ocr_layout_questions = [
+            {"id": "doc_title", "type": "title", "question": "What is the title of this document?"},
+            {"id": "doc_date", "type": "date", "question": "What is the main date mentioned?"},
+            {"id": "invoice_number", "type": "invoice_id", "question": "What is the invoice number?"},
+            {"id": "customer_name", "type": "person_or_org", "question": "What is the customer or company name?"}
+        ]
+
+        ocr_result_data = await ocr_pipeline.process_document(
+            file_content=content,
+            file_type=file_type_for_pipeline,
+            filename=document_id,
+            layout_questions_config=ocr_layout_questions
+        )
+
+        if ocr_result_data.get("status") != "success":
+            error_detail = ocr_result_data.get('error', "Unknown OCR processing error.")
+            logger.error(f"OCRPipeline processing failed for {document_id}: {error_detail}")
+            raise HTTPException(status_code=500, detail=f"OCR processing failed: {error_detail}")
+
+        # OCR successful, store the full result in Redis
+        redis_key = f"ocr_cache:{document_id}"
+        store_in_redis(redis_key, ocr_result_data, ex=7200) # Cache for 2 hours
+        logger.info(f"OCR processing successful for {document_id}. Full result cached in Redis.")
+
+        # Now, prepare data and trigger ingestion into RAG service
+        # The actual result from OCR is in ocr_result_data["result"]
+        actual_ocr_output = ocr_result_data.get("result", {})
+        text_blocks_for_rag = actual_ocr_output.get("text_blocks", [])
+        document_metadata_for_rag = actual_ocr_output.get("metadata", {})
+        # Add any other relevant top-level metadata from OCR output if needed for RAG payload
+        # For example, if full_text is needed in RAG's document metadata (not per block):
+        # document_metadata_for_rag["ocr_full_text"] = actual_ocr_output.get("full_text")
+
+        if not text_blocks_for_rag:
+            logger.warning(f"No text blocks extracted by OCR for {document_id}. RAG ingestion will be skipped.")
+            return {
+                "message": "Document processed by OCR, but no text blocks found for RAG ingestion.",
+                "filename": document_id,
+                "ocr_doc_key": redis_key, # Key to retrieve full OCR data
+                "rag_ingestion_status": "skipped_no_text_blocks"
+            }
+
+        ingest_payload = {
+            "document_id": document_id, # Ensure this ID is what RAG service expects
+            "text_blocks": text_blocks_for_rag,
+            "document_metadata": document_metadata_for_rag
+        }
+        
+        rag_ingest_url = f"{RAG_SERVICE_URL.rstrip('/')}/ingest"
+        logger.info(f"Attempting to send processed data for {document_id} to RAG service at {rag_ingest_url}")
+        
+        rag_ingestion_status = "failed"
+        rag_ingestion_detail = "Unknown error during RAG ingestion call."
+
+        try:
+            response_from_rag = await http_client.post(rag_ingest_url, json=ingest_payload)
+            response_from_rag.raise_for_status() # Raises HTTPStatusError for 4xx/5xx responses
+            rag_response_json = response_from_rag.json()
+            
+            if rag_response_json.get("status") == "success":
+                rag_ingestion_status = "success"
+                rag_ingestion_detail = f"Successfully ingested. Points added: {rag_response_json.get('points_added', 'N/A')}"
+                logger.info(f"RAG ingestion successful for {document_id}: {rag_ingestion_detail}")
+            else:
+                rag_ingestion_detail = rag_response_json.get("error", "RAG service reported an error.")
+                logger.error(f"RAG ingestion failed for {document_id} (RAG service error): {rag_ingestion_detail}")
+
+        except httpx.RequestError as exc: # Covers network errors, DNS failures, etc.
+            rag_ingestion_detail = f"RAG service request failed: {exc}"
+            logger.error(f"HTTP request to RAG service failed for {document_id}: {exc}", exc_info=True)
+        except httpx.HTTPStatusError as exc: # For 4xx/5xx errors from RAG service
+            rag_ingestion_detail = f"RAG service returned error {exc.response.status_code}: {exc.response.text[:200]}"
+            logger.error(f"RAG service returned status error for {document_id}: {rag_ingestion_detail}", exc_info=True)
+        except json.JSONDecodeError as exc:
+            rag_ingestion_detail = f"Failed to decode RAG service response: {exc}"
+            logger.error(f"Could not decode JSON response from RAG service for {document_id}: {exc}", exc_info=True)
+
+
+        return {
+            "message": "Document OCR processing complete.",
+            "filename": document_id,
+            "ocr_doc_key": redis_key,
+            "rag_ingestion_status": rag_ingestion_status,
+            "rag_ingestion_detail": rag_ingestion_detail,
+            "ocr_metadata": document_metadata_for_rag # Return OCR metadata like page count
+        }
+    
+    except HTTPException as he: # Re-raise HTTPExceptions
+        logger.warning(f"HTTPException during processing of {file.filename if file else 'unknown file'}: {he.detail}")
+        raise he
+    except Exception as e:
+        logger.error(f"Unexpected error in /process_and_ingest for {file.filename if file else 'unknown file'}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Server error during document processing: {str(e)}")
+
+
+@app.get("/cached_ocr_data/{doc_id}")
+async def get_cached_ocr_document_data(doc_id: str):
+    """Retrieve all processed OCR data (text, layout, etc.) for a given document ID from Redis."""
+    redis_key = f"ocr_cache:{doc_id}"
+    stored_data = get_from_redis(redis_key)
+    
+    if not stored_data:
+        logger.info(f"No cached OCR data found for doc_id: {doc_id} (key: {redis_key})")
+        raise HTTPException(status_code=404, detail=f"No cached OCR data found for document ID: {doc_id}")
+    
+    logger.info(f"Returning cached OCR data for doc_id: {doc_id}")
+    # The data stored is already the full response from OCRPipeline.process_document
+    return {"doc_id": doc_id, "cached_ocr_result": stored_data}
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for OCR service."""
+    ocr_pipeline_status = "available" if ocr_pipeline is not None else "unavailable"
+    redis_connection_status = "unavailable"
+    
+    if redis_client:
+        try:
+            redis_client.ping()
+            redis_connection_status = "connected"
+        except redis.exceptions.ConnectionError as e:
+            redis_connection_status = f"connection_error: {str(e)[:50]}"
+            logger.warning(f"Health check: Redis ping failed: {e}")
+        except Exception as e: # Catch other potential Redis client errors
+            redis_connection_status = f"error: {str(e)[:50]}"
+            logger.warning(f"Health check: Redis client error: {e}")
+
+
+    final_status = "healthy" if ocr_pipeline_status == "available" and redis_connection_status == "connected" else "unhealthy"
+    
+    return {
+        "status": final_status,
+        "ocr_pipeline": ocr_pipeline_status,
+        "redis": redis_connection_status,
+        "rag_service_url_configured": RAG_SERVICE_URL # To check config
+    }
+
+# Lifecycle events for httpx client (good practice for production)
+@app.on_event("startup")
+async def startup_event():
+    global http_client
+    http_client = httpx.AsyncClient(timeout=30.0)
+    logger.info("OCR Service started up, httpx.AsyncClient initialized.")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await http_client.aclose()
+    logger.info("OCR Service shutting down, httpx.AsyncClient closed.")
+
+# To run this service directly (e.g., for local testing without docker-compose)
+# if __name__ == "__main__":
+#     uvicorn.run(
+#         "src.ocr.service:app",
+#         host=os.getenv("HOST", "0.0.0.0"),
+#         port=int(os.getenv("PORT", 8000)), # Default OCR port
+#         log_level=os.getenv("LOG_LEVEL", "info").lower(),
+#         reload=True 
+#     ) 
