@@ -231,6 +231,37 @@ The app implements a freemium model designed to generate quality insurance leads
 
 ---
 
+## Implementation Status & TODOs
+
+### Current Status
+- Flutter project scaffolded in `mobile/` directory
+- Latest dependencies added: Riverpod, Dio, PDFx, Firebase, Hive, etc.
+- Modern folder structure created
+- `main.dart` with Material 3, Riverpod, and bottom navigation
+- Stubs for all main screens (Home, Documents, QA, Family, More)
+
+### Next Steps / TODOs
+- [ ] Set up environment config for backend API endpoints (dev/prod)
+- [ ] Implement health check screen to verify backend connectivity
+- [ ] Scaffold document upload UI and integrate with `/upload` endpoint
+- [ ] Scaffold QA interface (question input, call `/query`, show answer)
+- [ ] Add error handling and loading indicators for API calls
+- [ ] Implement user authentication (Firebase Auth integration)
+- [ ] Add family management UI and backend integration
+- [ ] Implement document list and detail views (PDF viewer, extracted sections)
+- [ ] Add policy comparison UI and logic
+- [ ] Implement notifications (Firebase Messaging, local notifications)
+- [ ] Add settings, theming, and preferences screens
+- [ ] Write widget/unit tests for core features
+- [ ] Update documentation as features are built
+
+---
+
+**To test the current app:**
+1. `cd mobile`
+2. `flutter run` (on emulator or device)
+3. You'll see navigation and screen stubs; backend integration coming next.
+
 **See also:**
 - [Comprehensive Architecture](../technical/unified_architecture/comprehensive_architecture.md)
 - [API Documentation](../reference/api_documentation/)
