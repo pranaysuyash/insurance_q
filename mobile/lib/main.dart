@@ -141,11 +141,81 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Future<void> _uploadFile() async {
     if (_selectedFile == null) return;
+    
+    // Check for duplicate documents first
+    final duplicate = await _apiService.checkForDuplicateDocument(_selectedFile!);
+    
+    if (duplicate != null) {
+      // Show confirmation dialog for duplicate
+      final shouldReplace = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Duplicate Document'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('A similar document already exists:'),
+              const SizedBox(height: 8),
+              Text(
+                duplicate.filename,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text('Uploaded on: ${duplicate.formattedUploadDate}'),
+              const SizedBox(height: 16),
+              const Text(
+                'Uploading this document will count against your storage limit. Do you want to replace the existing document or keep both?',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Replace'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Keep Both'),
+            ),
+          ],
+        ),
+      );
+      
+      // If cancel was selected, stop the upload
+      if (shouldReplace == false) {
+        return;
+      }
+      
+      // If replace was selected, delete the existing document first
+      if (shouldReplace == true) {
+        setState(() {
+          _isUploading = true;
+        });
+        
+        final deleted = await _apiService.deleteDocument(duplicate.id);
+        if (!deleted) {
+          setState(() {
+            _isUploading = false;
+            _uploadError = 'Failed to delete existing document';
+          });
+          return;
+        }
+      }
+      // If "Keep Both" was selected (shouldReplace is null), continue with upload
+    }
+    
     setState(() {
       _isUploading = true;
       _uploadError = null;
       _ocrResult = null;
     });
+    
     try {
       final result = await _apiService.uploadDocumentWithLimitCheck(_selectedFile!);
       setState(() {

@@ -101,4 +101,48 @@ class LocalStorageService {
     final jsonStrings = documents.map((doc) => doc.toJsonString()).toList();
     await prefs.setStringList(_documentsKey, jsonStrings);
   }
+  
+  // Check if a document with the same filename already exists
+  Future<InsuranceDocument?> findDuplicateDocument(String filename) async {
+    final documents = await getDocuments();
+    
+    // First check for exact filename match
+    for (final doc in documents) {
+      if (doc.filename.toLowerCase() == filename.toLowerCase()) {
+        return doc;
+      }
+    }
+    
+    // Then check for similar filenames (ignoring version numbers or timestamps)
+    // This handles cases like "policy_v1.pdf" and "policy_v2.pdf"
+    final baseFilename = _getBaseFilename(filename);
+    if (baseFilename.isNotEmpty) {
+      for (final doc in documents) {
+        final docBaseFilename = _getBaseFilename(doc.filename);
+        if (docBaseFilename == baseFilename) {
+          return doc;
+        }
+      }
+    }
+    
+    return null; // No duplicate found
+  }
+  
+  // Helper to extract base filename by removing version numbers and common suffixes
+  String _getBaseFilename(String filename) {
+    // Remove file extension
+    final withoutExtension = filename.contains('.')
+        ? filename.substring(0, filename.lastIndexOf('.'))
+        : filename;
+    
+    // Remove common patterns like _v1, -2, (2023-05-01), etc.
+    final baseFilename = withoutExtension
+        .replaceAll(RegExp(r'[-_]v\d+$'), '') // Remove _v1, -v2, etc.
+        .replaceAll(RegExp(r'[-_]rev\d+$'), '') // Remove _rev1, -rev2
+        .replaceAll(RegExp(r'[-_]\d+$'), '') // Remove _1, -2, etc.
+        .replaceAll(RegExp(r'\(\d{4}-\d{2}-\d{2}\)$'), '') // Remove dates like (2023-05-01)
+        .trim();
+    
+    return baseFilename;
+  }
 } 

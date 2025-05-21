@@ -278,6 +278,12 @@ class ApiService {
     }
   }
 
+  // This function checks if a document already exists with the same name
+  Future<InsuranceDocument?> checkForDuplicateDocument(File file) async {
+    final filename = file.path.split('/').last;
+    return await _localStorageService.findDuplicateDocument(filename);
+  }
+
   // This function checks if we have reached the document limit and
   // deletes the oldest document if necessary before uploading
   Future<Map<String, dynamic>> uploadDocumentWithLimitCheck(File file) async {

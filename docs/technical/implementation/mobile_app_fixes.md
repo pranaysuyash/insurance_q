@@ -95,6 +95,19 @@
   - Added storage for the most recently viewed document ID
   - Improved the document loading sequence to ensure documents are loaded before selection logic runs
 
+## Storage Optimization Features
+
+### Duplicate Document Detection
+- **Issue**: Users could accidentally upload the same document multiple times, wasting their limited storage quota
+- **Fix**:
+  - Added duplicate document detection that checks both exact filename matches and similar filenames (ignoring version numbers or timestamps)
+  - Implemented a confirmation dialog when duplicates are found with three options:
+    1. Cancel: Abort the upload entirely
+    2. Replace: Delete the existing document first, then upload the new one
+    3. Keep Both: Continue with the upload, keeping both documents
+  - The dialog shows information about the existing document (filename and upload date) to help users make informed decisions
+  - Prevents users from accidentally wasting their 5-document storage limit
+
 ## Offline Capability
 
 ### Local Storage Implementation
