@@ -265,4 +265,48 @@ The app implements a freemium model designed to generate quality insurance leads
 **See also:**
 - [Comprehensive Architecture](../technical/unified_architecture/comprehensive_architecture.md)
 - [API Documentation](../reference/api_documentation/)
-- [Modern Stack Overview](../technical/modern_stack_overview.md) 
+- [Modern Stack Overview](../technical/modern_stack_overview.md)
+
+---
+
+## QA Experience Design
+
+### 1. Common Questions on Main Page
+- Display a horizontal or grid list of "Common Questions" (e.g., "What is my policy number?", "What is the coverage amount?", "When does my policy expire?").
+- Tapping a question instantly sends it to the backend and displays the answer.
+- These questions can be dynamic (fetched from backend) or static (hardcoded for now).
+
+### 2. Ask Questions as Chat
+- Below the common questions, have a "Chat with PolicyBot" section.
+- This is a chat-style interface:
+  - User types a question (or selects from suggestions).
+  - The conversation appears as a chat thread (user messages on right, bot answers on left).
+  - Each answer can show sources/citations.
+  - Option to "bookmark" or "copy" an answer.
+
+### 3. Upload Limit Enforcement
+- Track the number of documents uploaded by the user.
+- If the user tries to upload more than 3 (or 5), show a modal or banner:
+  - "You've reached your free upload limit! Connect with an insurance expert to unlock more features."
+  - Provide options: "Schedule a call", "Chat with agent", "Request callback".
+
+### 4. Optional Enhancements
+- Show a "Recent Questions" section for quick repeat queries.
+- Allow voice input for questions (using `speech_to_text` package).
+- Show a "Why talk to an agent?" info section after the limit is reached.
+
+### Implementation Plan
+1. Add a `common_questions.dart` widget for the main page.
+2. Create a `qa_chat_screen.dart` with chat UI and backend integration.
+3. Implement upload limit logic (can be tracked locally or via backend).
+4. Show agent prompt modal/banner when limit is reached.
+
+### Example UI Flow
+- **Home Screen:**
+  - [Common Questions Grid]
+  - ["Ask PolicyBot" Chat Button]
+  - [Recent Questions List]
+- **QA Chat Screen:**
+  - [Chat Thread]
+  - [Input Field + Send Button]
+  - [Upload Limit Banner/Modal if needed] 
