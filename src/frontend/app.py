@@ -161,8 +161,12 @@ async def upload_document(file: UploadFile = File(...)):
         
         # Convert layout_elements into a simpler dictionary for the template if needed,
         # or the template can iterate through the list of dicts.
-        # For now, pass as is.
-
+        # Group layout elements by ID to create sections
+        sections = {}
+        for element in layout_elements:
+            element_id = element.get('id', 'unknown')
+            sections[element_id] = element.get('text', '')
+        
         logger.info("document_upload_data_prepared_for_frontend", filename=filename, doc_key=ocr_doc_key)
         
         return {
@@ -170,7 +174,8 @@ async def upload_document(file: UploadFile = File(...)):
             "filename": filename,
             "doc_key": ocr_doc_key, # This is the key for cached OCR data
             "text": display_text,
-            "layout_elements": layout_elements # Pass the list of layout elements
+            "layout_elements": layout_elements, # Pass the list of layout elements
+            "sections": sections  # Add the sections dictionary
         }
             
     except httpx.HTTPStatusError as e:
@@ -196,9 +201,16 @@ async def query_document(query: Query):
         # The RAG service now returns APIResponse(status="success", result=QueryResponse(...))
         # We should return the content of result['result'] to match frontend expectations if any, 
         # or update frontend to handle the new APIResponse structure.
-        # Assuming frontend expects the inner dict for now.
         if result.get("status") == "success" and isinstance(result.get("result"), dict):
-            return result["result"] 
+            # Ensure sources are properly formatted as objects not strings
+            response_data = result["result"]
+            # Convert sources if needed
+            if isinstance(response_data.get("sources"), list):
+                # Make sure each source is a properly formatted object
+                for i, source in enumerate(response_data["sources"]):
+                    if not isinstance(source, dict):
+                        response_data["sources"][i] = {"source_text": str(source)}
+            return response_data
         else:
             logger.error("rag_service_unexpected_response", query=query.query, response=result)
             return result # Or raise HTTPException

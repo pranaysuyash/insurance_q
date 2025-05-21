@@ -120,6 +120,16 @@
                                 <p class="text-sm mt-2">${value}</p>
                             </div>
                         `).join('');
+                } else if (data.layout_elements && data.layout_elements.length > 0) {
+                    extractedSections.innerHTML = data.layout_elements
+                        .map(element => `
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-semibold text-gray-700">${element.id || element.type || 'Section'}</h4>
+                                <p class="text-sm mt-2">${element.answer || element.text || 'No content'}</p>
+                            </div>
+                        `).join('');
+                } else {
+                    extractedSections.innerHTML = '<p class="text-gray-500">No sections extracted</p>';
                 }
 
                 // Display full text
@@ -161,7 +171,7 @@
                 // Display sources if available
                 if (data.sources && data.sources.length > 0) {
                     sourcesList.innerHTML = data.sources
-                        .map(source => `<li>${source}</li>`)
+                        .map(source => `<li>Page ${source.page_number || 'N/A'}, Document: ${source.document_id || 'Unknown'} (Score: ${source.score ? source.score.toFixed(2) : 'N/A'})</li>`)
                         .join('');
                     document.getElementById('sourcesSection').classList.remove('hidden');
                 } else {
