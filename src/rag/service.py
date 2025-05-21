@@ -147,9 +147,59 @@ async def query_rag_system(request: QueryRequest) -> APIResponse:
                 detail=error_msg
             )
         
-        # The pipeline now returns {"status": "success", "result": final_response}
-        # where final_response is {"answer": ..., "sources": ...}
-        return APIResponse(status="success", result=QueryResponse(**result_dict["result"])) 
+        # Comprehensive validation of response structure
+        if not isinstance(result_dict, dict):
+            logger.error(f"Pipeline returned non-dict result: {type(result_dict)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Unexpected response format from RAG pipeline: not a dictionary"
+            )
+            
+        # The pipeline returns {"status": "success", "result": final_response}
+        if "status" not in result_dict:
+            logger.error(f"Pipeline response missing 'status' key: {list(result_dict.keys())}")
+            raise HTTPException(
+                status_code=500,
+                detail="Unexpected response format from RAG pipeline: missing status"
+            )
+            
+        if result_dict.get("status") != "success":
+            logger.error(f"Pipeline returned non-success status: {result_dict.get('status')}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Query processing failed with status: {result_dict.get('status')}"
+            )
+            
+        if "result" not in result_dict:
+            logger.error(f"Missing 'result' key in query response: {list(result_dict.keys())}")
+            raise HTTPException(
+                status_code=500,
+                detail="Unexpected response format from RAG pipeline: missing result"
+            )
+            
+        # If result is not a dictionary with expected fields, handle the error
+        result = result_dict["result"]
+        if not isinstance(result, dict):
+            logger.error(f"Result is not a dictionary: {type(result)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Unexpected result format: not a dictionary"
+            )
+            
+        # Check for required fields in the result
+        required_fields = ["answer"]
+        missing_fields = [field for field in required_fields if field not in result]
+        if missing_fields:
+            logger.error(f"Result missing required fields: {missing_fields}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected result format: missing {', '.join(missing_fields)}"
+            )
+            
+        logger.info(f"Successfully processed query: '{request.query}'")
+        
+        # Return the response in the expected format
+        return APIResponse(status="success", result=result_dict["result"]) 
 
     except HTTPException as he:
         raise he

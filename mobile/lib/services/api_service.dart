@@ -63,20 +63,27 @@ class ApiService {
     try {
       // Try to connect to backend for real answers
       try {
+        // Force cache invalidation using timestamp
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        
         // Build the query payload according to the API's expected format
         Map<String, dynamic> data = {
           'query': query,
+          '_cache_buster': timestamp.toString(), // Force cache invalidation
         };
         
         // Only add filters if a document ID is specified
         if (documentId != null) {
+          print('Using document filter: $documentId');
           data['filters'] = {
             'document_id': documentId
           };
+        } else {
+          print('No document filter specified');
         }
         
         print('Sending query to: ${_dio.options.baseUrl}/query');
-        print('Query data: $data');
+        print('Full query data: $data');
         
         // Use correct content type and improved error handling
         Response response = await _dio.post(
@@ -94,24 +101,123 @@ class ApiService {
         print('Response data type: ${response.data.runtimeType}');
         print('Response data: ${response.data}');
         
+        // Log detailed response for debugging
+        if (response.statusCode != 200) {
+          print('ERROR RESPONSE: ${response.data}');
+        }
+        
         // Handle different response formats based on status code
         if (response.statusCode == 200) {
           final responseData = response.data;
           
-          // New format has 'status' and 'result' fields
-          if (responseData is Map<String, dynamic> && responseData.containsKey('status')) {
-            if (responseData['status'] == 'success') {
-              // Extract the result from the API response
-              if (responseData.containsKey('result')) {
-                return responseData['result'];
+          // Handle three potential response formats:
+          
+          // Format 1: Direct answer object
+          if (responseData is Map<String, dynamic> && 
+              responseData.containsKey('answer') && 
+              !responseData.containsKey('status')) {
+            print('Processing direct answer format');
+            return responseData;
+          }
+          
+          // Format 2: Status+result wrapper (most common and expected format)
+          if (responseData is Map<String, dynamic> && 
+              responseData.containsKey('status') && 
+              responseData['status'] == 'success') {
+            print('Processing status+result format');
+            if (responseData.containsKey('result')) {
+              final result = responseData['result'];
+              if (result is Map<String, dynamic>) {
+                return result;
+              } else {
+                print('WARNING: result is not a Map: ${result.runtimeType}');
+                // Handle case where result is not a map but has valid content
+                return {
+                  'answer': 'The response format from the server was unexpected. Raw result: $result',
+                  'sources': []
+                };
+              }
+            } else {
+              print('WARNING: success response missing result field');
+              // Improved fallback for missing result field
+              return {
+                'answer': 'The server response was incomplete. Please try again.',
+                'sources': []
+              };
+            }
+          }
+          
+          // Format 3: Unknown but valid response - try to extract answer
+          print('Processing unknown format, attempting extraction');
+          if (responseData is Map<String, dynamic>) {
+            // Try to extract answer and sources
+            final Map<String, dynamic> result = {};
+            if (responseData.containsKey('answer')) {
+              result['answer'] = responseData['answer'];
+            }
+            if (responseData.containsKey('sources')) {
+              result['sources'] = responseData['sources'];
+            }
+            if (result.isNotEmpty) {
+              return result;
+            }
+          }
+          
+          // If all structured attempts fail, just return the raw response with error indication
+          return {
+            'answer': 'The system returned an unexpected response format. Please try again later.',
+            'error': 'Unexpected response format',
+            'debug_response': responseData.toString().substring(0, min(500, responseData.toString().length)),
+          };
+        } else if (response.statusCode == 500 && response.data is Map<String, dynamic>) {
+          // Handle 500 errors, which may contain useful error information
+          final error = response.data;
+          String errorMessage = 'Server error';
+          
+          // Try to extract error details
+          if (error.containsKey('detail')) {
+            errorMessage = error['detail'];
+            print('Server returned error: $errorMessage');
+          }
+          
+          // Special case for RAG service 'result' missing error
+          if (errorMessage.contains('result')) {
+            print('RAG service missing result field error detected');
+            return {
+              'answer': 'I apologize, but there was a problem retrieving your policy information. This might be due to a temporary issue with the document processing system. Please try again in a few minutes.',
+              'sources': [],
+              'error': errorMessage,
+            };
+          }
+          
+          // Special case for RAG service errors
+          if (errorMessage.contains('Error communicating with RAG service')) {
+            print('RAG service communication error detected');
+            
+            // Try to extract nested JSON error if present
+            if (errorMessage.contains('{') && errorMessage.contains('}')) {
+              try {
+                // Attempt to extract JSON from string
+                final startIndex = errorMessage.indexOf('{');
+                final endIndex = errorMessage.lastIndexOf('}') + 1;
+                if (startIndex >= 0 && endIndex > startIndex) {
+                  final jsonStr = errorMessage.substring(startIndex, endIndex);
+                  
+                  print('Trying to parse nested JSON error: $jsonStr');
+                }
+              } catch (e) {
+                print('Failed to parse nested JSON error: $e');
               }
             }
           }
           
-          // If we get here, assume the data is the direct response
-          return responseData;
+          // Return a friendlier error message to user
+          return {
+            'answer': 'I\'m sorry, but I couldn\'t process your question at this time. There seems to be a temporary issue with the AI service. Please try again later.',
+            'sources': [],
+            'error': errorMessage,
+          };
         } else {
-          print('Error status code: ${response.statusCode}');
           throw DioException(
             requestOptions: RequestOptions(path: '/query'),
             response: response,
@@ -123,19 +229,33 @@ class ApiService {
         // Log the full error for debugging
         print('Error with real query: $e');
         
-        // Fallback to mock response
+        // For network errors (like connection refused), return a different error message
+        if (e is DioException && 
+            (e.type == DioExceptionType.connectionTimeout || 
+             e.type == DioExceptionType.connectionError ||
+             e.type == DioExceptionType.unknown)) {
+          return {
+            'answer': 'I\'m having trouble connecting to the AI service. Please check your network connection and try again.',
+            'sources': [],
+            'error': 'Connection error: ${e.message}',
+          };
+        }
+        
+        // For other errors, provide a meaningful message
         return {
-          'answer': 'This is a mock answer to your query: $query',
-          'sources': [
-            {'text': 'Mock source 1', 'page_number': 1},
-            {'text': 'Mock source 2', 'page_number': 2}
-          ]
+          'answer': 'There was a problem processing your question. Please try again later.',
+          'sources': [],
+          'error': e.toString(),
         };
       }
     } catch (e) {
       print('Error with query: $e');
       return {'error': e.toString()};
     }
+  }
+
+  int min(int a, int b) {
+    return a < b ? a : b;
   }
 
   Future<List<InsuranceDocument>> getDocuments() async {

@@ -362,7 +362,28 @@ class RAGPipeline:
                 cached_result = self.cache.get(cache_key)
                 if cached_result:
                     logger.info(f"Returning cached result for query: '{user_query}'")
-                    return json.loads(cached_result)
+                    try:
+                        cached_data = json.loads(cached_result)
+                        # Ensure the cached result has the expected structure
+                        if not isinstance(cached_data, dict):
+                            logger.warning(f"Cached data is not a dictionary, wrapping it: {type(cached_data)}")
+                            cached_data = {"status": "success", "result": cached_data}
+                        elif "status" not in cached_data:
+                            logger.warning("Cached data missing 'status' key, wrapping it")
+                            cached_data = {"status": "success", "result": cached_data}
+                        elif cached_data.get("status") == "success" and "result" not in cached_data:
+                            logger.warning("Cached data has 'status' but missing 'result' key")
+                            return {"status": "error", "error": "Invalid cached response structure"}
+                            
+                        # Final validation to ensure we have a properly structured response
+                        if cached_data.get("status") == "success" and "result" not in cached_data:
+                            logger.error("Cached data validation failed - missing 'result'")
+                            return {"status": "error", "error": "Invalid cached response structure"}
+                            
+                        return cached_data
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to parse cached result as JSON: {cached_result[:100]}")
+                        # If we can't parse the cache, proceed as if there was no cache
             except redis.exceptions.RedisError as e:
                 logger.warning(f"Redis GET command failed: {e}. Proceeding without cache.")
 
@@ -426,11 +447,14 @@ class RAGPipeline:
                 "sources": [],
                 "query": user_query
             }
+            result_dict = {"status": "success", "result": final_response}
             # Cache this no-context response
             if self.cache:
-                try: self.cache.setex(cache_key, self.cache_ttl, json.dumps(final_response))
-                except redis.exceptions.RedisError as e: logger.warning(f"Redis SETEX command failed: {e}.")
-            return {"status": "success", "result": final_response}
+                try: 
+                    self.cache.setex(cache_key, self.cache_ttl, json.dumps(result_dict))
+                except redis.exceptions.RedisError as e: 
+                    logger.warning(f"Redis SETEX command failed: {e}.")
+            return result_dict
 
         # Generate response with OpenAI
         system_prompt = "You are a helpful AI assistant. Based on the provided context from insurance documents, answer the user's question. If the context does not contain the answer, state that clearly. Be concise and stick to the information in the context."
@@ -463,15 +487,32 @@ class RAGPipeline:
             "embedding_model_used": self.active_embedding_model
         }
 
+        # Save the result dictionary to cache
+        result_dict = {"status": "success", "result": final_response}
+        
+        # Validate result structure before caching to prevent future issues
+        if "status" not in result_dict or (result_dict["status"] == "success" and "result" not in result_dict):
+            logger.error(f"Invalid result structure before caching: {result_dict}")
+            # Fix the structure if needed
+            if "result" not in result_dict and "answer" in final_response:
+                result_dict = {"status": "success", "result": final_response}
+        
         # Cache the response
         if self.cache:
             try:
-                self.cache.setex(cache_key, self.cache_ttl, json.dumps(final_response))
+                # Log the exact structure we're caching to debug future issues
+                logger.debug(f"Caching result structure: {list(result_dict.keys())}")
+                if result_dict.get("status") == "success":
+                    logger.debug(f"Result contains keys: {list(result_dict.get('result', {}).keys()) if isinstance(result_dict.get('result'), dict) else 'non-dict'}")
+                
+                self.cache.setex(cache_key, self.cache_ttl, json.dumps(result_dict))
                 logger.info(f"Result for query '{user_query}' cached.")
             except redis.exceptions.RedisError as e:
                 logger.warning(f"Redis SETEX command failed for query '{user_query}': {e}. Result not cached.")
+            except Exception as e:
+                logger.error(f"Failed to cache result: {e}", exc_info=True)
 
-        return {"status": "success", "result": final_response}
+        return result_dict
 
     async def get_embedding_stats(self) -> Dict[str, Any]:
         """Return stats about embedding usage and failures."""
