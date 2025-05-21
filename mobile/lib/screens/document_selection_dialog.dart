@@ -80,38 +80,43 @@ class DocumentSelectionDialog extends StatelessWidget {
             
             // List of specific documents
             Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: documents.length,
-                itemBuilder: (context, index) {
-                  final doc = documents[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    child: ListTile(
-                      leading: _getDocumentIcon(doc.documentType),
-                      title: Text(doc.filename),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Uploaded: ${doc.formattedUploadDate}'),
-                          if (doc.documentType != null)
-                            Text('Type: ${doc.documentType}'),
-                          if (doc.size != null)
-                            Text('Size: ${doc.formattedFileSize}'),
-                        ],
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.4,
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: documents.length,
+                  itemBuilder: (context, index) {
+                    final doc = documents[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        leading: _getDocumentIcon(doc.documentType),
+                        title: Text(doc.filename),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Uploaded: ${doc.formattedUploadDate}'),
+                            if (doc.documentType != null)
+                              Text('Type: ${doc.documentType}'),
+                            if (doc.size != null)
+                              Text('Size: ${doc.formattedFileSize}'),
+                          ],
+                        ),
+                        trailing: doc.id == currentDocumentId
+                            ? const Icon(Icons.check_circle, color: Colors.green)
+                            : null,
+                        isThreeLine: true,
+                        selected: doc.id == currentDocumentId,
+                        onTap: () {
+                          onDocumentSelected(doc.id);
+                          Navigator.pop(context);
+                        },
                       ),
-                      trailing: doc.id == currentDocumentId
-                          ? const Icon(Icons.check_circle, color: Colors.green)
-                          : null,
-                      isThreeLine: true,
-                      selected: doc.id == currentDocumentId,
-                      onTap: () {
-                        onDocumentSelected(doc.id);
-                        Navigator.pop(context);
-                      },
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
             

@@ -56,6 +56,26 @@
   - Updated the QaSource.fromJson factory to accept both 'page_number' and 'page' fields
   - Improved error handling in the queryDocument method
 
+## UI Layout Fixes
+
+### Document Selection Dialog Overflow
+- **Issue**: On smaller screens, the document list in the selection dialog could overflow and cause layout errors
+- **Fix**:
+  - Added a ConstrainedBox with a maximum height based on device screen size to limit the list height
+  - Set the max height to 40% of the screen to ensure the dialog fits on smaller devices
+
+### QA Answer Display Improvements
+- **Issue**: Using Expanded widgets in certain layouts could cause Flutter layout errors when multiple conditions were true
+- **Fix**:
+  - Replaced Expanded widget with a Container having a fixed height based on screen size
+  - Set the height to 50% of the screen height for better display of answers
+
+### Null Safety Improvements 
+- **Issue**: The QaSource.fromJson factory method wasn't handling null values correctly for the score property
+- **Fix**:
+  - Updated the score conversion to properly check if the value is a number type before conversion
+  - Replaced `(json['score'] as num?)?.toDouble() ?? 0.0` with more robust `(json['score'] is num) ? (json['score'] as num).toDouble() : 0.0`
+
 ## Offline Capability
 
 ### Local Storage Implementation

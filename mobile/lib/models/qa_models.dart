@@ -60,7 +60,7 @@ class QaSource {
       documentId: json['document_id'] ?? '',
       pageNumber: json['page_number'] ?? json['page'],
       text: json['text'] ?? '',
-      score: (json['score'] as num?)?.toDouble() ?? 0.0,
+      score: (json['score'] is num) ? (json['score'] as num).toDouble() : 0.0,
     );
   }
 } 

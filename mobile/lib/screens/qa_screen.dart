@@ -343,10 +343,10 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
               child: Center(child: CircularProgressIndicator()),
             )
           else if (currentAnswer != null)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Card(
+            Container(
+              height: MediaQuery.of(context).size.height / 2,
+              padding: const EdgeInsets.all(8.0),
+              child: Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
