@@ -198,7 +198,23 @@ Refer to individual service OpenAPI docs (usually at `/docs` endpoint of each se
 *   **RAG Service (`http://localhost:8001`):**
     *   `POST /ingest`: Endpoint for OCR service to send processed data for vector DB ingestion.
     *   `POST /query`: Answer questions using RAG pipeline.
-    *   `GET /health`: Health check.
+
+## Project Documentation
+
+Comprehensive documentation is maintained in the `docs/` directory:
+
+*   **Planning Documentation:**
+    *   `docs/planning/current_issue.md`: Tracks current issues being investigated
+    *   `docs/planning/ocr_display_fix.md`: Details about the OCR text display issue and its resolution
+    *   `docs/planning/project_learnings.md`: Key lessons learned during development
+
+*   **Technical Documentation:**
+    *   `docs/technical/architecture/`: System architecture documentation
+    *   `docs/technical/implementation/`: Implementation details for various components
+    *   `docs/reference/api_documentation/`: API specifications and documentation
+
+*   **User Experience Documentation:**
+    *   `docs/user_experience/`: UI/UX documentation and guides
 
 ## Contributing & License
 
