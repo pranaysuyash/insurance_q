@@ -402,6 +402,7 @@ class RAGPipeline:
             logger.warning(f"All text blocks for document_id: {document_id} are empty. Nothing to embed.")
             return {"status": "success", "message": "No text content in blocks to ingest.", "points_added": 0}
 
+        points_to_upsert = []
         try:
             # Use the fallback mechanism for embeddings
             embeddings = await self._generate_embeddings_with_fallback(texts_for_embedding)
@@ -411,7 +412,6 @@ class RAGPipeline:
             return {"status": "error", "error": f"Embedding generation failed: {e}"}
 
         # Prepare points for Qdrant
-        points_to_upsert = []
         embedding_idx = 0
         for block in text_blocks:
             if not block.get("text"):
