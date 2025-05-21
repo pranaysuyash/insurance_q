@@ -136,6 +136,39 @@ Your Backend (FastAPI)
 
 ---
 
+### Dockerfile System Dependencies
+
+When self-hosting services that rely on Python packages with underlying C/C++ extensions (especially for image processing like OpenCV, which is a dependency for `doctr`), the base Docker image (e.g., `python:3.11-slim`) may lack necessary shared system libraries. These need to be explicitly installed in your `Dockerfile` via `apt-get install -y`.
+
+Commonly required libraries for `opencv-python` and `python-doctr` include:
+
+*   `libgl1-mesa-glx`: For OpenGL, often needed by OpenCV.
+*   `libglib2.0-0`: For GLib, another common OpenCV dependency.
+*   `libgtk2.0-0`: For GTK graphics toolkit components.
+*   `libsm6`: Session Management library.
+*   `libxext6`: X11 miscellaneous extensions library.
+*   `libxrender1`: X Rendering Extension library.
+
+Example `Dockerfile` addition:
+
+```dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    # ... other dependencies like curl ... \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libgtk2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+```
+
+Failure to include these can result in `ImportError` messages like `libGL.so.1: cannot open shared object file` or `libgthread-2.0.so.0: cannot open shared object file` when Python tries to import `cv2` or related modules.
+
+---
+
 ## Cost Comparison & Final Recommendation
 
 | Service                       | Cost per request                            |

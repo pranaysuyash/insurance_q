@@ -6,9 +6,17 @@ WORKDIR /app
 # Install essential system dependencies
 # build-essential might be needed for some pip packages
 # curl is a general utility, kept for now but can be reviewed
-RUN apt-get update && apt-get install -y \
+# libgl1-mesa-glx, libglib2.0-0, and others are needed for OpenCV and other vision libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libgtk2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
