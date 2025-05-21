@@ -23,6 +23,7 @@ The application consists of several microservices orchestrated by Docker Compose
 - **RAG Service** (Port 8001): FastAPI service for question answering.
     - Provides an endpoint for ingesting processed document data (text blocks) from the OCR service.
     - Uses OpenAI API to generate embeddings (`text-embedding-ada-002` or configurable, e.g., `text-embedding-3-small`) for text blocks. This is a core function and requires the `OPENAI_API_KEY`.
+    - Implements a fallback mechanism to a Hugging Face embedding model (e.g., `sentence-transformers/all-mpnet-base-v2`) if the primary OpenAI embedding fails. This behavior is configurable.
     - Stores embeddings and metadata in Qdrant.
     - For querying, embeds the user's question using OpenAI, searches Qdrant for relevant context, and uses an OpenAI chat model (e.g., `gpt-3.5-turbo`, `gpt-4o-mini`) to generate answers. This also requires the `OPENAI_API_KEY`.
     - Caches RAG query results in Redis.
@@ -64,6 +65,8 @@ The application consists of several microservices orchestrated by Docker Compose
     # HF_DOC_QA_MODEL=impira/layoutlm-document-qa
     # OPENAI_EMBEDDING_MODEL=text-embedding-ada-002
     # OPENAI_CHAT_MODEL=gpt-3.5-turbo
+    # EMBEDDING_MODEL=sentence-transformers/all-mpnet-base-v2 # For RAG fallback
+    # USE_OPENAI_FIRST=true # For RAG, true to use OpenAI first, false for HF first
     # OCR_IMAGE_DPI=200
     # LOG_LEVEL=INFO
     ```
@@ -174,6 +177,8 @@ Not fully detailed here post-refactor due to primary reliance on Docker for serv
 *   `HF_DOC_QA_MODEL`: (Optional) Specify Hugging Face model for Document QA in OCR service (default: `impira/layoutlm-document-qa`).
 *   `OPENAI_EMBEDDING_MODEL`: (Optional) OpenAI model for embeddings in RAG service (default: `text-embedding-ada-002`).
 *   `OPENAI_CHAT_MODEL`: (Optional) OpenAI model for chat completion in RAG service (default: `gpt-3.5-turbo`).
+*   `EMBEDDING_MODEL`: (Optional) Hugging Face model for RAG service's fallback embeddings (default: `sentence-transformers/all-mpnet-base-v2`).
+*   `USE_OPENAI_FIRST`: (Optional) Boolean (`true`/`false`) for RAG service, determines if OpenAI is the primary embedding provider (default: `true`).
 *   `OCR_IMAGE_DPI`: (Optional) DPI for rendering PDF pages to images in OCR service (default: `200`).
 *   `LOG_LEVEL`: (Optional) Set log level for services (e.g., `DEBUG`, `INFO`, `WARNING`). Default is `INFO`.
 

@@ -16,7 +16,10 @@ from src.ocr.pipeline import OCRPipeline # Refactored pipeline
 
 # Configure logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "DEBUG").upper(),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 app = FastAPI(
     title="Insurance Policy OCR Service (HF API based)",
@@ -36,7 +39,7 @@ app.add_middleware(
 # --- Service Configurations ---
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8001") # Default internal Docker URL for RAG service
+RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8000") # Default internal Docker URL for RAG service
 
 # --- Initialize Redis Client ---
 redis_client: Optional[redis.Redis] = None
@@ -96,7 +99,7 @@ async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
         raise HTTPException(status_code=503, detail="OCR Pipeline is not available. Service might be misconfigured.")
 
     # Basic file type validation
-    allowed_extensions = ('.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp')
+    allowed_extensions = ('.pdf', '.doc', '.docx', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp')
     file_ext = ""
     if file.filename:
         file_ext = os.path.splitext(file.filename.lower())[1]
@@ -135,10 +138,11 @@ async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
             logger.error(f"OCRPipeline processing failed for {document_id}: {error_detail}")
             raise HTTPException(status_code=500, detail=f"OCR processing failed: {error_detail}")
 
-        # OCR successful, store the full result in Redis
-        redis_key = f"ocr_cache:{document_id}"
+        # OCR successful, store the full result in Redis with a clean document_id
+        clean_doc_id = document_id.replace("ocr_cache:", "") if document_id.startswith("ocr_cache:") else document_id
+        redis_key = f"ocr_cache:{clean_doc_id}"
         store_in_redis(redis_key, ocr_result_data, ex=7200) # Cache for 2 hours
-        logger.info(f"OCR processing successful for {document_id}. Full result cached in Redis.")
+        logger.info(f"OCR processing successful for {clean_doc_id}. Full result cached in Redis with key: {redis_key}")
 
         # Now, prepare data and trigger ingestion into RAG service
         # The actual result from OCR is in ocr_result_data["result"]
@@ -154,7 +158,7 @@ async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
             return {
                 "message": "Document processed by OCR, but no text blocks found for RAG ingestion.",
                 "filename": document_id,
-                "ocr_doc_key": redis_key, # Key to retrieve full OCR data
+                "ocr_doc_key": document_id, # Just the document ID, not the full Redis key
                 "rag_ingestion_status": "skipped_no_text_blocks"
             }
 
@@ -197,7 +201,7 @@ async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
         return {
             "message": "Document OCR processing complete.",
             "filename": document_id,
-            "ocr_doc_key": redis_key,
+            "ocr_doc_key": document_id,  # Return just the document ID, not the full Redis key
             "rag_ingestion_status": rag_ingestion_status,
             "rag_ingestion_detail": rag_ingestion_detail,
             "ocr_metadata": document_metadata_for_rag # Return OCR metadata like page count
@@ -214,16 +218,28 @@ async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
 @app.get("/cached_ocr_data/{doc_id}")
 async def get_cached_ocr_document_data(doc_id: str):
     """Retrieve all processed OCR data (text, layout, etc.) for a given document ID from Redis."""
-    redis_key = f"ocr_cache:{doc_id}"
+    # Remove 'ocr_cache:' prefix if it's already included in the doc_id
+    clean_doc_id = doc_id.replace("ocr_cache:", "") if doc_id.startswith("ocr_cache:") else doc_id
+    
+    redis_key = f"ocr_cache:{clean_doc_id}"
+    logger.info(f"Looking up OCR data in Redis with key: {redis_key}")
+    
     stored_data = get_from_redis(redis_key)
     
     if not stored_data:
-        logger.info(f"No cached OCR data found for doc_id: {doc_id} (key: {redis_key})")
-        raise HTTPException(status_code=404, detail=f"No cached OCR data found for document ID: {doc_id}")
+        logger.error(f"No cached OCR data found for doc_id: {clean_doc_id} (key: {redis_key})")
+        # Also try with the original doc_id as a fallback
+        fallback_key = doc_id
+        logger.info(f"Trying fallback Redis key: {fallback_key}")
+        stored_data = get_from_redis(fallback_key)
+        
+        if not stored_data:
+            logger.error(f"Fallback also failed - no cached data found with key: {fallback_key}")
+            raise HTTPException(status_code=404, detail=f"No cached OCR data found for document ID: {clean_doc_id}")
     
-    logger.info(f"Returning cached OCR data for doc_id: {doc_id}")
+    logger.info(f"Successfully retrieved cached OCR data for doc_id: {clean_doc_id}")
     # The data stored is already the full response from OCRPipeline.process_document
-    return {"doc_id": doc_id, "cached_ocr_result": stored_data}
+    return {"doc_id": clean_doc_id, "cached_ocr_result": stored_data}
 
 
 @app.get("/health")
@@ -264,6 +280,44 @@ async def startup_event():
 async def shutdown_event():
     await http_client.aclose()
     logger.info("OCR Service shutting down, httpx.AsyncClient closed.")
+
+# Add debug route to list Redis keys
+@app.get("/debug/redis/keys")
+async def debug_list_redis_keys():
+    """Debug endpoint to list all Redis keys."""
+    if not redis_client:
+        raise HTTPException(status_code=503, detail="Redis client not available")
+    
+    try:
+        all_keys = redis_client.keys("*")
+        ocr_cache_keys = redis_client.keys("ocr_cache:*")
+        
+        return {
+            "all_keys_count": len(all_keys),
+            "all_keys": all_keys,
+            "ocr_cache_keys_count": len(ocr_cache_keys),
+            "ocr_cache_keys": ocr_cache_keys
+        }
+    except Exception as e:
+        logger.error(f"Error listing Redis keys: {e}")
+        raise HTTPException(status_code=500, detail=f"Error listing Redis keys: {str(e)}")
+
+@app.delete("/debug/redis/clear_cache")
+async def debug_clear_redis_cache():
+    """Debug endpoint to clear all OCR cache keys in Redis."""
+    if not redis_client:
+        raise HTTPException(status_code=503, detail="Redis client not available")
+    
+    try:
+        ocr_cache_keys = redis_client.keys("ocr_cache:*")
+        if ocr_cache_keys:
+            deleted_count = redis_client.delete(*ocr_cache_keys)
+            return {"message": f"Cleared {deleted_count} OCR cache keys from Redis"}
+        else:
+            return {"message": "No OCR cache keys found to clear"}
+    except Exception as e:
+        logger.error(f"Error clearing Redis cache: {e}")
+        raise HTTPException(status_code=500, detail=f"Error clearing Redis cache: {str(e)}")
 
 # To run this service directly (e.g., for local testing without docker-compose)
 # if __name__ == "__main__":

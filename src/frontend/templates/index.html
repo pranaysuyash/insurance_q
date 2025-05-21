@@ -15,11 +15,11 @@
             <h2 class="text-xl font-semibold mb-4">Upload Insurance Document</h2>
             <form id="uploadForm" class="space-y-4">
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <input type="file" id="fileInput" class="hidden" accept=".pdf,.doc,.docx">
+                    <input type="file" id="fileInput" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.webp,.doc,.docx">
                     <label for="fileInput" class="cursor-pointer text-blue-600 hover:text-blue-800">
                         Click to upload or drag and drop
                     </label>
-                    <p class="text-sm text-gray-500 mt-2">Supported formats: PDF, DOC, DOCX</p>
+                    <p class="text-sm text-gray-500 mt-2">Supported formats: PDF, PNG, JPG, JPEG, TIFF, TIF, WEBP, DOC, DOCX</p>
                 </div>
                 <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
                     Upload Document
@@ -103,7 +103,8 @@
 
                 const response = await fetch('/upload', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    // Don't set Content-Type header, let the browser set it with the correct boundary
                 });
                 const data = await response.json();
                 

@@ -55,3 +55,5 @@ python-dotenv
 # Testing
 pytest
 pytest-asyncio 
+
+jinja2

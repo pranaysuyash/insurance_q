@@ -2,6 +2,11 @@
 
 This is the comprehensive documentation for the Insurance Policy Parser & QA App. This documentation is organized in a logical directory structure to improve navigation and accessibility.
 
+## Key Technical Documents
+
+- **OCR Implementation**: Detailed explanation of the OCR and document layout extraction process using Hugging Face APIs. Found at `docs/technical/implementation/extraction/ocr_implementation.md`.
+- **RAG Implementation**: In-depth look at the Retrieval-Augmented Generation pipeline, including the embedding fallback mechanism between OpenAI and Hugging Face. Found at `docs/technical/ai_and_nlp/rag_implementation.md`.
+
 ## Directory Structure
 
 ```
@@ -102,6 +107,8 @@ The Insurance Policy Parser & QA App is designed to revolutionize how users inte
 See the specific documentation sections for detailed information:
 
 - [Technical Architecture](technical/unified_architecture/comprehensive_architecture.md) - Complete technical details
+- [OCR Implementation Details](technical/implementation/extraction/ocr_implementation.md)
+- [RAG Implementation Details](technical/ai_and_nlp/rag_implementation.md)
 - [User Guide](user_guide.md) - Guide for end users
 - [Developer Guide](developer_guide.md) - Information for developers
 - [Product Requirements](planning/roadmap/functional_requirements.md) - Detailed requirements

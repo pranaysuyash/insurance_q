@@ -48,6 +48,7 @@ services:
       - REDIS_PORT=6379
       - HF_TOKEN=${HF_TOKEN}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RAG_SERVICE_URL=http://rag_service:8000
     depends_on:
       - redis
     command: uvicorn src.ocr.service:app --host 0.0.0.0 --port 8001
@@ -88,7 +89,7 @@ services:
     depends_on:
       - ocr_service
       - rag_service
-    command: uvicorn src.frontend.app:app --host 0.0.0.0 --port 8080
+    command: uvicorn src.frontend.app:app --host 0.0.0.0 --port 8080 --reload
     networks:
       - app_network
 

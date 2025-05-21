@@ -51,8 +51,8 @@ app.mount("/static", StaticFiles(directory="src/frontend/static"), name="static"
 templates = Jinja2Templates(directory="src/frontend/templates")
 
 # Service URLs from environment variables
-OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL", "http://ocr_service:8000")
-RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8001")
+OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL", "http://ocr_service:8001")
+RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8000")
 
 # HTTP client (managed by lifespan events)
 http_client: Optional[httpx.AsyncClient] = None
@@ -103,6 +103,16 @@ async def upload_document(file: UploadFile = File(...)):
         filename = file.filename
         logger.info("document_upload_started", filename=filename)
         
+        # Validate file extension
+        file_ext = os.path.splitext(filename.lower())[1] if filename else ""
+        allowed_extensions = ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp', '.doc', '.docx']
+        if file_ext not in allowed_extensions:
+            logger.warning("invalid_file_format", filename=filename, extension=file_ext)
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unsupported file format: {file_ext}. Supported formats: PDF, PNG, JPG, TIFF, DOC, DOCX"
+            )
+        
         # 1. Call OCR service's /process_and_ingest endpoint
         files_for_ocr = {"file": (filename, file.file, file.content_type)}
         ocr_process_url = f"{OCR_SERVICE_URL.rstrip('/')}/process_and_ingest"
@@ -116,13 +126,23 @@ async def upload_document(file: UploadFile = File(...)):
         ocr_doc_key = ocr_process_result.get("ocr_doc_key")
         rag_status = ocr_process_result.get("rag_ingestion_status")
         rag_detail = ocr_process_result.get("rag_ingestion_detail")
-
+        
+        # Handle rate limit errors better
+        if rag_status == "failed" and rag_detail:
+            error_msg = str(rag_detail)
+            if "429" in error_msg or "exceeded your current quota" in error_msg or "rate limit" in error_msg.lower():
+                logger.warning("openai_rate_limit_exceeded", filename=filename)
+                # We'll continue since OCR was successful, just add a note about RAG failure
+                rag_detail = "OpenAI API rate limit exceeded. Text extraction worked, but Q&A features may be limited."
+        
         if not ocr_doc_key:
             logger.error("ocr_doc_key_missing", ocr_response=ocr_process_result)
             raise HTTPException(status_code=500, detail="OCR service response missing 'ocr_doc_key'.")
 
         # 2. Fetch the cached full OCR data using the ocr_doc_key
-        ocr_data_url = f"{OCR_SERVICE_URL.rstrip('/')}/cached_ocr_data/{ocr_doc_key}"
+        # Make sure we strip any 'ocr_cache:' prefix from the key to avoid double-prefixing
+        clean_ocr_key = ocr_doc_key.replace("ocr_cache:", "") if ocr_doc_key.startswith("ocr_cache:") else ocr_doc_key
+        ocr_data_url = f"{OCR_SERVICE_URL.rstrip('/')}/cached_ocr_data/{clean_ocr_key}"
         logger.debug(f"Fetching cached OCR data from: {ocr_data_url}")
         cached_data_response = await http_client.get(ocr_data_url)
         cached_data_response.raise_for_status()

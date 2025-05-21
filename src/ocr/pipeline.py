@@ -43,38 +43,65 @@ class OCRPipeline:
         self.doc_qa_model = os.getenv("HF_DOC_QA_MODEL", "impira/layoutlm-document-qa")
         logger.info(f"OCRPipeline initialized. OCR Model: {self.ocr_model}, DocQA Model: {self.doc_qa_model}")
 
-    async def _convert_file_to_images_bytes(self, file_content: bytes, file_type: str) -> List[Tuple[bytes, int]]:
-        """Convert PDF or image file content to a list of (image_bytes, page_number)."""
-        images_data = []
+    async def _process_pdf(self, file_content: bytes) -> List[Dict[str, Any]]:
+        """
+        Process a PDF file to extract text and/or images.
+        Returns a list of dictionaries, each containing:
+        - page_num: page number (1-indexed)
+        - text: directly extracted text if available
+        - image_bytes: image of the page for OCR fallback if needed
+        """
+        page_data = []
+        try:
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            for page_num_fitz, page in enumerate(doc):  # fitz pages are 0-indexed
+                page_number = page_num_fitz + 1
+                page_info = {"page_num": page_number}
+                
+                # First try direct text extraction
+                text = page.get_text()
+                if text and text.strip():
+                    page_info["text"] = text
+                    logger.debug(f"Page {page_number}: Extracted {len(text)} chars directly from PDF.")
+                
+                # Always generate image as fallback for OCR if needed or for document QA
+                pix = page.get_pixmap(dpi=int(os.getenv("OCR_IMAGE_DPI", "200")))
+                img_bytes = pix.tobytes("png")  # PNG is lossless
+                page_info["image_bytes"] = img_bytes
+                
+                page_data.append(page_info)
+                
+            doc.close()
+            logger.info(f"Processed PDF: {len(page_data)} pages, tried direct text extraction first.")
+        except Exception as e:
+            logger.error(f"Error processing PDF: {e}", exc_info=True)
+            raise ValueError(f"Failed to process PDF file: {e}")
+        return page_data
+        
+    async def _convert_file_to_images_bytes(self, file_content: bytes, file_type: str) -> List[Tuple[Any, int]]:
+        """
+        Process document content based on file type.
+        For PDFs: Try direct text extraction first, with image as fallback
+        For images: Use image content directly
+        Returns a list of processed pages with extracted text and/or image data.
+        """
         if file_type.lower() == "pdf":
-            try:
-                doc = fitz.open(stream=file_content, filetype="pdf")
-                for page_num_fitz, page in enumerate(doc): # fitz pages are 0-indexed
-                    page_number = page_num_fitz + 1
-                    # Higher DPI can improve OCR but increases size and processing time
-                    pix = page.get_pixmap(dpi=int(os.getenv("OCR_IMAGE_DPI", "200"))) 
-                    img_bytes = pix.tobytes("png") # PNG is lossless
-                    images_data.append((img_bytes, page_number))
-                doc.close()
-                logger.info(f"Converted PDF to {len(images_data)} image(s).")
-            except Exception as e:
-                logger.error(f"Error converting PDF to images: {e}", exc_info=True)
-                raise ValueError(f"Failed to process PDF file: {e}")
+            return await self._process_pdf(file_content)
         elif file_type.lower() in ["png", "jpg", "jpeg", "tiff", "tif", "bmp", "webp"]:
             # For single images, wrap in a list with page number 1
-            images_data.append((file_content, 1))
-            logger.info("Processed single image file.")
+            return [{"page_num": 1, "image_bytes": file_content}]
         else:
             logger.error(f"Unsupported file type for conversion: {file_type}")
             raise ValueError(f"Unsupported file type: {file_type}")
-        return images_data
+        
 
     async def _get_ocr_text_for_image(self, image_bytes: bytes, page_num: int) -> str:
         """Get plain text OCR for a single image using the configured OCR model."""
         ocr_text = ""
         try:
             logger.debug(f"Sending page {page_num} to OCR model: {self.ocr_model}")
-            api_result = self.client.image_to_text(data=image_bytes, model=self.ocr_model)
+            # Fix: removed 'data=' parameter which is not supported by the image_to_text method
+            api_result = self.client.image_to_text(image_bytes, model=self.ocr_model)
             
             if isinstance(api_result, str):
                 ocr_text = api_result
@@ -111,12 +138,12 @@ class OCRPipeline:
             try:
                 logger.debug(f"Page {page_num}: Querying DocQA model ({self.doc_qa_model}) with question: '{question_text}'")
                 
-                # Using .post() for document_question_answering with image object
-                api_answers = self.client.post(
-                    json={ "inputs": { "image": pil_image, "question": question_text } },
-                    model=self.doc_qa_model,
-                    task="document-question-answering"
-                ).json() # .json() to parse the response if client doesn't do it automatically for .post
+                # Fix: Use document_question_answering method instead of post
+                api_answers = self.client.document_question_answering(
+                    image=pil_image,
+                    question=question_text,
+                    model=self.doc_qa_model
+                )
                                 
                 if not isinstance(api_answers, list):
                     logger.warning(f"Page {page_num}: DocQA model ({self.doc_qa_model}) returned non-list for question '{question_text}'. Response: {str(api_answers)[:500]}")
@@ -153,76 +180,96 @@ class OCRPipeline:
         start_time = time.time()
 
         try:
-            images_with_page_nums = await self._convert_file_to_images_bytes(file_content, file_type)
+            processed_pages = await self._convert_file_to_images_bytes(file_content, file_type)
+            
+            page_count = len(processed_pages)
+            if page_count == 0:
+                logger.warning(f"No pages processed from file: {filename}")
+                return {"status": "error", "error": "No content found in document.", "filename": filename}
+
+            all_pages_full_text = []
+            all_pages_text_blocks = []
+            all_pages_layout_elements = []
+
+            # Use provided layout_questions_config or a default set
+            if layout_questions_config is None:
+                layout_questions_config = [
+                    {"id": "doc_title", "type": "title", "question": "What is the title of this document?"},
+                    {"id": "doc_date", "type": "date", "question": "What is the main date on this page?"},
+                    {"id": "policy_number", "type": "policy_id", "question": "What is the policy number?"},
+                    {"id": "effective_date", "type": "date", "question": "What is the effective date?"},
+                    {"id": "insurance_provider", "type": "provider", "question": "What is the name of the insurance company?"},
+                ]
+                logger.info("Using default layout questions.")
+            else:
+                logger.info(f"Using provided layout questions: {json.dumps(layout_questions_config)}")
+
+            for page_data in processed_pages:
+                page_num = page_data["page_num"]
+                logger.info(f"Processing page {page_num}/{page_count} for {filename}...")
+                
+                # Get text - either from direct extraction or OCR
+                page_text = ""
+                
+                # If we already have directly extracted text, use it
+                if "text" in page_data and page_data["text"].strip():
+                    page_text = page_data["text"]
+                    logger.info(f"Page {page_num}: Using directly extracted text ({len(page_text)} chars)")
+                # Otherwise fall back to OCR
+                elif "image_bytes" in page_data:
+                    page_text = await self._get_ocr_text_for_image(page_data["image_bytes"], page_num)
+                    logger.info(f"Page {page_num}: Used OCR to extract text ({len(page_text)} chars)")
+                
+                all_pages_full_text.append(page_text)
+                
+                if page_text:
+                    all_pages_text_blocks.append({
+                        "id": str(uuid.uuid4()), 
+                        "page": page_num,
+                        "text": page_text,
+                        "bbox": [0.0, 0.0, 1.0, 1.0], 
+                        "confidence": None,
+                        "extraction_method": "direct" if "text" in page_data else "ocr"
+                    })
+                
+                # Use image for document QA regardless of text extraction method
+                if "image_bytes" in page_data:
+                    page_layout_elements = await self._get_layout_elements_for_image(
+                        page_data["image_bytes"], page_num, layout_questions_config
+                    )
+                    all_pages_layout_elements.extend(page_layout_elements)
+
+            combined_full_text = "\n\n--- Page Separator ---\n\n".join(all_pages_full_text).strip()
+            processing_time = time.time() - start_time
+            logger.info(f"Finished processing {filename} in {processing_time:.2f} seconds. Total pages: {page_count}.")
+
+            final_result = {
+                "metadata": {
+                    "filename": filename,
+                    "processed_at": datetime.now().isoformat(),
+                    "page_count": page_count,
+                    "ocr_model": self.ocr_model,
+                    "doc_qa_model": self.doc_qa_model,
+                    "processing_time_seconds": round(processing_time, 2)
+                },
+                "full_text": combined_full_text,
+                "text_blocks": all_pages_text_blocks, 
+                "layout_elements": all_pages_layout_elements
+            }
+            
+            return {"status": "success", "result": final_result}
+        
         except ValueError as e: 
             logger.error(f"File conversion failed for {filename}: {e}", exc_info=True)
             return {"status": "error", "error": str(e), "filename": filename}
-        
-        page_count = len(images_with_page_nums)
-        if page_count == 0:
-            logger.warning(f"No images extracted from file: {filename}")
-            return {"status": "error", "error": "No images found in document.", "filename": filename}
-
-        all_pages_full_text = []
-        all_pages_text_blocks = []
-        all_pages_layout_elements = []
-
-        # Use provided layout_questions_config or a default set
-        if layout_questions_config is None:
-            layout_questions_config = [
-                {"id": "doc_title", "type": "title", "question": "What is the title of this document?"},
-                {"id": "doc_date", "type": "date", "question": "What is the main date on this page?"},
-            ]
-            logger.info("Using default layout questions.")
-        else:
-            logger.info(f"Using provided layout questions: {json.dumps(layout_questions_config)}")
-
-        for image_bytes, page_num in images_with_page_nums:
-            logger.info(f"Processing page {page_num}/{page_count} for {filename}...")
-            
-            page_ocr_text = await self._get_ocr_text_for_image(image_bytes, page_num)
-            all_pages_full_text.append(page_ocr_text)
-            
-            if page_ocr_text:
-                all_pages_text_blocks.append({
-                    "id": str(uuid.uuid4()), 
-                    "page": page_num,
-                    "text": page_ocr_text,
-                    "bbox": [0.0, 0.0, 1.0, 1.0], 
-                    "confidence": None 
-                })
-            
-            page_layout_elements = await self._get_layout_elements_for_image(image_bytes, page_num, layout_questions_config)
-            all_pages_layout_elements.extend(page_layout_elements)
-
-        combined_full_text = "\n\n--- Page Separator ---\n\n".join(all_pages_full_text).strip()
-        processing_time = time.time() - start_time
-        logger.info(f"Finished processing {filename} in {processing_time:.2f} seconds. Total pages: {page_count}.")
-
-        final_result = {
-            "metadata": {
-                "filename": filename,
-                "processed_at": datetime.now().isoformat(),
-                "page_count": page_count,
-                "ocr_model": self.ocr_model,
-                "doc_qa_model": self.doc_qa_model,
-                "processing_time_seconds": round(processing_time, 2)
-            },
-            "full_text": combined_full_text,
-            "text_blocks": all_pages_text_blocks, 
-            "layout_elements": all_pages_layout_elements
-        }
-        
-        return {"status": "success", "result": final_result}
-
-    except Exception as e:
-        processing_time = time.time() - start_time
-        logger.error(f"Unhandled error in OCRPipeline.process_document for {filename} after {processing_time:.2f}s: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": f"An unexpected error occurred during document processing: {str(e)}",
-            "filename": filename
-        }
+        except Exception as e:
+            processing_time = time.time() - start_time
+            logger.error(f"Unhandled error in OCRPipeline.process_document for {filename} after {processing_time:.2f}s: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "error": f"An unexpected error occurred during document processing: {str(e)}",
+                "filename": filename
+            }
 
 # Example of how to call this (e.g., from an API endpoint in src/ocr/service.py)
 # async def ocr_endpoint(file: UploadFile, filename: str):
