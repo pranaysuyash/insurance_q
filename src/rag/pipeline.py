@@ -515,6 +515,7 @@ class RAGPipeline:
         if search_results:
             for i, hit in enumerate(search_results):
                 context_text = hit.payload.get("text_content", "")
+                logger.info(f"[RAG DEBUG] Top-{i+1} context (score={hit.score}): {context_text[:200]}... | Metadata: {hit.payload}")
                 contexts.append(f"Context [{i+1}]: {context_text}")
                 retrieved_sources.append({
                     "id": hit.id,
@@ -542,6 +543,8 @@ class RAGPipeline:
         system_prompt = "You are a helpful AI assistant. Based on the provided context from insurance documents, answer the user's question. If the context does not contain the answer, state that clearly. Be concise and stick to the information in the context."
         context_str = "\n\n".join(contexts)
         user_prompt_template = f"Contexts:\n{context_str}\n\nQuestion: {user_query}\n\nAnswer:"
+
+        logger.info(f"[RAG DEBUG] Final LLM prompt for query '{user_query}':\n{user_prompt_template}")
 
         try:
             logger.debug(f"Sending prompt to OpenAI chat model ({self.openai_chat_model}) for query: '{user_query}'")

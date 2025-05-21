@@ -71,3 +71,11 @@
 2. Document uploads should implement progress indicators and better error handling
 3. Local storage should be better integrated with remote storage with sync capabilities
 4. Need to implement proper pagination for document lists when they grow large 
+
+## RAG Answer Quality Debugging (May 2025)
+
+- Added detailed debug logging to the RAG pipeline to log:
+  - The top retrieved context chunks (with their text and metadata) for each query
+  - The final prompt sent to the LLM
+- This helps diagnose whether poor answers are due to retrieval, chunking, or prompt construction issues
+- Next steps: Analyze logs for queries like "What is my policy number?" to see if the right context is being retrieved and sent to the LLM 
