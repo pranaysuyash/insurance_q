@@ -20,7 +20,7 @@ void main() async {
     ProviderScope(
       overrides: [
         // Override the shared preferences provider with the instance
-        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        sharedPreferencesProvider.overrideWith((ref) => sharedPreferences),
       ],
       child: const InsuranceApp(),
     ),
