@@ -22,12 +22,13 @@ app = FastAPI(
 try:
     rag_pipeline = RAGPipeline(
         # Use environment variables to control embedding model preferences
-        use_openai_first=os.getenv("USE_OPENAI_FIRST", "true").lower() == "true"
+        use_openai_embeddings=os.getenv("USE_OPENAI_EMBEDDINGS", "true").lower() == "true",
+        use_huggingface_fallback=os.getenv("USE_HF_FALLBACK", "true").lower() == "true",
     )
-    logger.info("RAG API service initialized with RAGPipeline and fallback mechanism.")
+    logger.info("RAG pipeline initialized successfully")
 except Exception as e:
-    logger.error(f"Error initializing RAGPipeline: {e}", exc_info=True)
-    rag_pipeline = None  # Will handle missing pipeline in endpoints
+    logger.error(f"Failed to initialize RAG pipeline: {e}")
+    rag_pipeline = None
 
 # --- Pydantic Models for API requests/responses ---
 
@@ -44,15 +45,15 @@ class IngestRequest(BaseModel):
     document_metadata: Optional[Dict[str, Any]] = Field(None, description="Overall metadata for the document, e.g., filename, original source type.")
 
 class QueryRequest(BaseModel):
-    query: str
-    filters: Optional[Dict[str, Any]] = Field(None, description="Key-value filters for Qdrant search, e.g., {'document_id': 'doc123'}")
-    top_k: Optional[int] = Field(5, description="Number of top results to retrieve.")
+    query: str = Field(..., description="User query/question to answer")
+    filters: Optional[Dict[str, Any]] = Field(None, description="Filters to apply to the query")
+    top_k: Optional[int] = Field(3, description="Number of results to return")
 
 class QueryResponse(BaseModel):
-    answer: str
-    sources: List[Dict[str, Any]]
-    query: str
-    embedding_model_used: Optional[str] = Field(None, description="The embedding model that was used for this query.")
+    answer: str = Field(..., description="Answer to the query")
+    sources: List[Dict[str, Any]] = Field(..., description="Sources for the answer")
+    query: Optional[str] = Field(None, description="The original query")
+    embedding_model_used: Optional[str] = Field(None, description="The embedding model used for retrieval")
 
 class EmbeddingStats(BaseModel):
     active_embedding_model: str
@@ -63,9 +64,9 @@ class EmbeddingStats(BaseModel):
     embedding_dimensions: int
 
 class APIResponse(BaseModel):
-    status: str
-    result: Optional[Any] = None
-    error: Optional[str] = None
+    status: str = Field(..., description="Success or error status")
+    result: Optional[Any] = Field(None, description="Result of the operation")
+    error: Optional[str] = Field(None, description="Error message if status is error")
     message: Optional[str] = None # For non-error messages like in ingestion
     document_id: Optional[str] = None # For ingestion response
     points_added: Optional[int] = None # For ingestion response
@@ -135,80 +136,45 @@ async def query_rag_system(request: QueryRequest) -> APIResponse:
             top_k=request.top_k
         )
         
+        # Normalize older pipeline outputs: wrap flat answer/sources into result
+        if isinstance(result_dict, dict) and "answer" in result_dict and "status" not in result_dict:
+            result_dict = {
+                "status": "success",
+                "result": {
+                    "answer": result_dict.get("answer"),
+                    "sources": result_dict.get("sources", []),
+                    "query": request.query,
+                    "embedding_model_used": result_dict.get("embedding_model_used")
+                }
+            }
+            
+        # Legacy flat response fallback: wrap direct answer/sources into result if no 'result' key
+        if "result" not in result_dict and "answer" in result_dict:
+            answer = result_dict.get("answer")
+            sources = result_dict.get("sources", [])
+            result_dict = {
+                "status": "success",
+                "result": {
+                    "answer": answer,
+                    "sources": sources,
+                    "query": request.query,
+                    "embedding_model_used": result_dict.get("embedding_model_used")
+                }
+            }
+        
         if result_dict.get("status") == "error":
             error_msg = result_dict.get("error", "Query processing failed")
-            logger.error(f"Query processing failed for '{request.query}': {error_msg}")
-            
-            if "embedding" in error_msg.lower() and "failed" in error_msg.lower():
-                error_msg = "Your query could not be processed. Please try a different question or try again later."
-                
-            raise HTTPException(
-                status_code=500,
-                detail=error_msg
-            )
+            logger.error(f"Error in query_rag: {error_msg}")
+            return APIResponse(status="error", error=error_msg)
         
-        # Comprehensive validation of response structure
-        if not isinstance(result_dict, dict):
-            logger.error(f"Pipeline returned non-dict result: {type(result_dict)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Unexpected response format from RAG pipeline: not a dictionary"
-            )
-            
-        # The pipeline returns {"status": "success", "result": final_response}
-        if "status" not in result_dict:
-            logger.error(f"Pipeline response missing 'status' key: {list(result_dict.keys())}")
-            raise HTTPException(
-                status_code=500,
-                detail="Unexpected response format from RAG pipeline: missing status"
-            )
-            
-        if result_dict.get("status") != "success":
-            logger.error(f"Pipeline returned non-success status: {result_dict.get('status')}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Query processing failed with status: {result_dict.get('status')}"
-            )
-            
-        if "result" not in result_dict:
-            logger.error(f"Missing 'result' key in query response: {list(result_dict.keys())}")
-            raise HTTPException(
-                status_code=500,
-                detail="Unexpected response format from RAG pipeline: missing result"
-            )
-            
-        # If result is not a dictionary with expected fields, handle the error
-        result = result_dict["result"]
-        if not isinstance(result, dict):
-            logger.error(f"Result is not a dictionary: {type(result)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Unexpected result format: not a dictionary"
-            )
-            
-        # Check for required fields in the result
-        required_fields = ["answer"]
-        missing_fields = [field for field in required_fields if field not in result]
-        if missing_fields:
-            logger.error(f"Result missing required fields: {missing_fields}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Unexpected result format: missing {', '.join(missing_fields)}"
-            )
-            
-        logger.info(f"Successfully processed query: '{request.query}'")
-        
-        # Return the response in the expected format
-        return APIResponse(status="success", result=result_dict["result"]) 
-
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        logger.error(f"Unexpected error during query '{request.query}': {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"An unexpected error occurred during query processing: {str(e)}"
+        return APIResponse(
+            status="success",
+            result=result_dict.get("result", {})
         )
+    
+    except Exception as e:
+        logger.error(f"Error processing query: {e}")
+        return APIResponse(status="error", error=f"Failed to process query: {str(e)}")
 
 @app.get("/embedding-stats", response_model=APIResponse)
 async def get_embedding_stats() -> APIResponse:
@@ -237,9 +203,9 @@ async def health_check() -> APIResponse:
     # Add embedding model info to health check
     model_info = {}
     if rag_pipeline:
-        primary = rag_pipeline.openai_embedding_model if rag_pipeline.use_openai_first else rag_pipeline.embedding_model
-        fallback = rag_pipeline.embedding_model if rag_pipeline.use_openai_first else rag_pipeline.openai_embedding_model
-        active = rag_pipeline.active_embedding_model
+        primary = rag_pipeline.openai_embedding_model if rag_pipeline.use_openai_embeddings else rag_pipeline.huggingface_model_name
+        fallback = rag_pipeline.huggingface_model_name if rag_pipeline.use_openai_embeddings else rag_pipeline.openai_embedding_model
+        active = rag_pipeline.current_embedding_model
         
         model_info = {
             "primary_embedding": primary,
@@ -253,8 +219,8 @@ async def health_check() -> APIResponse:
         result={
             "message": message, 
             "models": model_info,
-            "openai_failures": rag_pipeline.openai_embedding_failures if rag_pipeline else None,
-            "hf_failures": rag_pipeline.hf_embedding_failures if rag_pipeline else None
+            "openai_failures": rag_pipeline.openai_failure_count if rag_pipeline else None,
+            "hf_failures": rag_pipeline.hf_failure_count if rag_pipeline else None
         }
     )
 
