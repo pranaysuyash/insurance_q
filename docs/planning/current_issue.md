@@ -1,75 +1,68 @@
-# Current Pressing Issue: OCR Service Logging Failure & Incomplete Text Display
+# Recently Resolved Issues and Current Status
 
-**Date:** 2025-05-21 (Last Update: 2025-05-22)
+**Date:** 2025-05-24 (Last Update)
+
+## Previously Resolved: OCR Service Logging Failure & Incomplete Text Display
+
+**Status: RESOLVED (2025-05-22)**
 
 **Symptoms:**
-The Flutter mobile app consistently displays only a very small portion of text (around 5 lines, seemingly from the first page) after a PDF document is uploaded for OCR processing. The Question & Answering (QA) feature, which relies on this OCRed text being fed into a RAG (Retrieval Augmented Generation) pipeline, shows no data and is unusable.
+The Flutter mobile app consistently displayed only a very small portion of text (around 5 lines) after a PDF document was uploaded for OCR processing. The Question & Answering (QA) feature showed no data and was unusable.
 
-**Backend Setup:**
-*   **Services:** Dockerized FastAPI services:
-    *   `frontend`: Entry point, calls `ocr_service`, then `rag_service`.
-    *   `ocr_service`: Uses `python-doctr` library for local OCR (models: `db_resnet50`, `crnn_vgg16_bn`). Attempts direct PDF text extraction, falls back to `doctr` OCR.
-    *   `rag_service`: Ingests text into Qdrant.
-    *   `qdrant`: Vector database.
-    *   `redis`: Caching (has been flushed).
-*   **Dockerfile:** Common `python:3.11-slim` base. System dependencies (`libgl1-mesa-glx`, `libglib2.0-0`, `libgtk2.0-0`, `libsm6`, `libxext6`, `libxrender1`) added to support OpenCV (`cv2`) for `doctr`.
+**Solution Summary:**
+- Determined that OCR extraction was working correctly
+- Fixed the UI to use a scrollable container instead of a limited text widget
+- Increased API service timeout from 60 to 90 seconds
+- Created documentation detailing the fix
 
-**Debugging Journey & Current State:**
-1.  **Initial Problem:** OCR via Hugging Face Inference API for `mindee/doctr-ocr` started failing (404).
-2.  **Mitigation:** Switched `ocr_service` to use `python-doctr` locally.
-3.  **System Library Fixes:** Resolved several `ImportError`s in `ocr_service` by adding system libraries to `Dockerfile`.
-4.  **Logging Issue Investigation:**
-    *   `docker compose ps` shows `ocr_service` as `Up` and running.
-    *   `ocr_service` logs show successful `doctr` model downloads on startup.
-    *   Detailed Python `logging.info()` messages from within the main document processing logic (`OCRPipeline.process_document` and its sub-methods) were MISSING from `docker compose logs ocr_service`.
-    *   The only `ocr_service` logs visible after model downloads were Uvicorn's basic startup messages and then a final `200 OK` for incoming requests, with no application-level processing trace in between.
-5.  **Backend Verification:**
-    * Used `curl http://localhost:8001/cached_ocr_data/31837985202301.pdf` to view the OCR results
-    * Saved the output to `temp_ocr_output.json` for analysis
-    * Confirmed that backend successfully extracted and stored text from all 63 pages (approximately 351KB of data)
-    * Found that the OCR pipeline was working correctly with complete text extraction
+**See:** `docs/planning/ocr_display_fix.md` for the complete resolution details.
 
-**Resolution - Frontend UI Display Issue:**
-After analyzing the code and the OCR data, we discovered that the issue was not with the OCR extraction process but with the Flutter app's UI implementation:
+## Recently Resolved: Mobile App Functionality Issues
 
-1. **Root Cause:** The Flutter app was using a Text widget with explicit limits:
-   ```dart
-   Text(_ocrResult!['text'], maxLines: 8, overflow: TextOverflow.ellipsis)
-   ```
-   This was restricting the display to only 8 lines with an ellipsis, giving the appearance that only a small portion of text was being extracted.
+**Status: RESOLVED (2025-05-24)**
 
-2. **Solution Implemented:**
-   * Replaced the limited Text widget with a scrollable container:
-   ```dart
-   Container(
-     height: 300, // Fixed height container
-     decoration: BoxDecoration(
-       border: Border.all(color: Colors.grey.shade300),
-       borderRadius: BorderRadius.circular(8),
-     ),
-     child: SingleChildScrollView(
-       child: Padding(
-         padding: const EdgeInsets.all(8.0),
-         child: Text(_ocrResult!['text']),
-       ),
-     ),
-   )
-   ```
-   * Increased API service timeout from 60 to 90 seconds to better handle large documents
-   * Created new documentation in `docs/planning/ocr_display_fix.md` with details of the fix
+**Symptoms:**
+1. Android build failing due to outdated plugin implementations
+2. Mobile app unable to connect to backend API services properly
+3. QA functionality showing mock responses instead of real answers
+4. Document management not working as expected
 
-3. **Verification:** 
-   * Flutter app now correctly displays the complete OCR text from all pages
-   * Users can scroll through the entire document text 
-   * The QA feature should now function properly with the complete text available
+**Root Causes & Solutions:**
 
-**Remaining Questions:**
-* We still need to investigate why the logging from the OCR pipeline is not showing up in the Docker logs
-* QA functionality needs to be verified with the new text display implementation
+### Android Build Environment
+- **Issue:** File_picker plugin had v1 Android embedding references not compatible with newer Flutter versions
+- **Solution:** 
+  - Updated to newer dependencies (file_selector instead of file_picker)
+  - Updated Android compileSdk and targetSdk to 35
+  - Fixed Android manifest issues
 
-**Next Steps:**
-1. Test the QA functionality with the updated UI to confirm it works as expected
-2. Address the logging configuration issue in the OCR service
-3. Consider implementing additional improvements such as text search functionality and preserving document formatting
+### API Connectivity
+- **Issue:** Network configuration issues between app and Docker services
+- **Solution:**
+  - Configured proper baseUrl in API service based on the testing environment
+  - Added /documents endpoint to frontend service
+  - Implemented improved error handling
 
-This document will be updated as the situation evolves. 
+### QA Functionality
+- **Issue:** Questions not properly formatted for the RAG service
+- **Solution:**
+  - Enhanced question formatting to work better with the RAG backend
+  - Fixed QA model to handle both page and page_number fields
+  - Added better error handling and fallback to mock responses
+
+**See:** `docs/technical/implementation/mobile_app_fixes.md` for complete documentation of the mobile app fixes.
+
+## Current Open Issues
+
+1. **Logging Configuration:** Application-level logs not appearing in Docker container logs for the OCR service
+2. **RAG Service Error Handling:** Sometimes returns 500 errors for standard questions
+3. **Mobile App Enhancements Needed:** Need to improve the integration between local storage and remote API with better sync capabilities
+
+## Next Steps
+
+1. Investigate and fix the logging configuration issue in the OCR service
+2. Improve error handling in the RAG service
+3. Enhance the mobile app's offline capabilities with proper document synchronization
+4. Implement progress indicators for document uploads 
+
+This document will be updated as issues are resolved and new ones are identified. 

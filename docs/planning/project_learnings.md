@@ -59,7 +59,36 @@ This document captures key lessons learned during the development of our Insuran
 ### Codebase Organization
 - **Lesson:** Clear separation of concerns between services (frontend, OCR, RAG) allowed targeted debugging
 
-## 5. Future Improvement Ideas
+## 5. Mobile App Development
+
+### Flutter Integration with Backend Services
+- **Issue:** Mobile app couldn't connect to backend API services properly
+- **Root Cause:** Network configuration mismatches between emulators and physical devices
+- **Solution:** 
+  - For emulators: Use 10.0.2.2 as localhost equivalent
+  - For physical devices: Use the development machine's WiFi IP address
+- **Lesson:** Document network configuration requirements for different testing environments
+
+### Android Build Environment
+- **Issue:** Multiple build errors related to outdated plugin implementations
+- **Root Cause:** File_picker plugin had v1 Android embedding references not compatible with newer Flutter versions
+- **Solution:** 
+  - Updated to newer dependencies
+  - Replaced file_picker with file_selector
+  - Updated Android compileSdk and targetSdk to 35
+- **Lesson:** Keep plugin dependencies updated and be prepared to migrate between similar packages when compatibility issues arise
+
+### Error Handling Strategy
+- **Issue:** App crashes when API endpoints return errors
+- **Solution:** Implemented graceful fallbacks including mock responses and local storage options
+- **Lesson:** Design mobile apps with comprehensive error handling and offline capabilities from the start
+
+### API Integration
+- **Innovation:** Built a dual-mode API service that can work both with remote endpoints and local storage
+- **Approach:** Implemented a LocalStorageService with SharedPreferences for backup when network is unavailable
+- **Lesson:** Design mobile apps with offline-first mentality and seamless transitions between online/offline modes
+
+## 6. Future Improvement Ideas
 
 Based on our experience, these enhancements would improve the application:
 
