@@ -1299,3 +1299,81 @@ def verify_webhook_signature(payload, signature, secret):
 - Enhanced policy coverage details
 - Added bulk operations for documents
 - Improved error handling and validation
+
+### Questions and Answers
+
+#### POST /query
+
+Query the RAG system with a natural language question about insurance policies.
+
+**Request Body:**
+```json
+{
+  "query": "What is my policy number?",
+  "filters": {
+    "document_id": "31837985202301.pdf"  // Optional: Filter by specific document
+  },
+  "_cache_buster": "1621234567890"       // Optional: Force cache invalidation
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "result": {
+    "answer": "Your policy number is 30689880202404.",
+    "sources": [
+      {
+        "id": "d8d65994-7979-4c53-92cd-45b699582289",
+        "score": 0.80618095,
+        "document_id": "31837985202301.pdf",
+        "page_number": 1,
+        "block_id": "d8d65994-7979-4c53-92cd-45b699582289",
+        "embedding_model": "text-embedding-ada-002"
+      },
+      {
+        "id": "154e97c1-b282-4353-97ea-e27fbf92551a",
+        "score": 0.8023599,
+        "document_id": "insurance_policy.pdf",
+        "page_number": 1,
+        "block_id": "154e97c1-b282-4353-97ea-e27fbf92551a",
+        "embedding_model": "text-embedding-ada-002"
+      }
+    ],
+    "query": "What is my policy number?",
+    "embedding_model_used": "text-embedding-ada-002"
+  }
+}
+```
+
+**Status Codes:**
+- 200 OK: Query processed successfully
+- 400 Bad Request: Invalid query format
+- 500 Internal Server Error: Error processing query
+
+#### GET /health
+
+Check if the RAG service is healthy.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "result": {
+    "message": "RAG service is healthy",
+    "models": {
+      "primary_embedding": "text-embedding-ada-002",
+      "fallback_embedding": "sentence-transformers/all-mpnet-base-v2",
+      "active_embedding": "text-embedding-ada-002",
+      "chat_model": "gpt-4-turbo"
+    },
+    "openai_failures": 0,
+    "hf_failures": 0
+  }
+}
+```
+
+**Status Codes:**
+- 200 OK: Service is healthy
+- 503 Service Unavailable: Service is degraded or unavailable
