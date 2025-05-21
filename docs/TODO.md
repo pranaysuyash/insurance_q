@@ -1,8 +1,8 @@
 # Project TODO & Status
 
-**Last Major Update:** Completed refactoring to an API-driven architecture using Hugging Face (OCR/DocQA) and OpenAI (Embeddings/RAG Chat). Documentation (`README.md`, `architecture.md`) updated. Git repository pushed.
+**Last Major Update:** Implemented dashboard/home screen with insurance terminology integration, improved document handling and UI experience. Documentation updated and code pushed to repository.
 
-**Current Status:** Backend services refactored. Ready for full end-to-end testing and frontend alignment.
+**Current Status:** Backend services refactored. Mobile app core UI implementation progressing. Ready for full end-to-end testing.
 
 ## I. Immediate Next Steps & Testing:
 
@@ -47,17 +47,19 @@
     *   **Error Handling:** Improve frontend error messages based on responses from backend services.
 2.  **Flutter App Development:**
     *   **Define API Contracts:** Solidify how the Flutter app will interact with the FastAPI backend-for-frontend (`src/frontend/app.py`).
-    *   **Implement UI for Document Upload:**
-        *   Allow users to select and upload PDF/image files.
-        *   Call the `/upload` endpoint.
-    *   **Implement UI for Displaying OCR Results:**
-        *   Display `full_text`.
-        *   Display `layout_elements` in a user-friendly way.
-    *   **Implement UI for Q&A:**
-        *   Input field for questions.
-        *   Call the `/query` endpoint.
-        *   Display answers and sources.
-    *   **State Management:** Implement robust state management in Flutter.
+    *   **✅ UI Implementation Progress:**
+        *   ✅ Implemented comprehensive dashboard/home screen with document summary, quick actions, and insurance terminology integration
+        *   ✅ Improved document upload experience with duplicate detection
+        *   ✅ Fixed default document selection in Q&A interface
+        *   ✅ Enhanced document limit messaging to be more user-friendly
+        *   ✅ Fixed layout issues in document selection dialog and QA screens
+    *   **Remaining UI Tasks:**
+        *   Implement complete Family Management screen
+        *   Develop More/Settings screen with user preferences
+        *   Add document preview capabilities
+        *   Implement document sorting and filtering
+        *   Create policy comparison interface
+    *   **State Management:** Continue improving state management with Riverpod
     *   **User Authentication (if `firebase_auth.py` is to be used):** Integrate Firebase authentication in Flutter and potentially in the FastAPI backend-for-frontend.
 
 ## III. Backend Enhancements & Productionization:
@@ -86,12 +88,30 @@
     *   Optimize embedding/chat model choices based on cost/performance needs (e.g., `text-embedding-3-small` vs `large`, different chat models).
     *   Refine the list of questions sent to the Document QA model in `OCRPipeline` to only ask for truly necessary information to reduce calls/cost.
 
-## IV. Documentation & Cleanup:
+## IV. Documentation & Educational Content:
 
 1.  **API Documentation:**
     *   Ensure `/docs` for each FastAPI service are comprehensive and up-to-date.
     *   Consider generating a consolidated API documentation portal.
 2.  **Code Comments & Docstrings:**
     *   Review and enhance code comments and docstrings, especially in core pipeline logic. (Mostly done).
-3.  **Dependency Review:**
-    *   Periodically review `requirements.txt` for unused or outdated packages. 
+3.  **User Education:**
+    *   ✅ Created comprehensive insurance terminology glossary for user reference
+    *   ✅ Integrated terminology education into the mobile app dashboard
+    *   [ ] Expand educational content with policy-specific guides
+    *   [ ] Develop interactive tutorials for new users
+4.  **Dependency Review:**
+    *   Periodically review `requirements.txt` for unused or outdated packages.
+
+## V. User Experience & Accessibility:
+
+1.  **UI/UX Improvements:**
+    *   ✅ Created responsive dashboard with document categorization and quick actions
+    *   ✅ Implemented recent activities timeline for user context
+    *   [ ] Add additional visual elements for policy health/status
+    *   [ ] Improve accessibility features throughout the app
+2.  **Accessibility:**
+    *   [ ] Conduct full accessibility audit
+    *   [ ] Ensure proper contrast ratios for text elements
+    *   [ ] Add screen reader support for critical functionality
+    *   [ ] Implement keyboard navigation throughout the app 
