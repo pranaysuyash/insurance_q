@@ -6,10 +6,10 @@ class DocumentsList extends StatefulWidget {
   const DocumentsList({Key? key}) : super(key: key);
 
   @override
-  _DocumentsListState createState() => _DocumentsListState();
+  DocumentsListState createState() => DocumentsListState();
 }
 
-class _DocumentsListState extends State<DocumentsList> {
+class DocumentsListState extends State<DocumentsList> {
   final ApiService _apiService = ApiService();
   List<InsuranceDocument> _documents = [];
   bool _isLoading = false;
@@ -18,10 +18,10 @@ class _DocumentsListState extends State<DocumentsList> {
   @override
   void initState() {
     super.initState();
-    _loadDocuments();
+    loadDocuments();
   }
 
-  Future<void> _loadDocuments() async {
+  Future<void> loadDocuments() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -71,7 +71,7 @@ class _DocumentsListState extends State<DocumentsList> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Document deleted successfully')),
           );
-          _loadDocuments();
+          loadDocuments();
         } else {
           setState(() {
             _isLoading = false;
@@ -105,7 +105,7 @@ class _DocumentsListState extends State<DocumentsList> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadDocuments,
+              onPressed: loadDocuments,
               child: const Text('Retry'),
             ),
           ],
@@ -135,7 +135,7 @@ class _DocumentsListState extends State<DocumentsList> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadDocuments,
+      onRefresh: loadDocuments,
       child: Column(
         children: [
           Padding(

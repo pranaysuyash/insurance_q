@@ -5,9 +5,26 @@ import 'dart:io';
 import 'services/api_service.dart';
 import 'screens/qa_screen.dart';
 import 'screens/documents_list.dart';
+import 'providers/questions_provider.dart';
+import 'providers/storage_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const ProviderScope(child: InsuranceApp()));
+void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Get shared preferences instance
+  final sharedPreferences = await SharedPreferences.getInstance();
+  
+  runApp(
+    ProviderScope(
+      overrides: [
+        // Override the shared preferences provider with the instance
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const InsuranceApp(),
+    ),
+  );
 }
 
 class InsuranceApp extends StatelessWidget {
@@ -22,6 +39,19 @@ class InsuranceApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const MainNavigation(),
+      routes: {
+        '/qa': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as String?;
+          // If args is provided, set the selected document ID
+          if (args != null) {
+            // Use Provider to set document ID
+            ProviderScope.containerOf(context)
+                .read(selectedDocumentProvider.notifier)
+                .state = args;
+          }
+          return const QAScreen();
+        },
+      },
       debugShowCheckedModeBanner: false,
     );
   }
@@ -91,7 +121,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   String? _uploadError;
   Map<String, dynamic>? _ocrResult;
   final ApiService _apiService = ApiService();
-  final GlobalKey<_DocumentsListState> _documentsListKey = GlobalKey<_DocumentsListState>();
+  final GlobalKey<DocumentsListState> _documentsListKey = GlobalKey<DocumentsListState>();
+  bool _showUploadDetails = false;
 
   Future<void> _pickFile() async {
     setState(() {
@@ -131,7 +162,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   void _refreshDocumentsList() {
     if (_documentsListKey.currentState != null) {
-      _documentsListKey.currentState!._loadDocuments();
+      _documentsListKey.currentState!.loadDocuments();
     }
   }
 
@@ -148,12 +179,26 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Upload Document',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Upload Document',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_selectedFile != null)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _showUploadDetails = !_showUploadDetails;
+                          });
+                        },
+                        child: Text(_showUploadDetails ? 'Hide Details' : 'Show Details'),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 ElevatedButton.icon(
@@ -168,6 +213,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   ElevatedButton.icon(
                     onPressed: _isUploading ? null : () async {
                       await _uploadFile();
+                      setState(() {
+                        _selectedFile = null;
+                        _showUploadDetails = false;
+                      });
                       _refreshDocumentsList();
                     },
                     icon: const Icon(Icons.cloud_upload),
@@ -186,6 +235,30 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     'Error: $_uploadError', 
                     style: const TextStyle(color: Colors.red),
                   ),
+                ],
+                if (_ocrResult != null && _showUploadDetails) ...[
+                  const SizedBox(height: 16),
+                  const Text('OCR Result:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  if (_ocrResult!['text'] != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Container(
+                        height: 200, // Fixed height container
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(_ocrResult!['text'].toString().substring(0, 
+                              _ocrResult!['text'].toString().length > 500 ? 500 : _ocrResult!['text'].toString().length) + 
+                              (_ocrResult!['text'].toString().length > 500 ? '...' : '')
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ],
             ),
