@@ -5,6 +5,7 @@ import 'dart:io';
 import 'services/api_service.dart';
 import 'screens/qa_screen.dart';
 import 'screens/documents_list.dart';
+import 'screens/dashboard_screen.dart';
 import 'providers/questions_provider.dart';
 import 'providers/storage_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -96,13 +97,7 @@ class _MainNavigationState extends State<MainNavigation> {
 }
 
 // --- Screen Stubs ---
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Dashboard/Home'));
-  }
-}
+// DashboardScreen moved to its own file: dashboard_screen.dart
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
@@ -369,6 +364,6 @@ class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('More Menu'));
+    return const Center(child: Text('More Options'));
   }
 }
