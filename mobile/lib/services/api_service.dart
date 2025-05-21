@@ -84,40 +84,44 @@ class ApiService {
           data: data,
           options: Options(
             contentType: Headers.jsonContentType,
-            validateStatus: (status) => status! < 500, // Accept all non-500 responses for debugging
-            receiveTimeout: const Duration(seconds: 30), // Longer timeout for queries
+            // Accept any response status to debug
+            validateStatus: (status) => true,
+            receiveTimeout: const Duration(seconds: 60), // Longer timeout for queries
           ),
         );
         
         print('Response status: ${response.statusCode}');
+        print('Response data type: ${response.data.runtimeType}');
         print('Response data: ${response.data}');
         
-        // Handle different response formats
-        final responseData = response.data;
-        
-        // New format has 'status' and 'result' fields
-        if (responseData is Map<String, dynamic> && responseData.containsKey('status')) {
-          if (responseData['status'] == 'success') {
-            // Extract the result from the API response
-            if (responseData.containsKey('result')) {
-              return responseData['result'];
-            } else {
-              // Missing result field, construct a simple response
-              return {
-                'answer': responseData['answer'] ?? 'No answer provided',
-                'sources': responseData['sources'] ?? []
-              };
+        // Handle different response formats based on status code
+        if (response.statusCode == 200) {
+          final responseData = response.data;
+          
+          // New format has 'status' and 'result' fields
+          if (responseData is Map<String, dynamic> && responseData.containsKey('status')) {
+            if (responseData['status'] == 'success') {
+              // Extract the result from the API response
+              if (responseData.containsKey('result')) {
+                return responseData['result'];
+              }
             }
-          } else {
-            return {'error': responseData['detail'] ?? 'Unknown error'};
           }
+          
+          // If we get here, assume the data is the direct response
+          return responseData;
+        } else {
+          print('Error status code: ${response.statusCode}');
+          throw DioException(
+            requestOptions: RequestOptions(path: '/query'),
+            response: response,
+            type: DioExceptionType.badResponse,
+            message: 'Server returned status code ${response.statusCode}',
+          );
         }
-        
-        // Old format returns the result directly
-        return responseData;
       } catch (e) {
         // Log the full error for debugging
-        print('Using mock response for query: $e');
+        print('Error with real query: $e');
         
         // Fallback to mock response
         return {

@@ -231,130 +231,23 @@ class RAGPipeline:
                 logger.warning(f"Retrying OpenAI embedding in {wait_time} seconds...")
                 time.sleep(wait_time)
 
-    async def _generate_hf_embeddings(self, texts: List[str], max_retries=3) -> List[List[float]]:
-        """Generate embeddings using Hugging Face with detailed error logging."""
-        if not texts:
-            return []
-        
-        # Clean and truncate text
-        max_chars = 2000  # Safer limit for embedding models
-        texts_to_embed = []
-        for text in texts:
-            cleaned_text = text.replace("\n", " ").strip()
-            if len(cleaned_text) > max_chars:
-                cleaned_text = cleaned_text[:max_chars] + "..."
-                logger.warning(f"Text truncated to {max_chars} chars for HF embedding")
-            texts_to_embed.append(cleaned_text)
-        
-        retries = 0
-        while retries <= max_retries:
-            try:
-                logger.debug(f"Generating HF embeddings for {len(texts_to_embed)} texts using model {self.embedding_model}")
-                start_time = time.time()
-                
-                # Process in smaller chunks to avoid memory issues
-                max_chunk_size = 10  # HF can handle larger batches than OpenAI
-                if len(texts_to_embed) > max_chunk_size:
-                    logger.info(f"Processing {len(texts_to_embed)} texts in chunks of {max_chunk_size} for HF")
-                    all_embeddings = []
-                    for i in range(0, len(texts_to_embed), max_chunk_size):
-                        chunk = texts_to_embed[i:i+max_chunk_size]
-                        embeddings = self.hf_client.feature_extraction(
-                            inputs=chunk,
-                            model=self.embedding_model
-                        )
-                        all_embeddings.extend(embeddings)
-                        
-                        # Log success and add delay
-                        logger.debug(f"HF embedding chunk {i//max_chunk_size + 1} succeeded in {time.time() - start_time:.2f}s")
-                        if i + max_chunk_size < len(texts_to_embed):
-                            time.sleep(0.5)  # Brief pause between chunks
-                    
-                    logger.info(f"HF embeddings completed for all {len(texts_to_embed)} texts in {time.time() - start_time:.2f}s")
-                    return all_embeddings
-                else:
-                    # Process all at once for small batches
-                    embeddings = self.hf_client.feature_extraction(
-                        inputs=texts_to_embed,
-                        model=self.embedding_model
-                    )
-                    logger.info(f"HF embeddings completed for {len(texts_to_embed)} texts in {time.time() - start_time:.2f}s")
-                    return embeddings
-                    
-            except Exception as e:
-                retries += 1
-                error_str = str(e)
-                self.hf_embedding_failures += 1
-                
-                # Provide detailed error information
-                logger.error(f"HF embedding error ({retries}/{max_retries}): {error_str}")
-                
-                # Check for specific error types
-                if "timeout" in error_str.lower() or "connection" in error_str.lower():
-                    logger.error(f"HF API connection issue. This is attempt {retries}/{max_retries}")
-                elif "token" in error_str.lower() or "key" in error_str.lower():
-                    logger.error("HF token issue detected. Check your environment variables.")
-                
-                if retries > max_retries:
-                    logger.error(f"HF embedding failed after {max_retries} retries. Error: {e}", exc_info=True)
-                    raise
-                
-                wait_time = (2 ** retries)  # Exponential backoff
-                logger.warning(f"Retrying HF embedding in {wait_time} seconds...")
-                time.sleep(wait_time)
-
     async def _generate_embeddings_with_fallback(self, texts: List[str], max_retries=3) -> List[List[float]]:
-        """Generate embeddings with fallback strategy - try primary first, then fallback if it fails."""
-        if self.use_openai_first:
-            primary_method = self._generate_openai_embeddings
-            fallback_method = self._generate_hf_embeddings
-            primary_name = f"OpenAI {self.openai_embedding_model}"
-            fallback_name = f"HF {self.embedding_model}" 
-        else:
-            primary_method = self._generate_hf_embeddings
-            fallback_method = self._generate_openai_embeddings
-            primary_name = f"HF {self.embedding_model}"
-            fallback_name = f"OpenAI {self.openai_embedding_model}"
+        """Generate embeddings with OpenAI embedding models only (no fallback to HF)."""
+        logger.info(f"Generating embeddings using OpenAI {self.openai_embedding_model}")
         
-        # Try primary embedding method
         try:
-            logger.info(f"Attempting to generate embeddings using primary method: {primary_name}")
-            embeddings = await primary_method(texts, max_retries)
+            # Always use OpenAI for embeddings (no fallback)
+            embeddings = await self._generate_openai_embeddings(texts, max_retries)
             
-            # Update active model info if successful
-            if self.use_openai_first:
-                self.active_embedding_model = self.openai_embedding_model
-                self.embedding_dimensions = self.openai_embedding_dimensions
-            else:
-                self.active_embedding_model = self.embedding_model
-                self.embedding_dimensions = self.hf_embedding_dimensions
-                
+            # Update active model info
+            self.active_embedding_model = self.openai_embedding_model
+            self.embedding_dimensions = self.openai_embedding_dimensions
+            
             return embeddings
             
-        except Exception as primary_error:
-            logger.warning(f"Primary embedding method {primary_name} failed: {primary_error}")
-            logger.info(f"Falling back to alternative embedding method: {fallback_name}")
-            
-            # Try fallback embedding method
-            try:
-                embeddings = await fallback_method(texts, max_retries)
-                
-                # Update active model info for fallback
-                if self.use_openai_first:
-                    self.active_embedding_model = self.embedding_model
-                    self.embedding_dimensions = self.hf_embedding_dimensions
-                else:
-                    self.active_embedding_model = self.openai_embedding_model
-                    self.embedding_dimensions = self.openai_embedding_dimensions
-                
-                logger.info(f"Successfully generated embeddings using fallback method: {fallback_name}")
-                return embeddings
-                
-            except Exception as fallback_error:
-                logger.error(f"Both primary and fallback embedding methods failed!")
-                logger.error(f"Primary error ({primary_name}): {primary_error}")
-                logger.error(f"Fallback error ({fallback_name}): {fallback_error}")
-                raise Exception(f"All embedding methods failed. Primary: {str(primary_error)}. Fallback: {str(fallback_error)}")
+        except Exception as e:
+            logger.error(f"OpenAI embedding failed: {str(e)}")
+            raise Exception(f"OpenAI embedding failed: {str(e)}")
 
     async def ingest_document_data(self, document_id: str, text_blocks: List[Dict[str, Any]], document_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Process document data, generate embeddings with fallback strategy, and store in Qdrant."""
