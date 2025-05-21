@@ -36,6 +36,9 @@ The RAG (Retrieval-Augmented Generation) system in our insurance application was
    - Added explicit validation in `service.py` for expected response keys
    - Improved error messages for easier debugging
    - Ensured consistent response formats in the `/query` endpoint
+   - Added additional fallback mechanism for legacy flat pipeline responses
+   - Enhanced response normalization logic to handle different output formats from the pipeline
+   - Implemented adaptive handling of response structures to maintain backward compatibility
 
 ## Recommendations for Future Resilience
 
@@ -73,3 +76,21 @@ The RAG (Retrieval-Augmented Generation) system in our insurance application was
 
 ## Conclusion
 The RAG system's stability issues were primarily related to inconsistent response formats between cached and fresh responses, coupled with mobile app integration challenges. By implementing the fixes and following the recommendations above, we can significantly improve the system's resilience and provide a more consistent user experience. 
+
+## Recent Fixes
+
+### Response Format Handling (May 21, 2025)
+Added a robust solution to handle various response formats from the RAG pipeline:
+
+1. **Flexible Response Format Normalization**
+   - Enhanced the query endpoint to handle legacy flat responses from the pipeline
+   - Added fallback logic that detects when response is missing the expected `result` structure
+   - Automatically wraps direct `{answer, sources}` responses in the proper format
+   - Ensures consistent API response format for all clients
+
+2. **Multiple Compatibility Layers**
+   - First layer: Handle explicitly formatted responses with status and result
+   - Second layer: Transform older responses with answer but no status
+   - Third layer: Catch responses with answer but missing result structure
+
+This ensures that regardless of how the pipeline returns data (directly or from cache), the API response maintains a consistent format that the mobile app can rely on. 
