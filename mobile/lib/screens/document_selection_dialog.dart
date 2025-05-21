@@ -96,8 +96,8 @@ class DocumentSelectionDialog extends StatelessWidget {
                           Text('Uploaded: ${doc.formattedUploadDate}'),
                           if (doc.documentType != null)
                             Text('Type: ${doc.documentType}'),
-                          if (doc.pageCount != null)
-                            Text('Pages: ${doc.pageCount}'),
+                          if (doc.size != null)
+                            Text('Size: ${doc.formattedFileSize}'),
                         ],
                       ),
                       trailing: doc.id == currentDocumentId

@@ -10,6 +10,7 @@ import httpx # For making requests to RAG service
 from typing import Optional, Dict, Any, List # Added List
 import json
 import logging
+import sys # Make sure sys is imported at the top if not already
 
 # Correct import for Docker and local
 from src.ocr.pipeline import OCRPipeline # Refactored pipeline
@@ -89,6 +90,7 @@ def get_from_redis(key: str) -> Optional[Dict[str, Any]]:
 
 @app.post("/process_and_ingest")
 async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
+    print("ENTRY: /process_and_ingest OCR service handler hit", file=sys.stderr)
     """
     Processes an uploaded document using OCRPipeline.
     If successful, triggers ingestion of the structured data into the RAG service.
@@ -120,10 +122,13 @@ async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
         # Define layout questions for the OCR pipeline (can be customized)
         # Example: Could be loaded from a config file or passed via request in a more advanced setup
         ocr_layout_questions = [
-            {"id": "doc_title", "type": "title", "question": "What is the title of this document?"},
-            {"id": "doc_date", "type": "date", "question": "What is the main date mentioned?"},
-            {"id": "invoice_number", "type": "invoice_id", "question": "What is the invoice number?"},
-            {"id": "customer_name", "type": "person_or_org", "question": "What is the customer or company name?"}
+            {"id": "policy_holder_name", "type": "policy_holder", "question": "Who is the policy holder or insured name?"},
+            {"id": "policy_number", "type": "policy_id", "question": "What is the policy number?"},
+            {"id": "insurance_provider", "type": "provider_name", "question": "What is the name of the insurance company or provider?"},
+            {"id": "effective_date", "type": "date_effective", "question": "What is the effective date of the policy?"},
+            {"id": "expiration_date", "type": "date_expiration", "question": "What is the expiration date of the policy?"},
+            {"id": "total_premium", "type": "currency_amount", "question": "What is the total premium amount?"},
+            {"id": "coverage_type", "type": "coverage_general_type", "question": "What is the general type of coverage (e.g., Auto, Home, Health)?"}
         ]
 
         ocr_result_data = await ocr_pipeline.process_document(

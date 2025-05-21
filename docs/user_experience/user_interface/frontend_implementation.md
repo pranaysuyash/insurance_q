@@ -190,6 +190,12 @@ The component hierarchy follows a layered approach:
   5. Timeline tab
   6. Documents tab
 
+#### Extracted Sections Display
+- Layout elements from OCR are converted to sections for easier readability
+- Sections are displayed by their IDs (e.g., policy number, effective date)
+- Fallbacks for different data formats (sections, layout_elements)
+- Clear error messages when no sections are available
+
 #### Policy Editor
 - Editable fields for extracted information
 - Validation of input values
@@ -207,6 +213,7 @@ The component hierarchy follows a layered approach:
 #### Answer Display
 - Formatted answer text
 - Source citations with highlights
+- Properly formatted source references showing page numbers, document IDs, and relevance scores
 - Confidence indicator
 - Follow-up question suggestions
 - Save/bookmark option

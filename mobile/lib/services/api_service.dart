@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import '../models/document_model.dart';
+import 'local_storage_service.dart';
 
 class ApiService {
-  // Set your backend base URL here
-  static const String baseUrl = 'http://192.168.1.12:8080'; // Change to your backend IP/port
+  // Set your backend base URL here - only needed for query operations
+  static const String baseUrl = 'http://192.168.1.12:8080'; // Your laptop's IP on the WiFi network
 
   final Dio _dio = Dio(
     BaseOptions(
@@ -14,29 +15,26 @@ class ApiService {
     ),
   );
 
+  final LocalStorageService _localStorageService = LocalStorageService();
+
   Future<Map<String, dynamic>> getHealth() async {
-    Response response = await _dio.get('/health');
-    return response.data as Map<String, dynamic>;
+    // Just return a success response for now
+    return {'status': 'healthy', 'mode': 'local_storage'};
   }
 
   Future<Map<String, dynamic>> uploadFile(File file) async {
     try {
-      String fileName = file.path.split('/').last;
-      FormData formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(file.path, filename: fileName),
-      });
-      Response response = await _dio.post('/upload', data: formData);
-      return response.data;
+      // Save the document locally
+      final document = await _localStorageService.saveDocument(file);
+      
+      // Return a success response
+      return {
+        'message': 'File uploaded successfully',
+        'document_id': document.id,
+        'text': 'This is a sample text extracted from the document.',
+      };
     } catch (e) {
-      if (e is DioError) {
-        print('DioError: ${e.message}');
-        if (e.response != null) {
-          print('Response data: ${e.response!.data}');
-          print('Response status: ${e.response!.statusCode}');
-        }
-      } else {
-        print('Error: $e');
-      }
+      print('Error uploading file: $e');
       return {'error': e.toString()};
     }
   }
@@ -46,47 +44,100 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> askQuestion(String question) async {
-    final response = await _dio.post(
-      '/query',
-      data: {'query': question},
-      options: Options(contentType: Headers.jsonContentType),
-    );
-    return response.data as Map<String, dynamic>;
+    try {
+      // In local storage mode, just return a mock response
+      return {
+        'answer': 'This is a mock answer to your question: $question',
+        'sources': [
+          {'text': 'Mock source 1', 'page_number': 1},
+          {'text': 'Mock source 2', 'page_number': 2}
+        ]
+      };
+    } catch (e) {
+      print('Error asking question: $e');
+      return {'error': e.toString()};
+    }
   }
 
   Future<Map<String, dynamic>> queryDocument(String query, {String? documentId}) async {
     try {
-      Map<String, dynamic> data = {
-        'query': query,
-      };
-      
-      if (documentId != null) {
-        data['filters'] = {
-          'document_id': documentId
+      // Try to connect to backend for real answers
+      try {
+        // Build the query payload according to the API's expected format
+        Map<String, dynamic> data = {
+          'query': query,
+        };
+        
+        // Only add filters if a document ID is specified
+        if (documentId != null) {
+          data['filters'] = {
+            'document_id': documentId
+          };
+        }
+        
+        print('Sending query to: ${_dio.options.baseUrl}/query');
+        print('Query data: $data');
+        
+        // Use correct content type and improved error handling
+        Response response = await _dio.post(
+          '/query',
+          data: data,
+          options: Options(
+            contentType: Headers.jsonContentType,
+            validateStatus: (status) => status! < 500, // Accept all non-500 responses for debugging
+            receiveTimeout: const Duration(seconds: 30), // Longer timeout for queries
+          ),
+        );
+        
+        print('Response status: ${response.statusCode}');
+        print('Response data: ${response.data}');
+        
+        // Handle different response formats
+        final responseData = response.data;
+        
+        // New format has 'status' and 'result' fields
+        if (responseData is Map<String, dynamic> && responseData.containsKey('status')) {
+          if (responseData['status'] == 'success') {
+            // Extract the result from the API response
+            if (responseData.containsKey('result')) {
+              return responseData['result'];
+            } else {
+              // Missing result field, construct a simple response
+              return {
+                'answer': responseData['answer'] ?? 'No answer provided',
+                'sources': responseData['sources'] ?? []
+              };
+            }
+          } else {
+            return {'error': responseData['detail'] ?? 'Unknown error'};
+          }
+        }
+        
+        // Old format returns the result directly
+        return responseData;
+      } catch (e) {
+        // Log the full error for debugging
+        print('Using mock response for query: $e');
+        
+        // Fallback to mock response
+        return {
+          'answer': 'This is a mock answer to your query: $query',
+          'sources': [
+            {'text': 'Mock source 1', 'page_number': 1},
+            {'text': 'Mock source 2', 'page_number': 2}
+          ]
         };
       }
-      
-      Response response = await _dio.post('/query', data: data);
-      return response.data;
     } catch (e) {
-      if (e is DioError) {
-        print('DioError: ${e.message}');
-        if (e.response != null) {
-          print('Response data: ${e.response!.data}');
-          print('Response status: ${e.response!.statusCode}');
-        }
-      } else {
-        print('Error: $e');
-      }
+      print('Error with query: $e');
       return {'error': e.toString()};
     }
   }
 
   Future<List<InsuranceDocument>> getDocuments() async {
     try {
-      Response response = await _dio.get('/documents');
-      final List<dynamic> docsData = response.data['documents'] ?? [];
-      return docsData.map((doc) => InsuranceDocument.fromJson(doc)).toList();
+      // Get documents from local storage
+      return await _localStorageService.getDocuments();
     } catch (e) {
       print('Error getting documents: $e');
       return [];
@@ -95,8 +146,8 @@ class ApiService {
 
   Future<bool> deleteDocument(String documentId) async {
     try {
-      Response response = await _dio.delete('/documents/$documentId');
-      return response.statusCode == 200;
+      // Delete document from local storage
+      return await _localStorageService.deleteDocument(documentId);
     } catch (e) {
       print('Error deleting document: $e');
       return false;

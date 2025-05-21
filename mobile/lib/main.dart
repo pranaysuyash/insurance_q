@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'dart:io';
 import 'services/api_service.dart';
 import 'screens/qa_screen.dart';
@@ -42,14 +42,9 @@ class InsuranceApp extends StatelessWidget {
       routes: {
         '/qa': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as String?;
-          // If args is provided, set the selected document ID
-          if (args != null) {
-            // Use Provider to set document ID
-            ProviderScope.containerOf(context)
-                .read(selectedDocumentProvider.notifier)
-                .state = args;
-          }
-          return const QAScreen();
+          
+          // Return the screen immediately
+          return QAScreen(initialDocumentId: args);
         },
       },
       debugShowCheckedModeBanner: false,
@@ -129,10 +124,17 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       _uploadError = null;
       _ocrResult = null;
     });
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png']);
-    if (result != null && result.files.single.path != null) {
+    
+    final typeGroup = XTypeGroup(
+      label: 'Documents',
+      extensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+    
+    final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
+    
+    if (file != null) {
       setState(() {
-        _selectedFile = File(result.files.single.path!);
+        _selectedFile = File(file.path);
       });
     }
   }
@@ -275,10 +277,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 }
 
 class QAScreen extends StatelessWidget {
-  const QAScreen({super.key});
+  final String? initialDocumentId;
+
+  const QAScreen({super.key, this.initialDocumentId});
+
   @override
   Widget build(BuildContext context) {
-    return const QaScreen();
+    return QaScreen(initialDocumentId: initialDocumentId);
   }
 }
 

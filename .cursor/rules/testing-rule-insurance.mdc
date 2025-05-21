@@ -1,0 +1,18 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+
+1. First restart the backend services:
+```
+docker-compose down
+docker-compose up -d
+```
+
+2. Then run the Flutter app:
+```
+cd mobile
+flutter pub get  # To ensure all dependencies are installed
+flutter run
+```

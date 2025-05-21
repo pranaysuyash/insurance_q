@@ -229,6 +229,39 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "ocr_service_target": OCR_SERVICE_URL, "rag_service_target": RAG_SERVICE_URL}
 
+# Document list endpoint for mobile app
+@app.get("/documents")
+async def get_documents():
+    """List available documents for the mobile app."""
+    # For now, return sample documents (same as src/app/main.py test endpoint)
+    return {
+        "documents": [
+            {
+                "id": "doc123",
+                "filename": "policy_document.pdf",
+                "size": 1258000,
+                "upload_date": "2023-05-25T14:22:30Z",
+                "status": "completed",
+                "document_type": "health_insurance",
+                "insurer": "Niva Bupa",
+                "processing_completed_at": "2023-05-25T14:25:45Z"
+            },
+            {
+                "id": "doc124",
+                "filename": "auto_insurance.pdf",
+                "size": 983000,
+                "upload_date": "2023-05-26T09:10:15Z",
+                "status": "processing",
+                "document_type": "auto_insurance",
+                "insurer": "Progressive" 
+            }
+        ],
+        "total": 2,
+        "page": 1,
+        "limit": 10,
+        "total_pages": 1
+    }
+
 # Ensure all necessary imports are at the top, like Request for home(request: Request)
 # Ensure structlog is configured if used.
 # Uvicorn run block for direct execution (if __name__ == '__main__') can be added if needed for local dev. 

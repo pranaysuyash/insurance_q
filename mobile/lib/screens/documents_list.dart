@@ -178,10 +178,8 @@ class DocumentsListState extends State<DocumentsList> {
                             _buildMetadataRow('Type', doc.documentType ?? 'Unknown'),
                             _buildMetadataRow('Upload Date', doc.formattedUploadDate),
                             _buildMetadataRow('Analysis Date', doc.formattedAnalyzedDate),
-                            if (doc.pageCount != null)
-                              _buildMetadataRow('Pages', doc.pageCount.toString()),
-                            if (doc.fileSize != null)
-                              _buildMetadataRow('File Size', doc.formattedFileSize),
+                            if (doc.size != null)
+                              _buildMetadataRow('Size', doc.formattedFileSize),
                             const SizedBox(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,

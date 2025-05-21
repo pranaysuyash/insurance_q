@@ -80,6 +80,7 @@ This is the central class managing the RAG process.
     -   Takes a `document_id` and a list of `text_blocks` (dictionaries containing `text`, `page`, `id`, `bbox`).
     -   Checks if the document already has points in Qdrant to prevent duplicate ingestion.
     -   Filters out empty text blocks and truncates long texts.
+    -   Initializes an empty list `points_to_upsert` to collect points to be added to Qdrant, ensuring this variable exists even if embedding generation fails.
     -   Calls `_generate_embeddings_with_fallback` to get embeddings for the text content of the blocks.
     -   Constructs Qdrant `PointStruct` objects, including:
         -   A unique ID (derived from `block_id` or a new UUID).
@@ -158,6 +159,7 @@ This is the central class managing the RAG process.
 -   Specific error messages from OpenAI (rate limits, billing, key issues) are logged for easier debugging.
 -   The fallback mechanism itself is a form of error handling for embedding generation.
 -   Failures in Qdrant operations or OpenAI chat completions are logged and returned as errors in the API response.
+-   Variables are properly initialized to handle edge cases (e.g., `points_to_upsert` is initialized early in the `ingest_document_data` method to prevent potential `NameError` if embedding generation fails).
 
 ## Environment Variables
 
@@ -178,4 +180,4 @@ Key environment variables influencing the RAG pipeline:
 -   `test_openai_key.py`: Tests OpenAI API key validity and embedding model functionality directly.
 -   `test_embedding_fallback.py`: Specifically tests the embedding generation fallback logic within the RAG pipeline by simulating different scenarios and model configurations. This script uses the `RAGPipeline` class to ingest and query data, checking if the fallback occurs as expected.
 
-This detailed documentation should provide a good understanding of the RAG pipeline's architecture and behavior. 
+This detailed documentation should provide a good understanding of the RAG pipeline's architecture and behavior.

@@ -12,7 +12,9 @@ final isLoadingProvider = StateProvider<bool>((ref) => false);
 final currentAnswerProvider = StateProvider<QaAnswer?>((ref) => null);
 
 class QaScreen extends ConsumerStatefulWidget {
-  const QaScreen({Key? key}) : super(key: key);
+  final String? initialDocumentId;
+  
+  const QaScreen({Key? key, this.initialDocumentId}) : super(key: key);
 
   @override
   _QaScreenState createState() => _QaScreenState();
@@ -32,11 +34,11 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
     _loadDocuments();
     _loadSavedDocumentId();
     
-    // Listen for document selection changes
+    // Set the initial document ID if provided
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final selectedId = ref.read(selectedDocumentProvider);
-      if (selectedId != null) {
-        _saveSelectedDocumentId(selectedId);
+      if (widget.initialDocumentId != null) {
+        ref.read(selectedDocumentProvider.notifier).state = widget.initialDocumentId;
+        _saveSelectedDocumentId(widget.initialDocumentId);
       }
     });
   }
@@ -118,11 +120,32 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
     ref.read(isLoadingProvider.notifier).state = true;
     ref.read(currentAnswerProvider.notifier).state = null;
     
+    // Add some logs to help debug
+    print('Asking question: $question');
+    print('Selected document: $selectedDoc');
+    
     try {
+      // Format the question to be more conversational and specific
+      // This often helps LLMs understand the intent better
+      String formattedQuestion = question;
+      
+      // For standard questions, enhance them slightly to help the model
+      if (question == "What is my policy number?") {
+        formattedQuestion = "What is the policy number shown in this insurance document?";
+      } else if (question.contains("deductible")) {
+        formattedQuestion = "What is the deductible amount specified in this insurance policy?";
+      } else if (question.contains("premium")) {
+        formattedQuestion = "What is the premium amount stated in this insurance document?";
+      }
+      
+      print('Formatted question: $formattedQuestion');
+      
       final result = await _apiService.queryDocument(
-        question, 
+        formattedQuestion, 
         documentId: selectedDoc,
       );
+      
+      print('API response: $result');
       
       if (result.containsKey('error')) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -133,7 +156,7 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       
       final answer = QaAnswer.fromJson({
         ...result,
-        'query': question,
+        'query': question, // Keep the original question for the UI
         'document_id': selectedDoc ?? '',
       });
       
@@ -141,6 +164,7 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       ref.read(qaHistoryProvider.notifier).addItem(question, answer);
       
     } catch (e) {
+      print('Error during question: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );

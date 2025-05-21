@@ -1,24 +1,44 @@
 """
-OCR pipeline implementation using Hugging Face Inference APIs for document understanding.
+OCR pipeline implementation using the doctr library for document understanding.
 """
 import os
 import io
-from typing import Dict, Any, List, Tuple, Optional # Added Optional
+import json
+from typing import Dict, Any, List, Tuple, Optional
 from PIL import Image
 import fitz  # PyMuPDF
-from huggingface_hub import InferenceClient, HfApi # Added HfApi for model checks if needed
-from huggingface_hub.utils import RepositoryNotFoundError, GatedRepoError # For error handling
+# Removed Hugging Face InferenceClient specific imports for OCR
+# from huggingface_hub import InferenceClient, HfApi 
+# from huggingface_hub.utils import RepositoryNotFoundError, GatedRepoError
 from datetime import datetime
-import uuid # For generating unique block IDs
-import json # For logging complex objects if needed
-import time # For potential retries or delays
+import uuid
+import time
+import numpy as np # For potential doctr input/output
+import sys # Add this at the top of the file
+
+# doctr imports
+from doctr.models import ocr_predictor as doctr_ocr_predictor # Renamed to avoid clash if any
+from doctr.io import DocumentFile as DoctrDocumentFile
 
 # Configure logging
 import logging
 logger = logging.getLogger(__name__)
-# You might want to configure structlog here if it's used project-wide
-# For now, using standard logging for simplicity within this refactor.
-logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
+# Ensure this specific logger outputs INFO and DEBUG messages
+# This is more specific than just basicConfig for the root logger
+logger.setLevel(logging.INFO) # Or logging.DEBUG for even more verbosity
+logger.propagate = True # Ensure messages are passed to handlers of ancestor loggers
+
+# Add a handler if one isn't configured already by Uvicorn/FastAPI for this logger
+# This ensures messages go to stderr, which Docker captures
+if not logger.hasHandlers():
+    handler = logging.StreamHandler() # Defaults to sys.stderr
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+# The global basicConfig is still useful for other modules or the root logger if needed,
+# but the settings above are more direct for this specific pipeline logger.
+# logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
 
 
 # Helper to convert PIL Image to bytes
@@ -29,19 +49,39 @@ def pil_image_to_bytes(image: Image.Image, format="PNG") -> bytes:
 
 class OCRPipeline:
     def __init__(self):
-        """Initialize the OCR pipeline with Hugging Face Inference Client."""
-        self.hf_token = os.getenv("HF_TOKEN")
-        if not self.hf_token:
-            logger.error("HF_TOKEN environment variable not set.")
-            raise ValueError("HF_TOKEN environment variable not set.")
+        """Initialize the OCR pipeline with a local doctr predictor."""
+        # HF_TOKEN might still be needed for other things (e.g., DocQA if re-enabled, or RAG embedding models)
+        # self.hf_token = os.getenv("HF_TOKEN")
+        # if not self.hf_token:
+        #     logger.warning("HF_TOKEN environment variable not set. This might be an issue if other HF models are used.")
+            # raise ValueError("HF_TOKEN environment variable not set.")
         
-        # Consider adding a timeout to the client
-        self.client = InferenceClient(token=self.hf_token) 
-        
-        # Define models to use
-        self.ocr_model = os.getenv("HF_OCR_MODEL", "mindee/doctr-ocr")
-        self.doc_qa_model = os.getenv("HF_DOC_QA_MODEL", "impira/layoutlm-document-qa")
-        logger.info(f"OCRPipeline initialized. OCR Model: {self.ocr_model}, DocQA Model: {self.doc_qa_model}")
+        # Initialize doctr OCR predictor
+        # Common defaults: db_resnet50 for detection, crnn_vgg16_bn for recognition
+        # export_as_straight_boxes=True can simplify downstream processing if you don't need rotated boxes
+        # assume_straight_pages=True can speed up if pages are generally upright
+        try:
+            logger.info("Initializing doctr OCR predictor...")
+            # You might need to specify device depending on your Docker setup & available hardware
+            # e.g., doctr_ocr_predictor(..., device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+            # For now, let's let doctr decide or default to CPU.
+            self.doctr_predictor = doctr_ocr_predictor(
+                det_arch='db_resnet50',          # Detection model architecture
+                reco_arch='crnn_vgg16_bn',       # Recognition model architecture
+                pretrained=True,                 # Use pretrained weights
+                export_as_straight_boxes=True,   # Output straight bounding boxes
+                assume_straight_pages=True       # Assume pages are mostly upright
+            )
+            logger.info("doctr OCR predictor initialized successfully.")
+        except Exception as e:
+            logger.error(f"Failed to initialize doctr OCR predictor: {e}", exc_info=True)
+            raise
+
+        # DocQA model (currently bypassed, but definition kept for potential future use)
+        self.doc_qa_model_name = os.getenv("HF_DOC_QA_MODEL", "impira/layoutlm-document-qa") # Renamed from self.doc_qa_model
+        # logger.info(f"OCRPipeline initialized. Using local doctr for OCR. DocQA Model (if used): {self.doc_qa_model_name}")
+        logger.info(f"OCRPipeline initialized. Using local doctr for OCR. DocQA Model set to: {self.doc_qa_model_name} (currently bypassed in _get_layout_elements_for_image).")
+
 
     async def _process_pdf(self, file_content: bytes) -> List[Dict[str, Any]]:
         """
@@ -96,86 +136,116 @@ class OCRPipeline:
         
 
     async def _get_ocr_text_for_image(self, image_bytes: bytes, page_num: int) -> str:
-        """Get plain text OCR for a single image using the configured OCR model."""
+        """Get plain text OCR for a single image using the local doctr predictor."""
         ocr_text = ""
         try:
-            logger.debug(f"Sending page {page_num} to OCR model: {self.ocr_model}")
-            # Fix: removed 'data=' parameter which is not supported by the image_to_text method
-            api_result = self.client.image_to_text(image_bytes, model=self.ocr_model)
+            logger.debug(f"Page {page_num}: Preparing image for doctr OCR.")
+            # doctr expects a list of numpy arrays or PIL Images.
+            # We have image_bytes, so convert to PIL Image first.
+            pil_image = Image.open(io.BytesIO(image_bytes))
             
-            if isinstance(api_result, str):
-                ocr_text = api_result
-            elif isinstance(api_result, dict) and "generated_text" in api_result: 
-                ocr_text = api_result["generated_text"]
-            elif isinstance(api_result, list) and api_result and isinstance(api_result[0], dict) and "generated_text" in api_result[0]:
-                 ocr_text = api_result[0]["generated_text"] # Handle cases like [{'generated_text': '...'}]
-            else: 
-                logger.warning(f"Page {page_num}: Unexpected OCR API result format from {self.ocr_model}. Result: {str(api_result)[:500]}")
+            # Process with doctr predictor
+            # The predictor takes a list of pages (images). For a single image:
+            doc_content = [np.array(pil_image)] # Convert PIL to NumPy array
             
-            logger.debug(f"Page {page_num}: OCR extracted text length: {len(ocr_text)}")
+            logger.debug(f"Page {page_num}: Sending image to local doctr OCR predictor.")
+            result = self.doctr_predictor(doc_content)
+            
+            # Extract text from the result
+            # The result object has a structure that needs to be navigated.
+            # result.export() gives a dictionary representation.
+            # We want to concatenate all text found on the page.
+            exported_result = result.export()
+            
+            page_text_parts = []
+            if exported_result and "pages" in exported_result and len(exported_result["pages"]) > 0:
+                page_export = exported_result["pages"][0] # We processed one image/page
+                for block in page_export.get("blocks", []):
+                    for line in block.get("lines", []):
+                        for word in line.get("words", []):
+                            page_text_parts.append(word.get("value", ""))
+                        page_text_parts.append("\n") # Add newline after each line for readability
+                    # page_text_parts.append("\n\n") # Add more space between blocks if needed
+            
+            ocr_text = " ".join(page_text_parts).replace(" \n ", "\n").strip() # Join words, handle newlines
+
+            # Alternative simpler text extraction:
+            # ocr_text = result.render() # This might include bounding box info, not just plain text.
+                                      # Or use result.pages[0].render()
+
+            logger.debug(f"Page {page_num}: doctr OCR extracted text length: {len(ocr_text)}")
+            if not ocr_text and len(page_text_parts) > 0 : # If join resulted in empty but parts existed
+                 logger.warning(f"Page {page_num}: doctr OCR produced parts but final text is empty. Parts: {page_text_parts[:5]}")
+
+
         except Exception as e:
-            logger.error(f"Page {page_num}: Error during HF Inference API call for OCR ({self.ocr_model}): {e}", exc_info=True)
+            logger.error(f"Page {page_num}: Error during local doctr OCR processing: {e}", exc_info=True)
         return ocr_text
 
     async def _get_layout_elements_for_image(self, image_bytes: bytes, page_num: int, questions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Get layout elements by asking questions to the document QA model for a single image."""
-        layout_elements = []
-        if not questions:
-            return layout_elements
+        logger.info(f"Page {page_num}: Skipping DocQA and returning empty layout_elements for now.")
+        return [] # Immediately return empty list to bypass DocQA
 
-        # Convert image_bytes to PIL Image because some HF doc_qa models expect it directly
-        # or InferenceClient handles it better. If direct bytes are preferred by the model, adjust.
-        try:
-            pil_image = Image.open(io.BytesIO(image_bytes))
-        except Exception as e:
-            logger.error(f"Page {page_num}: Failed to convert image bytes to PIL Image for DocQA: {e}", exc_info=True)
-            return layout_elements
+        # The rest of the original method is now effectively disabled by the return above.
+        # Keeping it here commented out for future reference if we re-enable local DocQA.
+        '''
+        # layout_elements = []
+        # if not questions:
+        #     return layout_elements
 
-        for q_item in questions:
-            question_text = q_item["question"]
-            element_type = q_item["type"]
-            field_id = q_item.get("id", str(uuid.uuid4())) # Allow predefined ID for element type
-            try:
-                logger.debug(f"Page {page_num}: Querying DocQA model ({self.doc_qa_model}) with question: '{question_text}'")
+        # # Convert image_bytes to PIL Image because some HF doc_qa models expect it directly
+        # # or InferenceClient handles it better. If direct bytes are preferred by the model, adjust.
+        # try:
+        #     pil_image = Image.open(io.BytesIO(image_bytes))
+        # except Exception as e:
+        #     logger.error(f"Page {page_num}: Failed to convert image bytes to PIL Image for DocQA: {e}", exc_info=True)
+        #     return layout_elements
+
+        # for q_item in questions:
+        #     question_text = q_item["question"]
+        #     element_type = q_item["type"]
+        #     field_id = q_item.get("id", str(uuid.uuid4())) # Allow predefined ID for element type
+        #     try:
+        #         logger.debug(f"Page {page_num}: Querying DocQA model ({self.doc_qa_model}) with question: '{question_text}'")
                 
-                # Fix: Use document_question_answering method instead of post
-                api_answers = self.client.document_question_answering(
-                    image=pil_image,
-                    question=question_text,
-                    model=self.doc_qa_model
-                )
+        #         # Fix: Use document_question_answering method instead of post
+        #         api_answers = self.client.document_question_answering(
+        #             image=pil_image,
+        #             question=question_text,
+        #             model=self.doc_qa_model
+        #         )
                                 
-                if not isinstance(api_answers, list):
-                    logger.warning(f"Page {page_num}: DocQA model ({self.doc_qa_model}) returned non-list for question '{question_text}'. Response: {str(api_answers)[:500]}")
-                    continue
+        #         if not isinstance(api_answers, list):
+        #             logger.warning(f"Page {page_num}: DocQA model ({self.doc_qa_model}) returned non-list for question '{question_text}'. Response: {str(api_answers)[:500]}")
+        #             continue
 
-                for answer_item in api_answers:
-                    if isinstance(answer_item, dict) and all(k in answer_item for k in ["answer", "score"]):
-                        # box_2d might not always be present or might be named differently (e.g. "box")
-                        bbox = answer_item.get("box_2d", answer_item.get("box")) 
-                        layout_elements.append({
-                            "id": field_id, # Use the id from question config
-                            "type": element_type,
-                            "text": str(answer_item["answer"]),
-                            "answer_box": bbox, 
-                            "confidence": float(answer_item["score"]),
-                            "page": page_num,
-                            "question_asked": question_text # For traceability
-                        })
-                    else:
-                        logger.warning(f"Page {page_num}: Unexpected answer item format from DocQA for question '{question_text}'. Item: {str(answer_item)[:200]}")
-            except Exception as e:
-                logger.error(f"Page {page_num}: Error during HF Inference API call for DocQA ({self.doc_qa_model}) with question '{question_text}': {e}", exc_info=True)
-        logger.debug(f"Page {page_num}: Extracted {len(layout_elements)} layout elements.")
-        return layout_elements
+        #         for answer_item in api_answers:
+        #             if isinstance(answer_item, dict) and all(k in answer_item for k in ["answer", "score"]):
+        #                 # box_2d might not always be present or might be named differently (e.g. "box")
+        #                 bbox = answer_item.get("box_2d", answer_item.get("box")) 
+        #                 layout_elements.append({
+        #                     "id": field_id, # Use the id from question config
+        #                     "type": element_type,
+        #                     "text": str(answer_item["answer"]),
+        #                     "answer_box": bbox, 
+        #                     "confidence": float(answer_item["score"]),
+        #                     "page": page_num,
+        #                     "question_asked": question_text # For traceability
+        #                 })
+        #             else:
+        #                 logger.warning(f"Page {page_num}: Unexpected answer item format from DocQA for question '{question_text}'. Item: {str(answer_item)[:200]}")
+        #     except Exception as e:
+        #         # If it's a StopIteration, it means the model likely isn't available on inference API for this task
+        #         if isinstance(e, StopIteration):\n            logger.error(f"Page {page_num}: StopIteration encountered for DocQA model {self.doc_qa_model} with question '{question_text}'. This often means the model is not deployed on a free Inference API provider for 'document-question-answering'. Error: {e}", exc_info=True)
+        #         else:
+        #             logger.error(f"Page {page_num}: Error during HF Inference API call for DocQA ({self.doc_qa_model}) with question '{question_text}': {e}", exc_info=True)
+        # logger.debug(f"Page {page_num}: Extracted {len(layout_elements)} layout elements.")
+        # return layout_elements
+        ''' 
 
     async def process_document(self, file_content: bytes, file_type: str, filename: str, layout_questions_config: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-        """
-        Process a document using Hugging Face Inference APIs.
-        Returns a structured dictionary with OCR text and extracted layout elements.
-        `layout_questions_config`: A list of dicts, e.g., 
-            [{"id": "title_field", "type": "title", "question": "What is the title?"}, ...]
-        """
+        print(f"DEBUG_PRINT: process_document CALLED for {filename}", file=sys.stderr)
         logger.info(f"Starting document processing for: {filename}, type: {file_type}")
         start_time = time.time()
 
@@ -248,8 +318,8 @@ class OCRPipeline:
                     "filename": filename,
                     "processed_at": datetime.now().isoformat(),
                     "page_count": page_count,
-                    "ocr_model": self.ocr_model,
-                    "doc_qa_model": self.doc_qa_model,
+                    "ocr_model": "doctr (local)", # Updated OCR model name
+                    "doc_qa_model": self.doc_qa_model_name, # Using the renamed variable
                     "processing_time_seconds": round(processing_time, 2)
                 },
                 "full_text": combined_full_text,

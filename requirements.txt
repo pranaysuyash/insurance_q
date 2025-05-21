@@ -12,11 +12,16 @@ openai
 qdrant-client
 redis
 
-# Image & PDF Processing (Still needed for preparing data for APIs)
+# Image & PDF Processing
 pillow
-pymupdf # fitz, for PDF to image conversion
-# pypdf # Review if still needed, PyMuPDF is powerful
-# pdfplumber # Review if still needed
+pymupdf # fitz, for PDF to image conversion and direct text extraction
+
+# OCR with Doctr
+python-doctr[torch]
+torch
+torchvision
+# python-doctr # If installing without a specific backend initially
+# tensorflow # Uncomment if using TensorFlow backend for doctr
 
 # Utilities
 python-dotenv
@@ -36,10 +41,12 @@ httpx
 pytest-mock
 aioresponses
 
-# Commented out as local heavy model inference is removed
+# Frontend template
+jinja2
+
+# Commented out as local heavy model inference is removed or replaced
 # sentence-transformers
 # transformers
-# torch
 # paddleocr
 # paddlepaddle
 # pytesseract
@@ -55,5 +62,3 @@ python-dotenv
 # Testing
 pytest
 pytest-asyncio 
-
-jinja2

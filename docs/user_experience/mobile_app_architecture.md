@@ -384,5 +384,56 @@ The app implements a freemium model designed to generate quality insurance leads
 - **CORS or 500 error:** Check backend logs and test the `/upload` endpoint with Postman/cURL.
 - **Emulator:** Use `10.0.2.2` for Android emulator, `localhost` for iOS simulator (if backend is on the same Mac).
 
+### 8.1. Troubleshooting Common Android Build Issues
+
+If you encounter build failures when running `flutter run` for Android, try the following steps. Remember to run `flutter clean` in your `mobile` directory after making changes to `build.gradle.kts` files.
+
+1.  **Android NDK Version Mismatch:**
+    *   **Error:** `Your project is configured with Android NDK X, but the following plugin(s) depend on a different Android NDK version: Y`
+    *   **Fix:** Update the NDK version in `mobile/android/app/build.gradle.kts`:
+        ```kotlin
+        android {
+            // ...
+            ndkVersion = "27.0.12077973" // Or the version required by plugins
+            // ...
+        }
+        ```
+
+2.  **Core Library Desugaring Required:**
+    *   **Error:** `Dependency ':some_plugin' requires core library desugaring to be enabled for :app.` or `Dependency ':some_plugin' requires desugar_jdk_libs version to be X or above for :app, which is currently Y`
+    *   **Fix:** Enable core library desugaring in `mobile/android/app/build.gradle.kts`:
+        ```kotlin
+        android {
+            // ...
+            compileOptions {
+                // ...
+                isCoreLibraryDesugaringEnabled = true
+            }
+            // ...
+        }
+
+        dependencies {
+            // ...
+            coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") // Ensure this version (or newer) meets plugin requirements
+        }
+        ```
+        Check the error message for the specific `desugar_jdk_libs` version required by the problematic plugin and update accordingly.
+
+3.  **minSdkVersion Too Low:**
+    *   **Error:** `uses-sdk:minSdkVersion A cannot be smaller than version B declared in library [:some_plugin]`
+    *   **Fix:** Increase the `minSdk` in `mobile/android/app/build.gradle.kts`. The error message or Flutter Fix will often suggest the required version (e.g., 23 for `firebase_auth`):
+        ```kotlin
+        android {
+            // ...
+            defaultConfig {
+                // ...
+                minSdk = 23 // Or the version required by plugins
+                // ...
+            }
+            // ...
+        }
+        ```
+        Note: Increasing `minSdk` means your app will not support Android versions below the new minimum.
+
 ### 9. Next Steps
 - Once upload and OCR work, proceed to QA integration (ask questions about the uploaded document). 
