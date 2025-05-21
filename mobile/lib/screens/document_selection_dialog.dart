@@ -67,7 +67,7 @@ class DocumentSelectionDialog extends StatelessWidget {
                 const Icon(Icons.info_outline, size: 16, color: Colors.blue),
                 const SizedBox(width: 8),
                 Text(
-                  '${documents.length}/5 documents (oldest will be removed when limit reached)',
+                  '${documents.length}/5 documents (free storage limit)',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.blue,

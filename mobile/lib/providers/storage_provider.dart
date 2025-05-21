@@ -20,6 +20,7 @@ class StorageKeys {
   static const String lastUploadedDocumentId = 'last_uploaded_document_id';
   static const String lastQueryDate = 'last_query_date';
   static const String tutorialShown = 'tutorial_shown';
+  static const String lastViewedDocumentId = 'last_viewed_document_id';
   
   // Prevent instantiation
   StorageKeys._();

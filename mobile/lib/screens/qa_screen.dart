@@ -31,11 +31,12 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadDocuments();
-    _loadSavedDocumentId();
     
-    // Set the initial document ID if provided
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Load documents first, then handle document selection
+    _loadDocuments().then((_) {
+      _loadSavedDocumentId();
+      
+      // Set the initial document ID if provided
       if (widget.initialDocumentId != null) {
         ref.read(selectedDocumentProvider.notifier).state = widget.initialDocumentId;
         _saveSelectedDocumentId(widget.initialDocumentId);
@@ -47,9 +48,36 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       if (prefs != null) {
+        // First try to use explicit initial document ID if provided
+        if (widget.initialDocumentId != null) {
+          ref.read(selectedDocumentProvider.notifier).state = widget.initialDocumentId;
+          return;
+        }
+        
+        // Next, try to use the previously selected document ID
         final savedId = prefs.getString(StorageKeys.selectedDocumentId);
         if (savedId != null) {
           ref.read(selectedDocumentProvider.notifier).state = savedId;
+          return;
+        }
+        
+        // Then, try to use the most recently viewed document
+        final lastViewedId = prefs.getString(StorageKeys.lastViewedDocumentId);
+        if (lastViewedId != null) {
+          ref.read(selectedDocumentProvider.notifier).state = lastViewedId;
+          return;
+        }
+        
+        // Finally, try to use the last uploaded document
+        final lastUploadedId = prefs.getString(StorageKeys.lastUploadedDocumentId);
+        if (lastUploadedId != null) {
+          ref.read(selectedDocumentProvider.notifier).state = lastUploadedId;
+          return;
+        }
+        
+        // If there's just one document, auto-select it
+        if (_documents.length == 1) {
+          ref.read(selectedDocumentProvider.notifier).state = _documents[0].id;
         }
       }
     } catch (e) {
@@ -65,6 +93,8 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
           await prefs.remove(StorageKeys.selectedDocumentId);
         } else {
           await prefs.setString(StorageKeys.selectedDocumentId, documentId);
+          // Also save as the most recently viewed document
+          await prefs.setString(StorageKeys.lastViewedDocumentId, documentId);
         }
       }
     } catch (e) {

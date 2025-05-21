@@ -145,7 +145,7 @@ class DocumentsListState extends State<DocumentsList> {
                 const Icon(Icons.info_outline, size: 16, color: Colors.blue),
                 const SizedBox(width: 8),
                 Text(
-                  '${_documents.length}/5 documents (oldest will be removed when limit reached)',
+                  '${_documents.length}/5 documents (free storage limit)',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.blue,

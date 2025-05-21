@@ -76,6 +76,25 @@
   - Updated the score conversion to properly check if the value is a number type before conversion
   - Replaced `(json['score'] as num?)?.toDouble() ?? 0.0` with more robust `(json['score'] is num) ? (json['score'] as num).toDouble() : 0.0`
 
+### Document Limit Messaging Improvements
+- **Issue**: The document limit messaging was too alarming with text like "oldest will be removed"
+- **Fix**:
+  - Changed the message from "X/5 documents (oldest will be removed when limit reached)" to "X/5 documents (free storage limit)"
+  - Applied this change in both the documents list screen and document selection dialog
+  - Made the messaging more friendly while still conveying the limit
+
+### Document Selection Improvements
+- **Issue**: The QA screen didn't properly default to a sensible document when first loaded
+- **Fix**:
+  - Added a more sophisticated document selection algorithm that tries multiple options in priority order:
+    1. Use explicit initial document ID if provided via navigation
+    2. Use the previously selected document ID from recent session
+    3. Use the most recently viewed document
+    4. Use the last uploaded document
+    5. Auto-select the only document if there's just one
+  - Added storage for the most recently viewed document ID
+  - Improved the document loading sequence to ensure documents are loaded before selection logic runs
+
 ## Offline Capability
 
 ### Local Storage Implementation
