@@ -73,6 +73,40 @@ This document captures specific technical decisions, issue resolutions, and arch
   * Required more upfront design work
   * Better user experience for both novice and experienced users
 
+### Decision: Document Management Strategy
+* **Context:** Need to manage multiple insurance documents efficiently for the user
+* **Options Considered:**
+  1. Unlimited document storage
+  2. Limited document storage with manual cleanup
+  3. Limited document storage with automatic cleanup
+* **Decision:** Implemented 5-document limit with automatic removal of oldest documents
+* **Rationale:**
+  * Prevents excessive storage use on mobile device
+  * Automatic cleanup provides seamless user experience
+  * 5 documents is typically sufficient for personal insurance needs
+  * Oldest-first removal is intuitive for users
+* **Consequences:**
+  * Simpler user experience without manual cleanup
+  * Potential risk of unintentionally removing needed documents
+  * Need for clear UI indicators about document limits
+
+### Decision: Document Metadata Tracking
+* **Context:** Need to provide users with information about their documents
+* **Options Considered:**
+  1. Basic filename-only approach
+  2. Comprehensive metadata capturing upload and processing details
+  3. Auto-classification of document types
+* **Decision:** Implemented comprehensive metadata with timestamps and document properties
+* **Rationale:**
+  * Helps users identify documents beyond just filenames
+  * Timestamps provide context for document history
+  * Page count and file size offer document characteristics
+  * Document type identification improves organization
+* **Consequences:**
+  * More complex data model and UI
+  * Better user experience with richer document information
+  * Allows for future integration of sorting and filtering
+
 ## Backend Architecture
 
 ### Decision: Service Separation
