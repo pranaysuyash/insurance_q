@@ -309,4 +309,80 @@ The app implements a freemium model designed to generate quality insurance leads
 - **QA Chat Screen:**
   - [Chat Thread]
   - [Input Field + Send Button]
-  - [Upload Limit Banner/Modal if needed] 
+  - [Upload Limit Banner/Modal if needed]
+
+---
+
+## Running and Testing the Flutter App with Backend (Wi-Fi, Real Device)
+
+### 1. Prerequisites
+- Backend (FastAPI, Docker Compose, etc.) is set up and working.
+- Flutter app is scaffolded in `mobile/`.
+- Android/iOS device and computer are on the same Wi-Fi network.
+- Wireless debugging is set up (e.g., `adb pair` and `adb connect` for Android).
+
+### 2. Find Your Computer's LAN IP Address
+- On your computer, run:
+  ```sh
+  ifconfig | grep inet
+  ```
+  or (on Mac):
+  ```sh
+  ipconfig getifaddr en0
+  ```
+- Note the IP address that looks like `192.168.x.x` or `10.0.x.x`.
+
+### 3. Configure the Backend to Listen on All Interfaces
+- If using **Uvicorn/FastAPI** directly:
+  ```sh
+  uvicorn main:app --host 0.0.0.0 --port 8000
+  ```
+- If using **Docker Compose**, ensure your `docker-compose.yml` exposes port 8000 and the service is not bound to `localhost` only:
+  ```yaml
+  ports:
+    - "8000:8000"
+  ```
+- **Restart** your backend services if you change any config.
+
+### 4. Test Backend Accessibility from Your Device
+- On your phone/tablet, open a browser and go to:
+  ```
+  http://<your-computer-ip>:8000/health
+  ```
+- You should see a JSON health response (e.g., `{"status": "healthy", ...}`).
+- If not, check:
+  - Firewall settings (allow incoming connections on port 8000).
+  - Docker port mappings.
+  - That your device and computer are on the same Wi-Fi.
+
+### 5. Update Flutter App API Endpoint
+- In `mobile/lib/services/api_service.dart`, set:
+  ```dart
+  static const String baseUrl = 'http://<your-computer-ip>:8000';
+  ```
+  Replace `<your-computer-ip>` with your actual LAN IP.
+
+### 6. Run the Flutter App on Your Device
+- In your terminal:
+  ```sh
+  cd /Users/pranay/Projects/medpiper/insurance_app/mobile
+  flutter run
+  ```
+- Select your device (should show up as a wireless device).
+
+### 7. Test the Document Upload & OCR Flow
+- In the app, go to the **Documents** tab.
+- Tap **"Select Document"** and pick a PDF or image file.
+- Tap **"Upload & OCR"**.
+- Wait for the upload and processing to complete.
+- You should see:
+  - The extracted text (truncated if long)
+  - Any extracted sections (as cards)
+
+### 8. Troubleshooting
+- **Network error:** Double-check the IP and port, backend status, and firewall.
+- **CORS or 500 error:** Check backend logs and test the `/upload` endpoint with Postman/cURL.
+- **Emulator:** Use `10.0.2.2` for Android emulator, `localhost` for iOS simulator (if backend is on the same Mac).
+
+### 9. Next Steps
+- Once upload and OCR work, proceed to QA integration (ask questions about the uploaded document). 
