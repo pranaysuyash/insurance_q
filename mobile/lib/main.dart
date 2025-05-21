@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'services/api_service.dart';
+import 'screens/qa_screen.dart';
+import 'screens/documents_list.dart';
 
 void main() {
   runApp(const ProviderScope(child: InsuranceApp()));
@@ -88,6 +90,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   bool _isUploading = false;
   String? _uploadError;
   Map<String, dynamic>? _ocrResult;
+  final ApiService _apiService = ApiService();
+  final GlobalKey<_DocumentsListState> _documentsListKey = GlobalKey<_DocumentsListState>();
 
   Future<void> _pickFile() async {
     setState(() {
@@ -110,8 +114,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       _ocrResult = null;
     });
     try {
-      final api = ApiService();
-      final result = await api.uploadDocument(_selectedFile!);
+      final result = await _apiService.uploadDocumentWithLimitCheck(_selectedFile!);
       setState(() {
         _ocrResult = result;
       });
@@ -126,69 +129,74 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
+  void _refreshDocumentsList() {
+    if (_documentsListKey.currentState != null) {
+      _documentsListKey.currentState!._loadDocuments();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ElevatedButton.icon(
-            onPressed: _isUploading ? null : _pickFile,
-            icon: const Icon(Icons.attach_file),
-            label: const Text('Select Document'),
-          ),
-          if (_selectedFile != null) ...[
-            const SizedBox(height: 8),
-            Text('Selected: ${_selectedFile!.path.split('/').last}'),
-            const SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed: _isUploading ? null : _uploadFile,
-              icon: const Icon(Icons.cloud_upload),
-              label: _isUploading ? const Text('Uploading...') : const Text('Upload & OCR'),
-            ),
-          ],
-          if (_isUploading) ...[
-            const SizedBox(height: 16),
-            const LinearProgressIndicator(),
-          ],
-          if (_uploadError != null) ...[
-            const SizedBox(height: 16),
-            Text('Error: $_uploadError', style: const TextStyle(color: Colors.red)),
-          ],
-          if (_ocrResult != null) ...[
-            const SizedBox(height: 16),
-            const Text('OCR Result:', style: TextStyle(fontWeight: FontWeight.bold)),
-            if (_ocrResult!['text'] != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Container(
-                  height: 300, // Fixed height container
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(_ocrResult!['text']),
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Upload card
+        Card(
+          margin: const EdgeInsets.all(8.0),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Upload Document',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            if (_ocrResult!['layout_elements'] != null)
-              ...(_ocrResult!['layout_elements'] as List)
-                  .map((e) => Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          title: Text(e['id'] ?? e['type'] ?? 'Section'),
-                          subtitle: Text(e['text'] ?? e['answer'] ?? ''),
-                        ),
-                      ))
-                  .toList(),
-          ],
-        ],
-      ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: _isUploading ? null : _pickFile,
+                  icon: const Icon(Icons.attach_file),
+                  label: const Text('Select Document'),
+                ),
+                if (_selectedFile != null) ...[
+                  const SizedBox(height: 8),
+                  Text('Selected: ${_selectedFile!.path.split('/').last}'),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: _isUploading ? null : () async {
+                      await _uploadFile();
+                      _refreshDocumentsList();
+                    },
+                    icon: const Icon(Icons.cloud_upload),
+                    label: _isUploading 
+                        ? const Text('Uploading...') 
+                        : const Text('Upload & OCR'),
+                  ),
+                ],
+                if (_isUploading) ...[
+                  const SizedBox(height: 16),
+                  const LinearProgressIndicator(),
+                ],
+                if (_uploadError != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error: $_uploadError', 
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        
+        // Document list view
+        Expanded(
+          child: DocumentsList(key: _documentsListKey),
+        ),
+      ],
     );
   }
 }
@@ -197,7 +205,7 @@ class QAScreen extends StatelessWidget {
   const QAScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('QA Interface'));
+    return const QaScreen();
   }
 }
 
