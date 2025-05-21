@@ -94,3 +94,22 @@ Added a robust solution to handle various response formats from the RAG pipeline
    - Third layer: Catch responses with answer but missing result structure
 
 This ensures that regardless of how the pipeline returns data (directly or from cache), the API response maintains a consistent format that the mobile app can rely on. 
+
+## App Review and Future Improvements
+
+Following a comprehensive app review in May 2025, we've identified several additional issues and potential improvements for the RAG system. Based on this review, we've created detailed documentation and action plans:
+
+1. **[App Review Feedback](../user_experience/app_review_feedback_may_2025.md)** - A comprehensive analysis of the app's current state, including identified issues and recommendations.
+
+2. **[App Improvement TODOs](../../planning/product/TODO_app_improvements.md)** - A prioritized list of tasks to address the issues identified in the review.
+
+3. **[RAG System Improvement Plan](../ai_and_nlp/rag_improvements_todo.md)** - A focused plan for enhancing the RAG system reliability, accuracy, and user experience.
+
+Some of the critical RAG improvements identified include:
+- Further enhancement of error handling in both frontend and backend
+- Improving policy information extraction from documents
+- Adding source citations and "View in Document" capabilities
+- Enhancing query understanding with domain-specific context
+- Implementing proper multi-document querying
+
+These improvements will be incorporated into our development roadmap for implementation over the coming sprints. 
