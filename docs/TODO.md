@@ -59,6 +59,7 @@
         *   Add document preview capabilities
         *   Implement document sorting and filtering
         *   Create policy comparison interface
+        *   Improve general UI error handling and user feedback mechanisms
     *   **State Management:** Continue improving state management with Riverpod
     *   **User Authentication (if `firebase_auth.py` is to be used):** Integrate Firebase authentication in Flutter and potentially in the FastAPI backend-for-frontend.
 
@@ -114,4 +115,27 @@
     *   [ ] Conduct full accessibility audit
     *   [ ] Ensure proper contrast ratios for text elements
     *   [ ] Add screen reader support for critical functionality
-    *   [ ] Implement keyboard navigation throughout the app 
+    *   [ ] Implement keyboard navigation throughout the app
+
+## VI. Post-Documentation Review Priorities (Strategic & Technical Debt):
+
+1.  **Deep Code-to-Documentation Synchronization for Core Services (`ocr_service`, `rag_service`, `frontend` BFF):**
+    *   **Goal:** Ensure detailed technical documents precisely match the source code of primary services (functions, class interactions, error handling, model/API calls).
+    *   **Files to check/update:** `docs/technical/implementation/extraction/ocr_implementation.md`, `docs/technical/ai_and_nlp/rag_implementation.md`, `docs/reference/api_documentation/api_specification.md`, `docs/developer_guide.md`.
+    *   **Source code to review:** `src/ocr/pipeline.py`, `src/rag/pipeline.py`, `src/frontend/app.py`.
+
+2.  **Populate Critical "Missing" Technical Documentation - Starting with `api_design_principles.md`:**
+    *   **Goal:** Define API design principles (naming, structure, error handling, versioning, etc.) to guide consistent development.
+    *   **File to populate:** `docs/technical/architecture/api_design_principles.md`.
+
+3.  **Enhance and Verify Test Coverage for Backend Services:**
+    *   **Goal:** Ensure comprehensive and up-to-date `pytest` tests for OCR and RAG services, covering critical paths and functionalities.
+    *   **Action:** Run existing tests, identify gaps by reviewing `src/ocr/` and `src/rag/`, write new unit/integration tests. Update `developer_guide.md` with testing instructions.
+
+4.  **Plan and Begin Implementation of a Foundational Missing Feature - User Authentication for Web Frontend:**
+    *   **Goal:** Implement user authentication (login, registration, session management) for the web frontend (`src/frontend/app.py`).
+    *   **Action:** Evaluate FastAPI auth libraries, design data models if needed, implement endpoints and basic UI templates. Update `docs/user_guide.md` and `docs/developer_guide.md`.
+
+5.  **Review and Refine Environment Configuration & Secrets Management Strategy:**
+    *   **Goal:** Enhance the strategy for managing environment variables and secrets across development, staging, and production.
+    *   **Action:** Review current setup (`.env`, `sample.env`, `set_env_vars.py`, `docker-compose.yml`, `Dockerfile`). Propose best practices (e.g., Docker secrets for prod), refine loading/validation. Update `docs/developer_guide.md`. 

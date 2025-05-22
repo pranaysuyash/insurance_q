@@ -9,6 +9,7 @@ An intelligent system for parsing insurance policy documents and answering quest
 - Document Layout Element Extraction (via Hugging Face Inference API - Document QA)
 - Intelligent Question Answering via RAG (using OpenAI Embeddings & Chat Models)
 - Modern Web Interface
+- Flutter Mobile App for Android and iOS
 
 ## Architecture (API-Driven)
 
@@ -224,4 +225,42 @@ Comprehensive documentation is maintained in the `docs/` directory:
 4.  Push to the branch.
 5.  Create a Pull Request.
 
-ISC License - See LICENSE file for details 
+ISC License - See LICENSE file for details
+
+## Mobile Application
+
+The project includes a Flutter-based mobile application that allows users to:
+
+- Upload insurance policy documents
+- View and manage uploaded documents
+- Ask questions about policies using the RAG system
+- View answers with source citations
+
+The mobile app connects to the same backend services as the web interface and supports both online and offline functionality.
+
+**Running the Mobile App:**
+
+1. Navigate to the mobile directory:
+   ```bash
+   cd mobile
+   ```
+
+2. Install Flutter dependencies:
+   ```bash
+   flutter pub get
+   ```
+
+3. Run the app in debug mode:
+   ```bash
+   flutter run
+   ```
+
+4. For production builds:
+   ```bash
+   flutter build apk       # For Android
+   flutter build ios       # For iOS (requires Mac with Xcode)
+   ```
+
+**Note**: When running on a physical device, ensure the `baseUrl` in `mobile/lib/services/api_service.dart` is set to your development machine's IP address on the same network.
+
+For more details on mobile app implementation and fixes, see `docs/technical/implementation/mobile_app_fixes.md`. 

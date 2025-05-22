@@ -21,9 +21,7 @@ app = FastAPI(
 # Initialize RAG pipeline
 try:
     rag_pipeline = RAGPipeline(
-        # Use environment variables to control embedding model preferences
-        use_openai_embeddings=os.getenv("USE_OPENAI_EMBEDDINGS", "true").lower() == "true",
-        use_huggingface_fallback=os.getenv("USE_HF_FALLBACK", "true").lower() == "true",
+        # No arguments needed now as it defaults to OpenAI and no fallback
     )
     logger.info("RAG pipeline initialized successfully")
 except Exception as e:

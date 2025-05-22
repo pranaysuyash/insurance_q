@@ -5,7 +5,8 @@ import 'local_storage_service.dart';
 
 class ApiService {
   // Set your backend base URL here - only needed for query operations
-  static const String baseUrl = 'http://192.168.1.12:8080'; // Your laptop's IP on the WiFi network
+  // static const String baseUrl = 'http://192.168.1.12:8080'; // Your laptop's IP on the WiFi network
+  static const String baseUrl = 'http://172.21.0.237:8080'; // Your laptop's IP on the WiFi network
 
   final Dio _dio = Dio(
     BaseOptions(

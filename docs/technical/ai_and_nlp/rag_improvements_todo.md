@@ -12,7 +12,7 @@ Based on the comprehensive app review feedback from May 2025, this document outl
   - Error handling is not robust enough in the frontend
 - **Implementation Tasks:**
   - [x] Add response format normalization in service.py (completed May 21, 2025)
-  - [ ] Verify all Redis cached responses are properly formatted
+  - [x] Create Redis cache validation tool to verify and fix cached responses (completed May 22, 2025)
   - [ ] Add additional validation layer before returning responses
   - [ ] Implement graceful degradation for service failures
   - [ ] Add comprehensive logging throughout the pipeline for better debugging
@@ -29,6 +29,54 @@ Based on the comprehensive app review feedback from May 2025, this document outl
   - [ ] Implement robust pattern recognition for policy details in OCR output
   - [ ] Add confidence scores for extracted information
   - [ ] Create validation rules for common policy number formats
+
+## Cache Validation Utility
+
+We've developed a utility to inspect and fix cached responses in Redis to ensure consistent format. This addresses one of the root causes of the RAG service errors where cached responses lacked the expected structure.
+
+### Redis Cache Validator Features
+- Scans all keys matching a pattern (default: `rag:query:*`)
+- Validates response format according to our standard structure
+- Automatically fixes malformed responses to conform to the expected format
+- Provides detailed reports of validation results
+
+### How to Use
+
+1. **Check for issues without making changes:**
+   ```bash
+   ./scripts/validate_redis_cache.sh --dry-run
+   ```
+
+2. **Validate and fix all cache entries:**
+   ```bash
+   ./scripts/validate_redis_cache.sh
+   ```
+
+3. **Verbose output with all details:**
+   ```bash
+   ./scripts/validate_redis_cache.sh --verbose
+   ```
+
+4. **Scan specific patterns:**
+   ```bash
+   ./scripts/validate_redis_cache.sh --pattern='rag:*'
+   ```
+
+### Implementation Details
+
+The validation utility:
+1. Connects to Redis using environment variables
+2. Scans for keys matching the specified pattern
+3. Validates each response using these criteria:
+   - Must be a valid JSON dictionary
+   - Must have a "status" key with value "success" or "error"
+   - Success responses must have a "result" key containing a dictionary
+   - The result must have an "answer" field
+4. For invalid entries, applies these fixes:
+   - Wraps direct answer/sources responses in the proper format
+   - Restructures responses with correct status but missing "result" key
+   - Marks unfixable entries with an error status
+   - Removes non-JSON entries
 
 ## RAG Enhancements
 

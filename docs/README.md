@@ -13,29 +13,20 @@ This is the comprehensive documentation for the Insurance Policy Parser & QA App
 docs/
 ├── technical/                   # Technical implementation details
 │   ├── ai_and_nlp/              # AI models and NLP functionality
-│   ├── architecture/            # Component-specific architecture  
+│   ├── architecture/            # Component-specific architecture
 │   ├── data_storage/            # Data storage and management
-│   ├── system_architecture/     # System architecture design
-│   ├── implementation/          # Implementation guidelines and specifics
-│   └── unified_architecture/    # Consolidated architecture documentation
+│   ├── system_architecture/     # System architecture design (contains comprehensive_architecture.md)
+│   └── implementation/          # Implementation guidelines and specifics
+│       └── extraction/          # OCR and other extraction specific docs
 ├── user_experience/             # User-facing features and experience
-│   ├── dashboard/               # Dashboard and analytics features
-│   ├── educational_content/     # Educational content strategy
-│   ├── user_interface/          # User interface design
-│   └── user_flows/              # User journey flows and interactions
-├── business/                    # Business and monetization strategy
-│   ├── monetization/            # Revenue models and strategies
-│   ├── marketing/               # Marketing and growth strategies
-│   ├── partnerships/            # Partnership opportunities
-│   └── strategy/                # Business strategy and vision
+│   ├── user_interface/          # User interface design and considerations
+│   └── user_flows.md            # User journey flows and interactions (file)
 ├── planning/                    # Project planning and management
-│   ├── roadmap/                 # Development roadmap and timelines
-│   ├── development_status/      # Current development status
-│   └── issues_and_resolutions/  # Known issues and resolutions
+│   ├── product/                 # Product-specific planning, roadmaps, and specifications
+│   └── roadmap/                 # Overall project roadmap documents
 └── reference/                   # Reference documentation
-    ├── user_documentation/      # End-user documentation
-    ├── developer_documentation/ # Developer guides
-    └── api_documentation/       # API references
+    ├── api_documentation/       # API references (contains api_specification.md)
+    └── insurance_terminology.md # Glossary of insurance terms (file)
 ```
 
 ## Project Overview
@@ -81,35 +72,37 @@ The Insurance Policy Parser & QA App is designed to revolutionize how users inte
 ## Technology Stack
 
 ### Frontend
-- Streamlit for rapid development and deployment
-- React for production-ready components
-- Responsive design for mobile and desktop access
+- Backend-served HTML/CSS/JS (`src/frontend/`) for web interface.
+- Flutter mobile application (`mobile/`) for Android and iOS.
 
 ### Backend
 - Python-based server components
-- FastAPI for API development
-- Task queuing for long-running operations
+- FastAPI for API development (`src/api/`, `src/frontend/app.py`)
+- Redis for caching and task queuing (if Celery or similar is used, though not explicitly detailed here)
 
 ### AI/ML Components
-- LangChain for RAG (Retrieval Augmented Generation) pipeline
-- Document embeddings with state-of-the-art models
-- LLM integration (OpenAI, Anthropic, etc.)
-- OCR capabilities for image-based documents
-- Table extraction algorithms
+- Custom RAG (Retrieval Augmented Generation) pipeline (`src/rag/pipeline.py`)
+- Document embeddings with state-of-the-art models (OpenAI, Hugging Face)
+- LLM integration (OpenAI) for question answering
+- OCR capabilities for image-based documents (e.g., using Hugging Face models via `src/ocr/pipeline.py`)
+- Table extraction algorithms (details in OCR implementation)
 
 ### Data Storage
-- Vector database for semantic search
-- Document store for policy files
-- Relational database for user and metadata
+- Vector database (Qdrant) for semantic search
+- Document store for policy files (implicitly managed by the application, specific store like MinIO not detailed here)
+- Relational database for user and metadata (not explicitly detailed, could be part of FastAPI backend or Firebase)
 
 ## Documentation Sections
 
 See the specific documentation sections for detailed information:
 
-- [Technical Architecture](technical/unified_architecture/comprehensive_architecture.md) - Complete technical details
+- [Comprehensive System Architecture](technical/system_architecture/comprehensive_architecture.md) - Complete technical details
 - [OCR Implementation Details](technical/implementation/extraction/ocr_implementation.md)
 - [RAG Implementation Details](technical/ai_and_nlp/rag_implementation.md)
 - [User Guide](user_guide.md) - Guide for end users
 - [Developer Guide](developer_guide.md) - Information for developers
-- [Product Requirements](planning/roadmap/functional_requirements.md) - Detailed requirements
+- [API Specification](reference/api_documentation/api_specification.md) - Details about the API
+- [Mobile App Architecture](user_experience/mobile_app_architecture.md) - Flutter app details
+- [Product Requirements Document (PRD)](planning/prd_insurance_policy_app.md) - Main PRD
+- [Functional Requirements](planning/roadmap/functional_requirements.md) - Detailed functional requirements
 - [Project Roadmap](planning/roadmap/unified_project_roadmap.md) - Development timeline and milestones

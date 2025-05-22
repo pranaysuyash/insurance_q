@@ -19,488 +19,312 @@ This guide provides instructions for developers working on the Insurance Policy 
 
 Before you begin, ensure you have the following installed:
 
-- Python 3.9+ (3.11 recommended)
-- Node.js 18+ (for frontend development)
-- PostgreSQL 14+
+- Python 3.9+ (3.11 recommended, as used in `Dockerfile` and `venv`)
 - Docker and Docker Compose
 - Git
+- Flutter SDK (if working on the mobile app, see `mobile/README.md` for specific version and setup)
+- Node.js and npm (for Tailwind CSS compilation, see `package.json`)
 
 ### Initial Setup
 
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/your-organization/insurance-app.git
-cd insurance-app
+git clone <repository-url>
+cd insurance_app
 ```
 
-2. **Set up Python virtual environment**
+2. **Set up Python virtual environment (for local development outside Docker, or for IDE integration)**
+
+While the primary development and execution path is via Docker, you might want a local venv.
+The `create_env.py` script can help, or do it manually:
 
 ```bash
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+python3.11 -m venv venv
+source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 pip install -r requirements.txt
-pip install -r requirements-dev.txt  # Development dependencies
 ```
+*Note: Ensure your local Python version matches the one in Docker (`python:3.11-slim`) for consistency.*
 
 3. **Set up environment variables**
 
-Create a `.env` file in the project root directory based on the provided `.env.example`:
+Create a `.env` file in the project root directory by copying `sample.env`:
 
+```bash
+cp sample.env .env
 ```
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/insurance_app
-TEST_DATABASE_URL=postgresql://username:password@localhost:5432/insurance_app_test
 
-# Storage
-STORAGE_BUCKET=local-development-bucket
-STORAGE_PROVIDER=local  # Options: local, s3, gcs
-
-# AI Services
+Then, edit `.env` and fill in the necessary API keys and configurations:
+```env
+# Required for AI features
+HF_TOKEN=your_hugging_face_token_if_needed_for_private_models
 OPENAI_API_KEY=your_openai_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
 
-# Security
-SECRET_KEY=your_secret_key
-AUTH_TOKEN_EXPIRY_MINUTES=60
-REFRESH_TOKEN_EXPIRY_DAYS=7
+# Service Configuration (defaults are usually fine for local Docker setup)
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
+QDRANT_COLLECTION=insurance_docs
+OCR_SERVICE_URL=http://ocr_service:8002/process_document
+RAG_SERVICE_URL=http://rag_service:8001
+EMBEDDING_MODEL=sentence-transformers/all-mpnet-base-v2 # Example HF model
+OPENAI_EMBEDDING_MODEL=text-embedding-ada-002 # Example OpenAI model
+USE_OPENAI_FIRST=true # or false, to set primary embedding service
 
-# Features
-ENABLE_OCR=true
-ENABLE_COMPARISON=true
-ENABLE_NOTIFICATIONS=true
+# Backend-for-Frontend (BFF) configuration
+BFF_HOST=0.0.0.0
+BFF_PORT=8080
 
-# Development
-DEBUG=true
-ENVIRONMENT=development
+# OCR Service configuration
+OCR_HOST=0.0.0.0
+OCR_PORT=8002
+
+# RAG Service configuration
+RAG_HOST=0.0.0.0
+RAG_PORT=8001
+
+# Redis Configuration
+REDIS_HOST=redis
+REDIS_PORT=6379
+CACHE_TTL_SECONDS=3600
+
+# Logging level (e.g., INFO, DEBUG)
+LOG_LEVEL=INFO
 ```
+Refer to `set_env_vars.py` for how these are used and potentially other variables that might be introduced.
 
-4. **Set up database**
-
+4. **Build Frontend Static Assets (Tailwind CSS)**
+If you modify `src/frontend/static/css/input.css` or `tailwind.config.js`, you need to rebuild the `main.css`:
 ```bash
-# Create database
-createdb insurance_app
-createdb insurance_app_test
-
-# Run migrations
-alembic upgrade head
-```
-
-5. **Set up frontend (if working on UI components)**
-
-```bash
-cd frontend
 npm install
+npm run build:css
 ```
+This is also handled during the Docker build.
 
 ### Using Docker for Development
 
-Alternatively, you can use Docker to set up the development environment:
+This is the recommended way to run the entire application stack.
+
+1. **Build and start all services:**
 
 ```bash
-# Build and start all services
-docker-compose -f docker-compose.dev.yml up -d
-
-# View logs
-docker-compose -f docker-compose.dev.yml logs -f
-
-# Stop all services
-docker-compose -f docker-compose.dev.yml down
+docker compose up --build -d
 ```
+The `-d` flag runs the services in detached mode. Omit it to see logs in the current terminal.
+
+2. **View logs:**
+
+If running in detached mode:
+```bash
+docker compose logs -f            # View logs for all services
+docker compose logs -f frontend   # View logs for a specific service (e.g., frontend)
+```
+
+3. **Stop all services:**
+
+```bash
+docker compose down
+```
+
+4. **Accessing Services:**
+- **Web Frontend:** `http://localhost:8080` (or the port mapped in `docker-compose.yml` for the `frontend` service)
+- **Qdrant Dashboard:** `http://localhost:6333/dashboard`
+- Individual service APIs (if you need to test them directly):
+  - RAG Service: `http://localhost:8001/docs`
+  - OCR Service: `http://localhost:8002/docs`
 
 ### AI Service Configuration
 
-To work with the AI components, you'll need API keys for:
-
-1. **OpenAI API** - For GPT models and embeddings
-2. **Anthropic API** - For Claude models (optional)
-3. **Google Cloud Vision API** - For OCR (optional, can use Tesseract locally)
-
-Add these API keys to your `.env` file or set them as environment variables.
+- **OpenAI API Key:** Essential for RAG answer generation and (optionally) primary embeddings. Set `OPENAI_API_KEY` in your `.env` file.
+- **Hugging Face Token:** `HF_TOKEN` in `.env` might be needed if you use private or gated models from Hugging Face Hub for OCR or fallback embeddings. Public models usually don't require it.
 
 ## Project Structure
 
-The project follows a modular architecture with clear separation of concerns:
+The project is organized into several key directories:
 
 ```
-insurance-app/
-├── api/                  # FastAPI application
-│   ├── core/             # Core functionality and config
-│   ├── dependencies/     # Dependency injection
-│   ├── models/           # Database models
-│   ├── routers/          # API routes
-│   ├── schemas/          # Pydantic schemas
-│   ├── services/         # Business logic
-│   └── main.py           # Application entry point
-├── frontend/             # React frontend (if applicable)
-├── pipelines/            # Document processing pipelines
-│   ├── extraction/       # Information extraction modules
-│   ├── ocr/              # OCR processing modules
-│   ├── embeddings/       # Vector embedding generation
-│   └── validation/       # Extraction validation
-├── qa/                   # Question answering system
-│   ├── retrieval/        # Context retrieval modules
-│   ├── generation/       # Answer generation modules
-│   ├── verification/     # Answer verification modules
-│   └── prompts/          # LLM prompts
-├── tests/                # Test suite
-│   ├── unit/             # Unit tests
-│   ├── integration/      # Integration tests
-│   └── fixtures/         # Test fixtures and sample data
-├── scripts/              # Utility scripts
-├── alembic/              # Database migrations
-├── docker/               # Docker configurations
-└── docs/                 # Documentation
+insurance_app/
+├── .github/                # GitHub Actions workflows
+├── docs/                   # Project documentation
+├── mobile/                 # Flutter mobile application
+│   ├── lib/                # Main Flutter app code
+│   └── ...                 # Other Flutter project files (android, ios, etc.)
+├── scripts/                # Utility and helper scripts
+├── src/                    # Backend Python source code
+│   ├── api/                # Potentially for standalone API services (if any beyond BFF)
+│   ├── app/                # Main application logic (could be merged with specific services)
+│   ├── frontend/           # Backend-for-Frontend (BFF) service
+│   │   ├── app.py          # FastAPI app for BFF
+│   │   ├── static/         # Static assets (CSS, JS, images)
+│   │   └── templates/      # HTML templates (Jinja2)
+│   ├── models/             # Pydantic models for data structures
+│   ├── ocr/                # OCR processing service and pipeline
+│   │   └── pipeline.py     # Core OCR logic
+│   ├── rag/                # Retrieval-Augmented Generation service and pipeline
+│   │   └── pipeline.py     # Core RAG logic
+│   └── utils/              # Common utility functions
+├── tests/                  # Test suite for backend services
+├── .env                    # Local environment variables (gitignored)
+├── sample.env              # Example environment variables
+├── check_redis.py          # Script to check Redis connection
+├── create_env.py           # Script to help create .env file
+├── docker-compose.yml      # Docker Compose configuration for all services
+├── Dockerfile              # Dockerfile for the Python backend services
+├── package.json            # Node.js dependencies (for Tailwind CSS)
+├── package-lock.json       #
+├── README.md               # Project root README
+├── requirements.txt        # Python dependencies
+├── set_env_vars.py         # Script to load .env variables (used by services)
+├── tailwind.config.js      # Tailwind CSS configuration
+└── ...                     # Other configuration files
 ```
 
 ### Key Components
 
-1. **API Layer (`api/`)**: FastAPI application providing RESTful endpoints
-2. **Document Processing (`pipelines/`)**: Modules for processing insurance documents
-3. **QA System (`qa/`)**: Retrieval-augmented generation system for answering questions
-4. **Frontend (`frontend/`)**: User interface components (React/Streamlit)
-5. **Infrastructure (`docker/`, `alembic/`)**: Deployment and database configuration
+1. **`src/frontend/app.py` (Backend-for-Frontend - BFF):**
+- FastAPI application serving the web interface (HTML, CSS, JS).
+- Handles user requests from the web UI.
+- Communicates with `ocr_service` and `rag_service`.
+2. **`src/ocr/pipeline.py` (OCR Service):**
+- Handles PDF/image ingestion and text extraction using OCR models (e.g., from Hugging Face).
+- Exposes an API for the BFF to call.
+3. **`src/rag/pipeline.py` (RAG Service):**
+- Manages document embedding, storage in Qdrant, and question-answering using LLMs (e.g., OpenAI).
+- Provides an API for ingestion (from OCR service) and querying (from BFF).
+4. **`mobile/` (Flutter Mobile App):**
+- Cross-platform mobile application.
+- Interacts with the backend services (likely via the BFF or dedicated API endpoints).
+- See `mobile/README.md` and `docs/user_experience/mobile_app_architecture.md` for more details.
+5. **Docker (`docker-compose.yml`, `Dockerfile`):**
+- Defines and orchestrates the services (`frontend`, `ocr_service`, `rag_service`, `qdrant`, `redis`).
+- Ensures a consistent development and deployment environment.
+6. **Qdrant & Redis:**
+- Qdrant is the vector database for RAG.
+- Redis is used for caching (e.g., RAG query results, OCR results).
 
 ## Development Workflow
 
-### Running the Application Locally
+### Running the Application Locally (Docker Recommended)
 
-1. **Start the backend API**
+Follow the steps in [Using Docker for Development](#using-docker-for-development).
 
+### Making Changes
+
+1. **Backend Python Services (`src/`):**
+- Modify the Python code in the respective service directory (e.g., `src/rag/pipeline.py`).
+- Docker Compose with `--build` will rebuild the Python service image if `requirements.txt` or source code changes. You might need to restart the specific service or the compose stack:
 ```bash
-# Activate virtual environment
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Run the FastAPI application with auto-reload
-uvicorn api.main:app --reload --port 8000
+docker compose up -d --no-deps --build <service_name> # e.g., rag_service
+# or
+docker compose restart <service_name>
+# or rebuild all
+docker compose up --build -d
 ```
-
-2. **Start the frontend (if applicable)**
-
+2. **Web Frontend (`src/frontend/static/`, `src/frontend/templates/`):**
+- For changes to HTML templates (`*.html`) or Python code in `src/frontend/app.py`, restarting the `frontend` service in Docker is usually sufficient:
 ```bash
-cd frontend
-npm run dev
+docker compose restart frontend
+# or if app.py changed significantly and Dockerfile copies it
+docker compose up -d --no-deps --build frontend
 ```
+- For CSS changes (`src/frontend/static/css/input.css` or `tailwind.config.js`):
+1. Rebuild the `main.css`: `npm run build:css` (or ensure your Docker build step for the frontend service does this).
+2. Restart/rebuild the `frontend` Docker service.
+3. **Mobile App (`mobile/`):**
+- Follow standard Flutter development practices.
+- Run the app on an emulator or device.
+- Ensure the backend services (running in Docker) are accessible from your mobile development environment (usually `http://localhost:<port>` or `http://10.0.2.2:<port>` for Android emulator).
 
-3. **Access the application**
-   - API: http://localhost:8000
-   - API documentation: http://localhost:8000/docs
-   - Frontend: http://localhost:3000
+### Branching Strategy (Example)
 
-### Development Cycles
-
-1. **Feature Development**
-   - Create a feature branch from `develop`
-   - Implement the feature with tests
-   - Create a pull request
-   - Address review comments
-   - Merge to `develop` when approved
-
-2. **Bug Fixes**
-   - Create a bug fix branch from `develop`
-   - Fix the issue with appropriate tests
-   - Create a pull request
-   - Address review comments
-   - Merge to `develop` when approved
-
-3. **Releases**
-   - Merge `develop` to `main` for production releases
-   - Tag releases with semantic versioning
-   - Deploy to production
+- **`main`**: Production-ready code.
+- **`develop`**: Integration branch for features.
+- **Feature branches (`feat/feature-name`):** Create from `develop` for new features.
+- **Bugfix branches (`fix/bug-name`):** Create from `develop` or `main` (for hotfixes).
 
 ### Code Style and Linting
 
-We follow strict code style guidelines to maintain consistency:
-
-1. **Python Code**
-   - Use Black for code formatting
-   - Use isort for import sorting
-   - Use flake8 for linting
-   - Use mypy for type checking
-
-2. **Frontend Code**
-   - Use ESLint for JavaScript/TypeScript linting
-   - Use Prettier for code formatting
-
-Run the linting checks using:
-
+- **Python:**
+- Consider using tools like Black (formatter) and Ruff (linter, faster alternative to Flake8+isort+more).
+- Add configurations for these tools (e.g., `pyproject.toml`).
+- Example commands (if configured):
 ```bash
-# Backend
-black .
-isort .
-flake8
-mypy .
-
-# Frontend
-cd frontend
-npm run lint
+# ruff format .
+# ruff check --fix .
 ```
+- **Frontend (Tailwind/HTML/JS):**
+- Prettier can be used for formatting.
+- **Flutter:**
+- `flutter analyze`
+- `flutter format .`
+
+### Committing Changes
+
+- Follow conventional commit messages if desired (e.g., `feat: add user login`, `fix: resolve OCR processing error`).
+- Ensure tests pass before pushing.
 
 ## API Documentation
 
-### Automatic Documentation
+The FastAPI backend services provide automatic API documentation:
 
-The API documentation is automatically generated using FastAPI's built-in documentation tools:
-
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
-### Authentication
-
-The API uses JSON Web Tokens (JWT) for authentication:
-
-1. **Login Endpoint**: `/api/auth/login`
-2. **Token Refresh**: `/api/auth/refresh`
-3. **Authenticated Requests**: Include the JWT token in the `Authorization` header:
-   ```
-   Authorization: Bearer <token>
-   ```
-
-### Key Endpoints
-
-Here are some of the key API endpoints you'll work with:
-
-#### Documents and Policies
-
-- `POST /api/documents/upload` - Upload a new document
-- `GET /api/documents/{document_id}` - Get document details
-- `GET /api/documents` - List user's documents
-- `GET /api/policies/{policy_id}` - Get policy details
-- `GET /api/policies` - List user's policies
-
-#### QA System
-
-- `POST /api/qa/question` - Ask a question
-- `GET /api/qa/conversations` - List conversations
-- `GET /api/qa/conversations/{conversation_id}` - Get conversation details
-
-#### User Management
-
-- `POST /api/users/register` - Register a new user
-- `GET /api/users/me` - Get current user info
-- `PUT /api/users/me` - Update user info
+- **RAG Service Swagger UI:** `http://localhost:8001/docs`
+- **RAG Service ReDoc:** `http://localhost:8001/redoc`
+- **OCR Service Swagger UI:** `http://localhost:8002/docs`
+- **OCR Service ReDoc:** `http://localhost:8002/redoc`
+- **Frontend (BFF) Swagger UI:** `http://localhost:8080/docs` (if it exposes API endpoints beyond serving HTML)
+- **Consolidated API Specification:** See `docs/reference/api_documentation/api_specification.md`. This should be manually kept in sync with the actual APIs.
 
 ## Testing
 
-### Test Structure
-
-Tests are organized into:
-
-1. **Unit Tests**: Test individual functions and classes in isolation
-2. **Integration Tests**: Test interactions between components
-3. **End-to-End Tests**: Test complete user workflows
-
-### Running Tests
-
+- The `tests/` directory contains backend tests.
+- Pytest is commonly used for Python testing.
+- Tests can be run inside the Docker containers or locally (if venv is set up).
+Example (conceptual, adapt to your test runner and service):
 ```bash
-# Run all tests
-pytest
-
-# Run specific test categories
-pytest tests/unit/
-pytest tests/integration/
-
-# Run tests with coverage report
-pytest --cov=api --cov=pipelines --cov=qa
-
-# Run tests and generate HTML coverage report
-pytest --cov=api --cov=pipelines --cov=qa --cov-report=html
+docker compose exec rag_service pytest tests/rag  # Assuming tests are in the image
 ```
-
-### Test Fixtures
-
-Common test fixtures are located in `tests/fixtures/`, including:
-
-- Sample PDF documents
-- Mock API responses
-- Test database setups
-
-### Mocking External Services
-
-When testing components that interact with external services:
-
-1. Use the `unittest.mock` library for simple mocks
-2. Use `pytest-mock` for more complex scenarios
-3. Use response fixtures for consistent testing
-
-Example of mocking an external API:
-
-```python
-def test_openai_extraction(mocker):
-    # Mock the OpenAI API call
-    mock_response = {"choices": [{"message": {"content": "extracted content"}}]}
-    mocker.patch("api.services.ai.openai_client.call", return_value=mock_response)
-    
-    # Test the extraction function
-    result = extract_policy_information("sample text")
-    
-    # Assertions
-    assert result is not None
-    assert "extracted content" in result
+Or if tests are run from host against Dockerized services:
+```bash
+# (Activate venv if needed)
+# pytest tests/ --base-url-rag=http://localhost:8001 ...
 ```
+- Key test files observed:
+- `test_embedding_fallback.py`
+- `test_endpoints.py`
+- `test_openai_key.py`
+- `test_rag.py`
+Integrate these into a cohesive testing strategy.
 
 ## Deployment
 
-### Deployment Environments
-
-The application supports multiple deployment environments:
-
-1. **Development**: Local development environment
-2. **Staging**: Pre-production testing environment
-3. **Production**: Live production environment
-
-### Deployment Using Docker
-
-Production deployment uses Docker and Docker Compose:
-
-```bash
-# Build the images
-docker-compose -f docker-compose.prod.yml build
-
-# Deploy the services
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Cloud Deployment
-
-For cloud deployment, we use:
-
-1. **Container Orchestration**: Kubernetes or AWS ECS
-2. **Database**: Managed PostgreSQL service
-3. **Storage**: S3 or GCS for document storage
-4. **Caching**: Redis for caching and session management
-
-Deployment configurations for different cloud providers are in the `deploy/` directory.
-
-### CI/CD Pipeline
-
-The CI/CD pipeline is implemented using GitHub Actions:
-
-1. **On Pull Request**: Run tests, linting, and code quality checks
-2. **On Merge to Develop**: Deploy to staging environment
-3. **On Merge to Main**: Deploy to production environment
+- Deployment will typically involve building production-ready Docker images and deploying them to a cloud platform (e.g., AWS, GCP, Azure) or a Kubernetes cluster.
+- Ensure `.env` files are securely managed for production environments (e.g., using secrets management tools).
+- The `Dockerfile` and `docker-compose.yml` provide a starting point for containerization.
+- For the Flutter app, follow Flutter's build and release process for Android and iOS.
 
 ## Contribution Guidelines
 
-### Getting Started
-
-1. Fork the repository
-2. Clone your fork
-3. Set up the development environment
-4. Create a feature branch
-
-### Pull Request Process
-
-1. Ensure code passes all tests and linting
-2. Update documentation as needed
-3. Include unit tests for new functionality
-4. Create a pull request with a clear description
-5. Reference any related issues
-
-### Code Review
-
-All code changes require review before merging:
-
-1. At least one approval is required
-2. All comments must be resolved
-3. CI checks must pass
-4. Documentation must be updated
-
-### Commit Message Guidelines
-
-We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
-
-```
-<type>(<scope>): <description>
-
-[optional body]
-
-[optional footer]
-```
-
-Types include:
-- `feat`: A new feature
-- `fix`: A bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code changes that neither fix bugs nor add features
-- `test`: Adding or modifying tests
-- `chore`: Changes to the build process or auxiliary tools
-
-Example:
-```
-feat(document): add support for multi-page table extraction
-
-This adds the ability to extract tables that span multiple pages in insurance policies.
-
-Closes #123
-```
+- Follow the development workflow outlined above.
+- Ensure code is well-documented (docstrings, comments where necessary).
+- Write unit and integration tests for new features and bug fixes.
+- Update relevant documentation in the `docs/` folder if your changes affect architecture, setup, or user-facing features.
+- Create Pull Requests (PRs) against the `develop` branch (or as per project policy).
+- Ensure PRs are reviewed before merging.
 
 ## Troubleshooting
 
-### Common Issues
+- **Service not starting in Docker:**
+- Check logs: `docker compose logs <service_name>`
+- Ensure `.env` file is correctly configured.
+- Check for port conflicts on your host machine.
+- **API Key Issues:**
+- Double-check `OPENAI_API_KEY` and `HF_TOKEN` in `.env`.
+- For OpenAI, ensure your account has credit/is active.
+- **Flutter app can't connect to backend:**
+- Ensure Docker services are running.
+- Use `http://localhost:<port>` if running on iOS simulator or `http://10.0.2.2:<port>` for Android emulator when backend is on the same machine.
+- Verify firewall settings.
+- **Tailwind CSS not updating:**
+- Ensure `npm run build:css` is run after changes to `input.css` or `tailwind.config.js`.
+- Clear browser cache.
 
-#### Database Connection Issues
-
-```
-ERROR: Could not connect to the database
-```
-
-**Solution**: Check that PostgreSQL is running and your `.env` file has the correct `DATABASE_URL`.
-
-#### OpenAI API Key Issues
-
-```
-ERROR: OpenAI API key not found or invalid
-```
-
-**Solution**: Ensure your OpenAI API key is correctly set in the `.env` file and that it has not expired.
-
-#### PDF Processing Issues
-
-```
-ERROR: Failed to process PDF: Unsupported format
-```
-
-**Solution**: Ensure the PDF is not encrypted or password-protected. Check that it's a valid PDF file.
-
-### Getting Help
-
-1. Check the existing issues on GitHub
-2. Search the project documentation
-3. Create a new issue with detailed information:
-   - Description of the problem
-   - Steps to reproduce
-   - Expected vs. actual behavior
-   - Environment details (OS, Python version, etc.)
-
-### Logging
-
-The application uses structured logging for easier debugging:
-
-```python
-# Example of logging in code
-import logging
-
-logger = logging.getLogger(__name__)
-logger.info("Processing document", extra={"document_id": document_id})
-```
-
-Logs are output to:
-- Console during development
-- Log files in production
-- Cloud logging services in cloud deployments
-
-View logs in production using:
-```bash
-docker-compose -f docker-compose.prod.yml logs -f app
-```
-
-### Debugging Tools
-
-1. **API Debugging**: Use the `/docs` Swagger UI to test API endpoints
-2. **Database Inspection**: Use `psql` or a GUI tool like pgAdmin
-3. **Application Performance**: Use the `/metrics` endpoint for Prometheus metrics
+This guide should help you get started with development. Refer to specific documents in the `docs/` folder for more detailed information on particular components.

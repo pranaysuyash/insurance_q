@@ -84,22 +84,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         onRefresh: _loadData,
         child: _isLoading 
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildWelcomeCard(),
-                  const SizedBox(height: 20),
-                  _buildDocumentSummary(),
-                  const SizedBox(height: 20),
-                  _buildQuickActions(),
-                  const SizedBox(height: 20),
-                  _buildRecentActivities(),
-                  const SizedBox(height: 20),
-                  _buildInsuranceTerminology(),
-                ],
-              ),
+          : CustomScrollView(
+              slivers: <Widget>[
+                SliverPadding(
+                  padding: const EdgeInsets.all(16.0),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate(
+                      [
+                        _buildWelcomeCard(),
+                        const SizedBox(height: 20),
+                        _buildDocumentSummary(),
+                        const SizedBox(height: 20),
+                        _buildQuickActions(),
+                        const SizedBox(height: 20),
+                        _buildRecentActivities(),
+                        const SizedBox(height: 20),
+                        _buildInsuranceTerminology(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
       ),
     );
@@ -237,6 +242,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 label: 'Upload Document',
                 color: Colors.blue,
                 onTap: () {
+                  print("Upload Document tapped");
                   // Navigate to upload document
                   Navigator.pushNamed(context, '/');
                 },
@@ -249,11 +255,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 label: 'Ask a Question',
                 color: Colors.purple,
                 onTap: () {
-                  // Navigate to QA screen
+                  print("Ask a Question tapped");
+                  // Navigate to QA Screen
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const QAScreen(),
+                      builder: (context) => const QaScreen(),
                     ),
                   );
                 },
@@ -316,14 +323,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: color.withOpacity(0.8),
-                fontWeight: FontWeight.bold,
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: color.withOpacity(0.8),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -427,6 +437,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildInsuranceTerminology() {
+    print("Building _buildInsuranceTerminology");
     // Common insurance terms for quick reference
     const terms = [
       {'term': 'Premium', 'definition': 'The amount paid for an insurance policy'},
@@ -461,21 +472,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: terms.map((item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${item['term']}: ',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Expanded(
-                      child: Text(item['definition']!),
-                    ),
-                  ],
-                ),
-              )).toList(),
+              children: terms.map((item) {
+                print("Mapping term: ${item['term']}");
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${item['term']}: ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Expanded(
+                        child: Text(item['definition']!),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ),
@@ -484,6 +498,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showInsuranceTerminologyDialog(BuildContext context) {
+    print("Showing terminology dialog");
     // Full insurance terminology glossary
     const terminology = [
       {'letter': 'A', 'terms': [
@@ -541,7 +556,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          section['letter']!,
+                          section['letter']! as String,
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,

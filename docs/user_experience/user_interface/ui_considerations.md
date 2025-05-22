@@ -33,7 +33,7 @@ This is where the extracted information from the OCR service is presented.
     *   A scrollable area to show the entire extracted text (`full_text`).
     *   Consider options for text formatting if it improves readability (though raw text is often safest initially).
     *   Option to copy text.
-*   **Layout Elements Display (`layout_elements`):
+*   **Layout Elements Display (`layout_elements`)**:
     *   The `layout_elements` are a list of dictionaries, typically `{"question": str, "answer": str, "score": float, "box_2d": list}`.
     *   **Presentation Ideas:**
         *   **Q&A List:** Display as a structured list of questions and their corresponding answers. Highlight the answer.

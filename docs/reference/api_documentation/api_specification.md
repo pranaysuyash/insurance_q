@@ -1,1379 +1,1687 @@
-# API Specification
+# Insurance Policy Manager - API Specification
 
-This document provides a comprehensive specification for the Insurance Policy Parser & QA App's API, including endpoints, request/response formats, authentication, and error handling.
+## 1. Introduction
 
-## API Overview
+This document provides the specification for the RESTful APIs that support the Insurance Policy Manager mobile application. These APIs enable document management, information extraction, natural language querying, and other essential functionality for the application.
 
-The Insurance Policy Parser & QA App API is a RESTful service that provides access to insurance policy management, document processing, and question answering capabilities. The API follows REST principles with JSON as the primary data exchange format.
+### 1.1 Purpose and Scope
 
-### Base URL
+This API specification defines:
+- API endpoints and their functionality
+- Request and response formats
+- Authentication and authorization mechanisms
+- Error handling approaches
+- API versioning strategy
+- Integration patterns with third-party services
 
-```
-https://api.example.com/v1
-```
+This document serves as a reference for both API development and client integration, ensuring consistency and alignment between frontend and backend teams.
 
-All API endpoints are relative to this base URL.
+### 1.2 API Design Principles
 
-### Authentication
+The APIs follow these design principles:
 
-The API uses JWT (JSON Web Token) for authentication. All requests (except for public endpoints) must include the token in the Authorization header:
+1. **RESTful Design**: Resource-oriented with appropriate HTTP methods
+2. **JSON Format**: Consistent JSON format for request/response bodies
+3. **Statelessness**: No server-side session state between requests
+4. **Versioning**: Clear versioning strategy to support evolution
+5. **Security**: Comprehensive authentication and authorization
+6. **Performance**: Optimized for mobile client needs
+7. **Documentation**: Self-documenting with OpenAPI specifications
+8. **Consistency**: Uniform patterns across all endpoints
 
-```
-Authorization: Bearer <token>
-```
+### 1.3 API Environments
 
-#### Authentication Endpoints
+| Environment | Base URL | Purpose |
+|-------------|----------|---------|
+| Development | https://api-dev.insuranceapp.com/v1 | Development and integration testing |
+| Staging | https://api-staging.insuranceapp.com/v1 | Pre-production validation |
+| Production | https://api.insuranceapp.com/v1 | Production use |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /auth/login | Obtain JWT token with credentials |
-| POST | /auth/register | Create a new user account |
-| POST | /auth/refresh | Refresh an expired JWT token |
-| POST | /auth/logout | Invalidate the current token |
-| GET | /auth/profile | Get the current user's profile |
+## 2. Authentication and Authorization
 
-## API Endpoints
+### 2.1 Authentication Mechanism
 
-### Authentication
+The API uses JSON Web Tokens (JWT) for authentication:
 
-#### POST /auth/login
+1. **Access Token**: Short-lived token (15 minutes) for API access
+2. **Refresh Token**: Longer-lived token (7 days) for obtaining new access tokens
+3. **ID Token**: Contains user identity information
 
-Authenticate a user and obtain a JWT token.
+#### 2.1.1 Token Acquisition
 
-**Request Body:**
+**Endpoint**: `POST /auth/token`
+
+**Request**:
 ```json
 {
-  "email": "user@example.com",
-  "password": "password123"
+  "grant_type": "password",
+  "username": "user@example.com",
+  "password": "userPassword123"
 }
 ```
 
-**Response:**
+**Response**:
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": "user123",
+  "id_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 900
+}
+```
+
+#### 2.1.2 Token Refresh
+
+**Endpoint**: `POST /auth/token`
+
+**Request**:
+```json
+{
+  "grant_type": "refresh_token",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response**: Same as token acquisition
+
+#### 2.1.3 Token Usage
+
+All protected API endpoints require the access token in the Authorization header:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 2.2 Authorization Model
+
+The API implements role-based access control (RBAC) with the following roles:
+
+1. **User**: Standard application user
+2. **Premium**: User with premium subscription features
+3. **Admin**: Administrative access (internal use)
+
+Permissions are enforced at the endpoint level based on the user's role as encoded in the JWT.
+
+## 3. Common Patterns
+
+### 3.1 Request Headers
+
+All API requests should include:
+
+```
+Content-Type: application/json
+Authorization: Bearer <access_token>
+Accept-Language: en-US (optional)
+X-Client-Version: 1.0.0 (app version)
+X-Request-ID: <uuid> (for request tracking)
+```
+
+### 3.2 Response Format
+
+All API responses follow a consistent structure:
+
+**Success Response**:
+```json
+{
+  "status": "success",
+  "data": { ... },
+  "meta": {
+    "timestamp": "2023-05-10T15:32:10Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+**Error Response**:
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "The requested resource was not found",
+    "details": { ... }
+  },
+  "meta": {
+    "timestamp": "2023-05-10T15:32:10Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 3.3 Pagination
+
+List endpoints support pagination with the following parameters:
+
+**Request**:
+```
+GET /resources?page=2&page_size=20&sort=created_at:desc
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": [ ... ],
+  "meta": {
+    "pagination": {
+      "page": 2,
+      "page_size": 20,
+      "total_pages": 10,
+      "total_items": 195,
+      "links": {
+        "self": "/resources?page=2&page_size=20",
+        "first": "/resources?page=1&page_size=20",
+        "prev": "/resources?page=1&page_size=20",
+        "next": "/resources?page=3&page_size=20",
+        "last": "/resources?page=10&page_size=20"
+      }
+    },
+    "timestamp": "2023-05-10T15:32:10Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 3.4 Filtering
+
+List endpoints support filtering with query parameters:
+
+```
+GET /resources?status=active&created_after=2023-01-01T00:00:00Z
+```
+
+### 3.5 Error Codes
+
+| Error Code | HTTP Status | Description |
+|------------|-------------|-------------|
+| AUTHENTICATION_FAILED | 401 | Invalid or expired credentials |
+| AUTHORIZATION_FAILED | 403 | Insufficient permissions |
+| RESOURCE_NOT_FOUND | 404 | Requested resource does not exist |
+| VALIDATION_ERROR | 400 | Request failed validation checks |
+| RATE_LIMIT_EXCEEDED | 429 | API rate limit exceeded |
+| INTERNAL_ERROR | 500 | Unexpected server error |
+| SERVICE_UNAVAILABLE | 503 | Service temporarily unavailable |
+
+## 4. API Endpoints
+
+### 4.1 User Management
+
+#### 4.1.1 Create User Account
+
+**Endpoint**: `POST /users`
+
+**Request**:
+```json
+{
+  "email": "user@example.com",
+  "password": "securePassword123",
+  "name": "John Doe",
+  "phone_number": "+12345678900",
+  "notification_preferences": {
+    "email": true,
+    "push": true,
+    "sms": false
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
     "name": "John Doe",
-    "created_at": "2023-05-15T08:30:00Z"
+    "created_at": "2023-05-10T15:32:10Z",
+    "notification_preferences": {
+      "email": true,
+      "push": true,
+      "sms": false
+    }
+  },
+  "meta": {
+    "timestamp": "2023-05-10T15:32:10Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
   }
 }
 ```
 
-**Status Codes:**
-- 200 OK: Successful authentication
-- 400 Bad Request: Invalid request body
-- 401 Unauthorized: Invalid credentials
+#### 4.1.2 Get User Profile
 
-#### POST /auth/register
+**Endpoint**: `GET /users/me`
 
-Register a new user account.
-
-**Request Body:**
+**Response**:
 ```json
 {
-  "email": "newuser@example.com",
-  "password": "securePassword123",
-  "name": "Jane Smith"
-}
-```
-
-**Response:**
-```json
-{
-  "id": "user456",
-  "email": "newuser@example.com",
-  "name": "Jane Smith",
-  "created_at": "2023-05-20T10:15:00Z"
-}
-```
-
-**Status Codes:**
-- 201 Created: Account created successfully
-- 400 Bad Request: Invalid request or email already exists
-
-#### POST /auth/refresh
-
-Refresh an expired JWT token.
-
-**Request Body:**
-```json
-{
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**Response:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**Status Codes:**
-- 200 OK: Token refreshed successfully
-- 400 Bad Request: Invalid refresh token
-- 401 Unauthorized: Expired refresh token
-
-#### POST /auth/logout
-
-Invalidate the current JWT token.
-
-**Request:**
-No request body required, just valid Authorization header.
-
-**Response:**
-```json
-{
-  "message": "Logged out successfully"
-}
-```
-
-**Status Codes:**
-- 200 OK: Logged out successfully
-- 401 Unauthorized: Invalid token
-
-#### GET /auth/profile
-
-Get the current user's profile information.
-
-**Request:**
-No request body required, just valid Authorization header.
-
-**Response:**
-```json
-{
-  "id": "user123",
-  "email": "user@example.com",
-  "name": "John Doe",
-  "created_at": "2023-05-15T08:30:00Z",
-  "subscription": {
-    "tier": "premium",
-    "expires_at": "2024-05-15T08:30:00Z"
-  },
-  "preferences": {
-    "notification_email": true,
-    "notification_web": true,
-    "theme": "light"
-  }
-}
-```
-
-**Status Codes:**
-- 200 OK: Profile retrieved successfully
-- 401 Unauthorized: Not authenticated
-
-### Documents
-
-#### POST /documents/upload
-
-Upload insurance policy documents for processing.
-
-**Request:**
-Multipart form-data with files.
-
-**Form Fields:**
-- `files`: One or more PDF files
-- `metadata` (optional): JSON string with document metadata
-
-Example metadata:
-```json
-{
-  "document_type": "health_insurance",
-  "insurer": "Niva Bupa",
-  "tags": ["health", "family"]
-}
-```
-
-**Response:**
-```json
-{
-  "documents": [
-    {
-      "id": "doc123",
-      "filename": "policy_document.pdf",
-      "size": 1258000,
-      "upload_date": "2023-05-25T14:22:30Z",
-      "status": "processing",
-      "processing_id": "proc456"
-    }
-  ],
-  "total_uploaded": 1,
-  "total_failed": 0
-}
-```
-
-**Status Codes:**
-- 202 Accepted: Documents accepted for processing
-- 400 Bad Request: Invalid files or metadata
-- 401 Unauthorized: Not authenticated
-- 413 Payload Too Large: Files exceed size limit
-
-#### GET /documents
-
-List all documents uploaded by the current user.
-
-**Query Parameters:**
-- `page` (optional): Page number for pagination
-- `limit` (optional): Number of results per page
-- `status` (optional): Filter by processing status
-- `document_type` (optional): Filter by document type
-- `sort` (optional): Sort by field, e.g. `upload_date:desc`
-
-**Response:**
-```json
-{
-  "documents": [
-    {
-      "id": "doc123",
-      "filename": "policy_document.pdf",
-      "size": 1258000,
-      "upload_date": "2023-05-25T14:22:30Z",
-      "status": "completed",
-      "document_type": "health_insurance",
-      "insurer": "Niva Bupa",
-      "processing_completed_at": "2023-05-25T14:25:45Z"
-    },
-    {
-      "id": "doc124",
-      "filename": "auto_insurance.pdf",
-      "size": 983000,
-      "upload_date": "2023-05-26T09:10:15Z",
-      "status": "processing",
-      "document_type": "auto_insurance",
-      "insurer": "Progressive"
-    }
-  ],
-  "total": 24,
-  "page": 1,
-  "limit": 10,
-  "total_pages": 3
-}
-```
-
-**Status Codes:**
-- 200 OK: Documents retrieved successfully
-- 401 Unauthorized: Not authenticated
-
-#### GET /documents/{document_id}
-
-Get information about a specific document.
-
-**Response:**
-```json
-{
-  "id": "doc123",
-  "filename": "policy_document.pdf",
-  "original_path": "https://storage.example.com/documents/original/doc123.pdf",
-  "processed_path": "https://storage.example.com/documents/processed/doc123.pdf",
-  "size": 1258000,
-  "upload_date": "2023-05-25T14:22:30Z",
-  "status": "completed",
-  "document_type": "health_insurance",
-  "insurer": "Niva Bupa",
-  "processing_started_at": "2023-05-25T14:22:35Z",
-  "processing_completed_at": "2023-05-25T14:25:45Z",
-  "processing_duration": 190,
-  "pages": 24,
-  "has_tables": true,
-  "has_forms": true,
-  "extraction_confidence": 0.92,
-  "policy_id": "policy789"
-}
-```
-
-**Status Codes:**
-- 200 OK: Document retrieved successfully
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Document belongs to another user
-- 404 Not Found: Document not found
-
-#### DELETE /documents/{document_id}
-
-Delete a document and associated data.
-
-**Response:**
-```json
-{
-  "message": "Document deleted successfully",
-  "id": "doc123"
-}
-```
-
-**Status Codes:**
-- 200 OK: Document deleted successfully
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Document belongs to another user
-- 404 Not Found: Document not found
-
-#### GET /documents/{document_id}/status
-
-Check the processing status of a document.
-
-**Response:**
-```json
-{
-  "id": "doc123",
-  "status": "processing",
-  "progress": 65,
-  "stages": {
-    "extraction": "completed",
-    "ocr": "completed",
-    "structure_analysis": "in_progress",
-    "metadata_extraction": "pending",
-    "indexing": "pending"
-  },
-  "estimated_completion_time": "2023-05-25T14:27:00Z",
-  "errors": []
-}
-```
-
-**Status Codes:**
-- 200 OK: Status retrieved successfully
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Document belongs to another user
-- 404 Not Found: Document not found
-
-### Policies
-
-#### GET /policies
-
-List all policies extracted from the user's documents.
-
-**Query Parameters:**
-- `page` (optional): Page number for pagination
-- `limit` (optional): Number of results per page
-- `policy_type` (optional): Filter by policy type
-- `insurer` (optional): Filter by insurer
-- `status` (optional): Filter by status (active, expired)
-- `sort` (optional): Sort by field, e.g. `expiration_date:asc`
-
-**Response:**
-```json
-{
-  "policies": [
-    {
-      "id": "policy789",
-      "policy_number": "HLT-1234567",
-      "document_id": "doc123",
-      "policy_type": "health_insurance",
-      "insurer": "Niva Bupa",
-      "effective_date": "2023-01-01",
-      "expiration_date": "2024-01-01",
-      "status": "active",
-      "premium_amount": 12000,
-      "premium_frequency": "annual",
-      "insured_parties": ["John Doe", "Jane Doe"],
-      "confidence_score": 0.94
-    },
-    {
-      "id": "policy790",
-      "policy_number": "AUTO-7654321",
-      "document_id": "doc124",
-      "policy_type": "auto_insurance",
-      "insurer": "Progressive",
-      "effective_date": "2023-03-15",
-      "expiration_date": "2024-03-15",
-      "status": "active",
-      "premium_amount": 1200,
-      "premium_frequency": "monthly",
-      "insured_parties": ["John Doe"],
-      "confidence_score": 0.91
-    }
-  ],
-  "total": 5,
-  "page": 1,
-  "limit": 10,
-  "total_pages": 1
-}
-```
-
-**Status Codes:**
-- 200 OK: Policies retrieved successfully
-- 401 Unauthorized: Not authenticated
-
-#### GET /policies/{policy_id}
-
-Get detailed information about a specific policy.
-
-**Response:**
-```json
-{
-  "id": "policy789",
-  "policy_number": "HLT-1234567",
-  "document_id": "doc123",
-  "policy_type": "health_insurance",
-  "insurer": "Niva Bupa",
-  "effective_date": "2023-01-01",
-  "expiration_date": "2024-01-01",
-  "status": "active",
-  "premium_amount": 12000,
-  "premium_frequency": "annual",
-  "next_payment_date": "2024-01-01",
-  "insured_parties": [
-    {
-      "name": "John Doe",
-      "relationship": "primary",
-      "date_of_birth": "1985-04-12"
-    },
-    {
-      "name": "Jane Doe",
-      "relationship": "spouse",
-      "date_of_birth": "1987-09-23"
-    }
-  ],
-  "coverage": {
-    "individual_sum_insured": 500000,
-    "family_sum_insured": 1000000,
-    "individual_room_rent": "single room",
-    "maternity_coverage": true,
-    "pre_existing_coverage": "after 36 months",
-    "dental_coverage": false,
-    "vision_coverage": false
-  },
-  "deductibles": {
-    "in_network": 5000,
-    "out_of_network": 10000
-  },
-  "exclusions": [
-    "Cosmetic surgery",
-    "Self-inflicted injuries",
-    "Experimental treatments"
-  ],
-  "waiting_periods": {
-    "general": "30 days",
-    "specific_ailments": "24 months",
-    "pre_existing": "36 months",
-    "maternity": "24 months"
-  },
-  "sections": [
-    {
-      "title": "Definitions",
-      "page_range": [3, 5]
-    },
-    {
-      "title": "Coverage Details",
-      "page_range": [6, 12],
-      "subsections": [
-        {
-          "title": "Hospital Benefits",
-          "page_range": [7, 8]
-        },
-        {
-          "title": "Prescription Coverage",
-          "page_range": [9, 10]
-        }
-      ]
-    }
-  ],
-  "confidence_score": 0.94,
-  "extraction_date": "2023-05-25T14:25:45Z"
-}
-```
-
-**Status Codes:**
-- 200 OK: Policy retrieved successfully
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Policy belongs to another user
-- 404 Not Found: Policy not found
-
-#### PUT /policies/{policy_id}
-
-Update policy information (for corrections or additional data).
-
-**Request Body:**
-```json
-{
-  "policy_number": "HLT-1234567-A",
-  "effective_date": "2023-01-15",
-  "premium_amount": 12500,
-  "insured_parties": [
-    {
-      "name": "John Doe",
-      "relationship": "primary",
-      "date_of_birth": "1985-04-12"
-    },
-    {
-      "name": "Jane Doe",
-      "relationship": "spouse",
-      "date_of_birth": "1987-09-23"
-    },
-    {
-      "name": "Jake Doe",
-      "relationship": "child",
-      "date_of_birth": "2015-03-10"
-    }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "id": "policy789",
-  "policy_number": "HLT-1234567-A",
-  "effective_date": "2023-01-15",
-  "premium_amount": 12500,
-  "insured_parties": [
-    {
-      "name": "John Doe",
-      "relationship": "primary",
-      "date_of_birth": "1985-04-12"
-    },
-    {
-      "name": "Jane Doe",
-      "relationship": "spouse",
-      "date_of_birth": "1987-09-23"
-    },
-    {
-      "name": "Jake Doe",
-      "relationship": "child",
-      "date_of_birth": "2015-03-10"
-    }
-  ],
-  "updated_at": "2023-05-27T11:30:45Z",
-  "updated_fields": ["policy_number", "effective_date", "premium_amount", "insured_parties"]
-}
-```
-
-**Status Codes:**
-- 200 OK: Policy updated successfully
-- 400 Bad Request: Invalid update data
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Policy belongs to another user
-- 404 Not Found: Policy not found
-
-#### GET /policies/{policy_id}/coverage
-
-Get detailed coverage information for a specific policy.
-
-**Response:**
-```json
-{
-  "policy_id": "policy789",
-  "policy_number": "HLT-1234567",
-  "coverage": {
-    "individual_sum_insured": 500000,
-    "family_sum_insured": 1000000,
-    "individual_room_rent": "single room",
-    "room_rent_limit": "1% of sum insured per day",
-    "icu_limit": "2% of sum insured per day",
-    "pre_hospitalization": "60 days",
-    "post_hospitalization": "90 days",
-    "day_care_procedures": true,
-    "ambulance_cover": 3000,
-    "maternity_coverage": true,
-    "maternity_waiting_period": "24 months",
-    "maternity_limit": 50000,
-    "newborn_cover": true,
-    "organ_donor_expenses": true,
-    "alternative_treatments": false,
-    "domiciliary_treatment": true,
-    "domiciliary_limit": "10% of sum insured",
-    "pre_existing_coverage": "after 36 months",
-    "dental_coverage": false,
-    "vision_coverage": false,
-    "annual_health_checkup": true
-  },
-  "sub_limits": [
-    {
-      "procedure": "Cataract Surgery",
-      "limit": "20% of sum insured per eye",
-      "waiting_period": "24 months"
-    },
-    {
-      "procedure": "Joint Replacement",
-      "limit": "50% of sum insured",
-      "waiting_period": "36 months"
-    }
-  ],
-  "deductibles": {
-    "in_network": 5000,
-    "out_of_network": 10000
-  },
-  "copay": {
-    "percentage": 10,
-    "applicable_to": ["out_of_network", "certain_procedures"],
-    "maximum": 50000
-  },
-  "add_ons": [
-    {
-      "name": "Critical Illness Cover",
-      "sum_insured": 250000,
-      "premium": 2000
-    },
-    {
-      "name": "Personal Accident Cover",
-      "sum_insured": 500000,
-      "premium": 1500
-    }
-  ],
-  "network_hospitals": {
-    "total_count": 5000,
-    "major_cities": ["Mumbai", "Delhi", "Bangalore", "Chennai"],
-    "directory_link": "https://storage.example.com/networks/niva_bupa_network.pdf"
-  }
-}
-```
-
-**Status Codes:**
-- 200 OK: Coverage details retrieved successfully
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Policy belongs to another user
-- 404 Not Found: Policy not found
-
-#### GET /policies/compare
-
-Compare multiple policies side by side.
-
-**Query Parameters:**
-- `policy_ids`: Comma-separated list of policy IDs to compare
-
-**Response:**
-```json
-{
-  "policies": [
-    {
-      "id": "policy789",
-      "policy_number": "HLT-1234567",
-      "policy_type": "health_insurance",
-      "insurer": "Niva Bupa",
-      "plan_name": "Health Companion"
-    },
-    {
-      "id": "policy791",
-      "policy_number": "HLT-9876543",
-      "policy_type": "health_insurance",
-      "insurer": "HDFC ERGO",
-      "plan_name": "My Health Suraksha"
-    }
-  ],
-  "comparison": {
-    "basic_details": {
-      "effective_date": {
-        "policy789": "2023-01-01",
-        "policy791": "2022-11-15"
-      },
-      "expiration_date": {
-        "policy789": "2024-01-01",
-        "policy791": "2023-11-15"
-      },
-      "premium_amount": {
-        "policy789": 12000,
-        "policy791": 10500
-      },
-      "premium_frequency": {
-        "policy789": "annual",
-        "policy791": "annual"
-      }
-    },
-    "coverage": {
-      "individual_sum_insured": {
-        "policy789": 500000,
-        "policy791": 400000
-      },
-      "family_sum_insured": {
-        "policy789": 1000000,
-        "policy791": 800000
-      },
-      "room_rent_limit": {
-        "policy789": "1% of sum insured per day",
-        "policy791": "2% of sum insured per day"
-      },
-      "pre_hospitalization": {
-        "policy789": "60 days",
-        "policy791": "30 days"
-      },
-      "post_hospitalization": {
-        "policy789": "90 days",
-        "policy791": "60 days"
-      },
-      "maternity_coverage": {
-        "policy789": true,
-        "policy791": false
-      }
-    },
-    "waiting_periods": {
-      "general": {
-        "policy789": "30 days",
-        "policy791": "30 days"
-      },
-      "pre_existing": {
-        "policy789": "36 months",
-        "policy791": "48 months"
-      },
-      "specific_ailments": {
-        "policy789": "24 months",
-        "policy791": "24 months"
-      }
-    },
-    "exclusions": {
-      "common": [
-        "Cosmetic surgery",
-        "Self-inflicted injuries",
-        "Experimental treatments"
-      ],
-      "policy789_only": [
-        "Adventure sports injuries"
-      ],
-      "policy791_only": [
-        "Dental treatments",
-        "Obesity treatments"
-      ]
-    },
-    "unique_features": {
-      "policy789": [
-        "Annual health checkup",
-        "Maternity coverage",
-        "Organ donor expenses"
-      ],
-      "policy791": [
-        "Daily hospital cash",
-        "Convalescence benefit"
-      ]
-    }
-  },
-  "summary": {
-    "coverage_comparison": "Policy HLT-1234567 offers higher sum insured amounts and better maternity benefits, while policy HLT-9876543 has a lower premium.",
-    "waiting_period_comparison": "Policy HLT-1234567 has a shorter waiting period for pre-existing conditions (36 months vs 48 months).",
-    "key_differences": [
-      "Maternity coverage is only available in HLT-1234567",
-      "HLT-9876543 has additional exclusions for dental and obesity treatments",
-      "HLT-1234567 offers better post-hospitalization coverage (90 days vs 60 days)"
-    ]
-  }
-}
-```
-
-**Status Codes:**
-- 200 OK: Comparison retrieved successfully
-- 400 Bad Request: Invalid policy IDs or too many policies
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: One or more policies belong to another user
-- 404 Not Found: One or more policies not found
-
-### Question Answering
-
-#### POST /qa/question
-
-Ask a question about insurance policies.
-
-**Request Body:**
-```json
-{
-  "question": "What is my deductible for out-of-network services?",
-  "policy_ids": ["policy789", "policy791"],
-  "conversation_id": "conv123"
-}
-```
-
-**Response:**
-```json
-{
-  "question_id": "q456",
-  "conversation_id": "conv123",
-  "answer": "Your deductible for out-of-network services is ₹10,000 according to your Niva Bupa health insurance policy (HLT-1234567).",
-  "confidence_score": 0.92,
-  "sources": [
-    {
-      "policy_id": "policy789",
-      "policy_number": "HLT-1234567",
-      "document_id": "doc123",
-      "section": "Deductibles and Copays",
-      "page_range": [15, 15],
-      "text": "Out-of-network services are subject to a deductible of ₹10,000 per policy year."
-    }
-  ],
-  "processing_time": 1.45
-}
-```
-
-**Status Codes:**
-- 200 OK: Question answered successfully
-- 400 Bad Request: Invalid question format
-- 401 Unauthorized: Not authenticated
-- 404 Not Found: Policy or conversation not found
-
-#### GET /qa/conversations
-
-List all conversations for the current user.
-
-**Query Parameters:**
-- `page` (optional): Page number for pagination
-- `limit` (optional): Number of results per page
-
-**Response:**
-```json
-{
-  "conversations": [
-    {
-      "id": "conv123",
-      "title": "Deductible questions",
-      "created_at": "2023-05-28T10:15:30Z",
-      "updated_at": "2023-05-28T10:20:45Z",
-      "message_count": 4,
-      "policies": [
-        {
-          "id": "policy789",
-          "policy_number": "HLT-1234567",
-          "insurer": "Niva Bupa"
-        }
-      ],
-      "last_message": {
-        "content": "Your deductible for out-of-network services is ₹10,000 according to your Niva Bupa health insurance policy (HLT-1234567).",
-        "role": "assistant",
-        "created_at": "2023-05-28T10:20:45Z"
-      }
-    },
-    {
-      "id": "conv124",
-      "title": "Coverage questions",
-      "created_at": "2023-05-27T14:30:15Z",
-      "updated_at": "2023-05-27T14:35:22Z",
-      "message_count": 2,
-      "policies": [
-        {
-          "id": "policy791",
-          "policy_number": "HLT-9876543",
-          "insurer": "HDFC ERGO"
-        }
-      ],
-      "last_message": {
-        "content": "Yes, your policy covers hospitalization for COVID-19 treatment after the initial waiting period of 30 days.",
-        "role": "assistant",
-        "created_at": "2023-05-27T14:35:22Z"
-      }
-    }
-  ],
-  "total": 5,
-  "page": 1,
-  "limit": 10,
-  "total_pages": 1
-}
-```
-
-**Status Codes:**
-- 200 OK: Conversations retrieved successfully
-- 401 Unauthorized: Not authenticated
-
-#### GET /qa/conversations/{conversation_id}
-
-Get a specific conversation with all messages.
-
-**Response:**
-```json
-{
-  "id": "conv123",
-  "title": "Deductible questions",
-  "created_at": "2023-05-28T10:15:30Z",
-  "updated_at": "2023-05-28T10:20:45Z",
-  "policies": [
-    {
-      "id": "policy789",
-      "policy_number": "HLT-1234567",
-      "insurer": "Niva Bupa"
-    }
-  ],
-  "messages": [
-    {
-      "id": "msg1",
-      "conversation_id": "conv123",
-      "content": "What is my deductible?",
-      "role": "user",
-      "created_at": "2023-05-28T10:15:30Z"
-    },
-    {
-      "id": "msg2",
-      "conversation_id": "conv123",
-      "content": "Your policy has different deductibles depending on whether you use in-network or out-of-network services. For in-network services, your deductible is ₹5,000. For out-of-network services, please specify if you'd like that information.",
-      "role": "assistant",
-      "created_at": "2023-05-28T10:15:45Z",
-      "sources": [
-        {
-          "policy_id": "policy789",
-          "section": "Deductibles and Copays",
-          "page_range": [15, 15]
-        }
-      ],
-      "confidence_score": 0.95
-    },
-    {
-      "id": "msg3",
-      "conversation_id": "conv123",
-      "content": "What about out-of-network services?",
-      "role": "user",
-      "created_at": "2023-05-28T10:20:30Z"
-    },
-    {
-      "id": "msg4",
-      "conversation_id": "conv123",
-      "content": "Your deductible for out-of-network services is ₹10,000 according to your Niva Bupa health insurance policy (HLT-1234567).",
-      "role": "assistant",
-      "created_at": "2023-05-28T10:20:45Z",
-      "sources": [
-        {
-          "policy_id": "policy789",
-          "section": "Deductibles and Copays",
-          "page_range": [15, 15]
-        }
-      ],
-      "confidence_score": 0.92
-    }
-  ]
-}
-```
-
-**Status Codes:**
-- 200 OK: Conversation retrieved successfully
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Conversation belongs to another user
-- 404 Not Found: Conversation not found
-
-#### POST /qa/conversations/{conversation_id}/messages
-
-Add a new message to an existing conversation.
-
-**Request Body:**
-```json
-{
-  "content": "Is there a maximum out-of-pocket limit?",
-  "role": "user"
-}
-```
-
-**Response:**
-```json
-{
-  "message": {
-    "id": "msg5",
-    "conversation_id": "conv123",
-    "content": "Is there a maximum out-of-pocket limit?",
-    "role": "user",
-    "created_at": "2023-05-28T10:25:15Z"
-  },
-  "answer": {
-    "id": "msg6",
-    "conversation_id": "conv123",
-    "content": "Yes, your Niva Bupa policy (HLT-1234567) has an annual out-of-pocket maximum of ₹50,000 for in-network services and ₹100,000 for out-of-network services. Once you reach these limits, the policy covers 100% of eligible expenses for the remainder of the policy year.",
-    "role": "assistant",
-    "created_at": "2023-05-28T10:25:20Z",
-    "sources": [
-      {
-        "policy_id": "policy789",
-        "section": "Out-of-Pocket Maximum",
-        "page_range": [16, 16]
-      }
-    ],
-    "confidence_score": 0.94
-  }
-}
-```
-
-**Status Codes:**
-- 200 OK: Message added successfully
-- 400 Bad Request: Invalid message format
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Conversation belongs to another user
-- 404 Not Found: Conversation not found
-
-### Notifications
-
-#### GET /notifications
-
-Get notifications for the current user.
-
-**Query Parameters:**
-- `page` (optional): Page number for pagination
-- `limit` (optional): Number of results per page
-- `read` (optional): Filter by read status (`true`, `false`)
-- `type` (optional): Filter by notification type
-
-**Response:**
-```json
-{
-  "notifications": [
-    {
-      "id": "notif123",
-      "user_id": "user123",
-      "type": "policy_expiration",
-      "title": "Policy expiring soon",
-      "content": "Your Niva Bupa health insurance policy (HLT-1234567) expires in 30 days.",
-      "created_at": "2023-05-28T08:00:00Z",
-      "read": false,
-      "read_at": null,
-      "metadata": {
-        "policy_id": "policy789",
-        "policy_number": "HLT-1234567",
-        "expiration_date": "2024-01-01"
-      },
-      "actions": [
-        {
-          "type": "view_policy",
-          "label": "View Policy",
-          "url": "/policies/policy789"
-        },
-        {
-          "type": "renew_policy",
-          "label": "Renew Policy",
-          "url": "/policies/policy789/renew"
-        }
-      ]
-    },
-    {
-      "id": "notif124",
-      "user_id": "user123",
-      "type": "document_processed",
-      "title": "Document processed successfully",
-      "content": "Your document 'auto_insurance.pdf' has been processed successfully.",
-      "created_at": "2023-05-26T09:15:30Z",
-      "read": true,
-      "read_at": "2023-05-26T09:20:15Z",
-      "metadata": {
-        "document_id": "doc124",
-        "filename": "auto_insurance.pdf",
-        "policy_id": "policy790"
-      },
-      "actions": [
-        {
-          "type": "view_document",
-          "label": "View Document",
-          "url": "/documents/doc124"
-        },
-        {
-          "type": "view_policy",
-          "label": "View Policy",
-          "url": "/policies/policy790"
-        }
-      ]
-    }
-  ],
-  "total": 15,
-  "unread_count": 5,
-  "page": 1,
-  "limit": 10,
-  "total_pages": 2
-}
-```
-
-**Status Codes:**
-- 200 OK: Notifications retrieved successfully
-- 401 Unauthorized: Not authenticated
-
-#### PATCH /notifications/{notification_id}
-
-Update a notification (mark as read/unread).
-
-**Request Body:**
-```json
-{
-  "read": true
-}
-```
-
-**Response:**
-```json
-{
-  "id": "notif123",
-  "read": true,
-  "read_at": "2023-05-28T15:30:45Z"
-}
-```
-
-**Status Codes:**
-- 200 OK: Notification updated successfully
-- 401 Unauthorized: Not authenticated
-- 403 Forbidden: Notification belongs to another user
-- 404 Not Found: Notification not found
-
-#### PATCH /notifications
-
-Update multiple notifications (bulk update).
-
-**Request Body:**
-```json
-{
-  "notification_ids": ["notif123", "notif125", "notif126"],
-  "read": true
-}
-```
-
-**Response:**
-```json
-{
-  "updated_count": 3,
-  "updated_ids": ["notif123", "notif125", "notif126"]
-}
-```
-
-**Status Codes:**
-- 200 OK: Notifications updated successfully
-- 400 Bad Request: Invalid request format
-- 401 Unauthorized: Not authenticated
-
-## Error Handling
-
-### Error Response Format
-
-All API errors follow a consistent format:
-
-```json
-{
-  "error": {
-    "code": "error_code",
-    "message": "A human-readable error message",
-    "details": {
-      "field": "additional error context"
-    }
-  }
-}
-```
-
-### Common Error Codes
-
-| Error Code | Description |
-|------------|-------------|
-| `invalid_request` | The request body or parameters are invalid |
-| `authentication_required` | Authentication is required for this endpoint |
-| `invalid_credentials` | The provided credentials are invalid |
-| `token_expired` | The authentication token has expired |
-| `insufficient_permissions` | The user does not have permission for this action |
-| `resource_not_found` | The requested resource was not found |
-| `resource_conflict` | The resource already exists or conflicts with another |
-| `rate_limit_exceeded` | API rate limit exceeded |
-| `internal_error` | An internal server error occurred |
-
-### Validation Errors
-
-For validation errors, the API returns a 400 status code with detailed field errors:
-
-```json
-{
-  "error": {
-    "code": "validation_failed",
-    "message": "Validation failed",
-    "details": {
-      "email": "Email is invalid",
-      "password": "Password must be at least 8 characters long"
-    }
-  }
-}
-```
-
-## Rate Limiting
-
-The API implements rate limiting to protect against abuse:
-
-- Standard users: 100 requests per minute
-- Premium users: 300 requests per minute
-
-Rate limit information is included in the response headers:
-
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1622148120
-```
-
-When a rate limit is exceeded, the API returns a 429 (Too Many Requests) status code:
-
-```json
-{
-  "error": {
-    "code": "rate_limit_exceeded",
-    "message": "Rate limit exceeded",
-    "details": {
-      "limit": 100,
-      "reset_at": "2023-05-28T10:30:00Z"
-    }
-  }
-}
-```
-
-## API Versioning
-
-The API uses URL versioning to maintain backward compatibility:
-
-- Current version: `/v1`
-- Future versions will be `/v2`, `/v3`, etc.
-
-API versions are maintained for at least 12 months after a new version is released.
-
-## CORS Policy
-
-The API supports Cross-Origin Resource Sharing (CORS) with the following policies:
-
-- Allowed origins: `https://app.example.com`, `https://admin.example.com`
-- Allowed methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
-- Allowed headers: `Content-Type`, `Authorization`
-- Exposed headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
-- Credentials: Allowed
-- Max age: 86400 seconds (24 hours)
-
-## Webhooks
-
-The API supports webhooks for real-time event notifications.
-
-### Registering a Webhook
-
-```
-POST /webhooks
-```
-
-**Request Body:**
-```json
-{
-  "url": "https://your-domain.com/webhook-endpoint",
-  "events": ["document.processed", "policy.expiring", "question.answered"],
-  "secret": "your_webhook_secret"
-}
-```
-
-**Response:**
-```json
-{
-  "id": "webhook123",
-  "url": "https://your-domain.com/webhook-endpoint",
-  "events": ["document.processed", "policy.expiring", "question.answered"],
-  "created_at": "2023-05-28T12:00:00Z",
-  "status": "active"
-}
-```
-
-### Webhook Event Format
-
-```json
-{
-  "event": "document.processed",
-  "created_at": "2023-05-28T12:05:30Z",
+  "status": "success",
   "data": {
-    "document_id": "doc123",
-    "user_id": "user123",
-    "status": "completed",
-    "processing_time": 180
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "phone_number": "+12345678900",
+    "notification_preferences": {
+      "email": true,
+      "push": true,
+      "sms": false
+    },
+    "subscription_status": "free",
+    "created_at": "2023-05-10T15:32:10Z",
+    "last_login": "2023-05-10T15:32:10Z"
   },
-  "signature": "sha256_hmac_signature"
+  "meta": {
+    "timestamp": "2023-05-10T15:32:10Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
 }
 ```
 
-### Webhook Signature Verification
+#### 4.1.3 Update User Profile
 
-Webhook requests include a signature in the `X-Webhook-Signature` header. Verify this signature to ensure the request came from our service:
+**Endpoint**: `PATCH /users/me`
 
-```python
-import hmac
-import hashlib
-
-def verify_webhook_signature(payload, signature, secret):
-    computed_signature = hmac.new(
-        secret.encode("utf-8"),
-        payload.encode("utf-8"),
-        hashlib.sha256
-    ).hexdigest()
-    
-    return hmac.compare_digest(computed_signature, signature)
-```
-
-## API Changelog
-
-### v1.0.0 (2023-05-01)
-
-- Initial release with core functionality:
-  - Authentication
-  - Document upload and processing
-  - Policy information
-  - Basic question answering
-
-### v1.1.0 (2023-06-15)
-
-- Added policy comparison endpoint
-- Enhanced question answering with conversation history
-- Added notifications endpoint
-- Improved document processing status reporting
-
-### v1.2.0 (2023-08-01)
-
-- Added webhook support
-- Enhanced policy coverage details
-- Added bulk operations for documents
-- Improved error handling and validation
-
-### Questions and Answers
-
-#### POST /query
-
-Query the RAG system with a natural language question about insurance policies.
-
-**Request Body:**
+**Request**:
 ```json
 {
-  "query": "What is my policy number?",
-  "filters": {
-    "document_id": "31837985202301.pdf"  // Optional: Filter by specific document
-  },
-  "_cache_buster": "1621234567890"       // Optional: Force cache invalidation
+  "name": "John Smith",
+  "phone_number": "+12345678901",
+  "notification_preferences": {
+    "sms": true
+  }
 }
 ```
 
-**Response:**
+**Response**:
 ```json
 {
   "status": "success",
-  "result": {
-    "answer": "Your policy number is 30689880202404.",
-    "sources": [
+  "data": {
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "name": "John Smith",
+    "phone_number": "+12345678901",
+    "notification_preferences": {
+      "email": true,
+      "push": true,
+      "sms": true
+    },
+    "updated_at": "2023-05-10T15:45:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T15:45:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 4.2 Document Management
+
+#### 4.2.1 Document Upload
+
+**Endpoint**: `POST /documents`
+
+**Request**:
+- Content-Type: multipart/form-data
+- Form Fields:
+  - document: File data
+  - metadata: JSON string
+
+```json
+{
+  "document_type": "health_insurance",
+  "insurer": "Blue Cross",
+  "nickname": "Family Health Plan 2023"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+    "original_filename": "health_policy.pdf",
+    "upload_status": "success",
+    "processing_status": "queued",
+    "created_at": "2023-05-10T15:32:10Z",
+    "document_type": "health_insurance",
+    "insurer": "Blue Cross",
+    "nickname": "Family Health Plan 2023",
+    "estimated_processing_time": 60
+  },
+  "meta": {
+    "timestamp": "2023-05-10T15:32:10Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.2.2 Get Document Processing Status
+
+**Endpoint**: `GET /documents/{document_id}/status`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+    "processing_status": "completed",
+    "processing_progress": 100,
+    "extraction_confidence": 0.92,
+    "processing_started_at": "2023-05-10T15:32:15Z",
+    "processing_completed_at": "2023-05-10T15:33:10Z",
+    "extracted_metadata": {
+      "policy_number": "POL-123456789",
+      "effective_date": "2023-01-01",
+      "expiration_date": "2023-12-31",
+      "premium_amount": 500.00,
+      "premium_frequency": "monthly"
+    }
+  },
+  "meta": {
+    "timestamp": "2023-05-10T15:35:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.2.3 List Documents
+
+**Endpoint**: `GET /documents?page=1&page_size=20&sort=created_at:desc&document_type=health_insurance`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "document_id": "550e8400-e29b-41d4-a716-446655440000",
+      "nickname": "Family Health Plan 2023",
+      "document_type": "health_insurance",
+      "insurer": "Blue Cross",
+      "created_at": "2023-05-10T15:32:10Z",
+      "processing_status": "completed",
+      "extracted_metadata": {
+        "policy_number": "POL-123456789",
+        "effective_date": "2023-01-01",
+        "expiration_date": "2023-12-31"
+      },
+      "thumbnail_url": "https://storage.insuranceapp.com/thumbnails/550e8400.jpg"
+    },
+    {
+      "document_id": "550e8400-e29b-41d4-a716-446655440001",
+      "nickname": "Auto Insurance 2023",
+      "document_type": "auto_insurance",
+      "insurer": "State Farm",
+      "created_at": "2023-05-09T12:10:33Z",
+      "processing_status": "completed",
+      "extracted_metadata": {
+        "policy_number": "AUTO-987654321",
+        "effective_date": "2023-02-15",
+        "expiration_date": "2024-02-14"
+      },
+      "thumbnail_url": "https://storage.insuranceapp.com/thumbnails/550e8401.jpg"
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "page_size": 20,
+      "total_pages": 1,
+      "total_items": 2
+    },
+    "timestamp": "2023-05-10T15:40:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.2.4 Get Document Details
+
+**Endpoint**: `GET /documents/{document_id}`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+    "original_filename": "health_policy.pdf",
+    "document_type": "health_insurance",
+    "insurer": "Blue Cross",
+    "nickname": "Family Health Plan 2023",
+    "created_at": "2023-05-10T15:32:10Z",
+    "processing_status": "completed",
+    "extraction_confidence": 0.92,
+    "file_size": 2456789,
+    "page_count": 12,
+    "document_url": "https://storage.insuranceapp.com/documents/550e8400.pdf",
+    "thumbnail_url": "https://storage.insuranceapp.com/thumbnails/550e8400.jpg",
+    "extracted_metadata": {
+      "policy_number": "POL-123456789",
+      "effective_date": "2023-01-01",
+      "expiration_date": "2023-12-31",
+      "policyholder": "John Smith",
+      "premium_amount": 500.00,
+      "premium_frequency": "monthly",
+      "coverage_type": "family"
+    },
+    "extracted_coverage": [
       {
-        "id": "d8d65994-7979-4c53-92cd-45b699582289",
-        "score": 0.80618095,
-        "document_id": "31837985202301.pdf",
-        "page_number": 1,
-        "block_id": "d8d65994-7979-4c53-92cd-45b699582289",
-        "embedding_model": "text-embedding-ada-002"
+        "coverage_type": "hospital",
+        "coverage_limit": "100% after deductible",
+        "deductible": 1000.00,
+        "copay": null,
+        "coinsurance": 0.20,
+        "notes": "Prior authorization required for non-emergency admission"
       },
       {
-        "id": "154e97c1-b282-4353-97ea-e27fbf92551a",
-        "score": 0.8023599,
-        "document_id": "insurance_policy.pdf",
-        "page_number": 1,
-        "block_id": "154e97c1-b282-4353-97ea-e27fbf92551a",
-        "embedding_model": "text-embedding-ada-002"
+        "coverage_type": "prescription_drugs",
+        "coverage_limit": "Tier-based coverage",
+        "deductible": 200.00,
+        "copay": {
+          "tier1": 10.00,
+          "tier2": 35.00,
+          "tier3": 60.00
+        },
+        "coinsurance": null,
+        "notes": "Mail order available for maintenance medications"
       }
     ],
-    "query": "What is my policy number?",
-    "embedding_model_used": "text-embedding-ada-002"
+    "extracted_exclusions": [
+      "Cosmetic procedures",
+      "Experimental treatments",
+      "Weight loss programs",
+      "Elective procedures not medically necessary"
+    ]
+  },
+  "meta": {
+    "timestamp": "2023-05-10T15:40:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
   }
 }
 ```
 
-**Status Codes:**
-- 200 OK: Query processed successfully
-- 400 Bad Request: Invalid query format
-- 500 Internal Server Error: Error processing query
+#### 4.2.5 Get Document Original
 
-#### GET /health
+**Endpoint**: `GET /documents/{document_id}/original`
 
-Check if the RAG service is healthy.
+**Response**:
+- Content-Type: application/pdf
+- Body: Binary PDF document data
 
-**Response:**
+#### 4.2.6 Update Document Metadata
+
+**Endpoint**: `PATCH /documents/{document_id}`
+
+**Request**:
+```json
+{
+  "nickname": "Updated Health Plan Name",
+  "insurer": "Blue Cross Blue Shield",
+  "document_type": "health_insurance"
+}
+```
+
+**Response**:
 ```json
 {
   "status": "success",
-  "result": {
-    "message": "RAG service is healthy",
-    "models": {
-      "primary_embedding": "text-embedding-ada-002",
-      "fallback_embedding": "sentence-transformers/all-mpnet-base-v2",
-      "active_embedding": "text-embedding-ada-002",
-      "chat_model": "gpt-4-turbo"
-    },
-    "openai_failures": 0,
-    "hf_failures": 0
+  "data": {
+    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+    "nickname": "Updated Health Plan Name",
+    "insurer": "Blue Cross Blue Shield",
+    "document_type": "health_insurance",
+    "updated_at": "2023-05-10T16:05:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:05:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
   }
 }
 ```
 
-**Status Codes:**
-- 200 OK: Service is healthy
-- 503 Service Unavailable: Service is degraded or unavailable
+#### 4.2.7 Delete Document
+
+**Endpoint**: `DELETE /documents/{document_id}`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+    "deleted_at": "2023-05-10T16:10:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:10:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 4.3 Policy Data APIs
+
+#### 4.3.1 Get Policy Information
+
+**Endpoint**: `GET /policies/{policy_id}`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+    "policy_number": "POL-123456789",
+    "policy_type": "health_insurance",
+    "insurer": {
+      "name": "Blue Cross Blue Shield",
+      "contact": {
+        "phone": "1-800-123-4567",
+        "website": "https://www.bcbs.com",
+        "email": "support@bcbs.com"
+      }
+    },
+    "period": {
+      "effective_date": "2023-01-01",
+      "expiration_date": "2023-12-31"
+    },
+    "policyholder": {
+      "name": "John Smith",
+      "relationship": "self"
+    },
+    "covered_individuals": [
+      {
+        "name": "John Smith",
+        "relationship": "self",
+        "dob": "1980-05-15"
+      },
+      {
+        "name": "Jane Smith",
+        "relationship": "spouse",
+        "dob": "1982-08-20"
+      }
+    ],
+    "coverage_summary": {
+      "type": "PPO",
+      "network": "BlueChoice Network",
+      "deductible": {
+        "individual": {
+          "in_network": 1000.00,
+          "out_of_network": 2000.00
+        },
+        "family": {
+          "in_network": 3000.00,
+          "out_of_network": 6000.00
+        }
+      },
+      "out_of_pocket_max": {
+        "individual": {
+          "in_network": 5000.00,
+          "out_of_network": 10000.00
+        },
+        "family": {
+          "in_network": 10000.00,
+          "out_of_network": 20000.00
+        }
+      }
+    },
+    "premium": {
+      "amount": 500.00,
+      "frequency": "monthly",
+      "due_date": "1st of month",
+      "payment_method": "auto_pay"
+    },
+    "created_at": "2023-05-10T15:32:10Z",
+    "updated_at": "2023-05-10T15:33:10Z",
+    "extraction_confidence": 0.92
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:15:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.3.2 Get Policy Coverage Details
+
+**Endpoint**: `GET /policies/{policy_id}/coverage`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+    "coverage_details": [
+      {
+        "category": "physician_services",
+        "sub_category": "primary_care",
+        "in_network": {
+          "coverage_type": "copay",
+          "copay_amount": 25.00,
+          "coinsurance_percentage": null,
+          "deductible_applies": false,
+          "coverage_limit": "unlimited",
+          "notes": "Annual wellness visit covered at 100%"
+        },
+        "out_of_network": {
+          "coverage_type": "coinsurance",
+          "copay_amount": null,
+          "coinsurance_percentage": 40,
+          "deductible_applies": true,
+          "coverage_limit": "reasonable and customary fees",
+          "notes": null
+        }
+      },
+      {
+        "category": "physician_services",
+        "sub_category": "specialist",
+        "in_network": {
+          "coverage_type": "copay",
+          "copay_amount": 45.00,
+          "coinsurance_percentage": null,
+          "deductible_applies": false,
+          "coverage_limit": "unlimited",
+          "notes": null
+        },
+        "out_of_network": {
+          "coverage_type": "coinsurance",
+          "copay_amount": null,
+          "coinsurance_percentage": 40,
+          "deductible_applies": true,
+          "coverage_limit": "reasonable and customary fees",
+          "notes": null
+        }
+      },
+      {
+        "category": "hospital_services",
+        "sub_category": "inpatient",
+        "in_network": {
+          "coverage_type": "coinsurance",
+          "copay_amount": null,
+          "coinsurance_percentage": 20,
+          "deductible_applies": true,
+          "coverage_limit": "unlimited",
+          "notes": "Prior authorization required"
+        },
+        "out_of_network": {
+          "coverage_type": "coinsurance",
+          "copay_amount": null,
+          "coinsurance_percentage": 40,
+          "deductible_applies": true,
+          "coverage_limit": "maximum 30 days per year",
+          "notes": "Prior authorization required"
+        }
+      }
+    ],
+    "extraction_confidence": 0.89
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:20:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.3.3 Get Policy Exclusions
+
+**Endpoint**: `GET /policies/{policy_id}/exclusions`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+    "exclusions": [
+      {
+        "category": "cosmetic",
+        "description": "Cosmetic procedures unless medically necessary",
+        "exceptions": "Reconstructive surgery following mastectomy or due to birth defects",
+        "source_section": "Exclusions and Limitations, Page 24"
+      },
+      {
+        "category": "experimental",
+        "description": "Experimental or investigational treatments and procedures",
+        "exceptions": "Clinical trials that meet specific criteria",
+        "source_section": "Exclusions and Limitations, Page 24-25"
+      },
+      {
+        "category": "alternative_medicine",
+        "description": "Alternative medicine including acupuncture, homeopathy",
+        "exceptions": "Chiropractic care with prior authorization",
+        "source_section": "Exclusions and Limitations, Page 25"
+      }
+    ],
+    "general_limitations": [
+      "Pre-existing conditions waiting period of 6 months",
+      "Out-of-network services limited to reasonable and customary charges",
+      "Referral required for specialist visits"
+    ],
+    "extraction_confidence": 0.85
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:25:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.3.4 Update Policy Information
+
+**Endpoint**: `PATCH /policies/{policy_id}`
+
+**Request**:
+```json
+{
+  "premium": {
+    "amount": 525.00
+  },
+  "period": {
+    "expiration_date": "2024-01-31"
+  },
+  "corrected_fields": [
+    "premium.amount",
+    "period.expiration_date"
+  ]
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+    "premium": {
+      "amount": 525.00,
+      "frequency": "monthly",
+      "due_date": "1st of month",
+      "payment_method": "auto_pay"
+    },
+    "period": {
+      "effective_date": "2023-01-01",
+      "expiration_date": "2024-01-31"
+    },
+    "updated_at": "2023-05-10T16:30:22Z",
+    "user_corrected": true
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:30:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 4.4 Natural Language Query API
+
+#### 4.4.1 Ask a Question
+
+**Endpoint**: `POST /questions`
+
+**Request**:
+```json
+{
+  "query": "What is my deductible for hospital stays?",
+  "policy_ids": ["550e8400-e29b-41d4-a716-446655440000"],
+  "conversation_id": null
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "question_id": "550e8400-e29b-41d4-a716-446655440123",
+    "conversation_id": "550e8400-e29b-41d4-a716-446655440789",
+    "query": "What is my deductible for hospital stays?",
+    "answer": "For hospital stays, your policy has an in-network deductible of $1,000 for an individual or $3,000 for family coverage. For out-of-network hospital stays, the deductible is $2,000 for an individual or $6,000 for family coverage. After meeting your deductible, you'll be responsible for 20% coinsurance for in-network stays or 40% coinsurance for out-of-network stays.",
+    "confidence_score": 0.92,
+    "policy_references": [
+      {
+        "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+        "policy_number": "POL-123456789",
+        "policy_nickname": "Family Health Plan 2023",
+        "document_references": [
+          {
+            "document_id": "550e8400-e29b-41d4-a716-446655440000",
+            "page_number": 15,
+            "section": "Hospital Services",
+            "text_excerpt": "In-network hospital stays: Subject to annual deductible ($1,000 individual/$3,000 family), then 20% coinsurance."
+          },
+          {
+            "document_id": "550e8400-e29b-41d4-a716-446655440000",
+            "page_number": 15,
+            "section": "Hospital Services",
+            "text_excerpt": "Out-of-network hospital stays: Subject to annual out-of-network deductible ($2,000 individual/$6,000 family), then 40% coinsurance."
+          }
+        ]
+      }
+    ],
+    "suggested_follow_up_questions": [
+      "What is the maximum out-of-pocket expense for hospital stays?",
+      "Do I need prior authorization for hospital admission?",
+      "What is covered under hospital services?"
+    ],
+    "created_at": "2023-05-10T16:35:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:35:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.4.2 Get Conversation History
+
+**Endpoint**: `GET /conversations/{conversation_id}`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "conversation_id": "550e8400-e29b-41d4-a716-446655440789",
+    "messages": [
+      {
+        "message_id": "550e8400-e29b-41d4-a716-446655440123",
+        "role": "user",
+        "content": "What is my deductible for hospital stays?",
+        "created_at": "2023-05-10T16:35:22Z"
+      },
+      {
+        "message_id": "550e8400-e29b-41d4-a716-446655440124",
+        "role": "assistant",
+        "content": "For hospital stays, your policy has an in-network deductible of $1,000 for an individual or $3,000 for family coverage. For out-of-network hospital stays, the deductible is $2,000 for an individual or $6,000 for family coverage. After meeting your deductible, you'll be responsible for 20% coinsurance for in-network stays or 40% coinsurance for out-of-network stays.",
+        "confidence_score": 0.92,
+        "policy_references": [
+          {
+            "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+            "page_number": 15,
+            "section": "Hospital Services"
+          }
+        ],
+        "created_at": "2023-05-10T16:35:25Z"
+      },
+      {
+        "message_id": "550e8400-e29b-41d4-a716-446655440125",
+        "role": "user",
+        "content": "Do I need prior authorization?",
+        "created_at": "2023-05-10T16:36:10Z"
+      },
+      {
+        "message_id": "550e8400-e29b-41d4-a716-446655440126",
+        "role": "assistant",
+        "content": "Yes, your policy requires prior authorization for all non-emergency hospital admissions, both in-network and out-of-network. Failure to obtain prior authorization may result in a reduction of benefits or denial of coverage.",
+        "confidence_score": 0.95,
+        "policy_references": [
+          {
+            "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+            "page_number": 16,
+            "section": "Prior Authorization Requirements"
+          }
+        ],
+        "created_at": "2023-05-10T16:36:15Z"
+      }
+    ],
+    "related_policies": [
+      {
+        "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+        "policy_number": "POL-123456789",
+        "policy_nickname": "Family Health Plan 2023"
+      }
+    ],
+    "created_at": "2023-05-10T16:35:22Z",
+    "updated_at": "2023-05-10T16:36:15Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:40:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 4.5 Policy Comparison API
+
+#### 4.5.1 Create Comparison
+
+**Endpoint**: `POST /comparisons`
+
+**Request**:
+```json
+{
+  "policy_ids": [
+    "550e8400-e29b-41d4-a716-446655440000",
+    "550e8400-e29b-41d4-a716-446655440001"
+  ],
+  "comparison_type": "cross_policy"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "comparison_id": "550e8400-e29b-41d4-a716-446655440999",
+    "comparison_type": "cross_policy",
+    "status": "processing",
+    "policies": [
+      {
+        "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+        "policy_number": "POL-123456789",
+        "policy_nickname": "Family Health Plan 2023",
+        "insurer": "Blue Cross Blue Shield",
+        "policy_type": "health_insurance"
+      },
+      {
+        "policy_id": "550e8400-e29b-41d4-a716-446655440001",
+        "policy_number": "POL-987654321",
+        "policy_nickname": "Health Plan Quote",
+        "insurer": "Aetna",
+        "policy_type": "health_insurance"
+      }
+    ],
+    "estimated_completion_time": "2023-05-10T16:42:22Z",
+    "created_at": "2023-05-10T16:40:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:40:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.5.2 Get Comparison Results
+
+**Endpoint**: `GET /comparisons/{comparison_id}`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "comparison_id": "550e8400-e29b-41d4-a716-446655440999",
+    "comparison_type": "cross_policy",
+    "status": "completed",
+    "policies": [
+      {
+        "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+        "policy_number": "POL-123456789",
+        "policy_nickname": "Family Health Plan 2023",
+        "insurer": "Blue Cross Blue Shield",
+        "policy_type": "health_insurance"
+      },
+      {
+        "policy_id": "550e8400-e29b-41d4-a716-446655440001",
+        "policy_number": "POL-987654321",
+        "policy_nickname": "Health Plan Quote",
+        "insurer": "Aetna",
+        "policy_type": "health_insurance"
+      }
+    ],
+    "summary": {
+      "overall_comparison": "The BCBS plan has higher premiums but lower deductibles and out-of-pocket maximums. The Aetna plan offers better prescription coverage but has a more limited provider network.",
+      "key_advantages": {
+        "policy_1": [
+          "Lower deductible ($1,000 vs $1,500)",
+          "Larger provider network",
+          "Lower coinsurance for hospital stays (20% vs 30%)"
+        ],
+        "policy_2": [
+          "Lower premium ($450 vs $500 monthly)",
+          "Better prescription coverage ($10/$30/$50 vs $15/$40/$75)",
+          "Includes adult vision coverage"
+        ]
+      },
+      "cost_comparison": {
+        "annual_premium": {
+          "policy_1": 6000.00,
+          "policy_2": 5400.00,
+          "difference": 600.00,
+          "difference_percentage": 10.00
+        },
+        "deductible": {
+          "policy_1": 1000.00,
+          "policy_2": 1500.00,
+          "difference": 500.00,
+          "difference_percentage": 33.33
+        },
+        "out_of_pocket_max": {
+          "policy_1": 5000.00,
+          "policy_2": 6000.00,
+          "difference": 1000.00,
+          "difference_percentage": 16.67
+        }
+      }
+    },
+    "detailed_comparison": {
+      "premium": {
+        "policy_1": {
+          "amount": 500.00,
+          "frequency": "monthly"
+        },
+        "policy_2": {
+          "amount": 450.00,
+          "frequency": "monthly"
+        }
+      },
+      "deductible": {
+        "policy_1": {
+          "individual_in_network": 1000.00,
+          "family_in_network": 3000.00,
+          "individual_out_of_network": 2000.00,
+          "family_out_of_network": 6000.00
+        },
+        "policy_2": {
+          "individual_in_network": 1500.00,
+          "family_in_network": 4500.00,
+          "individual_out_of_network": 3000.00,
+          "family_out_of_network": 9000.00
+        }
+      },
+      "coverage_categories": [
+        {
+          "category": "primary_care_visits",
+          "policy_1": {
+            "coverage_type": "copay",
+            "in_network_amount": "$25 copay",
+            "out_of_network_amount": "40% after deductible"
+          },
+          "policy_2": {
+            "coverage_type": "copay",
+            "in_network_amount": "$30 copay",
+            "out_of_network_amount": "50% after deductible"
+          }
+        },
+        {
+          "category": "specialist_visits",
+          "policy_1": {
+            "coverage_type": "copay",
+            "in_network_amount": "$45 copay",
+            "out_of_network_amount": "40% after deductible"
+          },
+          "policy_2": {
+            "coverage_type": "copay",
+            "in_network_amount": "$50 copay",
+            "out_of_network_amount": "50% after deductible"
+          }
+        },
+        {
+          "category": "hospital_stays",
+          "policy_1": {
+            "coverage_type": "coinsurance",
+            "in_network_amount": "20% after deductible",
+            "out_of_network_amount": "40% after deductible",
+            "notes": "Prior authorization required"
+          },
+          "policy_2": {
+            "coverage_type": "coinsurance",
+            "in_network_amount": "30% after deductible",
+            "out_of_network_amount": "50% after deductible",
+            "notes": "Prior authorization required"
+          }
+        }
+      ],
+      "prescription_drugs": {
+        "policy_1": {
+          "structure": "3-tier formulary",
+          "deductible": 200.00,
+          "tier_1": "$15 copay",
+          "tier_2": "$40 copay",
+          "tier_3": "$75 copay",
+          "specialty": "25% coinsurance",
+          "mail_order": "90-day supply for 2 copays"
+        },
+        "policy_2": {
+          "structure": "3-tier formulary",
+          "deductible": 0.00,
+          "tier_1": "$10 copay",
+          "tier_2": "$30 copay",
+          "tier_3": "$50 copay",
+          "specialty": "30% coinsurance",
+          "mail_order": "90-day supply for 2 copays"
+        }
+      },
+      "additional_benefits": {
+        "policy_1": [
+          "Adult dental coverage $1,000 annual maximum",
+          "Child vision and dental coverage",
+          "24/7 nurse hotline",
+          "Gym membership discount"
+        ],
+        "policy_2": [
+          "Adult vision and dental coverage",
+          "Child vision and dental coverage",
+          "Telemedicine with $0 copay",
+          "Alternative medicine coverage (limited)"
+        ]
+      },
+      "network_comparison": {
+        "policy_1": {
+          "network_name": "BlueChoice Network",
+          "network_size": "Extensive",
+          "major_hospitals": ["Memorial Hospital", "University Medical Center", "Children's Hospital"],
+          "restricted_access": false
+        },
+        "policy_2": {
+          "network_name": "Aetna Select Network",
+          "network_size": "Moderate",
+          "major_hospitals": ["Memorial Hospital", "Community Hospital"],
+          "restricted_access": true
+        }
+      }
+    },
+    "coverage_gaps": [
+      {
+        "category": "mental_health_outpatient",
+        "policy_1": "30 visits per year",
+        "policy_2": "Unlimited visits"
+      },
+      {
+        "category": "infertility_treatment",
+        "policy_1": "Covered with limitations",
+        "policy_2": "Not covered"
+      },
+      {
+        "category": "alternative_medicine",
+        "policy_1": "Not covered",
+        "policy_2": "Limited coverage for acupuncture and chiropractic"
+      }
+    ],
+    "created_at": "2023-05-10T16:40:22Z",
+    "completed_at": "2023-05-10T16:42:30Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:45:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 4.6 Notification Management
+
+#### 4.6.1 Get User Notifications
+
+**Endpoint**: `GET /notifications?page=1&page_size=20&status=unread`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "notification_id": "550e8400-e29b-41d4-a716-446655440222",
+      "type": "policy_expiration",
+      "priority": "high",
+      "title": "Policy Expiration Approaching",
+      "message": "Your health insurance policy (POL-123456789) will expire in 30 days on December 31, 2023.",
+      "policy_id": "550e8400-e29b-41d4-a716-446655440000",
+      "status": "unread",
+      "action_url": "/policies/550e8400-e29b-41d4-a716-446655440000",
+      "created_at": "2023-05-10T12:00:00Z"
+    },
+    {
+      "notification_id": "550e8400-e29b-41d4-a716-446655440223",
+      "type": "document_processed",
+      "priority": "normal",
+      "title": "Document Processing Complete",
+      "message": "Your uploaded document 'Auto Insurance 2023' has been successfully processed.",
+      "document_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "unread",
+      "action_url": "/documents/550e8400-e29b-41d4-a716-446655440001",
+      "created_at": "2023-05-09T15:30:00Z"
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "page_size": 20,
+      "total_pages": 1,
+      "total_items": 2
+    },
+    "unread_count": 2,
+    "timestamp": "2023-05-10T16:50:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.6.2 Update Notification Status
+
+**Endpoint**: `PATCH /notifications/{notification_id}`
+
+**Request**:
+```json
+{
+  "status": "read"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "notification_id": "550e8400-e29b-41d4-a716-446655440222",
+    "status": "read",
+    "updated_at": "2023-05-10T16:55:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T16:55:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.6.3 Configure Notification Settings
+
+**Endpoint**: `PUT /users/me/notification-settings`
+
+**Request**:
+```json
+{
+  "channels": {
+    "email": true,
+    "push": true,
+    "sms": false
+  },
+  "types": {
+    "policy_expiration": {
+      "enabled": true,
+      "advance_notice_days": [30, 15, 7, 1]
+    },
+    "premium_due": {
+      "enabled": true,
+      "advance_notice_days": [7, 1]
+    },
+    "document_processing": {
+      "enabled": true
+    },
+    "policy_updates": {
+      "enabled": true
+    }
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "channels": {
+      "email": true,
+      "push": true,
+      "sms": false
+    },
+    "types": {
+      "policy_expiration": {
+        "enabled": true,
+        "advance_notice_days": [30, 15, 7, 1]
+      },
+      "premium_due": {
+        "enabled": true,
+        "advance_notice_days": [7, 1]
+      },
+      "document_processing": {
+        "enabled": true
+      },
+      "policy_updates": {
+        "enabled": true
+      }
+    },
+    "updated_at": "2023-05-10T17:00:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T17:00:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 4.7 Device Management APIs
+
+#### 4.7.1 Register Device
+
+**Endpoint**: `POST /devices`
+
+**Request**:
+```json
+{
+  "device_token": "fcm-token-abc123",
+  "device_type": "android",
+  "app_version": "1.0.0",
+  "os_version": "Android 12",
+  "device_name": "Pixel 6",
+  "timezone": "America/New_York"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "device_id": "550e8400-e29b-41d4-a716-446655440333",
+    "device_token": "fcm-token-abc123",
+    "device_type": "android",
+    "app_version": "1.0.0",
+    "created_at": "2023-05-10T17:05:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T17:05:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.7.2 Update Device Token
+
+**Endpoint**: `PUT /devices/{device_id}`
+
+**Request**:
+```json
+{
+  "device_token": "fcm-token-updated-xyz789",
+  "app_version": "1.0.1"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "device_id": "550e8400-e29b-41d4-a716-446655440333",
+    "device_token": "fcm-token-updated-xyz789",
+    "app_version": "1.0.1",
+    "updated_at": "2023-05-10T17:10:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T17:10:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+#### 4.7.3 Delete Device
+
+**Endpoint**: `DELETE /devices/{device_id}`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "device_id": "550e8400-e29b-41d4-a716-446655440333",
+    "deleted_at": "2023-05-10T17:15:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T17:15:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+## 5. Versioning Strategy
+
+### 5.1 API Versioning
+
+The API uses URL-based versioning:
+
+- **Current Version**: v1
+- **Base URL**: https://api.insuranceapp.com/v1
+
+When introducing breaking changes, a new version will be created:
+
+- **Next Version**: v2
+- **Base URL**: https://api.insuranceapp.com/v2
+
+### 5.2 Version Lifecycle
+
+1. **Active**: Current version, fully supported
+2. **Deprecated**: Older version, still functional but migration recommended
+3. **Sunset**: End-of-life announcement, with scheduled removal date
+4. **Retired**: Version no longer available
+
+### 5.3 Version Transition
+
+When introducing a new API version:
+1. Publish documentation and migration guide
+2. Release new version alongside current version
+3. Deprecation notice for old version
+4. Minimum 6-month transition period before sunsetting
+
+## 6. Rate Limiting
+
+### 6.1 Rate Limit Structure
+
+Rate limits are applied per API token:
+
+| API Category | Limit | Time Window |
+|--------------|-------|-------------|
+| Authentication | 10 requests | 1 minute |
+| Document Upload | 10 requests | 1 hour |
+| Document Retrieval | 60 requests | 1 minute |
+| Policy Data | 60 requests | 1 minute |
+| Questions | 30 requests | 1 minute |
+| General Endpoints | 120 requests | 1 minute |
+
+### 6.2 Rate Limit Headers
+
+Rate limit information is included in API responses:
+
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 58
+X-RateLimit-Reset: 1683733800
+```
+
+### 6.3 Rate Limit Exceeded Response
+
+When rate limit is exceeded:
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Rate limit exceeded. Try again after reset time.",
+    "details": {
+      "limit": 60,
+      "reset_at": "2023-05-10T17:30:00Z"
+    }
+  },
+  "meta": {
+    "timestamp": "2023-05-10T17:25:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+## 7. Webhooks (Future Implementation)
+
+### 7.1 Webhook Subscription
+
+**Endpoint**: `POST /webhooks`
+
+**Request**:
+```json
+{
+  "url": "https://example.com/webhook-handler",
+  "events": ["document.processed", "policy.expiring_soon"],
+  "secret": "whsec_abcdefghijklmnopqrstuvwxyz"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "data": {
+    "webhook_id": "550e8400-e29b-41d4-a716-446655440444",
+    "url": "https://example.com/webhook-handler",
+    "events": ["document.processed", "policy.expiring_soon"],
+    "status": "active",
+    "created_at": "2023-05-10T17:30:22Z"
+  },
+  "meta": {
+    "timestamp": "2023-05-10T17:30:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 7.2 Webhook Event Format
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440555",
+  "event": "document.processed",
+  "created_at": "2023-05-10T17:35:22Z",
+  "data": {
+    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+    "processing_status": "completed",
+    "processing_time": 65
+  }
+}
+```
+
+### 7.3 Webhook Security
+
+- HTTPS required for webhook URLs
+- Webhook requests include signature header for verification:
+  ```
+  X-Insurance-App-Signature: t=1683734122,v1=abcdefg123456...
+  ```
+- Signature is HMAC-SHA256 of payload using webhook secret
+
+## 8. Error Handling
+
+### 8.1 HTTP Status Codes
+
+| Status Code | Meaning |
+|-------------|---------|
+| 200 | OK - Successful operation |
+| 201 | Created - Resource successfully created |
+| 202 | Accepted - Request accepted for processing |
+| 400 | Bad Request - Invalid parameters or validation failure |
+| 401 | Unauthorized - Missing or invalid authentication |
+| 403 | Forbidden - Authenticated but insufficient permissions |
+| 404 | Not Found - Resource not found |
+| 409 | Conflict - Resource state conflict |
+| 422 | Unprocessable Entity - Semantic errors in request |
+| 429 | Too Many Requests - Rate limit exceeded |
+| 500 | Internal Server Error - Unexpected server error |
+| 503 | Service Unavailable - Temporary server unavailability |
+
+### 8.2 Error Response Structure
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": {
+      "field": "Error details for specific field",
+      "additional_info": "Any additional error context"
+    }
+  },
+  "meta": {
+    "timestamp": "2023-05-10T17:40:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### 8.3 Validation Errors
+
+For validation errors, the details field contains field-specific error information:
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "The request contains invalid parameters",
+    "details": {
+      "fields": {
+        "email": "Must be a valid email address",
+        "password": "Must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number"
+      }
+    }
+  },
+  "meta": {
+    "timestamp": "2023-05-10T17:45:22Z",
+    "request_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+## 9. Implementation Notes
+
+### 9.1 API Development Technology
+
+The API will be implemented using:
+- **Framework**: FastAPI (Python)
+- **Authentication**: JWT using Firebase Auth
+- **Documentation**: OpenAPI/Swagger
+- **Testing**: Pytest
+
+### 9.2 API Documentation
+
+The API will be documented using OpenAPI 3.0 specification, available at:
+- https://api.insuranceapp.com/docs
+
+Interactive documentation will be available at:
+- https://api.insuranceapp.com/swagger
+
+### 9.3 Client Libraries
+
+Official client libraries will be provided for:
+- Kotlin/Android
+- Swift/iOS
+- JavaScript/TypeScript
+- Python
+
+### 9.4 Implementation Phases
+
+Phase 1:
+- User management APIs
+- Document upload and processing
+- Basic policy data APIs
+- Auth infrastructure
+
+Phase 2:
+- Natural language query APIs
+- Policy comparison
+- Notification system
+
+Phase 3:
+- Advanced analytics
+- Webhooks
+- Premium features
+- Integration APIs
+
+## Appendices
+
+### Appendix A: OpenAPI Specification
+
+[Link to OpenAPI JSON/YAML file]
+
+### Appendix B: API Status Page
+
+Service status and incidents will be tracked at https://status.insuranceapp.com
+
+### Appendix C: Change Log
+
+| Version | Date | Changes |
+|---------|------|---------|
+| v1.0.0 | 2023-05-01 | Initial API specification |

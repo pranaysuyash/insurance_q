@@ -25,10 +25,10 @@ This document serves as the single source of truth for the Insurance Policy Pars
 - **RAG Orchestration:** Standardize on langchain/llama-index ([RAG doc](ai_and_nlp/rag_implementation.md))
 - **LLM Serving:** Add vllm, TGI, quantized models ([RAG doc](ai_and_nlp/rag_implementation.md))
 - **Table Extraction:** Add donut, table-transformer ([OCR doc](implementation/extraction/ocr_implementation.md))
-- **Vector DB:** Add Qdrant/Weaviate hybrid search, schema versioning ([RAG doc](ai_and_nlp/rag_implementation.md), [Architecture doc](unified_architecture/comprehensive_architecture.md))
+- **Vector DB:** Add Qdrant/Weaviate hybrid search, schema versioning ([RAG doc](ai_and_nlp/rag_implementation.md), [Architecture doc](system_architecture/comprehensive_architecture.md))
 - **OCR:** Add TrOCR, doctr ([OCR doc](implementation/extraction/ocr_implementation.md))
 - **Batch Processing:** Add ray/joblib ([OCR doc](implementation/extraction/ocr_implementation.md), [RAG doc](ai_and_nlp/rag_implementation.md))
-- **Model Monitoring:** Add latency/error monitoring ([Architecture doc](unified_architecture/comprehensive_architecture.md))
+- **Model Monitoring:** Add latency/error monitoring ([Architecture doc](system_architecture/comprehensive_architecture.md))
 - **How-to Guides:** Add guides for switching models, vector DBs, OCR engines ([RAG doc](ai_and_nlp/rag_implementation.md), [OCR doc](implementation/extraction/ocr_implementation.md))
 - **Changelog:** Add changelog section to each doc ([see template below])
 
@@ -44,13 +44,13 @@ This document serves as the single source of truth for the Insurance Policy Pars
 ## See Also
 - [RAG Implementation](ai_and_nlp/rag_implementation.md)
 - [OCR Implementation](implementation/extraction/ocr_implementation.md)
-- [Comprehensive Architecture](unified_architecture/comprehensive_architecture.md)
+- [Comprehensive Architecture](system_architecture/comprehensive_architecture.md)
 
 This file should be updated whenever a major stack or architecture change is made.
 
 ## Mobile App
 - The primary client is a Flutter mobile app (Android/iOS), integrating with Firebase Auth and the backend API.
-- See [Mobile App Architecture](../user_experience/mobile_app_architecture.md) for details on mobile flows, packages, and integration.
+- See [Mobile App Architecture](../../user_experience/mobile_app_architecture.md) for details on mobile flows, packages, and integration.
 
 # Changelog
 
