@@ -12,7 +12,7 @@ class LocalStorageService {
   static const Uuid _uuid = Uuid();
 
   // Save a document file to local storage and store metadata in SharedPreferences
-  Future<InsuranceDocument> saveDocument(File file) async {
+  Future<InsuranceDocument> saveDocument(File file, {Map<String, dynamic>? additionalMetadata}) async {
     final prefs = await SharedPreferences.getInstance();
     
     // Create a unique ID for the document
@@ -38,6 +38,9 @@ class LocalStorageService {
       status: 'completed',
       processingCompletedAt: DateTime.now(),
       localFilePath: localFilePath,
+      // Add additional metadata if provided
+      documentType: additionalMetadata?['document_type'],
+      insurer: additionalMetadata?['insurer'],
     );
     
     // Get existing documents
@@ -60,6 +63,44 @@ class LocalStorageService {
     return documentsList
         .map((jsonStr) => InsuranceDocument.fromJsonString(jsonStr))
         .toList();
+  }
+  
+  // Update an existing document
+  Future<bool> updateDocument(InsuranceDocument updatedDocument) async {
+    try {
+      // Get all existing documents
+      final documents = await getDocuments();
+      
+      // Find the index of the document to update
+      final index = documents.indexWhere((doc) => doc.id == updatedDocument.id);
+      
+      // If document not found, return false
+      if (index == -1) {
+        return false;
+      }
+      
+      // Replace the document at the found index
+      documents[index] = updatedDocument;
+      
+      // Save the updated list back to SharedPreferences
+      await _saveDocumentsList(documents);
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error updating document: $e');
+      return false;
+    }
+  }
+  
+  // Get a specific document by ID
+  Future<InsuranceDocument?> getDocumentById(String documentId) async {
+    final documents = await getDocuments();
+    try {
+      return documents.firstWhere((doc) => doc.id == documentId);
+    } catch (e) {
+      debugPrint('Document not found: $documentId');
+      return null;
+    }
   }
   
   // Delete a document from SharedPreferences and the local file system

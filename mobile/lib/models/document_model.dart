@@ -1,6 +1,34 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 
+class PolicyHolder {
+  final String name;
+  final String? dob;
+  final String relationship;
+
+  PolicyHolder({
+    required this.name,
+    this.dob,
+    required this.relationship,
+  });
+
+  factory PolicyHolder.fromJson(Map<String, dynamic> json) {
+    return PolicyHolder(
+      name: json['name'] ?? 'Unknown',
+      dob: json['dob'],
+      relationship: json['relationship'] ?? 'Insured',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'dob': dob,
+      'relationship': relationship,
+    };
+  }
+}
+
 class InsuranceDocument {
   final String id;
   final String filename;
@@ -11,6 +39,7 @@ class InsuranceDocument {
   final DateTime? processingCompletedAt;
   final int? size;
   final String? localFilePath; // Path to locally stored file
+  final List<PolicyHolder>? policyHolders; // New field for policy holders
 
   InsuranceDocument({
     required this.id,
@@ -22,9 +51,18 @@ class InsuranceDocument {
     this.processingCompletedAt,
     this.size,
     this.localFilePath,
+    this.policyHolders,
   });
 
   factory InsuranceDocument.fromJson(Map<String, dynamic> json) {
+    // Parse policy holders if available
+    List<PolicyHolder>? holders;
+    if (json['policy_holders'] != null && json['policy_holders'] is List) {
+      holders = (json['policy_holders'] as List)
+          .map((holder) => PolicyHolder.fromJson(holder))
+          .toList();
+    }
+    
     return InsuranceDocument(
       id: json['id'] ?? '',
       filename: json['filename'] ?? '',
@@ -39,6 +77,7 @@ class InsuranceDocument {
           : null,
       size: json['size'],
       localFilePath: json['local_file_path'],
+      policyHolders: holders,
     );
   }
 
@@ -53,6 +92,7 @@ class InsuranceDocument {
       'processing_completed_at': processingCompletedAt?.toIso8601String(),
       'size': size,
       'local_file_path': localFilePath,
+      'policy_holders': policyHolders?.map((holder) => holder.toJson()).toList(),
     };
   }
 

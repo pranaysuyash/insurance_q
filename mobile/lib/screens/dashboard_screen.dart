@@ -23,6 +23,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _isLoading = true;
   final Map<String, int> _documentTypeCount = {};
   
+  // Store family information
+  final Map<String, PolicyHolder> _policyHolders = {};
+  bool _isLoadingFamilyInfo = false;
+  
   @override
   void initState() {
     super.initState();
@@ -32,11 +36,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
+      _isLoadingFamilyInfo = true;
     });
     
     // Load documents
     try {
-      final documents = await _localStorageService.getDocuments();
+      final documents = await _apiService.getDocuments();
       setState(() {
         _documents = documents;
         
@@ -47,6 +52,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _documentTypeCount[type] = (_documentTypeCount[type] ?? 0) + 1;
         }
       });
+
+      // Load family information
+      if (documents.isNotEmpty) {
+        await _loadFamilyInformation();
+      }
     } catch (e) {
       debugPrint('Error loading documents: $e');
     }
@@ -66,7 +76,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     setState(() {
       _isLoading = false;
+      _isLoadingFamilyInfo = false;
     });
+  }
+
+  Future<void> _loadFamilyInformation() async {
+    // Clear existing data
+    _policyHolders.clear();
+    
+    // Collect all policy holders from all documents
+    for (final doc in _documents) {
+      try {
+        // Check if document already has policy holders
+        if (doc.policyHolders != null && doc.policyHolders!.isNotEmpty) {
+          // Use stored policy holders
+          for (final holder in doc.policyHolders!) {
+            _policyHolders[holder.name] = holder;
+          }
+        } else {
+          // Extract policy holders if not already available
+          final holders = await _apiService.extractPolicyHolders(doc.id);
+          
+          // Add to unique holders by name
+          for (final holder in holders) {
+            _policyHolders[holder.name] = holder;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error extracting policy holders: $e');
+      }
+    }
+    
+    // Update UI
+    setState(() {});
   }
 
   @override
@@ -98,6 +140,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         const SizedBox(height: 20),
                         _buildQuickActions(),
                         const SizedBox(height: 20),
+                        if (_documents.isNotEmpty) _buildFamilyInformation(),
+                        if (_documents.isNotEmpty) const SizedBox(height: 20),
                         _buildRecentActivities(),
                         const SizedBox(height: 20),
                         _buildInsuranceTerminology(),
@@ -656,5 +700,77 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildFamilyInformation() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Family Members & Insured',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        if (_isLoadingFamilyInfo)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_policyHolders.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(
+                child: Text('No family information detected in your policies'),
+              ),
+            ),
+          )
+        else
+          ...(_policyHolders.values).map((holder) => Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Colors.blue.withOpacity(0.1),
+                child: Icon(
+                  holder.relationship == 'Primary Insured' 
+                      ? Icons.person 
+                      : Icons.people_alt,
+                  color: Colors.blue,
+                ),
+              ),
+              title: Text(holder.name),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (holder.dob != null)
+                    Text('DOB: ${holder.dob}'),
+                  Text(holder.relationship),
+                ],
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+          )),
+        
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add Family Member'),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Family management coming soon!')),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 } 

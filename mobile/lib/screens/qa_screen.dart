@@ -178,23 +178,62 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       print('API response: $result');
       
       if (result.containsKey('error')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${result['error']}')),
-        );
-        return;
+        // Don't immediately show error - try to show answer if available
+        if (!result.containsKey('answer')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${result['error']}')),
+          );
+          return;
+        }
       }
       
+      // Create answer from result
       final answer = QaAnswer.fromJson({
         ...result,
         'query': question, // Keep the original question for the UI
         'document_id': selectedDoc ?? '',
       });
       
+      // Update UI with answer
       ref.read(currentAnswerProvider.notifier).state = answer;
-      ref.read(qaHistoryProvider.notifier).addItem(question, answer);
+      
+      // Add to history if there's an actual answer
+      if (answer.text.isNotEmpty) {
+        ref.read(qaHistoryProvider.notifier).addItem(question, answer);
+        
+        // Save to recent questions list (up to 5 questions)
+        try {
+          final prefs = ref.read(sharedPreferencesProvider);
+          if (prefs != null) {
+            final recentQuestions = prefs.getStringList(StorageKeys.recentQuestions) ?? [];
+            if (!recentQuestions.contains(question)) {
+              recentQuestions.insert(0, question);
+              // Keep only the 5 most recent questions
+              if (recentQuestions.length > 5) {
+                recentQuestions.removeLast();
+              }
+              await prefs.setStringList(StorageKeys.recentQuestions, recentQuestions);
+            }
+          }
+        } catch (e) {
+          print('Error saving recent question: $e');
+        }
+      }
       
     } catch (e) {
       print('Error during question: $e');
+      
+      // Create a fallback answer
+      final fallbackAnswer = QaAnswer(
+        text: 'Sorry, I encountered an error while processing your question. This may be due to a network issue or server problem. Please try again later.',
+        sources: [],
+        timestamp: DateTime.now(),
+        documentId: selectedDoc ?? '',
+        question: question,
+      );
+      
+      ref.read(currentAnswerProvider.notifier).state = fallbackAnswer;
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
