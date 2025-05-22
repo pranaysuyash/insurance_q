@@ -74,6 +74,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       debugPrint('Error loading recent questions: $e');
     }
 
+    // Load deleted documents activity (if available)
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      if (prefs != null) {
+        // Check for recently deleted documents
+        final deletedDocs = prefs.getStringList(StorageKeys.recentlyDeletedDocs) ?? [];
+        if (deletedDocs.isNotEmpty) {
+          setState(() {
+            // Add to _recentlyDeletedDocs if we need to track separately
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading deleted documents: $e');
+    }
+
     setState(() {
       _isLoading = false;
       _isLoadingFamilyInfo = false;
@@ -408,6 +424,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // Take only the last 3
     final documents = recentDocuments.take(3).toList();
     
+    // Get recently deleted documents
+    final prefs = ref.read(sharedPreferencesProvider);
+    List<String> deletedDocs = [];
+    if (prefs != null) {
+      deletedDocs = prefs.getStringList(StorageKeys.recentlyDeletedDocs) ?? [];
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -438,6 +461,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const SizedBox(height: 8),
         ],
         
+        // Deleted documents
+        if (deletedDocs.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 4.0),
+            child: Text(
+              'Recently deleted documents',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          ...deletedDocs.take(2).map((filename) => _buildActivityItem(
+            icon: Icons.delete_outline,
+            title: filename,
+            subtitle: 'Deleted recently',
+            color: Colors.red,
+          )),
+          const SizedBox(height: 8),
+        ],
+        
         // Recent questions
         if (_recentQuestions.isNotEmpty) ...[
           const Padding(
@@ -456,7 +497,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
         
         // No activities
-        if (documents.isEmpty && _recentQuestions.isEmpty)
+        if (documents.isEmpty && _recentQuestions.isEmpty && deletedDocs.isEmpty)
           const Card(
             child: Padding(
               padding: EdgeInsets.all(16.0),

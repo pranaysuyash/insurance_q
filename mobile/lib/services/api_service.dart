@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import '../models/document_model.dart';
 import 'local_storage_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Set your backend base URL here - only needed for query operations
@@ -527,8 +528,32 @@ class ApiService {
 
   Future<bool> deleteDocument(String documentId) async {
     try {
+      // Get document first to record its filename
+      final document = await _localStorageService.getDocumentById(documentId);
+      if (document == null) {
+        return false;
+      }
+      
       // Delete document from local storage
-      return await _localStorageService.deleteDocument(documentId);
+      final deleted = await _localStorageService.deleteDocument(documentId);
+      
+      // Record this deletion in SharedPreferences for activity tracking
+      if (deleted) {
+        final prefs = await SharedPreferences.getInstance();
+        final recentlyDeleted = prefs.getStringList('recently_deleted_docs') ?? [];
+        
+        // Add this document to the recently deleted list
+        if (!recentlyDeleted.contains(document.filename)) {
+          recentlyDeleted.insert(0, document.filename);
+          // Keep only the most recent 5 deletions
+          if (recentlyDeleted.length > 5) {
+            recentlyDeleted.removeLast();
+          }
+          await prefs.setStringList('recently_deleted_docs', recentlyDeleted);
+        }
+      }
+      
+      return deleted;
     } catch (e) {
       print('Error deleting document: $e');
       return false;

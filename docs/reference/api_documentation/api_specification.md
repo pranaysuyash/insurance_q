@@ -562,6 +562,43 @@ GET /resources?status=active&created_after=2023-01-01T00:00:00Z
 }
 ```
 
+## Document Deletion
+
+### Delete Document
+**Endpoint:** `DELETE /api/documents/{document_id}`
+
+Deletes a document and its associated data. In the mobile app, this also:
+1. Removes the document from local storage
+2. Deletes the associated file from the device
+3. Tracks the deletion in recent activities
+4. Maintains Q&A history related to the document
+
+**Response:**
+```json
+{
+  "message": "Document deleted successfully",
+  "id": "document_id"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: Document not found
+- `403 Forbidden`: Document belongs to another user
+- `500 Internal Server Error`: Server error during deletion
+
+### Recent Document Activity Tracking
+
+The mobile app maintains a record of recent document activities, including:
+- Recently uploaded documents
+- Recently viewed documents
+- Recently deleted documents
+- Recent questions asked about documents
+
+This information is stored in SharedPreferences with the following keys:
+- `recently_deleted_docs`: List of filenames of recently deleted documents
+- `last_uploaded_document_id`: ID of the most recently uploaded document
+- `last_viewed_document_id`: ID of the most recently viewed document
+
 ### 4.3 Policy Data APIs
 
 #### 4.3.1 Get Policy Information

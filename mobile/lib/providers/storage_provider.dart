@@ -21,6 +21,7 @@ class StorageKeys {
   static const String lastQueryDate = 'last_query_date';
   static const String tutorialShown = 'tutorial_shown';
   static const String lastViewedDocumentId = 'last_viewed_document_id';
+  static const String recentlyDeletedDocs = 'recently_deleted_docs';
   
   // Prevent instantiation
   StorageKeys._();

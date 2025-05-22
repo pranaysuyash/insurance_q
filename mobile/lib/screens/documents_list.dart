@@ -30,6 +30,7 @@ class DocumentsListState extends State<DocumentsList> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _documents = []; // Clear documents first to avoid stale data
     });
 
     try {

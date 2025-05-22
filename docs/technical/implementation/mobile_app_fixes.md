@@ -190,3 +190,48 @@
   - The final prompt sent to the LLM
 - This helps diagnose whether poor answers are due to retrieval, chunking, or prompt construction issues
 - Next steps: Analyze logs for queries like "What is my policy number?" to see if the right context is being retrieved and sent to the LLM 
+
+# Mobile App Bug Fixes and Improvements
+
+## Latest Updates (June 2023)
+
+### Bug Fixes
+1. **Document Deletion Issues**
+   - Fixed bug where deleted documents would still appear in document lists
+   - Added tracking of recently deleted documents to improve user experience
+   - Documents are now properly cleared from memory when deleted
+
+2. **Document Count Discrepancy**
+   - Fixed inconsistency between document count on home screen and document type counts
+   - Improved refresh mechanism to ensure all document counts stay in sync
+
+3. **QA Screen Answers**
+   - Fixed issue where answers for predefined questions weren't displaying
+   - Added answer display within the standard questions tab
+   - Improved navigation between questions and answers
+
+4. **Family Information Display**
+   - Implemented dedicated Family screen to show policy holders consistently
+   - Added proper layout and styling for family member information
+   - Reused policy holder extraction logic from dashboard screen
+
+5. **More Screen Content**
+   - Added placeholder content for More screen with common options
+   - Included settings, help & support, privacy, and about sections
+
+### Improvements
+1. **Recent Activities**
+   - Added tracking of deleted documents in recent activities
+   - Improved organization of activity types with clear section headings
+
+2. **Document History**
+   - Now keeping Q&A history for deleted documents
+   - Improved document selection dialog
+
+3. **UI Consistency**
+   - Standardized header styles across screens
+   - Improved error handling and user feedback
+
+## Previous Updates
+
+// ... existing code ... 

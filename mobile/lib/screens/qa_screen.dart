@@ -355,8 +355,16 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
 
     return ListView.builder(
       padding: const EdgeInsets.all(12.0),
-      itemCount: categories.length,
+      itemCount: categories.length + (currentAnswer != null ? 1 : 0),
       itemBuilder: (context, index) {
+        // If this is the last item and we have an answer, show it
+        if (currentAnswer != null && index == categories.length) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 12.0),
+            child: _buildAnswerCard(currentAnswer),
+          );
+        }
+        
         final category = categories[index];
         final categoryQuestions = groupedQuestions[category.id] ?? [];
 
