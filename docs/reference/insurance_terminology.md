@@ -14,6 +14,8 @@ This glossary provides definitions for common insurance terms that users may enc
 
 **Agent**: A licensed insurance company representative who sells policies on behalf of the insurer.
 
+**Assignee**: The person or entity to whom a policyholder transfers the rights of their insurance policy.
+
 ## B
 
 **Beneficiary**: The person or entity designated to receive the proceeds or benefits from a life insurance policy when the insured dies.
@@ -32,6 +34,8 @@ This glossary provides definitions for common insurance terms that users may enc
 
 **Coinsurance**: The percentage of costs of a covered health care service you pay after you've paid your deductible.
 
+**Contingent Beneficiary**: A person or entity designated to receive insurance proceeds if the primary beneficiary is deceased or unable to receive the benefit.
+
 **Copay/Copayment**: A fixed amount you pay for a covered health care service, usually when you receive the service.
 
 **Coverage Limit**: The maximum amount an insurance company will pay for a covered loss.
@@ -39,6 +43,8 @@ This glossary provides definitions for common insurance terms that users may enc
 ## D
 
 **Deductible**: The amount you pay for covered health care services before your insurance plan starts to pay.
+
+**Dependent**: A person who relies on the policyholder for financial support and is eligible for coverage under the policyholder's insurance plan, typically a spouse or child.
 
 **Depreciation**: The decrease in the value of property over time due to wear and tear or obsolescence.
 
@@ -80,6 +86,8 @@ This glossary provides definitions for common insurance terms that users may enc
 
 **Insurance Score**: A rating used by insurance companies that is based on a consumer's credit history.
 
+**Insured**: The person or entity whose life or property is covered by an insurance policy. May be different from the policyholder who owns and pays for the policy.
+
 ## L
 
 **Lapse**: The termination of an insurance policy because of failure to pay the premium.
@@ -96,7 +104,11 @@ This glossary provides definitions for common insurance terms that users may enc
 
 ## N
 
+**Named Insured**: The individual or entity specifically designated by name as the insured in an insurance policy.
+
 **Network**: The facilities, providers, and suppliers your health insurer has contracted with to provide health care services.
+
+**Nominee**: In insurance, particularly life insurance, the person named by the policyholder to receive the proceeds of the policy upon the death of the insured. Similar to a beneficiary but with specific legal implications in some jurisdictions.
 
 ## O
 
@@ -108,11 +120,17 @@ This glossary provides definitions for common insurance terms that users may enc
 
 ## P
 
+**Payor**: The person or entity responsible for paying the premiums on an insurance policy, which may be different from the policyholder or the insured.
+
 **Pre-Existing Condition**: A health problem you had before the date that new health coverage starts.
 
 **Premium**: The amount paid for an insurance policy, typically in monthly installments.
 
+**Primary Beneficiary**: The person or entity first in line to receive the proceeds from an insurance policy upon the death of the insured.
+
 **Prior Authorization**: A decision by your health insurer that a health care service, treatment plan, prescription drug, or durable medical equipment is medically necessary.
+
+**Policyholder**: The person or entity who owns the insurance policy and typically pays the premiums. May be different from the insured whose life or property is covered by the policy.
 
 ## Q
 
@@ -138,6 +156,8 @@ This glossary provides definitions for common insurance terms that users may enc
 
 **Term Life Insurance**: Life insurance that provides coverage for a specified time period and pays a benefit only if the insured dies during that period.
 
+**Tertiary Beneficiary**: A third-level beneficiary who receives the insurance proceeds if both the primary and contingent beneficiaries are deceased or unable to receive the benefit.
+
 **Third-Party Administrator (TPA)**: An organization that processes insurance claims and performs other administrative services.
 
 ## U
@@ -151,6 +171,34 @@ This glossary provides definitions for common insurance terms that users may enc
 **Waiting Period**: The time that must pass before coverage becomes effective or benefits are payable.
 
 **Whole Life Insurance**: A type of permanent life insurance that provides coverage for the entire lifetime of the insured and includes a savings component.
+
+## Relationship Terms in Insurance
+
+This section clarifies the complex relationships that can exist in insurance policies:
+
+**Additional Insured**: A person or entity added to a policy as an insured but who is not the primary policyholder, often with limited coverage compared to the named insured.
+
+**Beneficiary Hierarchy**: The order in which beneficiaries receive insurance proceeds: primary beneficiaries first, then contingent beneficiaries, and finally tertiary beneficiaries if applicable.
+
+**Contingent Owner**: The person who becomes the owner of an insurance policy if the original owner dies before the insured.
+
+**Corporate-owned Life Insurance (COLI)**: Life insurance owned by a company on the lives of employees, usually executives, with the company as the beneficiary.
+
+**Irrevocable Beneficiary**: A beneficiary whose designation cannot be changed without their consent.
+
+**Joint Life Insurance**: A policy that covers two or more lives and pays a benefit upon the first death (first-to-die) or second death (second-to-die/survivorship).
+
+**Key Person Insurance**: Life or disability insurance purchased by a business on a vital employee, with the business as the beneficiary.
+
+**Payor-Insured-Beneficiary Relationship**: The structure defining who pays for the policy (payor), whose life or property is covered (insured), and who receives the benefits (beneficiary).
+
+**Policyholder-Insured Distinction**: When the person who owns and pays for the policy (policyholder) is different from the person whose life or property is covered (insured).
+
+**Revocable Beneficiary**: A beneficiary whose designation can be changed by the policyholder without the beneficiary's consent.
+
+**Split-Dollar Life Insurance**: An arrangement where the premium payments, cash values, and death benefits of a life insurance policy are split between two parties, typically an employer and employee.
+
+**Trust as Beneficiary**: A legal arrangement where a trust is named as the beneficiary of an insurance policy, allowing for greater control over how benefits are distributed.
 
 ## Resources for Further Learning
 

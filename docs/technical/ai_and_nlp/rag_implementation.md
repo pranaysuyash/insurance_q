@@ -119,6 +119,235 @@ This is the central class managing the RAG process.
     e.  Calls OpenAI Chat Completions API for an answer.
     f.  Caches and returns the answer.
 
+## Complex Relationship Extraction Enhancement
+
+To address the complex relationship extraction challenges identified in our case studies, the following enhancements to the RAG pipeline are proposed:
+
+### 1. Document Section Classification Module (`src/rag/section_classifier.py`)
+
+A new module for classifying document sections that will:
+- Use rule-based and/or ML approaches to identify key insurance document sections
+- Categorize text blocks into sections like "policy details," "insured information," "nominee details," etc.
+- Add section metadata to text blocks before embedding generation
+
+```python
+class SectionClassifier:
+    def __init__(self, model_path=None):
+        # Initialize section classification model or rules
+        pass
+        
+    def classify_sections(self, text_blocks):
+        """
+        Classify text blocks into document sections.
+        
+        Args:
+            text_blocks: List of text block dictionaries
+            
+        Returns:
+            List of text blocks with added 'section' field
+        """
+        # Implementation of section classification
+        for block in text_blocks:
+            # Determine section based on content and position
+            block['section'] = self._determine_section(block)
+        return text_blocks
+```
+
+### 2. Relationship Extraction Module (`src/rag/relationship_extractor.py`)
+
+A specialized module for extracting entity relationships:
+
+```python
+class RelationshipExtractor:
+    def __init__(self, llm_client):
+        self.llm_client = llm_client
+        
+    def extract_relationships(self, section_blocks):
+        """
+        Extract relationships between entities in insurance documents.
+        
+        Args:
+            section_blocks: Text blocks with section classification
+            
+        Returns:
+            Dictionary of relationship graph
+        """
+        # Implementation of relationship extraction logic
+        relationships = {
+            'policyholder': {},
+            'insured_persons': [],
+            'nominees': [],
+            'relationships': []
+        }
+        
+        # Process policy details section
+        policy_blocks = [b for b in section_blocks if b.get('section') == 'policy_details']
+        if policy_blocks:
+            relationships['policyholder'] = self._extract_policyholder(policy_blocks)
+            
+        # Process insured persons section
+        insured_blocks = [b for b in section_blocks if b.get('section') == 'insured_details']
+        if insured_blocks:
+            relationships['insured_persons'] = self._extract_insured_persons(insured_blocks)
+            
+        # Process nominee section
+        nominee_blocks = [b for b in section_blocks if b.get('section') == 'nominee_details']
+        if nominee_blocks:
+            relationships['nominees'] = self._extract_nominees(nominee_blocks)
+            
+        # Determine relationships between entities
+        relationships['relationships'] = self._determine_relationships(relationships)
+        
+        return relationships
+```
+
+### 3. Extended RAGPipeline Integration
+
+The RAGPipeline class would be extended to incorporate these new modules:
+
+```python
+# Enhanced ingest_document_data method
+def ingest_document_data(self, document_id, text_blocks, document_metadata=None):
+    # Initialize new components
+    section_classifier = SectionClassifier()
+    relationship_extractor = RelationshipExtractor(self.openai_client)
+    
+    # Classify sections
+    section_blocks = section_classifier.classify_sections(text_blocks)
+    
+    # Extract relationships
+    relationships = relationship_extractor.extract_relationships(section_blocks)
+    
+    # Add relationship data to document metadata
+    if document_metadata is None:
+        document_metadata = {}
+    document_metadata['relationships'] = relationships
+    
+    # Add section information to each text block
+    for block in section_blocks:
+        block['metadata'] = block.get('metadata', {})
+        block['metadata']['section'] = block.get('section')
+    
+    # Continue with regular ingestion process
+    # ... (existing code)
+```
+
+### 4. Enhanced Query Processing
+
+The query_rag method would be updated to handle relationship-specific queries:
+
+```python
+# Enhanced query processing
+def query_rag(self, user_query, top_k=5, filters=None):
+    # Detect if query is relationship-focused
+    if self._is_relationship_query(user_query):
+        # Get document metadata including relationship graph
+        if filters and 'document_id' in filters:
+            doc_id = filters['document_id']
+            relationship_data = self._get_document_relationships(doc_id)
+            
+            # Generate specialized prompt that includes relationship context
+            enhanced_prompt = self._generate_relationship_prompt(user_query, relationship_data)
+            
+            # Use specialized prompt for answer generation
+            # ... (relationship-specific answer generation)
+            
+    # Continue with regular query processing for non-relationship queries
+    # ... (existing code)
+```
+
+### 5. Specialized Relationship Prompts
+
+Create specialized prompts for relationship queries that include structured relationship data:
+
+```python
+def _generate_relationship_prompt(self, query, relationship_data):
+    # Create a structured prompt with relationship information
+    relationship_context = f"""
+    Document contains the following insurance relationships:
+    
+    POLICYHOLDER: {relationship_data['policyholder'].get('name')}
+    
+    INSURED PERSONS:
+    {self._format_entities(relationship_data['insured_persons'])}
+    
+    NOMINEES:
+    {self._format_entities(relationship_data['nominees'])}
+    
+    RELATIONSHIPS:
+    {self._format_relationships(relationship_data['relationships'])}
+    """
+    
+    prompt = f"""
+    You are an insurance document assistant. Answer the following question about insurance relationships.
+    
+    Here is information about the relationships in this policy:
+    
+    {relationship_context}
+    
+    USER QUESTION: {query}
+    
+    Provide a clear, accurate answer based only on the information provided above. If the answer cannot be determined from the information provided, say so.
+    """
+    
+    return prompt
+```
+
+## Data Structures
+
+### Relationship Graph Schema
+
+The relationship data would be stored in a structured format in the document metadata:
+
+```json
+{
+  "relationships": {
+    "policyholder": {
+      "name": "John Doe",
+      "id": "PH123456",
+      "role": "policyholder",
+      "contact": "john.doe@example.com"
+    },
+    "insured_persons": [
+      {
+        "name": "Shishu Ranjan",
+        "relationship_to_policyholder": "parent",
+        "dob": "1950-05-15"
+      },
+      {
+        "name": "Ranjana",
+        "relationship_to_policyholder": "parent",
+        "dob": "1955-08-20"
+      }
+    ],
+    "nominees": [
+      {
+        "name": "Shishu Ranjan",
+        "relationship_to_policyholder": "parent",
+        "allocation_percentage": 100
+      }
+    ],
+    "relationships": [
+      {
+        "entity1": "John Doe",
+        "entity2": "Shishu Ranjan",
+        "relationship": "child-parent"
+      },
+      {
+        "entity1": "John Doe", 
+        "entity2": "Ranjana",
+        "relationship": "child-parent"
+      },
+      {
+        "entity1": "Shishu Ranjan",
+        "entity2": "Ranjana",
+        "relationship": "spouse"
+      }
+    ]
+  }
+}
+```
+
 ## Error Handling and Retries
 
 -   OpenAI embedding generation implements retry logic with exponential backoff for transient errors.
@@ -136,11 +365,14 @@ Key environment variables influencing the RAG pipeline:
 -   `OPENAI_EMBEDDING_MODEL`
 -   `OPENAI_CHAT_MODEL`
 -   `LOG_LEVEL`
+-   `ENABLE_RELATIONSHIP_EXTRACTION`: Toggle for the relationship extraction feature
+-   `RELATIONSHIP_EXTRACTION_MODEL`: Specifies which model to use for relationship extraction
 
 ## Testing
 
 -   `test_openai_key.py`: Tests OpenAI API key validity and embedding model functionality directly.
 -   `test_rag.py` and `test_endpoints.py` cover general RAG functionality.
 -   `test_embedding_fallback.py` is no longer relevant for testing fallback but can be adapted to test OpenAI embedding generation within the RAG pipeline.
+-   `test_relationship_extraction.py`: New test suite for the relationship extraction functionality with various test cases.
 
 This detailed documentation should provide a good understanding of the RAG pipeline's architecture and behavior.

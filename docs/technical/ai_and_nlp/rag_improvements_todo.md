@@ -30,6 +30,21 @@ Based on the comprehensive app review feedback from May 2025, this document outl
   - [ ] Add confidence scores for extracted information
   - [ ] Create validation rules for common policy number formats
 
+### 3. Improve Complex Relationship Extraction (P1-09)
+- **Issue:** System cannot correctly identify and distinguish between policyholder, insured persons, and nominees
+- **Root Cause Analysis:**
+  - Current entity extraction doesn't understand relationship context
+  - Flat data structure loses relationship information
+  - Generic embeddings don't preserve relationship hierarchy
+  - No relationship-aware query processing
+- **Implementation Tasks:**
+  - [ ] Develop document section classifier to identify policy details, insured details, and nominee sections
+  - [ ] Implement role-specific entity extraction for each document section
+  - [ ] Create knowledge graph to represent relationships between entities
+  - [ ] Develop relationship-aware prompt templates for querying
+  - [ ] Implement verification mechanisms for extracted relationships
+  - [ ] Add specialized test cases for complex relationship scenarios
+
 ## Cache Validation Utility
 
 We've developed a utility to inspect and fix cached responses in Redis to ensure consistent format. This addresses one of the root causes of the RAG service errors where cached responses lacked the expected structure.
@@ -112,6 +127,19 @@ The validation utility:
   - [ ] Create specialized prompts for policy comparison
   - [ ] Develop visualization for multi-document answers
 
+### 4. Implement Relationship-aware Extraction and Querying
+- **Current Issues:**
+  - Cannot distinguish between policyholder, insured persons, and nominees
+  - Flat data structure loses relationship information
+  - Questions about "who is covered" yield incomplete answers
+- **Implementation Tasks:**
+  - [ ] Design and implement relationship graph schema
+  - [ ] Develop section-aware document processing
+  - [ ] Create specialized embeddings for relationship information
+  - [ ] Implement relationship-aware prompts
+  - [ ] Add relationship verification mechanisms
+  - [ ] Create test suite with complex relationship scenarios
+
 ## Technical Debt and Architecture Improvements
 
 ### 1. Robust Error Handling
@@ -134,6 +162,7 @@ The validation utility:
   - [ ] Implement automated testing for various document types
   - [ ] Add regression tests for fixed issues
   - [ ] Create benchmark for answer quality evaluation
+  - [ ] Add specific test cases for complex relationship scenarios
 
 ## Implementation Timeline
 
@@ -148,15 +177,18 @@ The validation utility:
 2. Implement source references
 3. Enhance error handling and fallbacks
 4. Create user-friendly error messages
+5. Begin document section classification for relationship extraction
 
 ### Medium-term (Sprint 4-5)
 1. Enhance query understanding
 2. Implement multi-document querying
 3. Add follow-up question suggestions
 4. Improve answer quality metrics
+5. Develop relationship graph schema and population algorithms
 
 ### Long-term
 1. Develop conversational AI capabilities
 2. Implement domain-specific fine-tuning
 3. Create comprehensive testing framework
-4. Optimize performance and scalability 
+4. Optimize performance and scalability
+5. Complete relationship-aware extraction and querying system 

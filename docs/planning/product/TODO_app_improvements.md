@@ -67,6 +67,15 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [ ] Create confidence scores for extracted information
   - [ ] Allow manual correction of incorrectly extracted data
 
+- [ ] **P1-07: Implement Complex Relationship Extraction**
+  - [ ] Develop document section classifier for identifying policy details, insured persons, and nominee sections
+  - [ ] Create relationship extraction module to identify policyholder, insured persons, and nominees
+  - [ ] Implement relationship graph model to represent connections between parties
+  - [ ] Design specialized prompt templates for relationship-focused questions
+  - [ ] Add verification mechanisms for extracted relationships
+  - [ ] Create test cases for complex family relationship scenarios
+  - [ ] Update UI to display relationship information in a user-friendly format
+
 ## Medium Priority Issues
 
 - [ ] **P2-01: Optimize Document Upload UI**
@@ -154,6 +163,12 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [ ] Add "View Source" button for verification
   - [ ] Highlight relevant text in original document
   - [ ] Include confidence score for sourced information
+
+- [ ] **P3-10: Add Relationship Visualization**
+  - [ ] Create visual representation of policy relationships
+  - [ ] Implement interactive family/relationship diagram
+  - [ ] Add tooltips with relationship details
+  - [ ] Enable editing of relationship information if extraction is incorrect
 
 ## Lead Generation Improvements
 

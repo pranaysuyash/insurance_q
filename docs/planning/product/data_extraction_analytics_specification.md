@@ -11,6 +11,7 @@ The data extraction and analytics system serves to:
 - Transform unstructured text into structured, queryable data
 - Extract tabular data with high fidelity
 - Identify policy sections, coverage details, exclusions, and important terms
+- Extract complex relationships between policy entities (policyholder, insured, nominees)
 - Enable comparison between policies and policy versions
 - Support natural language queries about policy content
 - Provide analytics and insights based on policy data
@@ -25,6 +26,8 @@ Insurance policy document processing presents unique challenges:
 - Multi-page tables and references
 - Contextual meaning that depends on document structure
 - Legal language with complex conditions and exclusions
+- Complex party relationships with different roles (policyholder vs. insured vs. nominee)
+- Family relationships that affect policy interpretation
 
 ## 2. Document Processing Pipeline
 
@@ -37,10 +40,11 @@ The document processing pipeline follows these sequential stages:
 3. **Text Extraction**: Converting document to machine-readable text
 4. **Structure Analysis**: Identifying document sections and organization
 5. **Information Extraction**: Extracting key data points and relationships
-6. **Table Extraction**: Processing tabular data
-7. **Data Validation**: Verifying extracted information
-8. **Vector Generation**: Creating embeddings for semantic search
-9. **Database Storage**: Storing structured data and relationships
+6. **Relationship Extraction**: Identifying and mapping relationships between parties
+7. **Table Extraction**: Processing tabular data
+8. **Data Validation**: Verifying extracted information
+9. **Vector Generation**: Creating embeddings for semantic search
+10. **Database Storage**: Storing structured data and relationships
 
 ### 2.2 Document Classification
 
@@ -227,7 +231,7 @@ The core of the system extracts specific information from the processed document
 - Policy number identification
 - Effective and expiration dates
 - Policyholder information
-- Insurer details
+- Insured details
 - Premium amounts and schedules
 - Agent/broker information
 
@@ -248,57 +252,229 @@ def extract_policy_metadata(document_text, document_structure):
     # Extract policy number using regex patterns
     policy_number_patterns = [
         r"Policy\s+Number:?\s*([A-Z0-9-]+)",
-        r"Policy\s+#:?\s*([A-Z0-9-]+)",
-        r"Policy\s+ID:?\s*([A-Z0-9-]+)"
     ]
-    metadata["policy_number"] = extract_with_patterns(document_text, policy_number_patterns)
     
-    # Extract dates
-    effective_date_patterns = [
-        r"Effective\s+Date:?\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})",
-        r"Policy\s+Period:?\s*From\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})",
-        r"Coverage\s+begins:?\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})"
-    ]
-    metadata["effective_date"] = extract_with_patterns(document_text, effective_date_patterns)
-    
-    # Similar pattern matching for other metadata fields
-    # ...
-    
-    # Validate and normalize extracted data
-    metadata = validate_metadata(metadata)
-    
-    return metadata
+    # (Rest of the implementation)
 ```
 
-#### 2.5.2 Coverage Information Extraction
-- Coverage types and categories
-- Coverage limits and sublimits
-- Deductibles and out-of-pocket maximums
-- Coinsurance and copay amounts
-- Covered services and items
-- Coverage conditions and requirements
+### 2.6 Relationship Extraction
 
-#### 2.5.3 Exclusion Extraction
-- Excluded conditions and services
-- Limitation clauses
-- Waiting periods
-- Pre-existing condition clauses
-- Geographic limitations
-- Circumstantial exclusions
+A critical component that identifies and maps the complex relationships between parties in insurance policies:
 
-#### 2.5.4 Named Entity Recognition
-- Person names (insured, dependents)
-- Organization names (insurers, providers)
-- Locations (service areas, covered regions)
-- Monetary amounts and percentages
-- Dates and time periods
-- Product and service names
+#### 2.6.1 Section-Based Entity Extraction
 
-### 2.6 Table Extraction
+The system first classifies document sections to identify where different entity types are defined:
+
+```python
+def classify_document_sections(sections):
+    """Classify document sections by their likely content type."""
+    classified_sections = {}
+    
+    # Common section title patterns
+    section_patterns = {
+        "policy_details": ["policy information", "policy details", "general information"],
+        "policyholder": ["policyholder information", "policyholder details", "owner information"],
+        "insured_persons": ["insured details", "covered individuals", "insured lives"],
+        "nominees": ["nominee details", "beneficiary information", "nomination"]
+    }
+    
+    # Classify sections based on title and content
+    for section in sections:
+        section_type = determine_section_type(section["title"], section_patterns)
+        section["section_type"] = section_type
+        
+        if section_type:
+            if section_type not in classified_sections:
+                classified_sections[section_type] = []
+            classified_sections[section_type].append(section)
+    
+    return classified_sections
+```
+
+#### 2.6.2 Entity Role Identification
+
+After identifying relevant sections, the system extracts entities with their roles:
+
+```python
+def extract_entities_with_roles(classified_sections):
+    """Extract entities with their roles from classified sections."""
+    entities = {
+        "policyholder": {},
+        "insured_persons": [],
+        "nominees": []
+    }
+    
+    # Extract policyholder information
+    if "policyholder" in classified_sections:
+        policyholder_section = classified_sections["policyholder"][0]
+        entities["policyholder"] = extract_policyholder_details(policyholder_section["content"])
+    
+    # Extract insured persons
+    if "insured_persons" in classified_sections:
+        insured_section = classified_sections["insured_persons"][0]
+        entities["insured_persons"] = extract_insured_persons(insured_section["content"])
+    
+    # Extract nominees/beneficiaries
+    if "nominees" in classified_sections:
+        nominee_section = classified_sections["nominees"][0]
+        entities["nominees"] = extract_nominees(nominee_section["content"])
+    
+    return entities
+```
+
+#### 2.6.3 Relationship Graph Construction
+
+The system builds a graph of relationships between entities:
+
+```python
+def build_relationship_graph(entities):
+    """Build a graph of relationships between policy entities."""
+    relationships = []
+    
+    # Handle case where policyholder is also an insured person
+    if entities["policyholder"] and entities["insured_persons"]:
+        policyholder_name = entities["policyholder"].get("name")
+        
+        for insured in entities["insured_persons"]:
+            if insured.get("name") == policyholder_name:
+                relationships.append({
+                    "entity1": policyholder_name,
+                    "entity2": policyholder_name,
+                    "relationship": "self"
+                })
+            elif "relationship_to_policyholder" in insured:
+                relationships.append({
+                    "entity1": policyholder_name,
+                    "entity2": insured.get("name"),
+                    "relationship": insured["relationship_to_policyholder"]
+                })
+    
+    # Handle case where an insured person is also a nominee
+    for insured in entities["insured_persons"]:
+        insured_name = insured.get("name")
+        
+        for nominee in entities["nominees"]:
+            if nominee.get("name") == insured_name:
+                relationships.append({
+                    "entity1": insured_name,
+                    "entity2": insured_name,
+                    "relationship": "self-nominee"
+                })
+    
+    # Identify family relationships between insured persons
+    for i, person1 in enumerate(entities["insured_persons"]):
+        for j, person2 in enumerate(entities["insured_persons"]):
+            if i != j:
+                relationship = determine_relationship(person1, person2)
+                if relationship:
+                    relationships.append({
+                        "entity1": person1.get("name"),
+                        "entity2": person2.get("name"),
+                        "relationship": relationship
+                    })
+    
+    return relationships
+```
+
+#### 2.6.4 LLM-Assisted Relationship Refinement
+
+For complex or ambiguous relationships, the system can use an LLM to refine the extraction:
+
+```python
+def refine_relationships_with_llm(document_text, entities, relationships):
+    """Use LLM to refine and validate extracted relationships."""
+    # Create prompt with extracted information and document context
+    prompt = f"""
+    I've extracted the following entities and relationships from an insurance policy document:
+    
+    POLICYHOLDER: {json.dumps(entities['policyholder'])}
+    
+    INSURED PERSONS: {json.dumps(entities['insured_persons'])}
+    
+    NOMINEES: {json.dumps(entities['nominees'])}
+    
+    RELATIONSHIPS: {json.dumps(relationships)}
+    
+    Here is the relevant text from the policy document:
+    
+    {extract_relevant_sections(document_text)}
+    
+    Based on this information, please:
+    1. Validate if the extracted entities and their roles are correct
+    2. Identify any missed relationships between parties
+    3. Correct any errors in the relationship types
+    4. Determine the most likely family relationships between parties
+    
+    Return the results in JSON format.
+    """
+    
+    # Send to LLM for refinement
+    refined_data = call_llm_api(prompt)
+    
+    # Parse and validate the LLM response
+    validated_entities = validate_llm_response(refined_data, entities, relationships)
+    
+    return validated_entities
+```
+
+#### 2.6.5 Schema for Relationship Data
+
+The extracted relationship data follows this schema:
+
+```json
+{
+  "relationships": {
+    "policyholder": {
+      "name": "John Doe",
+      "id": "PH123456",
+      "role": "policyholder",
+      "contact": "john.doe@example.com"
+    },
+    "insured_persons": [
+      {
+        "name": "Shishu Ranjan",
+        "relationship_to_policyholder": "parent",
+        "dob": "1950-05-15"
+      },
+      {
+        "name": "Ranjana",
+        "relationship_to_policyholder": "parent",
+        "dob": "1955-08-20"
+      }
+    ],
+    "nominees": [
+      {
+        "name": "Shishu Ranjan",
+        "relationship_to_policyholder": "parent",
+        "allocation_percentage": 100
+      }
+    ],
+    "relationships": [
+      {
+        "entity1": "John Doe",
+        "entity2": "Shishu Ranjan",
+        "relationship": "child-parent"
+      },
+      {
+        "entity1": "John Doe", 
+        "entity2": "Ranjana",
+        "relationship": "child-parent"
+      },
+      {
+        "entity1": "Shishu Ranjan",
+        "entity2": "Ranjana",
+        "relationship": "spouse"
+      }
+    ]
+  }
+}
+```
+
+### 2.7 Table Extraction
 
 Specialized processing for tabular data:
 
-#### 2.6.1 Table Detection
+#### 2.7.1 Table Detection
 - Visual cue detection (lines, borders)
 - Text alignment pattern analysis
 - Whitespace distribution analysis
@@ -332,14 +508,14 @@ def detect_tables(page_data):
     return tables
 ```
 
-#### 2.6.2 Grid Structure Analysis
+#### 2.7.2 Grid Structure Analysis
 - Cell boundary detection
 - Row and column identification
 - Merged cell detection
 - Header row recognition
 - Hierarchical header handling
 
-#### 2.6.3 Table Content Extraction
+#### 2.7.3 Table Content Extraction
 - Cell content extraction
 - Data type recognition (text, numeric, date, etc.)
 - Multi-line cell handling
@@ -402,46 +578,46 @@ def extract_table_content(table_region, table_structure):
     return table_data
 ```
 
-#### 2.6.4 Multi-page Table Handling
+#### 2.7.4 Multi-page Table Handling
 - Table continuation detection
 - Header row repetition handling
 - Cross-page table linking
 - Table content concatenation
 - Page break removal
 
-#### 2.6.5 Table Semantic Analysis
+#### 2.7.5 Table Semantic Analysis
 - Table type classification (benefit schedule, premium table, etc.)
 - Column type identification
 - Semantic relationship mapping
 - Table hierarchy detection (nested tables)
 - Key-value pair extraction
 
-### 2.7 Data Validation and Enhancement
+### 2.8 Data Validation and Enhancement
 
 To ensure accuracy, extracted data undergoes validation:
 
-#### 2.7.1 Format Validation
+#### 2.8.1 Format Validation
 - Date format standardization
 - Currency value normalization
 - Phone number and ID formatting
 - Address standardization
 - Percentage value normalization
 
-#### 2.7.2 Domain-Specific Validation
+#### 2.8.2 Domain-Specific Validation
 - Insurance terminology verification
 - Coverage value range checking
 - Relationship consistency (e.g., premium vs. coverage)
 - Cross-field validation
 - Industry standard compliance
 
-#### 2.7.3 User Review and Correction
+#### 2.8.3 User Review and Correction
 - Confidence scoring for extracted data
 - Highlighting uncertain extractions
 - User interface for review and correction
 - Machine learning from corrections
 - Progressive improvement
 
-#### 2.7.4 Data Enhancement
+#### 2.8.4 Data Enhancement
 - Terminology standardization
 - Entity linking (e.g., linking provider names)
 - Adding metadata from external sources
