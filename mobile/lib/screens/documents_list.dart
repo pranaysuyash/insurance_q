@@ -3,7 +3,12 @@ import '../models/document_model.dart';
 import '../services/api_service.dart';
 
 class DocumentsList extends StatefulWidget {
-  const DocumentsList({Key? key}) : super(key: key);
+  final Function(String)? onDocumentSelectedForQA;
+  
+  const DocumentsList({
+    Key? key, 
+    this.onDocumentSelectedForQA,
+  }) : super(key: key);
 
   @override
   DocumentsListState createState() => DocumentsListState();
@@ -188,12 +193,17 @@ class DocumentsListState extends State<DocumentsList> {
                                   icon: const Icon(Icons.question_answer),
                                   label: const Text('Ask Questions'),
                                   onPressed: () {
-                                    // Navigate to QA screen with this document
-                                    Navigator.pushNamed(
-                                      context,
-                                      '/qa',
-                                      arguments: doc.id,
-                                    );
+                                    // If callback is provided, use it directly
+                                    if (widget.onDocumentSelectedForQA != null) {
+                                      widget.onDocumentSelectedForQA!(doc.id);
+                                    } else {
+                                      // Otherwise, use the default navigation
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/qa',
+                                        arguments: doc.id,
+                                      );
+                                    }
                                   },
                                 ),
                                 const SizedBox(width: 8),

@@ -250,270 +250,269 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _isLoadingDocuments
-                          ? const SizedBox(
-                              width: 20, 
-                              height: 20, 
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              _getSelectedDocumentIcon(),
-                              size: 24,
-                              color: Theme.of(context).primaryColor,
+                    const SizedBox(height: 4),
+                    Consumer(builder: (context, ref, child) {
+                      final selectedDocumentId = ref.watch(selectedDocumentProvider);
+                      final selectedDoc =
+                          _documents.firstWhere((doc) => doc.id == selectedDocumentId, orElse: () => InsuranceDocument(id: '', filename: 'No document selected', uploadedOn: DateTime.now()));
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              selectedDoc.filename,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _getSelectedDocumentName(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        TextButton.icon(
-                          icon: const Icon(Icons.change_circle),
-                          label: const Text('Change'),
-                          onPressed: _isLoadingDocuments ? null : _showDocumentSelectionDialog,
-                        ),
-                      ],
-                    ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.folder_open, size: 18),
+                            label: const Text('Change'),
+                            onPressed: _isLoadingDocuments ? null : _showDocumentSelectionDialog,
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          ),
+                        ],
+                      );
+                    }),
+                    if (_isLoadingDocuments)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: LinearProgressIndicator(),
+                      )
                   ],
                 ),
               ),
             ),
           ),
-          
-          // Tabs content
-          Expanded(
+          Expanded( // Make TabBarView take remaining space
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Standard Questions Tab
-                ListView(
-                  children: [
-                    for (final category in categories)
-                      ExpansionTile(
-                        title: Text(category),
-                        children: [
-                          ...standardQuestions
-                              .where((q) => q.category == category)
-                              .map((q) => ListTile(
-                                    leading: Icon(q.icon),
-                                    title: Text(q.text),
-                                    onTap: () => _askQuestion(q.text),
-                                  )),
-                        ],
-                      ),
-                  ],
-                ),
-                
-                // Custom Question Tab
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _customQuestionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Ask a question about your insurance policy',
-                          border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.help_outline),
-                        ),
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.send),
-                        label: const Text('Ask Question'),
-                        onPressed: () {
-                          if (_customQuestionController.text.trim().isNotEmpty) {
-                            _askQuestion(_customQuestionController.text.trim());
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // History Tab
-                qaHistory.isEmpty
-                    ? const Center(child: Text('No question history yet'))
-                    : ListView.builder(
-                        itemCount: qaHistory.length,
-                        itemBuilder: (context, index) {
-                          final item = qaHistory[index];
-                          return ListTile(
-                            title: Text(item.question),
-                            subtitle: Text(
-                              '${item.answer.text.substring(0, item.answer.text.length > 50 ? 50 : item.answer.text.length)}...',
-                            ),
-                            trailing: Text(
-                              '${item.timestamp.hour}:${item.timestamp.minute}',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            onTap: () {
-                              ref.read(currentAnswerProvider.notifier).state = item.answer;
-                            },
-                          );
-                        },
-                      ),
+                _buildStandardQuestionsTab(categories, standardQuestions, isLoading, currentAnswer),
+                _buildCustomQuestionTab(isLoading, currentAnswer),
+                _buildHistoryTab(qaHistory),
               ],
             ),
           ),
-          
-          // Answer display area
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildStandardQuestionsTab(
+      List<QuestionCategory> categories,
+      List<StandardQuestion> questions,
+      bool isLoading,
+      QaAnswer? currentAnswer) {
+    // Group questions by category for the UI
+    Map<String, List<StandardQuestion>> groupedQuestions = {};
+    for (var question in questions) {
+      groupedQuestions.putIfAbsent(question.category, () => []).add(question);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(12.0),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final category = categories[index];
+        final categoryQuestions = groupedQuestions[category.id] ?? [];
+
+        if (categoryQuestions.isEmpty) return const SizedBox.shrink();
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  category.name,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ...categoryQuestions.map((q) => ListTile(
+                      title: Text(q.text, style: const TextStyle(fontSize: 15)),
+                      trailing: isLoading && currentAnswer?.query == q.text
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.question_answer_outlined, color: Colors.blue),
+                      onTap: isLoading ? null : () => _askQuestion(q.text),
+                      contentPadding: EdgeInsets.zero,
+                    )),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCustomQuestionTab(bool isLoading, QaAnswer? currentAnswer) {
+    return SingleChildScrollView( // Make this tab scrollable
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Ask your own question about the selected document.',
+            style: TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _customQuestionController,
+            decoration: InputDecoration(
+              hintText: 'e.g., What is the effective date?',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () => _customQuestionController.clear(),
+              )
+            ),
+            minLines: 2,
+            maxLines: 4,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (value) {
+              if (value.trim().isNotEmpty) {
+                _askQuestion(value.trim());
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.send),
+            label: const Text('Ask Question'),
+            onPressed: isLoading || _customQuestionController.text.trim().isEmpty
+                ? null
+                : () => _askQuestion(_customQuestionController.text.trim()),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 24),
           if (isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (currentAnswer != null)
-            Container(
-              height: MediaQuery.of(context).size.height / 2,
-              padding: const EdgeInsets.all(8.0),
-              child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Q: ${currentAnswer.question}',
-                          style: const TextStyle(
+            const Center(child: CircularProgressIndicator()),
+          if (currentAnswer != null && currentAnswer.query == _customQuestionController.text.trim())
+            _buildAnswerCard(currentAnswer),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryTab(List<QaPair> qaHistory) {
+    return qaHistory.isEmpty
+        ? const Center(child: Text('No question history yet'))
+        : ListView.builder(
+            itemCount: qaHistory.length,
+            itemBuilder: (context, index) {
+              final item = qaHistory[index];
+              return ListTile(
+                title: Text(item.question),
+                subtitle: Text(
+                  '${item.answer.text.substring(0, item.answer.text.length > 50 ? 50 : item.answer.text.length)}...',
+                ),
+                trailing: Text(
+                  '${item.timestamp.hour}:${item.timestamp.minute}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                onTap: () {
+                  ref.read(currentAnswerProvider.notifier).state = item.answer;
+                },
+              );
+            },
+          );
+  }
+
+  Widget _buildAnswerCard(QaAnswer answer) {
+    return Container(
+      height: MediaQuery.of(context).size.height / 2,
+      padding: const EdgeInsets.all(8.0),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Q: ${answer.question}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'A: ${answer.text}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      if (answer.sources.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Sources:',
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 14,
                           ),
                         ),
-                        const Divider(),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'A: ${currentAnswer.text}',
-                                  style: const TextStyle(fontSize: 16),
+                        ...answer.sources.map((source) => Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Container(
+                                padding: const EdgeInsets.all(8.0),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                                if (currentAnswer.sources.isNotEmpty) ...[
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    'Sources:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  ...currentAnswer.sources.map((source) => Padding(
-                                        padding: const EdgeInsets.only(top: 8.0),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(8.0),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade100,
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              if (source.pageNumber != null)
-                                                Text(
-                                                  'Page ${source.pageNumber}',
-                                                  style: TextStyle(
-                                                    color: Colors.blue.shade700,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              Text(source.text),
-                                            ],
-                                          ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (source.pageNumber != null)
+                                      Text(
+                                        'Page ${source.pageNumber}',
+                                        style: TextStyle(
+                                          color: Colors.blue.shade700,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                      )),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.copy),
-                              onPressed: () {
-                                // TODO: Implement copy to clipboard
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.share),
-                              onPressed: () {
-                                // TODO: Implement share functionality
-                              },
-                            ),
-                          ],
-                        ),
+                                      ),
+                                    Text(source.text),
+                                  ],
+                                ),
+                              ),
+                            )),
                       ],
-                    ),
+                    ],
                   ),
                 ),
               ),
-            
-        ],
-    ),
-    );
-  }
-  
-  String _getSelectedDocumentName() {
-    final selectedId = ref.watch(selectedDocumentProvider);
-    if (selectedId == null) {
-      return 'All Documents';
-    }
-    
-    final selectedDoc = _documents.firstWhere(
-      (doc) => doc.id == selectedId,
-      orElse: () => InsuranceDocument(
-        id: '',
-        filename: 'Unknown Document',
-        uploadedOn: DateTime.now(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.copy),
+                    onPressed: () {
+                      // TODO: Implement copy to clipboard
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.share),
+                    onPressed: () {
+                      // TODO: Implement share functionality
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
-    
-    return selectedDoc.filename;
-  }
-  
-  IconData _getSelectedDocumentIcon() {
-    final selectedId = ref.watch(selectedDocumentProvider);
-    if (selectedId == null) {
-      return Icons.inventory;
-    }
-    
-    final selectedDoc = _documents.firstWhere(
-      (doc) => doc.id == selectedId,
-      orElse: () => InsuranceDocument(
-        id: '',
-        filename: 'Unknown Document',
-        uploadedOn: DateTime.now(),
-        documentType: null,
-      ),
-    );
-    
-    if (selectedDoc.documentType == null) {
-      return Icons.description;
-    }
-    
-    switch (selectedDoc.documentType!.toLowerCase()) {
-      case 'health insurance':
-        return Icons.health_and_safety;
-      case 'auto insurance':
-        return Icons.directions_car;
-      case 'life insurance':
-        return Icons.favorite;
-      case 'home insurance':
-        return Icons.home;
-      default:
-        return Icons.description;
-    }
   }
 } 

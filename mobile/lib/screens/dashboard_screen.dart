@@ -6,6 +6,7 @@ import '../services/local_storage_service.dart';
 import '../services/api_service.dart';
 import 'qa_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'documents_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -196,24 +197,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       elevation: 2,
       color: hasDocuments ? null : Colors.grey.shade100,
       child: Container(
-        width: 140,
-        padding: const EdgeInsets.all(16),
+        width: 150,
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(icon, color: hasDocuments ? color : Colors.grey, size: 32),
             const SizedBox(height: 8),
-            Text(
-              type,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  type,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
             const SizedBox(height: 4),
-            Text(
-              hasDocuments ? '$count document${count > 1 ? "s" : ""}' : 'No documents',
-              style: TextStyle(
-                color: hasDocuments ? Colors.black87 : Colors.grey,
-                fontSize: 12,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                hasDocuments ? '$count document${count > 1 ? "s" : ""}' : 'No documents',
+                style: TextStyle(
+                  color: hasDocuments ? Colors.black87 : Colors.grey,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -243,8 +254,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 color: Colors.blue,
                 onTap: () {
                   print("Upload Document tapped");
-                  // Navigate to upload document
-                  Navigator.pushNamed(context, '/');
+                  // Navigate to DocumentsScreen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const DocumentsScreen()),
+                  );
                 },
               ),
             ),
@@ -504,19 +518,68 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       {'letter': 'A', 'terms': [
         {'term': 'Actual Cash Value (ACV)', 'definition': 'The cost to replace damaged property minus depreciation'},
         {'term': 'Adjuster', 'definition': 'A person who investigates and settles insurance claims'},
+        {'term': 'Agent', 'definition': 'A person who sells and services insurance policies'},
+        {'term': 'Amendment', 'definition': 'A change or addition to an insurance policy'},
+        {'term': 'Annuity', 'definition': 'A contract that provides a series of payments over time'},
+      ]},
+      {'letter': 'B', 'terms': [
+        {'term': 'Beneficiary', 'definition': 'The person or entity named to receive policy benefits'},
+        {'term': 'Binder', 'definition': 'A temporary insurance contract that provides proof of coverage until a permanent policy is issued'},
+        {'term': 'Broker', 'definition': 'An insurance professional who represents consumers in their search for coverage'},
       ]},
       {'letter': 'C', 'terms': [
-        {'term': 'Claim', 'definition': 'A formal request to an insurance company for payment'},
-        {'term': 'Coinsurance', 'definition': 'The percentage of costs you pay after paying your deductible'},
-        {'term': 'Copay', 'definition': 'A fixed amount you pay for a covered health care service'},
+        {'term': 'Claim', 'definition': 'A formal request to an insurance company for payment based on the terms of the policy'},
+        {'term': 'Coinsurance', 'definition': 'The percentage of costs of a covered health care service you pay after you\'ve paid your deductible'},
+        {'term': 'Copay (Copayment)', 'definition': 'A fixed amount you pay for a covered health care service after you\'ve paid your deductible'},
+        {'term': 'Coverage Limit', 'definition': 'The maximum amount an insurer will pay for a covered loss'},
+        {'term': 'Certificate of Insurance', 'definition': 'A document issued by an insurance company that verifies the existence of an insurance policy'},
       ]},
       {'letter': 'D', 'terms': [
-        {'term': 'Deductible', 'definition': 'Amount you pay before your insurance plan starts to pay'},
-        {'term': 'Depreciation', 'definition': 'Decrease in property value over time due to wear and tear'},
+        {'term': 'Deductible', 'definition': 'The amount you pay for covered health care services before your insurance plan starts to pay'},
+        {'term': 'Depreciation', 'definition': 'The decrease in an asset\'s value due to use, wear and tear, or obsolescence'},
+        {'term': 'Declarations Page', 'definition': 'The part of your insurance policy that includes your name, address, policy number, coverage details, and premium'},
+        {'term': 'Domiciliary Hospitalization', 'definition': 'Medical treatment taken at home which would otherwise require hospitalization'},
+      ]},
+      {'letter': 'E', 'terms': [
+        {'term': 'Endorsement', 'definition': 'An amendment or addition to an existing insurance policy that changes the terms or scope of the original policy'},
+        {'term': 'Exclusion', 'definition': 'A provision in an insurance policy that eliminates coverage for certain risks, people, property classes, or locations'},
+        {'term': 'Effective Date', 'definition': 'The date on which an insurance policy becomes active'},
+        {'term': 'Expiration Date', 'definition': 'The date on which an insurance policy is no longer in effect'},
+      ]},
+      {'letter': 'G', 'terms': [
+        {'term': 'Grace Period', 'definition': 'A set amount of time after the premium due date during which policyholders can make a premium payment without their coverage lapsing'},
+        {'term': 'Group Insurance', 'definition': 'Insurance coverage offered to a group of people, such as employees of a company or members of an association'},
+      ]},
+      {'letter': 'I', 'terms': [
+        {'term': 'Indemnity', 'definition': 'A principle of insurance that aims to restore the insured to the same financial position they were in before a loss occurred'},
+        {'term': 'Insurable Interest', 'definition': 'A financial interest in the property or person being insured; the policyholder must suffer a financial loss if a covered event occurs'},
+        {'term': 'Insured', 'definition': 'The person or entity covered by an insurance policy'},
+        {'term': 'Insurer', 'definition': 'The insurance company that provides coverage and pays claims'},
+      ]},
+      {'letter': 'L', 'terms': [
+        {'term': 'Lapse', 'definition': 'The termination of an insurance policy due to non-payment of premiums'},
+        {'term': 'Liability Insurance', 'definition': 'Insurance that covers costs associated with legal claims against the insured for bodily injury or property damage'},
+        {'term': 'Loss', 'definition': 'The financial damage or injury suffered by an insured person or property'},
       ]},
       {'letter': 'P', 'terms': [
-        {'term': 'Premium', 'definition': 'The amount paid for an insurance policy'},
-        {'term': 'Pre-Existing Condition', 'definition': 'Health problem you had before new coverage starts'},
+        {'term': 'Policy', 'definition': 'The written contract of insurance between the insurer and the insured'},
+        {'term': 'Premium', 'definition': 'The amount paid, often in installments, for an insurance policy'},
+        {'term': 'Pre-Existing Condition', 'definition': 'A health problem that existed before the date your new health coverage became effective'},
+        {'term': 'Policyholder', 'definition': 'The individual or entity that owns an insurance policy'},
+        {'term': 'Peril', 'definition': 'A specific risk or cause of loss covered by an insurance policy, such as a fire, windstorm, or theft'},
+      ]},
+      {'letter': 'R', 'terms': [
+        {'term': 'Rider', 'definition': 'An add-on to an insurance policy that provides additional benefits or amends the terms of the policy'},
+        {'term': 'Reinstatement', 'definition': 'The process of putting a lapsed insurance policy back into force'},
+        {'term': 'Renewal', 'definition': 'The continuation of an insurance policy beyond its original term'},
+      ]},
+      {'letter': 'S', 'terms': [
+        {'term': 'Subrogation', 'definition': 'The right of an insurer to pursue a third party that caused an insurance loss to the insured'},
+        {'term': 'Sum Insured', 'definition': 'The maximum amount an insurance company will pay out for a covered claim'},
+      ]},
+      {'letter': 'U', 'terms': [
+        {'term': 'Underwriting', 'definition': 'The process insurers use to evaluate the risk of insuring a person or asset and to determine policy terms and premiums'},
+        {'term': 'UIN (Unique Identification Number)', 'definition': 'A unique number assigned by the insurance regulator to each insurance product'},
       ]},
     ];
     
@@ -527,6 +590,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // Important for dialog sizing
           children: [
             AppBar(
               title: const Text('Insurance Terminology'),
@@ -545,8 +609,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ],
             ),
-            Expanded(
+            Flexible( // Allows the ListView to take available space and scroll
               child: ListView.builder(
+                shrinkWrap: true, // Important with Flexible in a Column
+                padding: const EdgeInsets.symmetric(vertical: 8.0), // Add some padding
                 itemCount: terminology.length,
                 itemBuilder: (context, index) {
                   final section = terminology[index];
@@ -554,12 +620,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         child: Text(
                           section['letter']! as String,
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: Colors.blue, // Added color for section letter
                           ),
                         ),
                       ),
@@ -568,31 +635,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           term['term']!,
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
-                        subtitle: Text(term['definition']!),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4.0, bottom: 8.0), // Add padding to subtitle
+                          child: Text(term['definition']!),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                       )).toList(),
-                      const Divider(),
+                      if (index < terminology.length - 1) // Add divider between sections
+                         const Divider(indent: 16, endIndent: 16),
                     ],
                   );
                 },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton(
-                onPressed: () {
-                  // In a real app, this would navigate to a full glossary screen
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Full glossary documentation available in the app!'),
-                    ),
-                  );
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                child: const Text('View Complete Glossary'),
               ),
             ),
           ],

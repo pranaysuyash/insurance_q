@@ -2,6 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/qa_models.dart';
 
+// Define categories
+final List<QuestionCategory> _categories = [
+  QuestionCategory(id: 'Policy Basics', name: 'Policy Basics', icon: Icons.fact_check),
+  QuestionCategory(id: 'Coverage Details', name: 'Coverage Details', icon: Icons.shield),
+  QuestionCategory(id: 'Premiums & Payments', name: 'Premiums & Payments', icon: Icons.payments),
+  QuestionCategory(id: 'Claims', name: 'Claims', icon: Icons.assignment_turned_in),
+  QuestionCategory(id: 'Exclusions & Limitations', name: 'Exclusions & Limitations', icon: Icons.block),
+  QuestionCategory(id: 'Benefits', name: 'Benefits', icon: Icons.health_and_safety),
+];
+
 final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
   return [
     // Policy Basics
@@ -150,38 +160,22 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
   ];
 });
 
-final questionCategoriesProvider = Provider<List<String>>((ref) {
-  final questions = ref.watch(standardQuestionsProvider);
-  return questions
-      .map((q) => q.category)
-      .toSet()
-      .toList();
+final questionCategoriesProvider = Provider<List<QuestionCategory>>((ref) {
+  return _categories;
 });
 
 final selectedDocumentProvider = StateProvider<String?>((ref) => null);
 
-class QaHistoryItem {
-  final String question;
-  final QaAnswer answer;
-  final DateTime timestamp;
-  
-  QaHistoryItem({
-    required this.question,
-    required this.answer,
-    required this.timestamp,
-  });
-}
-
-final qaHistoryProvider = StateNotifierProvider<QaHistoryNotifier, List<QaHistoryItem>>((ref) {
+final qaHistoryProvider = StateNotifierProvider<QaHistoryNotifier, List<QaPair>>((ref) {
   return QaHistoryNotifier();
 });
 
-class QaHistoryNotifier extends StateNotifier<List<QaHistoryItem>> {
+class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
   QaHistoryNotifier() : super([]);
   
   void addItem(String question, QaAnswer answer) {
     state = [
-      QaHistoryItem(
+      QaPair(
         question: question,
         answer: answer,
         timestamp: DateTime.now(),

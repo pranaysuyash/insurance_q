@@ -1,5 +1,17 @@
 import 'package:flutter/material.dart';
 
+class QuestionCategory {
+  final String id;
+  final String name;
+  final IconData icon;
+  
+  const QuestionCategory({
+    required this.id,
+    required this.name,
+    this.icon = Icons.help_outline,
+  });
+}
+
 class StandardQuestion {
   final String id;
   final String text;
@@ -28,6 +40,8 @@ class QaAnswer {
     required this.documentId,
     required this.question,
   });
+  
+  String get query => question;
   
   factory QaAnswer.fromJson(Map<String, dynamic> json) {
     return QaAnswer(
@@ -63,4 +77,16 @@ class QaSource {
       score: (json['score'] is num) ? (json['score'] as num).toDouble() : 0.0,
     );
   }
+}
+
+class QaPair {
+  final String question;
+  final QaAnswer answer;
+  final DateTime timestamp;
+  
+  QaPair({
+    required this.question,
+    required this.answer,
+    required this.timestamp,
+  });
 } 
