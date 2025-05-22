@@ -12,6 +12,7 @@ Welcome to the Insurance Policy Parser & QA App! This guide will help you unders
 6. [Account Management (If Applicable)](#account-management-if-applicable)
 7. [Troubleshooting](#troubleshooting)
 8. [Privacy and Security](#privacy-and-security)
+9. [Mobile App Specific Features](#mobile-app-specific-features)
 
 ## Introduction
 
@@ -114,5 +115,77 @@ The system will provide an answer based on the content of your policy document. 
 
 - The application aims to handle your policy documents securely.
 - Refer to any provided Privacy Policy or Terms of Service for details on how your data is managed, especially regarding document storage, processing by AI models (like OpenAI or Hugging Face), and data retention.
+
+## Mobile App Specific Features
+
+The Flutter mobile app provides a rich, user-friendly interface with several enhanced features:
+
+### Dashboard
+
+The dashboard serves as the main landing page and provides:
+
+- **Welcome Card**: Shows how many documents you have in your library
+- **Documents by Type**: Visual representation of your insurance documents by category (health, auto, home, life, etc.)
+- **Quick Actions**: One-tap access to common functions:
+  - Upload Document: Add a new insurance policy
+  - Ask a Question: Navigate to the Q&A interface
+  - Compare Policies: (Coming soon) Compare coverage between different policies
+  - Insurance Terms: Access the glossary of insurance terminology
+
+- **Recent Activities**: Timeline of your recent document uploads and questions
+- **Insurance Terminology**: Quick reference for common insurance terms with a "View All" option for a comprehensive glossary
+
+### Document Management
+
+The document management screen provides these capabilities:
+
+1. **Upload Process**:
+   - Tap "Upload Document" from the dashboard or the Documents screen
+   - Select a document from your device storage
+   - The app will display an upload progress indicator
+   - Once complete, you'll see extraction results and document metadata
+
+2. **Document List**:
+   - All your uploaded documents are displayed in a scrollable list
+   - Each document shows its type, upload date, and a preview icon
+   - Tap a document to expand and see more details
+   - Options to delete documents or ask questions about them
+
+### Enhanced Q&A Interface
+
+The Q&A screen has been redesigned with three tabs for better organization:
+
+1. **Standard Questions Tab**:
+   - Pre-set questions organized by categories:
+     - Policy Basics (policy number, start/end dates, insurer, etc.)
+     - Coverage Details (total coverage, deductible, out-of-pocket maximum)
+     - Premiums & Payments (premium amount, payment schedule)
+     - Claims (filing process, documentation needed)
+     - Exclusions & Limitations (what's not covered, waiting periods)
+     - Benefits (dental, vision, mental health coverage)
+   - Tap any question to instantly get an answer for your selected document
+
+2. **Custom Question Tab**:
+   - Ask your own questions in natural language
+   - Type questions in a multi-line text field
+   - View answers with source information from your policy
+   - Scrollable answer cards with copy and share options
+
+3. **History Tab**:
+   - Keeps track of all your previous questions and answers
+   - Tap any item to view the full answer again
+
+### Document Selection
+
+- At the top of the Q&A screen, you'll find a document selector
+- This allows you to specify which policy you want to ask questions about
+- The app remembers your last selected document for convenience
+
+### Insurance Terminology Glossary
+
+- Access via the "Insurance Terms" quick action or "View All" link on the dashboard
+- Comprehensive alphabetically-organized list of insurance terms and definitions
+- Scrollable interface for easy browsing
+- Search functionality for finding specific terms quickly
 
 This guide provides a general overview. The exact look and feel and specific steps might vary slightly between the web and mobile versions of the application.

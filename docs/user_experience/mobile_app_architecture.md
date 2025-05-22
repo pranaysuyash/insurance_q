@@ -231,29 +231,256 @@ The app implements a freemium model designed to generate quality insurance leads
 
 ---
 
+## Folder Structure & Code Organization
+The Flutter app follows a standard clean architecture pattern:
+
+```
+mobile/
+├── lib/
+│   ├── main.dart                # App entry point, Material theme, providers
+│   ├── models/                  # Data models (document_model.dart, qa_models.dart)
+│   ├── providers/               # State management using Riverpod
+│   │   ├── questions_provider.dart   # Manages Q&A state and history
+│   │   ├── storage_provider.dart     # SharedPreferences and document storage
+│   ├── screens/                 # UI screens
+│   │   ├── dashboard_screen.dart     # Main dashboard with cards and actions
+│   │   ├── documents_screen.dart     # Document upload and management
+│   │   ├── documents_list.dart       # List of uploaded documents
+│   │   ├── qa_screen.dart            # Q&A interface with tabs
+│   │   ├── document_selection_dialog.dart # Document picker dialog
+│   ├── services/                # Backend API and device services
+│   │   ├── api_service.dart          # HTTP client for backend API
+│   │   ├── local_storage_service.dart # Local document caching
+│   ├── widgets/                 # Reusable UI components
+```
+
+---
+
 ## Implementation Status & TODOs
 
-### Current Status
-- Flutter project scaffolded in `mobile/` directory
-- Latest dependencies added: Riverpod, Dio, PDFx, Firebase, Hive, etc.
-- Modern folder structure created
-- `main.dart` with Material 3, Riverpod, and bottom navigation
-- Stubs for all main screens (Home, Documents, QA, Family, More)
+### Completed
+- ✅ Flutter project scaffolded in `mobile/` directory with organized folder structure
+- ✅ Latest dependencies added: Riverpod, Dio, PDFx, Firebase, Hive, etc.
+- ✅ Modern folder structure created with separation of concerns
+- ✅ `main.dart` with Material 3, Riverpod, and bottom navigation
+- ✅ Dashboard screen with document summary, quick actions, and terminology
+- ✅ Documents screen with upload functionality and document list
+- ✅ Q&A interface with standard questions, custom questions, and history tabs
+- ✅ Fixed RenderFlex overflow issues in document cards
+- ✅ Fixed keyboard overlap issues in Q&A screen
+- ✅ Improved document terminology display with expanded definitions
+- ✅ Enhanced navigation between screens with proper routing
 
 ### Next Steps / TODOs
-- [ ] Set up environment config for backend API endpoints (dev/prod)
-- [ ] Implement health check screen to verify backend connectivity
-- [ ] Scaffold document upload UI and integrate with `/upload` endpoint
-- [ ] Scaffold QA interface (question input, call `/query`, show answer)
-- [ ] Add error handling and loading indicators for API calls
+- [ ] Add loading indicators for file uploads
+- [ ] Improve error handling with user-friendly messages
+- [ ] Add offline caching for Q&A results
 - [ ] Implement user authentication (Firebase Auth integration)
 - [ ] Add family management UI and backend integration
-- [ ] Implement document list and detail views (PDF viewer, extracted sections)
-- [ ] Add policy comparison UI and logic
-- [ ] Implement notifications (Firebase Messaging, local notifications)
-- [ ] Add settings, theming, and preferences screens
-- [ ] Write widget/unit tests for core features
-- [ ] Update documentation as features are built
+- [ ] Implement document comparison feature
+- [ ] Add document search functionality
+- [ ] Optimize mobile layouts for different screen sizes
+- [ ] Implement analytics tracking
+
+---
+
+## UI Components & Screens
+
+### Dashboard Screen
+The dashboard provides an overview of the user's insurance documents and quick access to key features:
+
+- **Welcome Card**: Displays the number of documents and a welcome message
+- **Documents by Type**: Horizontal scrollable cards showing document categories
+- **Quick Actions**: Buttons for common tasks (Upload Document, Ask a Question, etc.)
+- **Recent Activities**: List of recently uploaded documents and asked questions
+- **Insurance Terminology**: Common insurance terms with definitions and a "View All" option that shows a comprehensive glossary
+
+### Documents Screen
+Allows users to upload and manage insurance documents:
+
+- **Upload Area**: Provides file selection and upload with duplicate detection
+- **Document List**: Shows all uploaded documents with metadata
+- **Document Actions**: Options to view, delete, or ask questions about documents
+
+### Q&A Screen
+The Q&A interface is organized into three tabs:
+
+- **Standard Questions**: Pre-defined questions organized by categories (Policy Basics, Coverage Details, etc.)
+- **Custom Question**: Free-form question input with answer display
+- **History**: Record of previously asked questions and answers
+
+The screen also includes a document selector to specify which insurance document to query.
+
+---
+
+## Running and Testing the Flutter App with Backend (Wi-Fi, Real Device)
+
+### 1. Prerequisites
+- Backend (FastAPI, Docker Compose, etc.) is set up and working.
+- Flutter app is scaffolded in `mobile/`.
+- Android/iOS device and computer are on the same Wi-Fi network.
+- Wireless debugging is set up (e.g., `adb pair` and `adb connect` for Android).
+
+### 2. Find Your Computer's LAN IP Address
+- On your computer, run:
+  ```sh
+  ifconfig | grep inet
+  ```
+  or (on Mac):
+  ```sh
+  ipconfig getifaddr en0
+  ```
+- Note the IP address that looks like `192.168.x.x` or `10.0.x.x`.
+
+### 3. Configure the Backend to Listen on All Interfaces
+- If using **Uvicorn/FastAPI** directly:
+  ```sh
+  uvicorn main:app --host 0.0.0.0 --port 8000
+  ```
+- If using **Docker Compose**, ensure your `docker-compose.yml` exposes port 8000 and the service is not bound to `localhost` only:
+  ```yaml
+  ports:
+    - "8000:8000"
+  ```
+- **Restart** your backend services if you change any config.
+
+### 4. Test Backend Accessibility from Your Device
+- On your phone/tablet, open a browser and go to:
+  ```
+  http://<your-computer-ip>:8000/health
+  ```
+- You should see a JSON health response (e.g., `{"status": "healthy", ...}`).
+- If not, check:
+  - Firewall settings (allow incoming connections on port 8000).
+  - Docker port mappings.
+  - That your device and computer are on the same Wi-Fi.
+
+### 5. Update Flutter App API Endpoint
+- In `mobile/lib/services/api_service.dart`, set:
+  ```dart
+  static const String baseUrl = 'http://<your-computer-ip>:8000';
+  ```
+  Replace `<your-computer-ip>` with your actual LAN IP.
+
+### 6. Run the Flutter App on Your Device
+- In your terminal:
+  ```sh
+  cd /Users/pranay/Projects/medpiper/insurance_app/mobile
+  flutter run
+  ```
+- Select your device (should show up as a wireless device).
+
+### 7. Test the Document Upload & OCR Flow
+- In the app, go to the **Documents** tab.
+- Tap **"Select Document"** and pick a PDF or image file.
+- Tap **"Upload & OCR"**.
+- Wait for the upload and processing to complete.
+- You should see:
+  - The extracted text (truncated if long)
+  - Any extracted sections (as cards)
+
+### 8. Troubleshooting
+- **Network error:** Double-check the IP and port, backend status, and firewall.
+- **CORS or 500 error:** Check backend logs and test the `/upload` endpoint with Postman/cURL.
+- **Emulator:** Use `10.0.2.2` for Android emulator, `localhost` for iOS simulator (if backend is on the same Mac).
+
+### 8.1. Troubleshooting Common Android Build Issues
+
+If you encounter build failures when running `flutter run` for Android, try the following steps. Remember to run `flutter clean` in your `mobile` directory after making changes to `build.gradle.kts` files.
+
+1.  **Android NDK Version Mismatch:**
+    *   **Error:** `Your project is configured with Android NDK X, but the following plugin(s) depend on a different Android NDK version: Y`
+    *   **Fix:** Update the NDK version in `mobile/android/app/build.gradle.kts`:
+        ```kotlin
+        android {
+            // ...
+            ndkVersion = "27.0.12077973" // Or the version required by plugins
+            // ...
+        }
+        ```
+
+2.  **Core Library Desugaring Required:**
+    *   **Error:** `Dependency ':some_plugin' requires core library desugaring to be enabled for :app.` or `Dependency ':some_plugin' requires desugar_jdk_libs version to be X or above for :app, which is currently Y`
+    *   **Fix:** Enable core library desugaring in `mobile/android/app/build.gradle.kts`:
+        ```kotlin
+        android {
+            // ...
+            compileOptions {
+                // ...
+                isCoreLibraryDesugaringEnabled = true
+            }
+            // ...
+        }
+
+        dependencies {
+            // ...
+            coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") // Ensure this version (or newer) meets plugin requirements
+        }
+        ```
+        Check the error message for the specific `desugar_jdk_libs` version required by the problematic plugin and update accordingly.
+
+3.  **minSdkVersion Too Low:**
+    *   **Error:** `uses-sdk:minSdkVersion A cannot be smaller than version B declared in library [:some_plugin]`
+    *   **Fix:** Increase the `minSdk` in `mobile/android/app/build.gradle.kts`. The error message or Flutter Fix will often suggest the required version (e.g., 23 for `firebase_auth`):
+        ```kotlin
+        android {
+            // ...
+            defaultConfig {
+                // ...
+                minSdk = 23 // Or the version required by plugins
+                // ...
+            }
+            // ...
+        }
+        ```
+        Note: Increasing `minSdk` means your app will not support Android versions below the new minimum.
+
+### 9. Next Steps
+- Once upload and OCR work, proceed to QA integration (ask questions about the uploaded document). 
+
+---
+
+## QA Experience Design
+
+### 1. Common Questions on Main Page
+- Display a horizontal or grid list of "Common Questions" (e.g., "What is my policy number?", "What is the coverage amount?", "When does my policy expire?").
+- Tapping a question instantly sends it to the backend and displays the answer.
+- These questions can be dynamic (fetched from backend) or static (hardcoded for now).
+
+### 2. Ask Questions as Chat
+- Below the common questions, have a "Chat with PolicyBot" section.
+- This is a chat-style interface:
+  - User types a question (or selects from suggestions).
+  - The conversation appears as a chat thread (user messages on right, bot answers on left).
+  - Each answer can show sources/citations.
+  - Option to "bookmark" or "copy" an answer.
+
+### 3. Upload Limit Enforcement
+- Track the number of documents uploaded by the user.
+- If the user tries to upload more than 3 (or 5), show a modal or banner:
+  - "You've reached your free upload limit! Connect with an insurance expert to unlock more features."
+  - Provide options: "Schedule a call", "Chat with agent", "Request callback".
+
+### 4. Optional Enhancements
+- Show a "Recent Questions" section for quick repeat queries.
+- Allow voice input for questions (using `speech_to_text` package).
+- Show a "Why talk to an agent?" info section after the limit is reached.
+
+### Implementation Plan
+1. Add a `common_questions.dart` widget for the main page.
+2. Create a `qa_chat_screen.dart` with chat UI and backend integration.
+3. Implement upload limit logic (can be tracked locally or via backend).
+4. Show agent prompt modal/banner when limit is reached.
+
+### Example UI Flow
+- **Home Screen:**
+  - [Common Questions Grid]
+  - ["Ask PolicyBot" Chat Button]
+  - [Recent Questions List]
+- **QA Chat Screen:**
+  - [Chat Thread]
+  - [Input Field + Send Button]
+  - [Upload Limit Banner/Modal if needed]
 
 ---
 

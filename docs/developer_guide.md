@@ -12,6 +12,7 @@ This guide provides instructions for developers working on the Insurance Policy 
 6. [Deployment](#deployment)
 7. [Contribution Guidelines](#contribution-guidelines)
 8. [Troubleshooting](#troubleshooting)
+9. [Flutter Mobile App Development](#flutter-mobile-app-development)
 
 ## Development Environment Setup
 
@@ -326,5 +327,93 @@ Integrate these into a cohesive testing strategy.
 - **Tailwind CSS not updating:**
 - Ensure `npm run build:css` is run after changes to `input.css` or `tailwind.config.js`.
 - Clear browser cache.
+
+## Flutter Mobile App Development
+
+### Setting up Flutter Development Environment
+
+1. **Prerequisites**
+   - Flutter SDK (latest stable version)
+   - Android Studio or Visual Studio Code with Flutter extension
+   - Android SDK (if developing for Android)
+   - Xcode (if developing for iOS, macOS only)
+
+2. **Getting Started**
+   ```bash
+   cd mobile
+   flutter pub get
+   flutter run
+   ```
+
+3. **App Structure Overview**
+   The app follows a clean architecture pattern with separation of concerns:
+   - `main.dart`: Entry point, theme setup, and provider initialization
+   - `models/`: Data classes (insurance documents, Q&A data)
+   - `providers/`: State management using Riverpod
+   - `screens/`: UI screens and page flow
+   - `services/`: API and backend communication
+
+### Common Issues and Solutions
+
+1. **String Escaping in Dart**
+   - Dart strings with apostrophes can cause syntax errors
+   - Use raw strings with `r'text'` or escape with backslash: `'user\'s name'`
+
+2. **RenderFlex Overflow Errors**
+   - Flutter's UI can overflow if content doesn't fit available space
+   - Solutions:
+     - Wrap content in `Expanded` widget inside `Row`/`Column`
+     - Use `Flexible` with `fit: FlexFit.loose`
+     - Use `SingleChildScrollView` for scrollable content
+     - Wrap text in `FittedBox` with `fit: BoxFit.scaleDown`
+
+3. **Keyboard Overlay Issues**
+   - When keyboard appears, it can cause overflow problems
+   - Solutions:
+     - Set `resizeToAvoidBottomInset: true` in `Scaffold`
+     - Wrap your content in `SingleChildScrollView`
+     - Use `MediaQuery.of(context).viewInsets.bottom` to adjust padding
+
+4. **API Integration**
+   - The mobile app communicates with the backend via REST API
+   - Configure the base URL in `services/api_service.dart`
+   - For local testing with a device, use your computer's LAN IP address
+   - For emulators, use `10.0.2.2` (Android) or `localhost` (iOS)
+
+5. **Debugging on Physical Devices**
+   Ensure your device and development machine are on the same network:
+   ```bash
+   # Find your LAN IP address
+   ifconfig | grep inet  # Linux/macOS
+   ipconfig              # Windows
+   
+   # Update API endpoint in mobile/lib/services/api_service.dart
+   static const String baseUrl = 'http://192.168.x.x:8000';  # Replace with your IP
+   ```
+
+### Testing with Backend Services
+
+For a full end-to-end test of the mobile app with backend services:
+
+1. Start all backend services with Docker Compose:
+   ```bash
+   docker compose up -d
+   ```
+
+2. Run the Flutter app on your device or emulator:
+   ```bash
+   cd mobile
+   flutter run
+   ```
+
+3. Test the document upload flow:
+   - Navigate to the Documents screen
+   - Select a document to upload
+   - Verify processing and storage
+
+4. Test the Q&A functionality:
+   - Select a document
+   - Ask questions about the document
+   - Verify answers from the RAG service
 
 This guide should help you get started with development. Refer to specific documents in the `docs/` folder for more detailed information on particular components.
