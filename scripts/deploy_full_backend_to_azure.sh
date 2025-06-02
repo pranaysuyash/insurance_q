@@ -2,10 +2,10 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # --- Configuration - USER TO UPDATE THESE VALUES --- #
-AZURE_RESOURCE_GROUP="insurance-app-backend-rg"       # Your Azure Resource Group
+AZURE_RESOURCE_GROUP="insurance-app-rg"                # Using existing resource group from simple app
 AZURE_LOCATION="eastus"                               # Your Azure region
-AZURE_ACR_NAME="insuranceappacr"                      # Your Azure Container Registry name
-AZURE_APP_SERVICE_PLAN="insurance-app-plan"           # Your Azure App Service Plan name
+AZURE_ACR_NAME="insuranceappacr"                      # Using existing ACR from simple app
+AZURE_APP_SERVICE_PLAN="insurance-app-plan"           # Using existing App Service Plan from simple app
 
 # Docker Image Details
 DOCKER_IMAGE_NAME="insurance-app-services"            # Name of the image in ACR
@@ -18,9 +18,9 @@ OCR_APP_NAME="insurance-ocr-app"                      # App Service name for OCR
 FRONTEND_APP_NAME="insurance-frontend-app"            # App Service name for Frontend service
 
 # External Service URLs & Keys (USER MUST PROVIDE THESE ACTUAL VALUES)
-QDRANT_PUBLIC_HOST="YOUR_QDRANT_PUBLIC_HOSTNAME_OR_IP"  # e.g., qdrant.example.com OR 20.x.x.x
+QDRANT_PUBLIC_HOST="insurance-app-qdrant.eastus.azurecontainer.io"  # Updated with actual Qdrant FQDN
 QDRANT_PORT="6333"
-AZURE_REDIS_HOST="YOUR_AZURE_REDIS_HOSTNAME.redis.cache.windows.net"
+AZURE_REDIS_HOST="insurance-app-redis.redis.cache.windows.net"  # Updated with actual Redis hostname
 # AZURE_REDIS_KEY: It's more secure to set this via Azure Portal. 
 # The services are currently configured to connect to Redis without a password for simplicity if using only REDIS_HOST/PORT.
 # If your Python Redis client needs a password, you'll need to ensure it's configured and add REDIS_PASSWORD to app settings.
