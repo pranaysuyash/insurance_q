@@ -56,12 +56,76 @@ az acr login --name "$AZURE_ACR_NAME"
 
 # 2. Building and Pushing the Docker Image
 echo "Step 2: Building and pushing Docker image ${FULL_IMAGE_URI}..."
+echo "Using original requirements.txt with extended timeouts for large package downloads..."
+echo "This may take 10-15 minutes due to PyTorch (865MB) download..."
 echo "Ensuring docker buildx is available..."
 docker buildx create --use || true # Attempt to create and use a builder, continue if it already exists
 
-docker buildx build --platform linux/amd64 -t "${FULL_IMAGE_URI}" -f Dockerfile .
-echo "Pushing image to ACR..."
-docker push "${FULL_IMAGE_URI}"
+# Create optimized Dockerfile with very long timeouts for large downloads
+echo "Creating Dockerfile with extended timeouts for large ML packages..."
+cat > Dockerfile.full << 'EOF'
+# Use Python 3.11 slim image
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies including OpenCV requirements
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libfontconfig1 \
+    libice6 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (for better Docker caching)
+COPY requirements.txt .
+
+# Install Python dependencies with very long timeout for PyTorch download
+# Timeout set to 3000 seconds (50 minutes) to handle PyTorch (865MB)
+# Default connection timeout (30s) + read timeout (3000s) + 10 retries
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir \
+    --timeout 3000 \
+    --retries 10 \
+    --default-timeout=3000 \
+    -r requirements.txt
+
+# Copy application code
+COPY src/ src/
+
+# Create necessary directories
+RUN mkdir -p /app/uploads /app/temp
+
+# Set Python path and disable buffering
+ENV PYTHONPATH="/app"
+ENV PYTHONUNBUFFERED="1"
+
+# Expose port (this will be overridden by Azure App Service)
+EXPOSE 8000
+
+# Default command (will be overridden by startup command in Azure)
+CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EOF
+
+echo "Starting Docker build with extended timeouts..."
+echo "⏰ This will take 10-20 minutes. Please be patient..."
+echo "📦 PyTorch alone is 865MB and may take 5-10 minutes to download."
+
+# Build with longer timeout and push
+docker buildx build --platform linux/amd64 -t "${FULL_IMAGE_URI}" -f Dockerfile.full . --push
+
+# Clean up temporary Dockerfile
+rm -f Dockerfile.full
+
+echo "✅ Docker image successfully built and pushed!"
 
 echo "Fetching ACR credentials..."
 ACR_USERNAME=$(az acr credential show --name "$AZURE_ACR_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query "username" -o tsv)
@@ -84,7 +148,7 @@ az webapp config container set --name "$RAG_APP_NAME" --resource-group "$AZURE_R
 
 echo "Setting startup command for ${RAG_APP_NAME}..."
 az webapp config set --resource-group "$AZURE_RESOURCE_GROUP" --name "$RAG_APP_NAME" \
-    --startup-command "uvicorn src.rag.service:app --host 0.0.0.0 --port 8000"
+    --generic-configurations '{"appCommandLine":"uvicorn src.rag.service:app --host 0.0.0.0 --port 8000"}'
 
 echo "Setting application settings for ${RAG_APP_NAME} (including ACR password)..."
 az webapp config appsettings set --resource-group "$AZURE_RESOURCE_GROUP" --name "$RAG_APP_NAME" --settings \
@@ -119,7 +183,7 @@ az webapp config container set --name "$OCR_APP_NAME" --resource-group "$AZURE_R
 
 echo "Setting startup command for ${OCR_APP_NAME}..."
 az webapp config set --resource-group "$AZURE_RESOURCE_GROUP" --name "$OCR_APP_NAME" \
-    --startup-command "uvicorn src.ocr.service:app --host 0.0.0.0 --port 8001"
+    --generic-configurations '{"appCommandLine":"uvicorn src.ocr.service:app --host 0.0.0.0 --port 8001"}'
 
 echo "Setting application settings for ${OCR_APP_NAME} (including ACR password)..."
 az webapp config appsettings set --resource-group "$AZURE_RESOURCE_GROUP" --name "$OCR_APP_NAME" --settings \
@@ -153,7 +217,7 @@ az webapp config container set --name "$FRONTEND_APP_NAME" --resource-group "$AZ
 
 echo "Setting startup command for ${FRONTEND_APP_NAME}..."
 az webapp config set --resource-group "$AZURE_RESOURCE_GROUP" --name "$FRONTEND_APP_NAME" \
-    --startup-command "uvicorn src.frontend.app:app --host 0.0.0.0 --port 8080"
+    --generic-configurations '{"appCommandLine":"uvicorn src.frontend.app:app --host 0.0.0.0 --port 8080"}'
 
 echo "Setting application settings for ${FRONTEND_APP_NAME} (including ACR password)..."
 az webapp config appsettings set --resource-group "$AZURE_RESOURCE_GROUP" --name "$FRONTEND_APP_NAME" --settings \
@@ -168,12 +232,15 @@ FRONTEND_SERVICE_PUBLIC_URL="https://${FRONTEND_APP_NAME}.azurewebsites.net"
 echo "Frontend Service (for mobile app) will be available at: ${FRONTEND_SERVICE_PUBLIC_URL}"
 
 echo "
-Deployment script finished."
-echo "Next Steps:"
-echo "1. IMPORTANT: Go to the Azure Portal and securely set the actual values for OPENAI_API_KEY and HF_TOKEN for '${RAG_APP_NAME}' and '${OCR_APP_NAME}' App Services."
-echo "2. Test each service's /health endpoint (or other available endpoints)."
+🎉 Deployment script finished successfully!"
+echo ""
+echo "📋 Next Steps:"
+echo "1. IMPORTANT: Set API keys by running: ./scripts/set_api_keys.sh"
+echo "2. Test each service's /health endpoint:"
 echo "   - RAG: ${RAG_SERVICE_PUBLIC_URL}/health"
 echo "   - OCR: ${OCR_SERVICE_PUBLIC_URL}/health"
-echo "   - Frontend: ${FRONTEND_SERVICE_PUBLIC_URL}/health (and try loading ${FRONTEND_SERVICE_PUBLIC_URL}/)"
-echo "3. Update your Flutter app in 'mobile/lib/services/api_service.dart' to use the Frontend URL: ${FRONTEND_SERVICE_PUBLIC_URL}"
-echo "4. Monitor logs via Azure Portal or 'az webapp log tail --resource-group ${AZURE_RESOURCE_GROUP} --name <app-name>' for each service." 
+echo "   - Frontend: ${FRONTEND_SERVICE_PUBLIC_URL}/health"
+echo "3. Update your Flutter app in 'mobile/lib/services/api_service.dart' to use: ${FRONTEND_SERVICE_PUBLIC_URL}"
+echo "4. Monitor logs via: az webapp log tail --resource-group ${AZURE_RESOURCE_GROUP} --name <app-name>"
+echo ""
+echo "🚀 All three services should now be fully functional with OCR capabilities!" 
