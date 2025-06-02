@@ -73,24 +73,25 @@ Phase 1: Deploying RAG Service (${RAG_APP_NAME})..."
 az webapp create --resource-group "$AZURE_RESOURCE_GROUP" \
     --plan "$AZURE_APP_SERVICE_PLAN" \
     --name "$RAG_APP_NAME" \
-    --deployment-container-image-name "${FULL_IMAGE_URI}"
+    --deployment-container-image-name "${FULL_IMAGE_URI}" # Initial image setup
 
 echo "Configuring container for ${RAG_APP_NAME}..."
 az webapp config container set --name "$RAG_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
     --docker-custom-image-name "${FULL_IMAGE_URI}" \
     --docker-registry-server-url "https://$(echo $AZURE_ACR_NAME | tr '[:upper:]' '[:lower:]').azurecr.io" \
-    --docker-registry-server-user "$ACR_USERNAME" \
-    --docker-registry-server-password "$ACR_PASSWORD"
+    --docker-registry-server-user "$ACR_USERNAME"
+    # Password omitted, will be set via app settings
 
 echo "Setting startup command for ${RAG_APP_NAME}..."
 az webapp config set --resource-group "$AZURE_RESOURCE_GROUP" --name "$RAG_APP_NAME" \
     --startup-command "uvicorn src.rag.service:app --host 0.0.0.0 --port 8000"
 
-echo "Setting application settings for ${RAG_APP_NAME}..."
+echo "Setting application settings for ${RAG_APP_NAME} (including ACR password)..."
 az webapp config appsettings set --resource-group "$AZURE_RESOURCE_GROUP" --name "$RAG_APP_NAME" --settings \
     WEBSITES_PORT="8000" \
     PYTHONPATH="/app" \
     PYTHONUNBUFFERED="1" \
+    DOCKER_REGISTRY_SERVER_PASSWORD="${ACR_PASSWORD}" \
     QDRANT_HOST="${QDRANT_PUBLIC_HOST}" \
     QDRANT_PORT="${QDRANT_PORT}" \
     REDIS_HOST="${AZURE_REDIS_HOST}" \
@@ -107,24 +108,25 @@ Phase 2: Deploying OCR Service (${OCR_APP_NAME})..."
 az webapp create --resource-group "$AZURE_RESOURCE_GROUP" \
     --plan "$AZURE_APP_SERVICE_PLAN" \
     --name "$OCR_APP_NAME" \
-    --deployment-container-image-name "${FULL_IMAGE_URI}"
+    --deployment-container-image-name "${FULL_IMAGE_URI}" # Initial image setup
 
 echo "Configuring container for ${OCR_APP_NAME}..."
 az webapp config container set --name "$OCR_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
     --docker-custom-image-name "${FULL_IMAGE_URI}" \
     --docker-registry-server-url "https://$(echo $AZURE_ACR_NAME | tr '[:upper:]' '[:lower:]').azurecr.io" \
-    --docker-registry-server-user "$ACR_USERNAME" \
-    --docker-registry-server-password "$ACR_PASSWORD"
+    --docker-registry-server-user "$ACR_USERNAME"
+    # Password omitted, will be set via app settings
 
 echo "Setting startup command for ${OCR_APP_NAME}..."
 az webapp config set --resource-group "$AZURE_RESOURCE_GROUP" --name "$OCR_APP_NAME" \
     --startup-command "uvicorn src.ocr.service:app --host 0.0.0.0 --port 8001"
 
-echo "Setting application settings for ${OCR_APP_NAME}..."
+echo "Setting application settings for ${OCR_APP_NAME} (including ACR password)..."
 az webapp config appsettings set --resource-group "$AZURE_RESOURCE_GROUP" --name "$OCR_APP_NAME" --settings \
     WEBSITES_PORT="8001" \
     PYTHONPATH="/app" \
     PYTHONUNBUFFERED="1" \
+    DOCKER_REGISTRY_SERVER_PASSWORD="${ACR_PASSWORD}" \
     REDIS_HOST="${AZURE_REDIS_HOST}" \
     REDIS_PORT="6379" \
     RAG_SERVICE_URL="${RAG_SERVICE_PUBLIC_URL}" \
@@ -140,24 +142,25 @@ Phase 3: Deploying Frontend Service (${FRONTEND_APP_NAME})..."
 az webapp create --resource-group "$AZURE_RESOURCE_GROUP" \
     --plan "$AZURE_APP_SERVICE_PLAN" \
     --name "$FRONTEND_APP_NAME" \
-    --deployment-container-image-name "${FULL_IMAGE_URI}"
+    --deployment-container-image-name "${FULL_IMAGE_URI}" # Initial image setup
 
 echo "Configuring container for ${FRONTEND_APP_NAME}..."
 az webapp config container set --name "$FRONTEND_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" \
     --docker-custom-image-name "${FULL_IMAGE_URI}" \
     --docker-registry-server-url "https://$(echo $AZURE_ACR_NAME | tr '[:upper:]' '[:lower:]').azurecr.io" \
-    --docker-registry-server-user "$ACR_USERNAME" \
-    --docker-registry-server-password "$ACR_PASSWORD"
+    --docker-registry-server-user "$ACR_USERNAME"
+    # Password omitted, will be set via app settings
 
 echo "Setting startup command for ${FRONTEND_APP_NAME}..."
 az webapp config set --resource-group "$AZURE_RESOURCE_GROUP" --name "$FRONTEND_APP_NAME" \
     --startup-command "uvicorn src.frontend.app:app --host 0.0.0.0 --port 8080"
 
-echo "Setting application settings for ${FRONTEND_APP_NAME}..."
+echo "Setting application settings for ${FRONTEND_APP_NAME} (including ACR password)..."
 az webapp config appsettings set --resource-group "$AZURE_RESOURCE_GROUP" --name "$FRONTEND_APP_NAME" --settings \
     WEBSITES_PORT="8080" \
     PYTHONPATH="/app" \
     PYTHONUNBUFFERED="1" \
+    DOCKER_REGISTRY_SERVER_PASSWORD="${ACR_PASSWORD}" \
     OCR_SERVICE_URL="${OCR_SERVICE_PUBLIC_URL}" \
     RAG_SERVICE_URL="${RAG_SERVICE_PUBLIC_URL}"
 
