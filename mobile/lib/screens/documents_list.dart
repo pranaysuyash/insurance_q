@@ -6,9 +6,9 @@ class DocumentsList extends StatefulWidget {
   final Function(String)? onDocumentSelectedForQA;
   
   const DocumentsList({
-    Key? key, 
+    super.key, 
     this.onDocumentSelectedForQA,
-  }) : super(key: key);
+  });
 
   @override
   DocumentsListState createState() => DocumentsListState();

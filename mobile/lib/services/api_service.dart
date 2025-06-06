@@ -8,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   // Set your backend base URL here - only needed for query operations
   // static const String baseUrl = 'http://192.168.1.12:8080'; // Your laptop's IP on the WiFi network
-  static const String baseUrl = 'http://172.21.0.237:8080'; // Your laptop's IP on the WiFi network
+  // static const String baseUrl = 'http://172.21.0.237:8080'; // Your laptop's IP on the WiFi network
+  static const String baseUrl = 'https://insurance-frontend-app.azurewebsites.net'; // Azure deployed backend
 
   final Dio _dio = Dio(
     BaseOptions(
@@ -143,7 +144,7 @@ class ApiService {
       return updatedDocuments;
     } catch (e) {
       print('Error getting documents: $e');
-      throw e;
+      rethrow;
     }
   }
   

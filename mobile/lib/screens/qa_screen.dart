@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/qa_models.dart';
 import '../models/document_model.dart';
 import '../providers/questions_provider.dart';
@@ -14,7 +13,7 @@ final currentAnswerProvider = StateProvider<QaAnswer?>((ref) => null);
 class QaScreen extends ConsumerStatefulWidget {
   final String? initialDocumentId;
   
-  const QaScreen({Key? key, this.initialDocumentId}) : super(key: key);
+  const QaScreen({super.key, this.initialDocumentId});
 
   @override
   _QaScreenState createState() => _QaScreenState();

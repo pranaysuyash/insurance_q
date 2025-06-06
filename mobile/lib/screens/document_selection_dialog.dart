@@ -7,11 +7,11 @@ class DocumentSelectionDialog extends StatelessWidget {
   final Function(String?) onDocumentSelected;
 
   const DocumentSelectionDialog({
-    Key? key,
+    super.key,
     required this.documents,
     this.currentDocumentId,
     required this.onDocumentSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

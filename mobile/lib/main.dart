@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_selector/file_selector.dart';
-import 'dart:io';
 import 'services/api_service.dart';
 import 'screens/qa_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/dashboard_screen.dart';
-import 'providers/questions_provider.dart';
 import 'providers/storage_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/document_model.dart';

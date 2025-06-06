@@ -5,7 +5,6 @@ import '../providers/storage_provider.dart';
 import '../services/local_storage_service.dart';
 import '../services/api_service.dart';
 import 'qa_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'documents_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -725,7 +724,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: Text(term['definition']!),
                         ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                      )).toList(),
+                      )),
                       if (index < terminology.length - 1) // Add divider between sections
                          const Divider(indent: 16, endIndent: 16),
                     ],
