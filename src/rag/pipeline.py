@@ -69,11 +69,27 @@ class RAGPipeline:
 
         # Initialize Redis cache
         try:
-            self.cache = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
-            self.cache.ping()
-            logger.info(f"Redis cache initialized. Host: {redis_host}, Port: {redis_port}")
+            # Azure Redis Cache requires SSL connection
+            redis_password = os.getenv("REDIS_PASSWORD")
+            if not redis_password:
+                logger.warning("REDIS_PASSWORD not set. Redis connection will fail.")
+                self.cache = None
+            else:
+                self.cache = redis.Redis(
+                    host=redis_host, 
+                    port=redis_port, 
+                    password=redis_password,
+                    ssl=True,  # Enable SSL for Azure Redis Cache
+                    ssl_cert_reqs=None,  # Don't verify SSL certificates
+                    decode_responses=True
+                )
+                self.cache.ping()
+                logger.info(f"Redis cache initialized with SSL. Host: {redis_host}, Port: {redis_port}")
         except redis.exceptions.ConnectionError as e:
             logger.error(f"Redis connection failed: {e}. Cache will be unavailable.", exc_info=True)
+            self.cache = None
+        except Exception as e:
+            logger.error(f"Unexpected error connecting to Redis: {e}. Cache will be unavailable.")
             self.cache = None
         self.cache_ttl = cache_ttl
         

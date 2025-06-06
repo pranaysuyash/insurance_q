@@ -45,12 +45,28 @@ RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8000") # Defa
 # --- Initialize Redis Client ---
 redis_client: Optional[redis.Redis] = None
 try:
-    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True) # decode_responses=True for text
-    redis_client.ping()
-    logger.info(f"Successfully connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+    # Azure Redis Cache requires SSL connection
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+    if not REDIS_PASSWORD:
+        logger.warning("REDIS_PASSWORD not set. Redis connection will fail.")
+        redis_client = None
+    else:
+        redis_client = redis.Redis(
+            host=REDIS_HOST, 
+            port=REDIS_PORT, 
+            password=REDIS_PASSWORD,
+            ssl=True,  # Enable SSL for Azure Redis Cache
+            ssl_cert_reqs=None,  # Don't verify SSL certificates
+            decode_responses=True
+        )
+        redis_client.ping()
+        logger.info(f"Successfully connected to Redis at {REDIS_HOST}:{REDIS_PORT} with SSL")
 except redis.exceptions.ConnectionError as e:
     logger.error(f"Could not connect to Redis at {REDIS_HOST}:{REDIS_PORT}: {e}. Caching will be disabled.")
     redis_client = None # Allow service to run, but caching features will be affected
+except Exception as e:
+    logger.error(f"Unexpected error connecting to Redis: {e}. Caching will be disabled.")
+    redis_client = None
 
 # --- Initialize OCR Pipeline ---
 try:
