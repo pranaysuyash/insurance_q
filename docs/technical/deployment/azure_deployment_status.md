@@ -1,5 +1,91 @@
 # Azure Deployment Status
 
+## 🚨 UPDATE (June 6, 2025): Major Deployment Issues & Resolution
+
+While the initial deployment on June 2nd appeared successful, all services were returning `503 Service Unavailable` or `Application Error` pages. This triggered a multi-day, in-depth troubleshooting process that uncovered several critical platform, configuration, and build issues. This document now includes a detailed log of the debugging journey.
+
+---
+
+## 🐞 **Troubleshooting & Resolution Log**
+
+This section details the problems discovered and the steps taken to fix them.
+
+### Problem 1: Incorrect Port & Startup Configuration
+- **Symptom:** Services returned `503 Service Unavailable`. Logs showed `Container... didn't respond to HTTP pings on port: 8000`.
+- **Root Cause:** The startup commands were configured to use different ports for each service (e.g., 8001, 8002). Azure App Service containers, however, can only expose **one port** (typically 8000). The platform could not reach the running application to perform a health check, so it shut the container down.
+- **Solution:**
+    1. Standardized all `uvicorn` startup commands to use `--port 8000`.
+    2. Set the `WEBSITES_PORT=8000` application setting for all services.
+    3. Configured inter-service communication to use the public `.azurewebsites.net` URLs, not internal ports.
+
+### Problem 2: Incorrect Docker Image Architecture
+- **Symptom:** After fixing the ports, containers still failed to start. Logs showed the error: `no matching manifest for linux/amd64`.
+- **Root Cause:** The Docker image was built on an ARM64-based machine (e.g., Apple Silicon) without specifying the target platform. Azure App Service runs on `linux/amd64` virtual machines and could not run the ARM64 image.
+- **Solution:**
+    1. Used `docker buildx` to build the image explicitly for the correct platform.
+    2. The build command was updated to: `docker buildx build --platform linux/amd64 ...`
+
+### Problem 3: Docker Authentication Failure
+- **Symptom:** The `docker buildx` command failed with a `401 Unauthorized` error when trying to push the new image to Azure Container Registry (ACR).
+- **Root Cause:** The local Docker daemon was not authenticated with ACR, even though the Azure CLI was.
+- **Solution:**
+    1. Added `az acr login --name insuranceappacr` to the beginning of the deployment script. This command configures the Docker client with the necessary credentials.
+
+### Problem 4: Insufficient Memory & CPU Resources
+- **Symptom:** The diagnostic reports showed errors like `the customer swap was exhausted`, indicating the application was running out of memory.
+- **Root Cause:** The initial `B1: Basic` App Service Plan (1.75 GB RAM) was insufficient to handle the memory requirements of loading large ML models for both the RAG and OCR services on startup.
+- **Solution:**
+    1. Upgraded the App Service Plan to a **Premium SKU (`P1V2` or `P0V3`)**, which provides significantly more memory (3.5GB+) and CPU power.
+
+### Problem 5: Container Startup Timeout
+- **Symptom:** Even with more resources, containers would sometimes fail to start.
+- **Root Cause:** The default container startup time limit (230 seconds) was not always enough time for the service to download and initialize the large ML models.
+- **Solution:**
+    1. Explicitly set the `WEBSITES_CONTAINER_START_TIME_LIMIT` application setting to `1800` seconds (30 minutes) to give the services ample time to start.
+
+### Problem 6: Unreliable Environment Variable Configuration
+- **Symptom:** Multiple attempts to set application settings (like `DOCKER_REGISTRY_SERVER_PASSWORD` or `WEBSITES_PORT`) via the CLI in a single command were failing silently or returning `null` values. The Azure Portal UI also exhibited buggy behavior, reverting settings.
+- **Root Cause:** A likely bug or unreliability in how the Azure CLI and Portal handle batch updates of application settings.
+- **Solution:**
+    1. The final `complete_azure_fix.sh` script was modified to set **each application setting individually** with its own `az webapp config appsettings set` command, which proved to be much more reliable.
+
+---
+
+## ✅ **The Definitive Solution: `complete_azure_fix.sh`**
+
+After diagnosing all the above issues, a final, comprehensive script was created. This script is the single source of truth for deploying and configuring the services correctly.
+
+**What the script does:**
+1.  **Logs Docker into ACR** to prevent authentication errors.
+2.  **Builds a new Docker image** for the correct `linux/amd64` platform.
+3.  **Pushes the new image** to ACR with a unique, timestamped tag.
+4.  **Applies all configurations** to each of the three App Services, setting the container image, startup command, and all required environment variables individually and reliably.
+5.  **Restarts all services** in the correct dependency order.
+6.  **Generates a `monitor_services.sh`** script to check the health of the deployed services.
+
+---
+
+## 🔴 **CURRENT STATUS (June 6, 2025 - Evening)**
+
+**All platform and configuration issues have been resolved.** The services are successfully pulling the correct image and starting.
+
+However, they are now returning a generic **"Application Error"** page. This indicates that the **Python application code itself is now crashing** upon startup.
+
+The most likely cause is the final missing piece of configuration:
+
+*   **Missing `OPENAI_API_KEY`**: The application requires this key to initialize and will fail if it's not present.
+
+### **Final Action Required**
+
+The platform is now stable. To make the application functional, the `OPENAI_API_KEY` must be set in the Azure Portal for all three services.
+
+1.  Navigate to each App Service in the Azure Portal.
+2.  Go to **Configuration** -> **Application settings**.
+3.  Add a new setting with the name `OPENAI_API_KEY` and your secret key as the value.
+4.  Save the changes. The services will restart automatically.
+
+Once this is done, the application should become fully operational.
+
 ## Overview
 This document tracks the progress of deploying the insurance app backend services to Azure.
 

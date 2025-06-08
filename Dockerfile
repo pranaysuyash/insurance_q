@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     software-properties-common \
     git \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (for better Docker caching)
