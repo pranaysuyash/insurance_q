@@ -4,12 +4,14 @@ An AI-powered mobile application for analyzing insurance documents and providing
 
 ## 🚀 Current Status: READY FOR PLAY STORE DEPLOYMENT
 
-**Last Updated**: June 6, 2025  
+**Last Updated**: June 9, 2025  
 **Deployment Status**: ✅ **Production Ready**  
 **App Bundle**: Ready for Play Store submission  
 
 ### Quick Links
 - **Frontend Service**: https://insurance-frontend-app.azurewebsites.net
+- **OCR Service**: https://insurance-ocr-app.azurewebsites.net
+- **RAG Service**: https://insurance-rag-app.azurewebsites.net ✅ **Fully Operational**
 - **Play Store Checklist**: [docs/technical/deployment/play_store_deployment_checklist.md](docs/technical/deployment/play_store_deployment_checklist.md)
 - **Known Issues**: [docs/technical/implementation/known_issues.md](docs/technical/implementation/known_issues.md)
 
@@ -32,11 +34,11 @@ An AI-powered mobile application for analyzing insurance documents and providing
 ## 🏗️ Architecture
 
 ### Backend Services (Azure)
-- **Frontend Service**: API gateway and web interface
-- **OCR Service**: Document processing and text extraction
-- **RAG Service**: Retrieval-Augmented Generation for Q&A
+- **Frontend Service**: API gateway and web interface ✅ **Operational**
+- **OCR Service**: Document processing and text extraction ✅ **Operational**
+- **RAG Service**: Retrieval-Augmented Generation for Q&A ✅ **Operational (In-Memory Vector Store)**
 - **Redis Cache**: Performance optimization (partially working)
-- **Qdrant Vector DB**: Semantic search capabilities
+- **Vector Store**: In-memory Qdrant for semantic search ✅ **Operational**
 
 ### Mobile App (Flutter)
 - **Cross-platform**: Android and iOS support
@@ -53,11 +55,14 @@ An AI-powered mobile application for analyzing insurance documents and providing
 - [x] Release builds created (APK + App Bundle)
 - [x] API integration tested
 - [x] Documentation completed
+- [x] RAG service architecture issues resolved (June 9, 2025)
+- [x] In-memory vector store fallback implemented
+- [x] All backend services fully operational
 
 ### ⚠️ Known Issues (Non-blocking)
-- Redis connectivity issues (caching disabled)
-- RAG service in degraded mode (basic functionality works)
-- Some inter-service communication timeouts
+- Redis connectivity issues (caching disabled, services work without it)
+- Vector store using in-memory mode (data resets on restart)
+- Some inter-service communication timeouts (rare)
 
 ### 📦 Build Artifacts
 - **APK**: `mobile/build/app/outputs/flutter-apk/app-release.apk` (51.5MB)
@@ -73,10 +78,10 @@ An AI-powered mobile application for analyzing insurance documents and providing
 - Git
 
 ### Quick Start
-```bash
+    ```bash
 # Clone repository
 git clone <repository-url>
-cd insurance_app
+    cd insurance_app
 
 # Backend setup
 python -m venv venv
@@ -94,7 +99,7 @@ pytest tests/
 ```
 
 ### Environment Configuration
-```bash
+    ```bash
 # Copy environment template
 cp sample.env .env
 
@@ -129,7 +134,7 @@ AZURE_SUBSCRIPTION_ID=your_subscription_id
 - **Performance**: Response times < 2 seconds
 
 ### Running Tests
-```bash
+   ```bash
 # Backend tests
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 pytest tests/ -v
@@ -138,7 +143,7 @@ pytest tests/ -v
 ./scripts/test_azure_apis.sh
 
 # Flutter tests
-cd mobile
+   cd mobile
 flutter test
 ```
 
@@ -150,7 +155,7 @@ flutter test
 3. **Upload to Play Console**: Use the App Bundle for optimal delivery
 
 ### Backend Deployment
-```bash
+   ```bash
 # Deploy all services to Azure
 ./scripts/deploy_full_backend_to_azure.sh
 

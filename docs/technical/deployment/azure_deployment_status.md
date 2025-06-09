@@ -410,4 +410,70 @@ insurance-frontend-app  Running  insurance-frontend-app.azurewebsites.net
 
 **For detailed Play Store submission steps, see `docs/technical/deployment/play_store_deployment_checklist.md`**
 
-**For detailed scripts, privacy policy templates, or Application Insights setup, see project scripts or request further guidance.** 
+**For detailed scripts, privacy policy templates, or Application Insights setup, see project scripts or request further guidance.**
+
+## June 9, 2025 - RAG Service Architecture Fix
+
+### Issue Resolved
+- **Problem**: RAG service failing to start due to AMD64/ARM64 architecture mismatch and Qdrant connection issues
+- **Root Cause**: Docker image built on ARM64 (Apple Silicon) couldn't run on Azure's AMD64 infrastructure
+- **Impact**: `/query` endpoint returning 503 errors, preventing AI-powered document Q&A
+
+### Solution Implemented
+1. **Architecture Fix**: Built proper AMD64 Docker image using `--platform linux/amd64`
+2. **Fallback Logic**: Enhanced RAG pipeline to detect missing `QDRANT_HOST` and use in-memory vector store
+3. **Code Improvements**: Updated initialization logic to handle external vs. in-memory Qdrant gracefully
+
+### Technical Changes
+- **Image Tags**: 
+  - `v20250609-fallback`: Initial AMD64 build with fallback logic
+  - `v20250609-inmemory`: Final version with proper in-memory detection
+- **Environment Variables**: Removed `QDRANT_HOST` and `QDRANT_PORT` to trigger in-memory mode
+- **Container Configuration**: Updated to use modern Azure CLI syntax
+
+### Current Status
+- ✅ **RAG Service**: Fully operational with in-memory vector store
+- ✅ **Query Endpoint**: Responding with HTTP 200, processing queries successfully
+- ✅ **OpenAI Integration**: Embeddings and chat completions working
+- ✅ **All Services**: Frontend, OCR, and RAG services all operational
+
+### Performance Impact
+- **Startup Time**: Significantly improved (no external dependencies)
+- **Query Response**: ~1-2 seconds for embedding generation and response
+- **Limitation**: Vector index resets on service restart (acceptable for current scale)
+
+### Next Steps (Optional)
+- **Qdrant Cloud**: Can upgrade to persistent vector store using free tier (1GB)
+- **Managed Vector Store**: Consider Azure Cognitive Search or PostgreSQL + pgvector
+- **Monitoring**: Implement Application Insights for better observability
+
+### Commands Used
+```bash
+# Build AMD64 image
+docker buildx build --platform linux/amd64 -t insuranceappacr.azurecr.io/insurance-app-services:v20250609-inmemory --push .
+
+# Update container configuration
+az webapp config container set \
+  --resource-group insurance-app-rg \
+  --name insurance-rag-app \
+  --container-image-name insuranceappacr.azurecr.io/insurance-app-services:v20250609-inmemory \
+  --container-registry-url https://insuranceappacr.azurecr.io \
+  --container-registry-user insuranceappacr \
+  --container-registry-password "$ACR_PASS"
+
+# Restart service
+az webapp restart --resource-group insurance-app-rg --name insurance-rag-app
+```
+
+### Verification
+```bash
+# Test service health
+curl -s -o /dev/null -w "%{http_code}" https://insurance-rag-app.azurewebsites.net/docs
+# Expected: 200
+
+# Test query endpoint
+curl -X POST "https://insurance-rag-app.azurewebsites.net/query" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "test query", "top_k": 3}' -s | jq .
+# Expected: {"status": "success", "result": {...}}
+``` 

@@ -61,18 +61,36 @@ class RAGPipeline:
         logger.info(f"Fallback embedding: {'HF ' + self.embedding_model if use_openai_first else 'OpenAI ' + self.openai_embedding_model}")
         logger.info(f"OpenAI Chat model: {self.openai_chat_model}")
 
-        # Initialize Qdrant vector store client
-        self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port)
-        self.collection_name = collection_name
-        self._ensure_collection_exists()
-        logger.info(f"Qdrant client initialized. Host: {qdrant_host}, Port: {qdrant_port}, Collection: {self.collection_name}")
+        # Initialize Qdrant vector store client with fallback to in-memory
+        qdrant_host_env = os.getenv("QDRANT_HOST")
+        if qdrant_host_env:
+            # External Qdrant is configured, try to connect
+            try:
+                self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port)
+                self.collection_name = collection_name
+                self._ensure_collection_exists()
+                logger.info(f"Qdrant client initialized. Host: {qdrant_host}, Port: {qdrant_port}, Collection: {self.collection_name}")
+            except Exception as e:
+                logger.warning(f"Failed to connect to Qdrant at {qdrant_host}:{qdrant_port}: {e}")
+                logger.info("Falling back to in-memory Qdrant client")
+                self.qdrant_client = QdrantClient(":memory:")
+                self.collection_name = collection_name
+                self._ensure_collection_exists()
+                logger.info(f"In-memory Qdrant client initialized. Collection: {self.collection_name}")
+        else:
+            # No external Qdrant configured, use in-memory directly
+            logger.info("No QDRANT_HOST configured, using in-memory vector store")
+            self.qdrant_client = QdrantClient(":memory:")
+            self.collection_name = collection_name
+            self._ensure_collection_exists()
+            logger.info(f"In-memory Qdrant client initialized. Collection: {self.collection_name}")
 
-        # Initialize Redis cache
+        # Initialize Redis cache with graceful fallback
         try:
             # Azure Redis Cache requires SSL connection
             redis_password = os.getenv("REDIS_PASSWORD")
             if not redis_password:
-                logger.warning("REDIS_PASSWORD not set. Redis connection will fail.")
+                logger.warning("REDIS_PASSWORD not set. Disabling Redis cache.")
                 self.cache = None
             else:
                 self.cache = redis.Redis(
@@ -86,16 +104,21 @@ class RAGPipeline:
                 self.cache.ping()
                 logger.info(f"Redis cache initialized with SSL. Host: {redis_host}, Port: {redis_port}")
         except redis.exceptions.ConnectionError as e:
-            logger.error(f"Redis connection failed: {e}. Cache will be unavailable.", exc_info=True)
+            logger.warning(f"Redis connection failed: {e}. Cache will be unavailable.")
             self.cache = None
         except Exception as e:
-            logger.error(f"Unexpected error connecting to Redis: {e}. Cache will be unavailable.")
+            logger.warning(f"Unexpected error connecting to Redis: {e}. Cache will be unavailable.")
             self.cache = None
         self.cache_ttl = cache_ttl
         
         # Track embedding failures to help with debugging
-        self.openai_embedding_failures = 0
-        self.hf_embedding_failures = 0
+        self.openai_failure_count = 0
+        self.hf_failure_count = 0
+        
+        # Track current embedding model for health checks
+        self.current_embedding_model = self.openai_embedding_model if self.use_openai_first else self.embedding_model
+        self.use_openai_embeddings = self.use_openai_first
+        self.huggingface_model_name = self.embedding_model
 
     def _get_openai_dimensions(self, model_name: str) -> int:
         """Get embedding dimensions for OpenAI models."""
