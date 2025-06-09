@@ -30,6 +30,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     final typeGroup = XTypeGroup(
       label: 'Documents',
       extensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      uniformTypeIdentifiers: ['com.adobe.pdf', 'public.jpeg', 'public.png'],
     );
 
     final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
