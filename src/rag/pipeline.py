@@ -61,25 +61,44 @@ class RAGPipeline:
         logger.info(f"Fallback embedding: {'HF ' + self.embedding_model if use_openai_first else 'OpenAI ' + self.openai_embedding_model}")
         logger.info(f"OpenAI Chat model: {self.openai_chat_model}")
 
-        # Initialize Qdrant vector store client with fallback to in-memory
-        qdrant_host_env = os.getenv("QDRANT_HOST")
-        if qdrant_host_env:
-            # External Qdrant is configured, try to connect
+        # Initialize Qdrant vector store client - prioritize cloud over local
+        qdrant_url = os.getenv("QDRANT_URL")
+        qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        
+        if qdrant_url and qdrant_api_key:
+            # Use cloud Qdrant (for production/Azure)
+            try:
+                self.qdrant_client = QdrantClient(
+                    url=qdrant_url,
+                    api_key=qdrant_api_key
+                )
+                self.collection_name = collection_name
+                self._ensure_collection_exists()
+                logger.info(f"Qdrant Cloud client initialized. URL: {qdrant_url}, Collection: {self.collection_name}")
+            except Exception as e:
+                logger.error(f"Failed to connect to Qdrant Cloud at {qdrant_url}: {e}")
+                logger.info("Falling back to in-memory Qdrant client")
+                self.qdrant_client = QdrantClient(":memory:")
+                self.collection_name = collection_name
+                self._ensure_collection_exists()
+                logger.info(f"In-memory Qdrant client initialized. Collection: {self.collection_name}")
+        elif os.getenv("QDRANT_HOST"):
+            # Use local Qdrant (for development)
             try:
                 self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port)
                 self.collection_name = collection_name
                 self._ensure_collection_exists()
-                logger.info(f"Qdrant client initialized. Host: {qdrant_host}, Port: {qdrant_port}, Collection: {self.collection_name}")
+                logger.info(f"Local Qdrant client initialized. Host: {qdrant_host}, Port: {qdrant_port}, Collection: {self.collection_name}")
             except Exception as e:
-                logger.warning(f"Failed to connect to Qdrant at {qdrant_host}:{qdrant_port}: {e}")
+                logger.warning(f"Failed to connect to local Qdrant at {qdrant_host}:{qdrant_port}: {e}")
                 logger.info("Falling back to in-memory Qdrant client")
                 self.qdrant_client = QdrantClient(":memory:")
                 self.collection_name = collection_name
                 self._ensure_collection_exists()
                 logger.info(f"In-memory Qdrant client initialized. Collection: {self.collection_name}")
         else:
-            # No external Qdrant configured, use in-memory directly
-            logger.info("No QDRANT_HOST configured, using in-memory vector store")
+            # No Qdrant configured, use in-memory directly
+            logger.info("No Qdrant configuration found, using in-memory vector store")
             self.qdrant_client = QdrantClient(":memory:")
             self.collection_name = collection_name
             self._ensure_collection_exists()
@@ -239,7 +258,7 @@ class RAGPipeline:
             except Exception as e:
                 retries += 1
                 error_str = str(e)
-                self.openai_embedding_failures += 1
+                self.openai_failure_count += 1
                 
                 # Provide detailed error information
                 logger.error(f"OpenAI embedding error ({retries}/{max_retries}): {error_str}")
@@ -559,8 +578,8 @@ class RAGPipeline:
             "active_embedding_model": self.active_embedding_model,
             "primary_model": self.openai_embedding_model if self.use_openai_first else self.embedding_model,
             "fallback_model": self.embedding_model if self.use_openai_first else self.openai_embedding_model,
-            "openai_embedding_failures": self.openai_embedding_failures,
-            "hf_embedding_failures": self.hf_embedding_failures,
+            "openai_embedding_failures": self.openai_failure_count,
+            "hf_embedding_failures": self.hf_failure_count,
             "embedding_dimensions": self.embedding_dimensions,
         }
 

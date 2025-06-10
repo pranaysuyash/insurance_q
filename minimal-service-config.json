@@ -1,0 +1,28 @@
+{
+  "ServiceName": "insurance-app-minimal-test",
+  "SourceConfiguration": {
+    "ImageRepository": {
+      "ImageIdentifier": "317147645519.dkr.ecr.ap-south-1.amazonaws.com/insurance-minimal-test:latest",
+      "ImageConfiguration": {
+        "Port": "8000"
+      },
+      "ImageRepositoryType": "ECR"
+    },
+    "AuthenticationConfiguration": {
+      "AccessRoleArn": "arn:aws:iam::317147645519:role/AppRunnerECRAccessRole"
+    },
+    "AutoDeploymentsEnabled": false
+  },
+  "InstanceConfiguration": {
+    "Cpu": "1 vCPU",
+    "Memory": "2 GB"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "HTTP",
+    "Path": "/health",
+    "Interval": 10,
+    "Timeout": 5,
+    "HealthyThreshold": 1,
+    "UnhealthyThreshold": 3
+  }
+}

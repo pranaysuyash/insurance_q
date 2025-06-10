@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 import uvicorn
-from .pipeline import RAGPipeline
+from src.rag.pipeline import RAGPipeline
 import logging
 import os
 

@@ -3,6 +3,8 @@ fastapi
 uvicorn
 python-multipart
 pydantic
+firebase-admin
+email-validator
 
 # New API Clients
 huggingface-hub

@@ -5,8 +5,13 @@ from fastapi import HTTPException
 # Initialize Firebase app (should be called once in app startup)
 def init_firebase():
     if not firebase_admin._apps:
-        cred = credentials.Certificate("path/to/serviceAccountKey.json")  # Set path in env/config
-        firebase_admin.initialize_app(cred)
+        import os
+        key_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "/app/serviceAccountKey.json")
+        if os.path.isfile(key_path):
+            cred = credentials.Certificate(key_path)
+            firebase_admin.initialize_app(cred)
+        else:
+            raise FileNotFoundError(f"No service account file at {key_path}")
 
 # Verify Firebase ID token and return decoded claims
 def verify_firebase_token(id_token: str):

@@ -17,9 +17,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import sys
+
 @app.on_event("startup")
 def startup_event():
-    init_firebase()
+    try:
+        init_firebase()
+    except Exception as e:
+        print(f"⚠️ Firebase init failed: {e}", file=sys.stderr)
+        print("Continuing without Firebase authentication...", file=sys.stderr)
 
 app.include_router(user_router)
 app.include_router(family_router)

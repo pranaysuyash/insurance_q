@@ -33,4 +33,4 @@ ENV PYTHONPATH="/app"
 EXPOSE 8000
 
 # Default command (will be overridden by startup command in Azure)
-CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"] 
