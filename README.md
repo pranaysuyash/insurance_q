@@ -2,18 +2,17 @@
 
 An AI-powered mobile application for analyzing insurance documents and providing intelligent Q&A capabilities.
 
-## 🚀 Current Status: READY FOR PLAY STORE DEPLOYMENT
+## 🚀 Current Status: PRODUCTION READY ON AWS
 
-**Last Updated**: June 9, 2025  
-**Deployment Status**: ✅ **Production Ready**  
-**App Bundle**: Ready for Play Store submission  
+**Last Updated**: June 10, 2025  
+**Deployment Status**: ✅ **Fully Operational on AWS App Runner**  
+**Mobile App**: v0.1.2+11 - Ready for distribution  
 
 ### Quick Links
-- **Frontend Service**: https://insurance-frontend-app.azurewebsites.net
-- **OCR Service**: https://insurance-ocr-app.azurewebsites.net
-- **RAG Service**: https://insurance-rag-app.azurewebsites.net ✅ **Fully Operational**
-- **Play Store Checklist**: [docs/technical/deployment/play_store_deployment_checklist.md](docs/technical/deployment/play_store_deployment_checklist.md)
-- **Known Issues**: [docs/technical/implementation/known_issues.md](docs/technical/implementation/known_issues.md)
+- **Production Service**: https://8ud4pyy9mc.ap-south-1.awsapprunner.com ✅ **Fully Operational**
+- **Mobile App**: Android APK and iOS builds ready
+- **Migration Documentation**: [docs/azure_to_aws_migration_learnings.md](docs/azure_to_aws_migration_learnings.md)
+- **Deployment Scripts**: `aws_deployment.sh` (primary), `aws_ecs_simple.sh` (alternative)
 
 ## 📱 Features
 
@@ -25,48 +24,53 @@ An AI-powered mobile application for analyzing insurance documents and providing
 - **Offline Mode**: Full functionality without internet connection
 
 ### Technical Features ✅
-- **Cross-Platform**: Flutter app for Android (iOS ready)
-- **Cloud Backend**: Azure-hosted microservices architecture
+- **Cross-Platform**: Flutter app for Android and iOS
+- **Cloud Backend**: AWS App Runner with reliable container deployment
 - **AI/ML Integration**: OpenAI GPT for intelligent responses
-- **Vector Search**: Qdrant for semantic document search
+- **Vector Search**: Qdrant cloud for semantic document search
 - **Local Storage**: SQLite for offline document management
+- **Caching**: Redis cloud for performance optimization
 
 ## 🏗️ Architecture
 
-### Backend Services (Azure)
-- **Frontend Service**: API gateway and web interface ✅ **Operational**
-- **OCR Service**: Document processing and text extraction ✅ **Operational**
-- **RAG Service**: Retrieval-Augmented Generation for Q&A ✅ **Operational (In-Memory Vector Store)**
-- **Redis Cache**: Performance optimization (partially working)
-- **Vector Store**: In-memory Qdrant for semantic search ✅ **Operational**
+### Backend Services (AWS)
+- **App Runner Service**: Complete RAG pipeline with OCR, Q&A, and document management ✅ **Fully Operational**
+- **Vector Database**: Qdrant cloud for semantic search ✅ **Operational**
+- **Cache Layer**: Redis cloud for performance optimization ✅ **Operational**
+- **Container Registry**: AWS ECR for Docker image management ✅ **Operational**
+- **Monitoring**: CloudWatch for logging and observability ✅ **Operational**
 
 ### Mobile App (Flutter)
 - **Cross-platform**: Android and iOS support
 - **Offline-first**: Local storage with cloud sync
 - **Modern UI**: Material Design with custom theming
-- **Performance**: Optimized builds (26.6MB App Bundle)
+- **Performance**: Optimized builds (50MB APK, 31MB iOS)
+- **Version**: 0.1.2+11 with AWS backend integration
 
 ## 🚀 Deployment Status
 
-### ✅ Completed
-- [x] Azure infrastructure deployed
-- [x] All services running and accessible
-- [x] Flutter app configured for production
-- [x] Release builds created (APK + App Bundle)
-- [x] API integration tested
-- [x] Documentation completed
-- [x] RAG service architecture issues resolved (June 9, 2025)
-- [x] In-memory vector store fallback implemented
-- [x] All backend services fully operational
+### ✅ Completed (AWS Migration)
+- [x] AWS App Runner infrastructure deployed
+- [x] Complete RAG service running and accessible
+- [x] Flutter app updated for AWS backend (v0.1.2+11)
+- [x] Release builds created (Android APK + iOS)
+- [x] API integration tested and working
+- [x] Documentation updated with migration learnings
+- [x] All deployment issues resolved (June 10, 2025)
+- [x] Qdrant cloud vector database operational
+- [x] Redis cloud caching operational
+- [x] Codebase cleaned of obsolete scripts
 
-### ⚠️ Known Issues (Non-blocking)
-- Redis connectivity issues (caching disabled, services work without it)
-- Vector store using in-memory mode (data resets on restart)
-- Some inter-service communication timeouts (rare)
+### 🎯 Current Status
+- **Backend**: 100% operational on AWS App Runner
+- **Mobile App**: Ready for distribution
+- **Testing**: All tests passing
+- **Documentation**: Complete with migration guide
 
 ### 📦 Build Artifacts
-- **APK**: `mobile/build/app/outputs/flutter-apk/app-release.apk` (51.5MB)
-- **App Bundle**: `mobile/build/app/outputs/bundle/release/app-release.aab` (26.6MB) ✅ **Ready for Play Store**
+- **Android APK**: `mobile/build/app/outputs/flutter-apk/app-release.apk` (50MB)
+- **iOS App**: `mobile/build/ios/iphoneos/Runner.app` (31MB)
+- **Deployment Scripts**: `aws_deployment.sh`, `aws_ecs_simple.sh`
 
 ## 🛠️ Development Setup
 
