@@ -29,8 +29,17 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
     final typeGroup = XTypeGroup(
       label: 'Documents',
-      extensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      uniformTypeIdentifiers: ['com.adobe.pdf', 'public.jpeg', 'public.png'],
+      // Only UTI (iOS ignores extensions)
+      uniformTypeIdentifiers: [
+        'com.adobe.pdf',
+        'public.image',    // covers jpeg, png, etc.
+      ],
+      // Optional: mimeTypes for Android/web if you ever go there
+      mimeTypes: [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+      ],
     );
 
     final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);

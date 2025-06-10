@@ -9,7 +9,8 @@ class ApiService {
   // Set your backend base URL here - only needed for query operations
   // static const String baseUrl = 'http://192.168.1.12:8080'; // Your laptop's IP on the WiFi network
   // static const String baseUrl = 'http://172.21.0.237:8080'; // Your laptop's IP on the WiFi network
-  static const String baseUrl = 'https://insurance-frontend-app.azurewebsites.net'; // Azure deployed backend
+  // static const String baseUrl = 'https://insurance-frontend-app.azurewebsites.net'; // Old Azure backend (deprecated)
+  static const String baseUrl = 'https://8ud4pyy9mc.ap-south-1.awsapprunner.com'; // AWS App Runner backend
 
   final Dio _dio = Dio(
     BaseOptions(
