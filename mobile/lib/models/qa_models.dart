@@ -49,6 +49,34 @@ class QaAnswer {
     if (json['sources'] is List) {
       final sourcesList = json['sources'] as List;
       for (var source in sourcesList) {
+        String sourceText = '';
+        
+        // Extract text content to check for failed processing
+        if (source is String) {
+          sourceText = source;
+        } else if (source is Map<String, dynamic>) {
+          sourceText = source['text']?.toString() ?? source.toString();
+        } else {
+          sourceText = source.toString();
+        }
+        
+        // Filter out failed document processing sources
+        if (sourceText.startsWith('Failed to process PDF:') || 
+            sourceText.contains('Failed to process') ||
+            sourceText.contains('test_policy.pdf')) {
+          print('Filtering out failed source: ${sourceText.substring(0, 50)}...');
+          continue; // Skip this source
+        }
+        
+        // Filter out sample documents if they contain obvious sample data
+        if (sourceText.contains('John Smith') || 
+            sourceText.contains('Sarah Johnson') ||
+            sourceText.contains('sample_health_policy') ||
+            sourceText.contains('sample_auto_policy')) {
+          print('Filtering out sample document source');
+          continue; // Skip sample documents
+        }
+        
         if (source is String) {
           // Backend returns sources as strings
           parsedSources.add(QaSource(
