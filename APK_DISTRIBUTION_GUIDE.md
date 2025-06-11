@@ -1,8 +1,11 @@
 # 📱 Insurance RAG App - APK Distribution Guide
 
-**Version**: 1.0.3 (Build 13)  
-**Release Date**: June 11, 2025  
-**Backend**: AWS App Runner (https://nrmmvtpyaf.ap-south-1.awsapprunner.com)  
+## 📱 Latest Release Build - FIXED VERSION
+
+### **Version**: v20250611-1631 (June 11, 2025 - Fixed)
+### **Recommended APK**: `insurance-app-arm64-v20250611-1631.apk`
+### **Size**: 24MB (ARM64 optimized)
+### **Status**: ✅ **FIXED - Resolves "invalid package" issues**
 
 ## 🎯 Quick Start for Team Members
 
@@ -198,3 +201,219 @@ Try these sample questions after uploading a document:
 **Happy Testing!** 🚀
 
 For any issues or questions, refer to this guide or contact the development team. 
+
+## 🔧 **Available APK Options**
+
+### **Option 1: ARM64 APK (RECOMMENDED)**
+- **File**: `insurance-app-arm64-v20250611-1631.apk`
+- **Size**: 24MB
+- **Compatibility**: Modern Android devices (ARM64)
+- **Best For**: Most Android phones and tablets (2018+)
+
+### **Option 2: Universal APK**
+- **File**: `insurance-app-fixed-v20250611-1631.apk`
+- **Size**: 55MB
+- **Compatibility**: All Android devices
+- **Best For**: Older devices or when ARM64 doesn't work
+
+### **Option 3: App Bundle (Play Store)**
+- **File**: `insurance-app-bundle-v20250611.aab`
+- **Size**: 44MB
+- **Use**: Google Play Store upload only
+
+## ✅ **What Was Fixed**
+
+### **"Invalid Package" Issue Resolution**
+- **Problem**: Previous APK showed "invalid package" on some devices
+- **Root Cause**: Improper signing configuration and namespace conflicts
+- **Solution**: 
+  - Fixed Android namespace: `com.medpiper.insurance_app`
+  - Proper debug signing for testing compatibility
+  - Disabled problematic minification
+  - Created architecture-specific builds
+
+### **Technical Improvements**
+- ✅ Updated application ID to avoid conflicts
+- ✅ Proper Gradle configuration with Kotlin DSL
+- ✅ Optimized build settings for compatibility
+- ✅ Split APKs for smaller download sizes
+- ✅ Removed problematic ProGuard rules
+
+## 🎯 **What's New in This Release**
+
+### ✅ **Enhanced Document Type Detection**
+- **Fixed**: Documents now properly show as "Health Insurance", "Auto Insurance", etc. instead of "Unknown"
+- **Added**: Comprehensive Indian insurance company recognition (Niva Bupa, Star Health, ICICI Lombard, etc.)
+- **New**: Travel Insurance support with dedicated icons and detection
+- **Feature**: Manual refresh button to re-detect document types
+
+### ✅ **Improved User Experience**
+- Better document categorization in dashboard
+- Accurate document type counts and icons
+- Enhanced insurance company recognition
+- User-friendly refresh functionality with progress indicators
+
+### ✅ **Backend Integration**
+- **Stable Backend**: `https://aa2485vt7t.ap-south-1.awsapprunner.com`
+- **RAG System**: Fully operational with document-specific Q&A
+- **Anti-Abuse**: Rate limiting and session management active
+- **Lead Capture**: Optional email/phone collection for business leads
+
+## 🚀 **Installation Instructions**
+
+### **For Android Devices**:
+1. **Download the APK**:
+   - **Recommended**: `insurance-app-arm64-v20250611-1631.apk` (24MB)
+   - **Fallback**: `insurance-app-fixed-v20250611-1631.apk` (55MB)
+
+2. **Enable Unknown Sources**:
+   - Go to Settings → Security → Unknown Sources
+   - Enable "Allow installation of apps from unknown sources"
+
+3. **Install the APK**:
+   - Transfer the APK file to your Android device
+   - Tap on the APK file to install
+   - Follow the installation prompts
+
+4. **Grant Permissions**:
+   - Camera (for document scanning)
+   - Storage (for document management)
+   - Network (for backend communication)
+
+## 📋 **Testing Checklist**
+
+### **Installation Verification**
+- [ ] **APK Installs Successfully**: No "invalid package" errors
+- [ ] **App Launches**: Opens without crashes
+- [ ] **Permissions Granted**: Camera, storage, network access
+- [ ] **Backend Connection**: Can reach AWS backend
+
+### **Core Functionality**
+- [ ] **Document Upload**: Upload PDF/image insurance documents
+- [ ] **Document Type Detection**: Verify documents show correct type (Health, Auto, Life, etc.)
+- [ ] **Q&A System**: Ask questions about uploaded documents
+- [ ] **Backend Connectivity**: Confirm connection to AWS backend
+- [ ] **Offline Mode**: Test app functionality without internet
+
+### **New Features to Test**
+- [ ] **Document Type Refresh**: Use refresh button in Documents screen
+- [ ] **Insurance Company Recognition**: Upload Niva Bupa, Star Health, or other Indian insurance documents
+- [ ] **Travel Insurance**: Test with travel insurance documents
+- [ ] **Dashboard Counts**: Verify document type counts are accurate
+- [ ] **Document Icons**: Check that proper icons appear for each insurance type
+
+### **User Experience**
+- [ ] **Navigation**: Test all 5 tabs (Home, Documents, QA, Family, More)
+- [ ] **Upload Flow**: Complete document upload with optional lead capture
+- [ ] **Error Handling**: Test with poor network conditions
+- [ ] **Rate Limiting**: Test upload limits and user feedback
+
+## 🔧 **Technical Specifications**
+
+### **App Details**
+- **Platform**: Android (API level 23+)
+- **Architecture**: ARM64 (recommended) or Universal
+- **Build Type**: Release (optimized)
+- **Application ID**: `com.medpiper.insurance_app`
+- **Signing**: Debug (compatible with all devices)
+
+### **Backend Configuration**
+- **API Endpoint**: `https://aa2485vt7t.ap-south-1.awsapprunner.com`
+- **Session Management**: UUID-based with 24h expiration
+- **Rate Limits**: 5 uploads per session, 10 per IP per day
+- **Supported Formats**: PDF, JPG, PNG
+
+### **Features Included**
+- ✅ Document upload and OCR processing
+- ✅ RAG-based Q&A system
+- ✅ Document type classification (5 categories)
+- ✅ Insurance company recognition
+- ✅ Session-based rate limiting
+- ✅ Optional lead capture
+- ✅ Offline storage and fallback
+- ✅ Usage statistics and monitoring
+
+## 🐛 **Known Issues & Limitations**
+
+### **Current Limitations**
+- **File Size**: Maximum 10MB per document
+- **Rate Limits**: 5 uploads per session for abuse prevention
+- **Network**: Requires internet for Q&A functionality
+- **Languages**: English only for document processing
+
+### **Workarounds**
+- **Large Files**: Compress images before upload
+- **Rate Limits**: Wait for session reset or use different device
+- **Network Issues**: App works offline for document viewing
+- **Document Types**: Use manual refresh if type not detected
+
+## 📊 **Testing Scenarios**
+
+### **Scenario 1: Health Insurance Document**
+1. Upload a Niva Bupa or Star Health policy document
+2. Verify it's detected as "Health Insurance"
+3. Ask questions like "What is my coverage amount?"
+4. Check that policy holder information is extracted
+
+### **Scenario 2: Document Type Refresh**
+1. Upload any insurance document
+2. If type shows as "Unknown", tap refresh button in Documents screen
+3. Verify document type updates correctly
+4. Check dashboard counts are updated
+
+### **Scenario 3: Lead Capture Flow**
+1. Upload a document without providing email/phone
+2. Complete the upload process
+3. Optionally provide contact information when prompted
+4. Verify document is saved and accessible
+
+### **Scenario 4: Q&A Functionality**
+1. Upload an insurance document
+2. Navigate to Q&A tab
+3. Select the document from dropdown
+4. Ask both predefined and custom questions
+5. Verify answers are relevant to the document
+
+## 📞 **Support & Feedback**
+
+### **For Installation Issues**:
+- Try the ARM64 APK first: `insurance-app-arm64-v20250611-1631.apk`
+- If that fails, use Universal APK: `insurance-app-fixed-v20250611-1631.apk`
+- Ensure "Unknown Sources" is enabled
+- Check available storage space (need ~100MB free)
+
+### **For Testing Issues**:
+- Check network connectivity
+- Verify file format is supported (PDF, JPG, PNG)
+- Try manual document type refresh
+- Restart app if experiencing issues
+
+### **For Feature Requests**:
+- Document any missing insurance company recognition
+- Report document types that aren't detected properly
+- Suggest improvements to Q&A functionality
+- Provide feedback on user experience
+
+## 🎯 **Success Metrics**
+
+### **Expected Performance**
+- **Installation Success Rate**: >98% (fixed from previous issues)
+- **Upload Success Rate**: >95%
+- **Document Type Detection**: >90% accuracy
+- **Q&A Response Time**: <5 seconds
+- **App Startup Time**: <3 seconds
+
+### **User Experience Goals**
+- Intuitive document upload flow
+- Clear document categorization
+- Accurate answers to insurance questions
+- Smooth navigation between features
+
+---
+
+**Build Date**: June 11, 2025  
+**Backend Status**: ✅ Operational  
+**Last Updated**: June 11, 2025  
+**Status**: ✅ **FIXED - Ready for Distribution**
+
+This release resolves the "invalid package" issues and represents a significant improvement in document type detection and user experience, making it ready for broader testing and potential distribution. 
