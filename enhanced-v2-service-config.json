@@ -1,0 +1,50 @@
+{
+  "ServiceName": "insurance-app-enhanced-v2",
+  "SourceConfiguration": {
+    "ImageRepository": {
+      "ImageIdentifier": "317147645519.dkr.ecr.ap-south-1.amazonaws.com/insurance-rag-enhanced-v2:latest",
+      "ImageConfiguration": {
+        "Port": "8000",
+        "RuntimeEnvironmentVariables": {
+          "PORT": "8000",
+          "PYTHONPATH": "/app",
+          "PYTHONUNBUFFERED": "1",
+          "LOG_LEVEL": "INFO",
+          "OPENAI_API_KEY": "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",
+          "QDRANT_URL": "https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333",
+          "QDRANT_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ",
+          "QDRANT_COLLECTION": "insurance_documents_v2",
+          "REDIS_HOST": "insurance-app-redis-mumbai-public.y6jsma.0001.aps1.cache.amazonaws.com",
+          "REDIS_PORT": "6379",
+          "REDIS_PASSWORD": "",
+          "CACHE_TTL_SECONDS": "3600",
+          "EMBEDDING_MODEL": "sentence-transformers/all-mpnet-base-v2",
+          "OPENAI_EMBEDDING_MODEL": "text-embedding-ada-002",
+          "OPENAI_CHAT_MODEL": "gpt-3.5-turbo",
+          "USE_OPENAI_FIRST": "true",
+          "OCR_IMAGE_DPI": "200",
+          "ENVIRONMENT": "production",
+          "PLATFORM": "linux/amd64"
+        },
+        "StartCommand": "python -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --workers 1"
+      },
+      "ImageRepositoryType": "ECR"
+    },
+    "AuthenticationConfiguration": {
+      "AccessRoleArn": "arn:aws:iam::317147645519:role/AppRunnerECRAccessRole"
+    }
+  },
+  "InstanceConfiguration": {
+    "Cpu": "1024",
+    "Memory": "2048"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "HTTP",
+    "Path": "/health",
+    "Interval": 20,
+    "Timeout": 10,
+    "HealthyThreshold": 2,
+    "UnhealthyThreshold": 5
+  },
+  "AutoScalingConfigurationArn": "arn:aws:apprunner:ap-south-1:317147645519:autoscalingconfiguration/DefaultConfiguration/1/00000000000000000000000000000001"
+}
