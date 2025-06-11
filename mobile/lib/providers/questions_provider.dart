@@ -171,20 +171,48 @@ final qaHistoryProvider = StateNotifierProvider<QaHistoryNotifier, List<QaPair>>
 });
 
 class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
-  QaHistoryNotifier() : super([]);
+  QaHistoryNotifier() : super([]) {
+    _loadHistory();
+  }
+  
+  Future<void> _loadHistory() async {
+    try {
+      // For now, just keep in memory
+      // TODO: Add SharedPreferences persistence if needed
+    } catch (e) {
+      print('Error loading QA history: $e');
+    }
+  }
   
   void addItem(String question, QaAnswer answer) {
-    state = [
-      QaPair(
-        question: question,
-        answer: answer,
-        timestamp: DateTime.now(),
-      ),
-      ...state,
-    ];
+    final newItem = QaPair(
+      question: question,
+      answer: answer,
+      timestamp: DateTime.now(),
+    );
+    
+    state = [newItem, ...state];
+    
+    // Keep only the last 50 items to prevent memory issues
+    if (state.length > 50) {
+      state = state.take(50).toList();
+    }
+    
+    _saveHistory();
+  }
+  
+  Future<void> _saveHistory() async {
+    try {
+      // For now, just keep in memory
+      // TODO: Add SharedPreferences persistence if needed
+      print('QA History updated: ${state.length} items');
+    } catch (e) {
+      print('Error saving QA history: $e');
+    }
   }
   
   void clearHistory() {
     state = [];
+    _saveHistory();
   }
 } 

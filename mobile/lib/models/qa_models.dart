@@ -44,11 +44,28 @@ class QaAnswer {
   String get query => question;
   
   factory QaAnswer.fromJson(Map<String, dynamic> json) {
+    // Handle sources that can be either strings or objects
+    List<QaSource> parsedSources = [];
+    if (json['sources'] is List) {
+      final sourcesList = json['sources'] as List;
+      for (var source in sourcesList) {
+        if (source is String) {
+          // Backend returns sources as strings
+          parsedSources.add(QaSource(
+            documentId: json['document_id'] ?? '',
+            text: source,
+            score: 1.0,
+          ));
+        } else if (source is Map<String, dynamic>) {
+          // Legacy format with source objects
+          parsedSources.add(QaSource.fromJson(source));
+        }
+      }
+    }
+    
     return QaAnswer(
       text: json['answer'] ?? '',
-      sources: (json['sources'] as List?)
-          ?.map((source) => QaSource.fromJson(source))
-          .toList() ?? [],
+      sources: parsedSources,
       timestamp: DateTime.now(),
       documentId: json['document_id'] ?? '',
       question: json['query'] ?? '',
@@ -69,13 +86,29 @@ class QaSource {
     required this.score,
   });
   
-  factory QaSource.fromJson(Map<String, dynamic> json) {
-    return QaSource(
-      documentId: json['document_id'] ?? '',
-      pageNumber: json['page_number'] ?? json['page'],
-      text: json['text'] ?? '',
-      score: (json['score'] is num) ? (json['score'] as num).toDouble() : 0.0,
-    );
+  factory QaSource.fromJson(dynamic json) {
+    // Handle both Map and String inputs
+    if (json is String) {
+      return QaSource(
+        documentId: '',
+        text: json,
+        score: 1.0,
+      );
+    } else if (json is Map<String, dynamic>) {
+      return QaSource(
+        documentId: json['document_id']?.toString() ?? '',
+        pageNumber: json['page_number'] ?? json['page'],
+        text: json['text']?.toString() ?? json.toString(),
+        score: (json['score'] is num) ? (json['score'] as num).toDouble() : 1.0,
+      );
+    } else {
+      // Fallback for any other type
+      return QaSource(
+        documentId: '',
+        text: json.toString(),
+        score: 1.0,
+      );
+    }
   }
 }
 

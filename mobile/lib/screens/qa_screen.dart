@@ -169,9 +169,10 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       
       print('Formatted question: $formattedQuestion');
       
+      // Query with document filtering to get results from the selected document
       final result = await _apiService.queryDocument(
         formattedQuestion, 
-        documentId: selectedDoc,
+        documentId: selectedDoc, // Re-enable document filtering
       );
       
       print('API response: $result');
@@ -187,11 +188,13 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       }
       
       // Create answer from result
+      print('Creating QaAnswer from result: $result');
       final answer = QaAnswer.fromJson({
         ...result,
         'query': question, // Keep the original question for the UI
         'document_id': selectedDoc ?? '',
       });
+      print('Created QaAnswer: ${answer.text}');
       
       // Update UI with answer
       ref.read(currentAnswerProvider.notifier).state = answer;
