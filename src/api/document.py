@@ -223,19 +223,52 @@ async def process_document_background(
                 if result.get("status") == "completed":
                     doc.status = "completed"
                     doc.processing_completed_at = datetime.utcnow()
-                    # Extract document type if available
-                    if "stages" in result and "ocr" in result["stages"]:
-                        ocr_result = result["stages"]["ocr"]
-                        # Simple heuristic to determine document type
-                        text = ocr_result.get("full_text", "").lower()
-                        if "health" in text or "medical" in text:
-                            doc.document_type = "health_insurance"
-                        elif "auto" in text or "vehicle" in text:
-                            doc.document_type = "auto_insurance"
-                        elif "life" in text:
-                            doc.document_type = "life_insurance"
-                        else:
-                            doc.document_type = "insurance"
+                    
+                    # Enhanced document classification using the new classifier
+                    try:
+                        from src.utils.document_classifier import get_document_classifier
+                        
+                        # Get text content from OCR result
+                        text_content = ""
+                        if "stages" in result and "ocr" in result["stages"]:
+                            ocr_result = result["stages"]["ocr"]
+                            text_content = ocr_result.get("full_text", "")
+                        
+                        # Use the classifier to determine document type and metadata
+                        classifier = get_document_classifier(processing_service.rag_pipeline if processing_service else None)
+                        classification = await classifier.classify_document(document_id, text_content)
+                        
+                        # Update document with classification results
+                        doc.document_type = classification.get('document_type', 'Insurance Policy')
+                        doc.insurer = classification.get('insurer', 'Unknown')
+                        
+                        # Store additional metadata
+                        if not doc.metadata:
+                            doc.metadata = {}
+                        doc.metadata.update({
+                            'classification': classification,
+                            'policy_number': classification.get('policy_number'),
+                            'effective_date': classification.get('effective_date'),
+                            'expiration_date': classification.get('expiration_date'),
+                            'classification_confidence': classification.get('confidence', 0.0)
+                        })
+                        
+                        logger.info(f"Document {document_id} classified as {doc.document_type} by {classification.get('insurer', 'Unknown')} with {classification.get('confidence', 0.0):.2f} confidence")
+                        
+                    except Exception as e:
+                        logger.error(f"Document classification failed for {document_id}: {str(e)}")
+                        # Fallback to simple heuristic
+                        if "stages" in result and "ocr" in result["stages"]:
+                            ocr_result = result["stages"]["ocr"]
+                            text = ocr_result.get("full_text", "").lower()
+                            if "health" in text or "medical" in text:
+                                doc.document_type = "Health Insurance"
+                            elif "auto" in text or "vehicle" in text:
+                                doc.document_type = "Auto Insurance"
+                            elif "life" in text:
+                                doc.document_type = "Life Insurance"
+                            else:
+                                doc.document_type = "Insurance Policy"
                 else:
                     doc.status = "failed"
                     doc.error_message = result.get("error", "Processing failed")
@@ -297,6 +330,19 @@ async def get_document_processing_status(
             "phone": user_doc.metadata.get("user_phone"),
             "consent": user_doc.metadata.get("consent", False)
         }
+        
+        # Include classification data if available
+        if "classification" in user_doc.metadata:
+            classification = user_doc.metadata["classification"]
+            response["classification"] = {
+                "document_type": classification.get("document_type"),
+                "insurer": classification.get("insurer"),
+                "policy_number": classification.get("policy_number"),
+                "effective_date": classification.get("effective_date"),
+                "expiration_date": classification.get("expiration_date"),
+                "confidence": classification.get("confidence"),
+                "classified_at": classification.get("classified_at")
+            }
     
     return response
 
