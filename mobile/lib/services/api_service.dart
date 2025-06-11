@@ -32,9 +32,11 @@ class ApiService {
       // Try to upload to backend first for real processing
       try {
         final formData = FormData.fromMap({
-          'file': await MultipartFile.fromFile(file.path),
-          if (email != null) 'email': email,
-          if (phone != null) 'phone': phone,
+          'files': await MultipartFile.fromFile(file.path),  // Backend expects 'files' (plural)
+          'processing_mode': 'full',  // Add required processing mode
+          if (email != null) 'user_email': email,  // Backend expects 'user_email'
+          if (phone != null) 'user_phone': phone,  // Backend expects 'user_phone'
+          'consent': true,  // Add consent for lead capture
         });
         
         final response = await _dio.post(
@@ -48,7 +50,7 @@ class ApiService {
           ),
         );
         
-        if (response.statusCode == 200) {
+        if (response.statusCode == 202 || response.statusCode == 200) {  // Backend returns 202 for uploads
           // Backend upload successful
           final responseData = response.data;
           
@@ -410,64 +412,91 @@ class ApiService {
         if (response.statusCode == 200) {
           final responseData = response.data;
           
-          // Handle three potential response formats:
-          
-          // Format 1: Direct answer object
-          if (responseData is Map<String, dynamic> && 
-              responseData.containsKey('answer') && 
-              !responseData.containsKey('status')) {
-            print('Processing direct answer format');
-            return responseData;
+          // Ensure we have a valid Map response
+          if (responseData is! Map<String, dynamic>) {
+            print('ERROR: Response is not a Map: ${responseData.runtimeType}');
+            return {
+              'answer': 'The server returned an invalid response format. Please try again.',
+              'sources': [],
+              'error': 'Invalid response type: ${responseData.runtimeType}'
+            };
           }
           
-          // Format 2: Status+result wrapper (most common and expected format)
-          if (responseData is Map<String, dynamic> && 
-              responseData.containsKey('status') && 
-              responseData['status'] == 'success') {
-            print('Processing status+result format');
-            if (responseData.containsKey('result')) {
-              final result = responseData['result'];
-              if (result is Map<String, dynamic>) {
-                return result;
+          // Handle direct answer format (current backend format)
+          if (responseData.containsKey('answer')) {
+            print('Processing direct answer format');
+            
+            // Ensure sources is a List
+            List<dynamic> sources = [];
+            if (responseData.containsKey('sources') && responseData['sources'] is List) {
+              sources = responseData['sources'] as List<dynamic>;
+            }
+            
+            // Convert sources to List<String> for consistency
+            List<String> sourcesAsStrings = sources.map((source) {
+              if (source is String) {
+                return source;
+              } else if (source is Map<String, dynamic>) {
+                return source['text']?.toString() ?? source.toString();
               } else {
-                print('WARNING: result is not a Map: ${result.runtimeType}');
-                // Handle case where result is not a map but has valid content
-                return {
-                  'answer': 'The response format from the server was unexpected. Raw result: $result',
-                  'sources': []
-                };
+                return source.toString();
               }
+            }).toList();
+            
+            return {
+              'answer': responseData['answer']?.toString() ?? 'No answer provided',
+              'sources': sourcesAsStrings,
+              'confidence': responseData['confidence'],
+              'error': responseData['error']
+            };
+          }
+          
+          // Handle status+result wrapper format (legacy support)
+          if (responseData.containsKey('status') && responseData['status'] == 'success') {
+            print('Processing status+result format');
+            if (responseData.containsKey('result') && responseData['result'] is Map<String, dynamic>) {
+              final result = responseData['result'] as Map<String, dynamic>;
+              
+              // Ensure sources is a List
+              List<dynamic> sources = [];
+              if (result.containsKey('sources') && result['sources'] is List) {
+                sources = result['sources'] as List<dynamic>;
+              }
+              
+              // Convert sources to List<String>
+              List<String> sourcesAsStrings = sources.map((source) {
+                if (source is String) {
+                  return source;
+                } else if (source is Map<String, dynamic>) {
+                  return source['text']?.toString() ?? source.toString();
+                } else {
+                  return source.toString();
+                }
+              }).toList();
+              
+              return {
+                'answer': result['answer']?.toString() ?? 'No answer provided',
+                'sources': sourcesAsStrings,
+                'confidence': result['confidence'],
+                'error': result['error']
+              };
             } else {
-              print('WARNING: success response missing result field');
-              // Improved fallback for missing result field
+              print('WARNING: success response missing or invalid result field');
               return {
                 'answer': 'The server response was incomplete. Please try again.',
-                'sources': []
+                'sources': [],
+                'error': 'Missing result field'
               };
             }
           }
           
-          // Format 3: Unknown but valid response - try to extract answer
-          print('Processing unknown format, attempting extraction');
-          if (responseData is Map<String, dynamic>) {
-            // Try to extract answer and sources
-            final Map<String, dynamic> result = {};
-            if (responseData.containsKey('answer')) {
-              result['answer'] = responseData['answer'];
-            }
-            if (responseData.containsKey('sources')) {
-              result['sources'] = responseData['sources'];
-            }
-            if (result.isNotEmpty) {
-              return result;
-            }
-          }
-          
-          // If all structured attempts fail, just return the raw response with error indication
+          // If no recognized format, return error
+          print('ERROR: Unrecognized response format');
           return {
-            'answer': 'The system returned an unexpected response format. Please try again later.',
-            'error': 'Unexpected response format',
-            'debug_response': responseData.toString().substring(0, min(500, responseData.toString().length)),
+            'answer': 'The server returned an unrecognized response format. Please try again later.',
+            'sources': [],
+            'error': 'Unrecognized response format',
+            'debug_response': responseData.toString().substring(0, min(500, responseData.toString().length))
           };
         } else if (response.statusCode == 500 && response.data is Map<String, dynamic>) {
           // Handle 500 errors, which may contain useful error information
