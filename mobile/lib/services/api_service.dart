@@ -12,7 +12,8 @@ class ApiService {
   // static const String baseUrl = 'http://172.21.0.237:8080'; // Your laptop's IP on the WiFi network
   // static const String baseUrl = 'https://insurance-frontend-app.azurewebsites.net'; // Old Azure backend (deprecated)
   // static const String baseUrl = 'https://8ud4pyy9mc.ap-south-1.awsapprunner.com'; // Previous AWS deployment
-  static const String baseUrl = 'https://nrmmvtpyaf.ap-south-1.awsapprunner.com'; // Current AWS App Runner backend
+  // static const String baseUrl = 'https://nrmmvtpyaf.ap-south-1.awsapprunner.com'; // Previous AWS App Runner backend
+  static const String baseUrl = 'https://aa2485vt7t.ap-south-1.awsapprunner.com'; // Latest AWS App Runner backend with anti-abuse system
 
   final Dio _dio = Dio(
     BaseOptions(
