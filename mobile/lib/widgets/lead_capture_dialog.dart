@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_config.dart';
 
 class LeadCaptureDialog extends StatefulWidget {
   final String? initialEmail;
@@ -41,22 +42,11 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
       return 'Email is required';
     }
     if (value != null && value.isNotEmpty) {
-      final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-      if (!emailRegex.hasMatch(value)) {
+      if (!AppConfig.isValidEmail(value)) {
+        if (AppConfig.isDisposableEmail(value)) {
+          return 'Disposable email addresses are not allowed';
+        }
         return 'Please enter a valid email address';
-      }
-      
-      // Check for disposable email domains
-      final disposableDomains = [
-        '10minutemail.com', 'tempmail.org', 'guerrillamail.com',
-        'mailinator.com', 'throwaway.email', 'temp-mail.org',
-        'yopmail.com', 'maildrop.cc', 'sharklasers.com',
-        'getairmail.com', 'dispostable.com', 'tempail.com',
-      ];
-      
-      final domain = value.split('@').last.toLowerCase();
-      if (disposableDomains.contains(domain)) {
-        return 'Disposable email addresses are not allowed';
       }
     }
     return null;
@@ -64,9 +54,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
 
   String? _validatePhone(String? value) {
     if (value != null && value.isNotEmpty) {
-      // Basic phone validation - adjust regex as needed
-      final phoneRegex = RegExp(r'^\+?[\d\s\-\(\)]{10,}$');
-      if (!phoneRegex.hasMatch(value)) {
+      if (!AppConfig.isValidPhone(value)) {
         return 'Please enter a valid phone number';
       }
     }
