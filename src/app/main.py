@@ -48,6 +48,16 @@ class QueryResponse(BaseModel):
 async def startup_event():
     global rag_pipeline, document_processing_service
     
+    # Initialize anti-abuse system
+    try:
+        from src.utils.database_migration import create_anti_abuse_tables
+        create_anti_abuse_tables()
+        logger.info("✅ Anti-abuse system initialized successfully")
+    except Exception as e:
+        logger.error(f"⚠️ Failed to initialize anti-abuse system: {e}")
+        print(f"⚠️ Anti-abuse system init failed: {e}", file=sys.stderr)
+        print("Continuing without anti-abuse protection...", file=sys.stderr)
+    
     try:
         init_firebase()
     except Exception as e:
@@ -81,6 +91,92 @@ async def startup_event():
         logger.error(f"⚠️ Failed to initialize document processing service: {e}")
         print(f"⚠️ Document processing service init failed: {e}", file=sys.stderr)
         print("Continuing without enhanced document processing...", file=sys.stderr)
+    
+    # Process any unprocessed documents in storage directory
+    if document_processing_service:
+        await process_existing_documents()
+
+async def process_existing_documents():
+    """Process any existing documents in storage that haven't been processed yet"""
+    try:
+        import os
+        from pathlib import Path
+        
+        storage_dir = "storage/documents"
+        if not os.path.exists(storage_dir):
+            logger.info("No storage directory found, skipping existing document processing")
+            return
+        
+        # Get all text files in storage directory
+        document_files = list(Path(storage_dir).glob("*.txt"))
+        if not document_files:
+            logger.info("No existing documents found to process")
+            return
+        
+        logger.info(f"Found {len(document_files)} existing documents to process")
+        
+        # Check if documents are already indexed by testing a query
+        test_result = await document_processing_service.query_documents(
+            query="health insurance coverage",
+            filters=None
+        )
+        
+        # If we get meaningful results, documents are already processed
+        if (test_result.get("result", {}).get("sources") and 
+            len(test_result["result"]["sources"]) > 0 and
+            "test insurance document" not in str(test_result["result"]["sources"][0]).lower()):
+            logger.info("Documents appear to already be processed and indexed")
+            return
+        
+        logger.info("Processing existing documents through RAG pipeline...")
+        processed_count = 0
+        
+        for file_path in document_files:
+            try:
+                # Skip files that look like they were already processed (have UUID prefixes)
+                if len(file_path.stem.split('_')[0]) == 36:  # UUID length
+                    continue
+                    
+                logger.info(f"Processing existing document: {file_path.name}")
+                
+                # Read file content
+                with open(file_path, 'rb') as f:
+                    file_content = f.read()
+                
+                # Process through the same pipeline as uploads
+                result = await document_processing_service.process_document_full(
+                    file_content=file_content,
+                    filename=file_path.name,
+                    processing_mode="full"
+                )
+                
+                if result.get("status") == "completed":
+                    logger.info(f"✅ Successfully processed existing document: {file_path.name}")
+                    processed_count += 1
+                else:
+                    logger.warning(f"⚠️ Failed to process {file_path.name}: {result}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error processing {file_path.name}: {str(e)}")
+        
+        if processed_count > 0:
+            logger.info(f"🎯 Startup document processing complete! Processed {processed_count} documents")
+            
+            # Test query after processing
+            test_result = await document_processing_service.query_documents(
+                query="What is covered under health insurance?",
+                filters=None
+            )
+            
+            if test_result.get("result", {}).get("sources"):
+                logger.info("✅ Documents are now available for queries")
+            else:
+                logger.warning("⚠️ Documents processed but may not be properly indexed")
+        else:
+            logger.info("No new documents were processed")
+            
+    except Exception as e:
+        logger.error(f"❌ Error during startup document processing: {str(e)}")
 
 app.include_router(user_router)
 app.include_router(family_router)
