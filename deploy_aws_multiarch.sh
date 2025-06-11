@@ -188,28 +188,80 @@ EOF
     echo "✅ IAM role created and configured"
 }
 
-# Step 5: Delete any existing service with same name
+# Step 5: Check for existing App Runner service and update instead of delete
 echo ""
 echo "5️⃣ Checking for existing App Runner service..."
 EXISTING_SERVICE_ARN=$(aws apprunner list-services --region $REGION --query "ServiceSummaryList[?ServiceName=='$SERVICE_NAME'].ServiceArn" --output text)
 
 if [ ! -z "$EXISTING_SERVICE_ARN" ] && [ "$EXISTING_SERVICE_ARN" != "None" ]; then
-    echo "🗑️ Found existing service. Deleting it first..."
-    aws apprunner delete-service --service-arn "$EXISTING_SERVICE_ARN" --region $REGION
+    echo "🔄 Found existing service. Updating with new image instead of recreating..."
     
-    echo "⏳ Waiting for service deletion to complete..."
+    # Update the existing service with new image
+    aws apprunner update-service \
+        --service-arn "$EXISTING_SERVICE_ARN" \
+        --source-configuration '{
+            "ImageRepository": {
+                "ImageIdentifier": "'$ECR_URI':latest",
+                "ImageConfiguration": {
+                    "Port": "8000",
+                    "RuntimeEnvironmentVariables": {
+                        "PORT": "8000",
+                        "PYTHONPATH": "/app",
+                        "PYTHONUNBUFFERED": "1",
+                        "LOG_LEVEL": "INFO",
+                        "OPENAI_API_KEY": "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",
+                        "QDRANT_URL": "https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333",
+                        "QDRANT_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ",
+                        "QDRANT_COLLECTION": "insurance_documents_v2",
+                        "REDIS_HOST": "insurance-app-redis-mumbai-public.y6jsma.0001.aps1.cache.amazonaws.com",
+                        "REDIS_PORT": "6379",
+                        "REDIS_PASSWORD": "",
+                        "CACHE_TTL_SECONDS": "3600",
+                        "EMBEDDING_MODEL": "sentence-transformers/all-mpnet-base-v2",
+                        "OPENAI_EMBEDDING_MODEL": "text-embedding-ada-002",
+                        "OPENAI_CHAT_MODEL": "gpt-3.5-turbo",
+                        "USE_OPENAI_FIRST": "true",
+                        "OCR_IMAGE_DPI": "200",
+                        "ENVIRONMENT": "production",
+                        "PLATFORM": "linux/amd64",
+                        "RATE_LIMIT_IP_DAILY": "10",
+                        "RATE_LIMIT_SESSION_DAILY": "5"
+                    },
+                    "StartCommand": "python -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --workers 1 --log-level info --access-log --no-use-colors"
+                },
+                "ImageRepositoryType": "ECR"
+            },
+            "AuthenticationConfiguration": {
+                "AccessRoleArn": "arn:aws:iam::'$ACCOUNT_ID':role/AppRunnerECRAccessRole"
+            }
+        }' \
+        --region $REGION > /dev/null
+    
+    echo "✅ Service update initiated"
+    SERVICE_ARN="$EXISTING_SERVICE_ARN"
+    
+    # Wait for update to complete
+    echo "⏳ Waiting for update to complete..."
     while true; do
-        STATUS=$(aws apprunner describe-service --service-arn "$EXISTING_SERVICE_ARN" --region $REGION --query 'Service.Status' --output text 2>/dev/null || echo "DELETED")
-        if [ "$STATUS" == "DELETED" ] || [ "$STATUS" == "None" ]; then
+        STATUS=$(aws apprunner describe-service --service-arn "$SERVICE_ARN" --region $REGION --query 'Service.Status' --output text)
+        echo "   Status: $STATUS"
+        
+        if [ "$STATUS" == "RUNNING" ]; then
             break
+        elif [ "$STATUS" == "UPDATE_FAILED" ]; then
+            echo "❌ Service update failed"
+            exit 1
         fi
-        echo "   Current status: $STATUS"
+        
         sleep 30
     done
-    echo "✅ Existing service deleted successfully"
-fi
+    
+    echo "✅ Service updated successfully with same URL!"
+    
+else
+    echo "🆕 No existing service found. Creating new service..."
 
-# Step 6: Create App Runner service configuration
+    # Step 6: Create App Runner service configuration
 echo ""
 echo "6️⃣ Creating App Runner service configuration..."
 cat > enhanced-v2-service-config.json << EOF
@@ -302,28 +354,32 @@ while true; do
     sleep 30
 done
 
+fi
+
 # Step 9: Get service details and test
 SERVICE_URL=$(aws apprunner describe-service --service-arn "$SERVICE_ARN" --region $REGION --query 'Service.ServiceUrl' --output text)
 
 echo ""
-echo "🎉 SUCCESS! Enhanced Insurance RAG App is deployed!"
+echo "🎉 SUCCESS! Insurance RAG App deployed with STABLE URL!"
 echo "======================================================="
 echo "🌐 Service URL: https://$SERVICE_URL"
 echo "🔗 Health Check: https://$SERVICE_URL/health"
 echo "📱 Mobile API Endpoint: https://$SERVICE_URL/query"
 echo "📄 Document Upload: https://$SERVICE_URL/documents/upload"
-echo "🔍 Processing Status: https://$SERVICE_URL/processing/status"
+echo "📊 Usage Stats: https://$SERVICE_URL/documents/usage-stats"
 echo "📚 API Documentation: https://$SERVICE_URL/docs"
 echo ""
-echo "🏗️ Architecture: linux/amd64 (AWS App Runner optimized)"
-echo "🚀 New Features:"
-echo "   • Multi-Architecture Docker Build (Mac ARM64 → AWS x86_64)"
+echo "🎯 STABLE URL - This URL will NEVER change!"
+echo "💡 Future deployments will update this same service"
+echo "🔄 No need to update Flutter app anymore!"
+echo ""
+echo "🚀 Features:"
 echo "   • Complete Document Processing Pipeline (OCR → RAG → Vector DB)"
-echo "   • Real-time Processing Status Tracking"
-echo "   • Enhanced Document Upload with Background Processing"
-echo "   • Actual Document Querying (not dummy responses)"
-echo "   • Support for PDF, PNG, JPG, TIFF formats"
-echo "   • Production-optimized performance"
+echo "   • Anti-abuse System with Rate Limiting"
+echo "   • Lead Capture and Contact Management"
+echo "   • Real-time Usage Statistics"
+echo "   • Multi-format Support (PDF, PNG, JPG, TIFF)"
+echo "   • Production-optimized Performance"
 echo ""
 echo "💰 Cost: ~$15-20/month when idle, scales automatically"
 echo "📊 Monitor: https://console.aws.amazon.com/apprunner/home?region=$REGION"
@@ -366,16 +422,18 @@ fi
 rm -f Dockerfile.aws enhanced-v2-service-config.json
 
 echo ""
-echo "✅ Enhanced AWS deployment complete!"
+echo "✅ Stable deployment complete!"
 echo ""
 echo "📋 Next Steps:"
-echo "   1. Test document upload using the mobile app or API"
-echo "   2. Upload a PDF document and check processing status"
-echo "   3. Try querying the uploaded document"
-echo "   4. Monitor processing logs in App Runner console"
+echo "   1. Update Flutter app baseUrl to: https://$SERVICE_URL (one-time only)"
+echo "   2. Test document upload and anti-abuse features"
+echo "   3. Monitor usage statistics and lead capture"
+echo "   4. This URL will remain stable for all future deployments"
 echo ""
-echo "🔄 To update: just run this script again"
+echo "🔄 To update: just run this script again (URL stays same!)"
 echo "🗑️ To delete: aws apprunner delete-service --service-arn $SERVICE_ARN --region $REGION"
 echo ""
-echo "🎯 Mobile App Configuration:"
-echo "   Update your mobile app's baseUrl to: https://$SERVICE_URL"
+echo "🎯 Repository & Service Names (CONSISTENT):"
+echo "   ECR Repository: insurance-rag-enhanced-v2"
+echo "   Service Name: insurance-app-enhanced-v2"
+echo "   These names never change!"
