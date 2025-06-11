@@ -2,8 +2,8 @@ class AppConfig {
   // Environment configuration
   static const String environment = String.fromEnvironment('ENVIRONMENT', defaultValue: 'production');
   
-  // Backend URL configuration
-  static const String _productionBaseUrl = 'https://aa2485vt7t.ap-south-1.awsapprunner.com'; // Current production URL
+  // Backend URL configuration - STABLE URL (never changes)
+  static const String _productionBaseUrl = 'https://aa2485vt7t.ap-south-1.awsapprunner.com'; // STABLE production URL
   static const String _stagingBaseUrl = 'https://aa2485vt7t.ap-south-1.awsapprunner.com'; // Same for now
   static const String _developmentBaseUrl = 'http://localhost:8000'; // Local development
   
