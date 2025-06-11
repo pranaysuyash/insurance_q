@@ -65,4 +65,58 @@ Thumbs.db
 node_modules/
 npm-debug.log
 yarn-error.log
-package-lock.json # Often committed, but can be ignored if using strict versioning and want to minimize merge conflicts 
+package-lock.json # Often committed, but can be ignored if using strict versioning and want to minimize merge conflicts
+
+# Flutter/Dart specific
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/ios/Runner/GeneratedPluginRegistrant.*
+mobile/android/.gradle
+mobile/android/captures/
+mobile/android/gradlew
+mobile/android/gradlew.bat
+mobile/android/local.properties
+mobile/android/app/debug
+mobile/android/app/profile
+mobile/android/app/release
+
+# Android specific
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+local.properties
+proguard/
+*.keystore
+!debug.keystore
+
+# iOS specific
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/App.framework
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Flutter.podspec
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/app.flx
+mobile/ios/Flutter/app.zip
+mobile/ios/Flutter/flutter_assets/
+mobile/ios/ServiceDefinitions.json
+mobile/ios/Runner/GeneratedPluginRegistrant.*
+
+# Xcode
+mobile/ios/Runner.xcworkspace/
+mobile/ios/Runner.xcodeproj/project.xcworkspace/
+mobile/ios/Runner.xcodeproj/xcuserdata/
+mobile/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/
+
+# Temporary files
+temp/
+temp_migration/ 
