@@ -1,17 +1,43 @@
 import firebase_admin
 from firebase_admin import auth, credentials
 from fastapi import HTTPException
+import os
+import json
+import base64
+import tempfile
 
 # Initialize Firebase app (should be called once in app startup)
 def init_firebase():
     if not firebase_admin._apps:
-        import os
+        # Try base64 encoded service account first (for production)
+        firebase_b64 = os.getenv("FIREBASE_SERVICE_ACCOUNT_B64")
+        if firebase_b64:
+            try:
+                # Decode base64 and create temporary file
+                service_account_json = base64.b64decode(firebase_b64).decode('utf-8')
+                service_account_dict = json.loads(service_account_json)
+                
+                # Initialize with dictionary
+                cred = credentials.Certificate(service_account_dict)
+                firebase_admin.initialize_app(cred)
+                print("✅ Firebase initialized with base64 service account")
+                return
+            except Exception as e:
+                print(f"⚠️ Failed to initialize Firebase with base64 service account: {e}")
+        
+        # Fallback to file path (for local development)
         key_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "/app/serviceAccountKey.json")
         if os.path.isfile(key_path):
-            cred = credentials.Certificate(key_path)
-            firebase_admin.initialize_app(cred)
-        else:
-            raise FileNotFoundError(f"No service account file at {key_path}")
+            try:
+                cred = credentials.Certificate(key_path)
+                firebase_admin.initialize_app(cred)
+                print("✅ Firebase initialized with service account file")
+                return
+            except Exception as e:
+                print(f"⚠️ Failed to initialize Firebase with file: {e}")
+        
+        # If both methods fail, raise error
+        raise FileNotFoundError("No valid Firebase service account found. Set FIREBASE_SERVICE_ACCOUNT_B64 or FIREBASE_SERVICE_ACCOUNT_PATH")
 
 # Verify Firebase ID token and return decoded claims
 def verify_firebase_token(id_token: str):

@@ -23,6 +23,9 @@ RUN pip install --upgrade pip && \
 # Copy application code
 COPY src/ src/
 
+# Copy storage directory with documents
+COPY storage/ storage/
+
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/temp
 

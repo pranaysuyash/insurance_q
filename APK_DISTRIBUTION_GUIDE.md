@@ -183,10 +183,17 @@ Try these sample questions after uploading a document:
 
 ## 📍 File Locations
 
-All APK files are located in:
+**✅ WORKING APK (Use This One):**
+```
+/Users/pranay/Projects/medpiper/insurance_app/mobile/build/app/outputs/apk/release/app-release.apk
+```
+
+**❌ Problematic APKs (Don't Use):**
 ```
 /Users/pranay/Projects/medpiper/insurance_app/mobile/build/app/outputs/flutter-apk/
 ```
+
+**Note**: The `apk/release` directory contains properly built APKs, while `flutter-apk` may have signing issues.
 
 **Happy Testing!** 🚀
 

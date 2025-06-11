@@ -42,6 +42,18 @@ echo
 read -p 'Enter your Qdrant URL: ' QDRANT_URL
 read -sp 'Enter your Qdrant API Key: ' QDRANT_API_KEY
 echo
+read -p 'Enter path to Firebase service account JSON file: ' FIREBASE_SERVICE_ACCOUNT_PATH
+echo
+
+# Validate Firebase service account file
+if [ ! -f "$FIREBASE_SERVICE_ACCOUNT_PATH" ]; then
+    echo "❌ Firebase service account file not found: $FIREBASE_SERVICE_ACCOUNT_PATH"
+    exit 1
+fi
+
+# Convert Firebase service account to base64 for environment variable
+FIREBASE_SERVICE_ACCOUNT_B64=$(base64 -i "$FIREBASE_SERVICE_ACCOUNT_PATH")
+echo "✅ Firebase service account loaded"
 
 # Step 1: Create ECR repository
 echo ""
@@ -96,6 +108,8 @@ run:
       value: "$QDRANT_URL"
     - name: QDRANT_API_KEY
       value: "$QDRANT_API_KEY"
+    - name: FIREBASE_SERVICE_ACCOUNT_B64
+      value: "$FIREBASE_SERVICE_ACCOUNT_B64"
     - name: PYTHONPATH
       value: "/app"
 EOF
@@ -114,6 +128,7 @@ cat > service-config.json << EOF
           "OPENAI_API_KEY": "$OPENAI_API_KEY",
           "QDRANT_URL": "$QDRANT_URL",
           "QDRANT_API_KEY": "$QDRANT_API_KEY",
+          "FIREBASE_SERVICE_ACCOUNT_B64": "$FIREBASE_SERVICE_ACCOUNT_B64",
           "PYTHONPATH": "/app"
         },
         "StartCommand": "uvicorn src.frontend.app:app --host 0.0.0.0 --port 8000"

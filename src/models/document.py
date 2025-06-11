@@ -17,6 +17,7 @@ class Document(BaseModel):
     error_message: Optional[str] = None
     extracted_text_length: Optional[int] = None
     rag_ingested: Optional[bool] = False
+    metadata: Optional[Dict[str, Any]] = None  # For lead capture and other metadata
 
 class DocumentProcessingStatus(BaseModel):
     document_id: str
