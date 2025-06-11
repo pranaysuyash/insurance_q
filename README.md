@@ -4,15 +4,15 @@ An AI-powered mobile application for analyzing insurance documents and providing
 
 ## 🚀 Current Status: PRODUCTION READY ON AWS
 
-**Last Updated**: June 10, 2025  
+**Last Updated**: June 11, 2025  
 **Deployment Status**: ✅ **Fully Operational on AWS App Runner**  
-**Mobile App**: v0.1.2+11 - Ready for distribution  
+**Mobile App**: v0.1.2+11 - Updated and tested with AWS backend  
 
 ### Quick Links
-- **Production Service**: https://8ud4pyy9mc.ap-south-1.awsapprunner.com ✅ **Fully Operational**
-- **Mobile App**: Android APK and iOS builds ready
-- **Migration Documentation**: [docs/azure_to_aws_migration_learnings.md](docs/azure_to_aws_migration_learnings.md)
-- **Deployment Scripts**: `aws_deployment.sh` (primary), `aws_ecs_simple.sh` (alternative)
+- **Production Service**: https://nrmmvtpyaf.ap-south-1.awsapprunner.com ✅ **Fully Operational**
+- **Mobile App**: Android APK ready with updated AWS integration
+- **Migration Documentation**: [docs/technical/deployment/aws_migration_complete.md](docs/technical/deployment/aws_migration_complete.md)
+- **Deployment Scripts**: `deploy_aws_multiarch.sh` (multi-platform), `aws_deployment.sh` (legacy)
 
 ## 📱 Features
 

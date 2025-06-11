@@ -11,7 +11,6 @@ from datetime import datetime
 import uuid
 import time
 import logging
-from huggingface_hub import InferenceClient  # For HF embeddings fallback
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -37,7 +36,15 @@ class RAGPipeline:
         if not self.openai_api_key:
             logger.error("OPENAI_API_KEY environment variable not set.")
             raise ValueError("OPENAI_API_KEY environment variable not set.")
-        self.openai_client = OpenAI(api_key=self.openai_api_key)
+        
+        # Initialize OpenAI client with minimal parameters
+        try:
+            self.openai_client = OpenAI(api_key=self.openai_api_key)
+            logger.info("✅ OpenAI client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {e}")
+            raise
+            
         self.openai_chat_model = openai_chat_model
         self.openai_embedding_model = openai_embedding_model
         
@@ -45,7 +52,19 @@ class RAGPipeline:
         self.hf_token = os.getenv("HF_TOKEN")
         if not self.hf_token:
             logger.warning("HF_TOKEN environment variable not set. Using Hugging Face model without authentication.")
-        self.hf_client = InferenceClient(token=self.hf_token) 
+        
+        # Initialize HF client with minimal parameters to avoid compatibility issues
+        try:
+            from huggingface_hub import InferenceClient
+            if self.hf_token:
+                self.hf_client = InferenceClient(token=self.hf_token)
+            else:
+                self.hf_client = InferenceClient()
+            logger.info("✅ HuggingFace client initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize HF client: {e}. HF fallback unavailable.")
+            self.hf_client = None
+            
         self.embedding_model = embedding_model
         
         # Set embedding strategy and dimensions
@@ -106,25 +125,38 @@ class RAGPipeline:
 
         # Initialize Redis cache with graceful fallback
         try:
-            # Azure Redis Cache requires SSL connection
+            # For local development, try without SSL first
             redis_password = os.getenv("REDIS_PASSWORD")
             if not redis_password:
-                logger.warning("REDIS_PASSWORD not set. Disabling Redis cache.")
+                logger.info("REDIS_PASSWORD not set. Disabling Redis cache.")
                 self.cache = None
             else:
-                self.cache = redis.Redis(
-                    host=redis_host, 
-                    port=redis_port, 
-                    password=redis_password,
-                    ssl=True,  # Enable SSL for Azure Redis Cache
-                    ssl_cert_reqs=None,  # Don't verify SSL certificates
-                    decode_responses=True
-                )
-                self.cache.ping()
-                logger.info(f"Redis cache initialized with SSL. Host: {redis_host}, Port: {redis_port}")
-        except redis.exceptions.ConnectionError as e:
-            logger.warning(f"Redis connection failed: {e}. Cache will be unavailable.")
-            self.cache = None
+                # Try with SSL first (for Azure Redis Cache)
+                try:
+                    self.cache = redis.Redis(
+                        host=redis_host, 
+                        port=redis_port, 
+                        password=redis_password,
+                        ssl=True,
+                        ssl_cert_reqs=None,
+                        decode_responses=True
+                    )
+                    self.cache.ping()
+                    logger.info(f"Redis cache initialized with SSL. Host: {redis_host}, Port: {redis_port}")
+                except:
+                    # Fallback to non-SSL connection
+                    try:
+                        self.cache = redis.Redis(
+                            host=redis_host, 
+                            port=redis_port, 
+                            password=redis_password,
+                            decode_responses=True
+                        )
+                        self.cache.ping()
+                        logger.info(f"Redis cache initialized without SSL. Host: {redis_host}, Port: {redis_port}")
+                    except Exception as e:
+                        logger.warning(f"Redis connection failed: {e}. Cache will be unavailable.")
+                        self.cache = None
         except Exception as e:
             logger.warning(f"Unexpected error connecting to Redis: {e}. Cache will be unavailable.")
             self.cache = None
@@ -190,102 +222,33 @@ class RAGPipeline:
                 logger.warning(f"Text truncated to {max_chars} chars for OpenAI embedding")
             texts_to_embed.append(cleaned_text)
         
-        # Track token usage for diagnostics
-        total_tokens = sum(len(text.split()) for text in texts_to_embed)
-        logger.info(f"Total approximate tokens for OpenAI embedding: {total_tokens}")
-        
         retries = 0
         while retries <= max_retries:
             try:
                 logger.debug(f"Generating OpenAI embeddings for {len(texts_to_embed)} texts using model {self.openai_embedding_model}")
                 start_time = time.time()
                 
-                # Process in smaller batches to avoid rate limits
-                max_chunk_size = 5  # Smaller batch size for OpenAI API
-                if len(texts_to_embed) > max_chunk_size:
-                    logger.info(f"Processing {len(texts_to_embed)} texts in chunks of {max_chunk_size} for OpenAI")
-                    all_embeddings = []
-                    for i in range(0, len(texts_to_embed), max_chunk_size):
-                        chunk = texts_to_embed[i:i+max_chunk_size]
-                        chunk_start = time.time()
-                        logger.debug(f"Sending chunk {i//max_chunk_size + 1}/{(len(texts_to_embed)-1)//max_chunk_size + 1} to OpenAI API")
-                        
-                        try:
-                            response = self.openai_client.embeddings.create(
-                                input=chunk,
-                                model=self.openai_embedding_model
-                            )
-                            chunk_embeddings = [item.embedding for item in response.data]
-                            all_embeddings.extend(chunk_embeddings)
-                            
-                            # Log success with API response details
-                            chunk_time = time.time() - chunk_start
-                            usage_info = getattr(response, 'usage', None)
-                            if usage_info:
-                                logger.info(f"OpenAI chunk {i//max_chunk_size + 1} usage: {usage_info.total_tokens} tokens in {chunk_time:.2f}s")
-                            else:
-                                logger.info(f"OpenAI chunk {i//max_chunk_size + 1} completed in {chunk_time:.2f}s (no usage info)")
-                                
-                            # Add longer delay between chunks to avoid rate limits
-                            if i + max_chunk_size < len(texts_to_embed):
-                                wait_time = 2.0  # Longer pause for OpenAI rate limits
-                                logger.debug(f"Waiting {wait_time}s before next chunk to respect rate limits")
-                                time.sleep(wait_time)
-                        
-                        except Exception as chunk_err:
-                            logger.error(f"Error processing chunk {i//max_chunk_size + 1}: {chunk_err}")
-                            raise  # Re-raise to be caught by the outer try-except
-                    
-                    logger.info(f"OpenAI embeddings completed for all {len(texts_to_embed)} texts in {time.time() - start_time:.2f}s")
-                    return all_embeddings
-                else:
-                    # Process all at once for small batches
-                    response = self.openai_client.embeddings.create(
-                        input=texts_to_embed,
-                        model=self.openai_embedding_model
-                    )
-                    embeddings = [item.embedding for item in response.data]
-                    
-                    # Log success with API response details
-                    usage_info = getattr(response, 'usage', None)
-                    if usage_info:
-                        logger.info(f"OpenAI embedding usage: {usage_info.total_tokens} tokens in {time.time() - start_time:.2f}s")
-                    else:
-                        logger.info(f"OpenAI embeddings completed in {time.time() - start_time:.2f}s (no usage info)")
-                        
-                    return embeddings
+                response = self.openai_client.embeddings.create(
+                    input=texts_to_embed,
+                    model=self.openai_embedding_model
+                )
+                embeddings = [item.embedding for item in response.data]
+                
+                # Log success
+                logger.info(f"OpenAI embeddings completed in {time.time() - start_time:.2f}s")
+                return embeddings
                     
             except Exception as e:
                 retries += 1
                 error_str = str(e)
                 self.openai_failure_count += 1
-                
-                # Provide detailed error information
                 logger.error(f"OpenAI embedding error ({retries}/{max_retries}): {error_str}")
-                
-                # Check for specific error types
-                if "rate limit" in error_str.lower() or "ratelimit" in error_str.lower():
-                    logger.error(f"OpenAI rate limit exceeded. This is attempt {retries}/{max_retries}")
-                    # Try to extract the reset time if available
-                    import re
-                    reset_match = re.search(r'Please try again in (\d+\.\d+|\.?\d+)s', error_str)
-                    if reset_match:
-                        wait_time = float(reset_match.group(1)) + 1.0  # Add buffer
-                        logger.warning(f"Rate limit resets in {wait_time}s. Waiting...")
-                        time.sleep(wait_time)
-                        continue  # Try again immediately after waiting
-                elif "billing" in error_str.lower() or "payment" in error_str.lower():
-                    logger.error("OpenAI billing issue detected. Check your OpenAI account.")
-                elif "token" in error_str.lower() or "key" in error_str.lower():
-                    logger.error("OpenAI API key issue detected. Check your environment variables.")
-                elif "capacity" in error_str.lower() or "server" in error_str.lower():
-                    logger.error("OpenAI server capacity issue detected. This is likely a temporary problem.")
                 
                 if retries > max_retries:
                     logger.error(f"OpenAI embedding failed after {max_retries} retries. Error: {e}", exc_info=True)
                     raise
                 
-                wait_time = (2 ** retries) + 1  # Exponential backoff with jitter
+                wait_time = (2 ** retries) + 1  # Exponential backoff
                 logger.warning(f"Retrying OpenAI embedding in {wait_time} seconds...")
                 time.sleep(wait_time)
 
@@ -314,23 +277,6 @@ class RAGPipeline:
             return {"status": "success", "message": "No text blocks to ingest.", "points_added": 0}
         
         logger.info(f"Starting ingestion for document_id: {document_id}, number of text blocks: {len(text_blocks)}")
-        
-        # Check if document already exists
-        try:
-            existing_count = self.qdrant_client.count(
-                collection_name=self.collection_name,
-                count_filter=qdrant_models.Filter(
-                    must=[qdrant_models.FieldCondition(
-                        key="document_id",
-                        match=qdrant_models.MatchValue(value=document_id)
-                    )]
-                )
-            )
-            if existing_count.count > 0:
-                logger.info(f"Document {document_id} already has {existing_count.count} points in Qdrant. Skipping ingestion.")
-                return {"status": "success", "message": f"Document already exists with {existing_count.count} points.", "points_added": 0}
-        except Exception as e:
-            logger.warning(f"Error checking for existing document: {e}. Continuing with ingestion.")
         
         # Filter and truncate text blocks
         filtered_blocks = []
@@ -374,7 +320,7 @@ class RAGPipeline:
                 "page_number": block.get("page"),
                 "block_id": block.get("id", str(uuid.uuid4())),
                 "bbox": block.get("bbox"),
-                "embedding_model": self.active_embedding_model,  # Record which model was actually used
+                "embedding_model": self.active_embedding_model,
                 "embedding_timestamp": datetime.now().isoformat()
             }
             if document_metadata:
@@ -394,7 +340,7 @@ class RAGPipeline:
                     points=points_to_upsert,
                     wait=True
                 )
-                logger.info(f"Successfully upserted {len(points_to_upsert)} points for document_id: {document_id} into '{self.collection_name}' using {self.active_embedding_model}.")
+                logger.info(f"Successfully upserted {len(points_to_upsert)} points for document_id: {document_id}")
                 return {
                     "status": "success", 
                     "document_id": document_id, 
@@ -410,43 +356,11 @@ class RAGPipeline:
             return {"status": "success", "message": "No valid points to upsert.", "points_added": 0}
 
     async def query_rag(self, user_query: str, top_k: int = 5, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Process user query using embedding model with fallback for retrieval and OpenAI for generation."""
+        """Process user query using embedding model for retrieval and OpenAI for generation."""
         logger.info(f"Received query: '{user_query}', top_k: {top_k}, filters: {filters}")
-        cache_key = f"rag_query:{self.active_embedding_model}:{self.openai_chat_model}:{user_query}:{top_k}:{json.dumps(filters, sort_keys=True)}"
         
-        # Try cache first
-        if self.cache:
-            try:
-                cached_result = self.cache.get(cache_key)
-                if cached_result:
-                    logger.info(f"Returning cached result for query: '{user_query}'")
-                    try:
-                        cached_data = json.loads(cached_result)
-                        # Ensure the cached result has the expected structure
-                        if not isinstance(cached_data, dict):
-                            logger.warning(f"Cached data is not a dictionary, wrapping it: {type(cached_data)}")
-                            cached_data = {"status": "success", "result": cached_data}
-                        elif "status" not in cached_data:
-                            logger.warning("Cached data missing 'status' key, wrapping it")
-                            cached_data = {"status": "success", "result": cached_data}
-                        elif cached_data.get("status") == "success" and "result" not in cached_data:
-                            logger.warning("Cached data has 'status' but missing 'result' key")
-                            return {"status": "error", "error": "Invalid cached response structure"}
-                            
-                        # Final validation to ensure we have a properly structured response
-                        if cached_data.get("status") == "success" and "result" not in cached_data:
-                            logger.error("Cached data validation failed - missing 'result'")
-                            return {"status": "error", "error": "Invalid cached response structure"}
-                            
-                        return cached_data
-                    except json.JSONDecodeError:
-                        logger.error(f"Failed to parse cached result as JSON: {cached_result[:100]}")
-                        # If we can't parse the cache, proceed as if there was no cache
-            except redis.exceptions.RedisError as e:
-                logger.warning(f"Redis GET command failed: {e}. Proceeding without cache.")
-
         try:
-            # Generate query embedding using fallback mechanism
+            # Generate query embedding
             query_embedding_list = await self._generate_embeddings_with_fallback([user_query])
             if not query_embedding_list:
                 raise ValueError("Failed to generate query embedding.")
@@ -456,23 +370,11 @@ class RAGPipeline:
             logger.error(f"Failed to generate embedding for query '{user_query}': {e}", exc_info=True)
             return {"status": "error", "error": f"Query embedding generation failed: {e}"}
 
-        # Prepare filter for Qdrant search
-        qdrant_filter = None
-        if filters:
-            must_conditions = []
-            for key, value in filters.items():
-                must_conditions.append(qdrant_models.FieldCondition(key=f"payload.{key}", match=qdrant_models.MatchValue(value=value)))
-            if must_conditions:
-                qdrant_filter = qdrant_models.Filter(must=must_conditions)
-            logger.info(f"Constructed Qdrant filter: {qdrant_filter}")
-
         # Search in Qdrant
         try:
-            logger.debug(f"Searching Qdrant with vector from {self.active_embedding_model}")
             search_results = self.qdrant_client.search(
                 collection_name=self.collection_name,
                 query_vector=query_embedding,
-                query_filter=qdrant_filter,
                 limit=top_k,
                 with_payload=True
             )
@@ -482,48 +384,36 @@ class RAGPipeline:
         
         # Process search results
         logger.info(f"Found {len(search_results)} relevant contexts from Qdrant for query: '{user_query}'")
-        contexts = []
-        retrieved_sources = []
-        if search_results:
-            for i, hit in enumerate(search_results):
-                context_text = hit.payload.get("text_content", "")
-                logger.info(f"[RAG DEBUG] Top-{i+1} context (score={hit.score}): {context_text[:200]}... | Metadata: {hit.payload}")
-                contexts.append(f"Context [{i+1}]: {context_text}")
-                retrieved_sources.append({
-                    "id": hit.id,
-                    "score": hit.score,
-                    "document_id": hit.payload.get("document_id"),
-                    "page_number": hit.payload.get("page_number"),
-                    "block_id": hit.payload.get("block_id"),
-                    "embedding_model": hit.payload.get("embedding_model", "unknown")
-                })
         
-        if not contexts:
+        if not search_results:
             logger.info(f"No relevant contexts found for query: '{user_query}'. Returning direct message.")
             final_response = {
                 "answer": "I could not find any relevant information in the documents for your query.",
                 "sources": [],
                 "query": user_query
             }
-            result_dict = {"status": "success", "result": final_response}
-            # Cache this no-context response
-            if self.cache:
-                try: 
-                    self.cache.setex(cache_key, self.cache_ttl, json.dumps(result_dict))
-                except redis.exceptions.RedisError as e: 
-                    logger.warning(f"Redis SETEX command failed: {e}.")
-            return result_dict
+            return {"status": "success", "result": final_response}
+
+        # Build context from search results
+        contexts = []
+        retrieved_sources = []
+        for i, hit in enumerate(search_results):
+            context_text = hit.payload.get("text_content", "")
+            contexts.append(f"Context [{i+1}]: {context_text}")
+            retrieved_sources.append({
+                "id": str(hit.id),
+                "score": hit.score,
+                "document_id": hit.payload.get("document_id"),
+                "page_number": hit.payload.get("page_number"),
+                "text": context_text[:200] + "..." if len(context_text) > 200 else context_text
+            })
 
         # Generate response with OpenAI
         system_prompt = "You are a helpful AI assistant. Based on the provided context from insurance documents, answer the user's question. If the context does not contain the answer, state that clearly. Be concise and stick to the information in the context."
         context_str = "\n\n".join(contexts)
         user_prompt_template = f"Contexts:\n{context_str}\n\nQuestion: {user_query}\n\nAnswer:"
 
-        logger.info(f"[RAG DEBUG] Final LLM prompt for query '{user_query}':\n{user_prompt_template}")
-
         try:
-            logger.debug(f"Sending prompt to OpenAI chat model ({self.openai_chat_model}) for query: '{user_query}'")
-            start_time = time.time()
             chat_response = self.openai_client.chat.completions.create(
                 model=self.openai_chat_model,
                 messages=[
@@ -533,7 +423,7 @@ class RAGPipeline:
                 temperature=0.2,
             )
             llm_answer = chat_response.choices[0].message.content.strip()
-            logger.info(f"Received answer from LLM in {time.time() - start_time:.2f}s for query '{user_query}': '{llm_answer[:100]}...'")
+            logger.info(f"Received answer from LLM for query '{user_query}': '{llm_answer[:100]}...'")
         except Exception as e:
             logger.error(f"OpenAI chat completion failed for query '{user_query}': {e}", exc_info=True)
             return {"status": "error", "error": f"LLM response generation failed: {e}"}
@@ -545,76 +435,14 @@ class RAGPipeline:
             "embedding_model_used": self.active_embedding_model
         }
 
-        # Save the result dictionary to cache
-        result_dict = {"status": "success", "result": final_response}
-        
-        # Validate result structure before caching to prevent future issues
-        if "status" not in result_dict or (result_dict["status"] == "success" and "result" not in result_dict):
-            logger.error(f"Invalid result structure before caching: {result_dict}")
-            # Fix the structure if needed
-            if "result" not in result_dict and "answer" in final_response:
-                result_dict = {"status": "success", "result": final_response}
-        
-        # Cache the response
-        if self.cache:
-            try:
-                # Log the exact structure we're caching to debug future issues
-                logger.debug(f"Caching result structure: {list(result_dict.keys())}")
-                if result_dict.get("status") == "success":
-                    logger.debug(f"Result contains keys: {list(result_dict.get('result', {}).keys()) if isinstance(result_dict.get('result'), dict) else 'non-dict'}")
-                
-                self.cache.setex(cache_key, self.cache_ttl, json.dumps(result_dict))
-                logger.info(f"Result for query '{user_query}' cached.")
-            except redis.exceptions.RedisError as e:
-                logger.warning(f"Redis SETEX command failed for query '{user_query}': {e}. Result not cached.")
-            except Exception as e:
-                logger.error(f"Failed to cache result: {e}", exc_info=True)
-
-        return result_dict
+        return {"status": "success", "result": final_response}
 
     async def get_embedding_stats(self) -> Dict[str, Any]:
         """Return stats about embedding usage and failures."""
         return {
             "active_embedding_model": self.active_embedding_model,
-            "primary_model": self.openai_embedding_model if self.use_openai_first else self.embedding_model,
-            "fallback_model": self.embedding_model if self.use_openai_first else self.openai_embedding_model,
+            "primary_model": self.openai_embedding_model,
             "openai_embedding_failures": self.openai_failure_count,
             "hf_embedding_failures": self.hf_failure_count,
             "embedding_dimensions": self.embedding_dimensions,
         }
-
-# Example usage (for testing - not part of class)
-# async def main_rag_test():
-#     # Ensure OPENAI_API_KEY is set in environment
-#     # Qdrant and Redis should be running (e.g., via docker-compose)
-#     pipeline = RAGPipeline()
-
-#     # Test Ingestion
-#     sample_doc_id = "test_doc_001"
-#     sample_text_blocks = [
-#         {"id": "b1", "page": 1, "text": "The quick brown fox jumps over the lazy dog.", "bbox": [0.1,0.1,0.3,0.2]},
-#         {"id": "b2", "page": 1, "text": "Medical expenses are covered up to $10,000.", "bbox": [0.1,0.3,0.5,0.4]},
-#         {"id": "b3", "page": 2, "text": "The policy term is 12 months from the effective date.", "bbox": [0.2,0.1,0.6,0.2]}
-#     ]
-#     ingest_result = await pipeline.ingest_document_data(sample_doc_id, sample_text_blocks, {"filename": "policy_A.pdf"})
-#     print("Ingestion Result:", json.dumps(ingest_result, indent=2))
-
-#     if ingest_result["status"] == "success" and ingest_result.get("points_added", 0) > 0:
-#         # Test Query
-#         time.sleep(1) # Give Qdrant a moment to index if needed, though wait=True used in upsert
-#         query1 = "What is the coverage for medical expenses?"
-#         query_result1 = await pipeline.query_rag(query1)
-#         print("Query 1 Result:", json.dumps(query_result1, indent=2))
-
-#         query2 = "What is the policy term?"
-#         query_result2 = await pipeline.query_rag(query2, filters={"filename": "policy_A.pdf"})
-#         print("Query 2 Result (with filter):", json.dumps(query_result2, indent=2))
-    
-#     else:
-#         print("Ingestion did not add points, skipping query test.")
-
-# if __name__ == "__main__":
-#     import asyncio
-#     # logging.basicConfig(level=logging.DEBUG) # Enable for detailed logs
-#     # asyncio.run(main_rag_test())
-#     pass 

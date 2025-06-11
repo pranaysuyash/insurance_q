@@ -34,6 +34,15 @@ ECR_URI="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO_NAME"
 
 echo "🔑 Account ID: $ACCOUNT_ID"
 
+# Prompt for secrets securely
+echo ""
+echo "🔐 Please provide the following secrets for deployment:"
+read -sp 'Enter your OpenAI API Key: ' OPENAI_API_KEY
+echo
+read -p 'Enter your Qdrant URL: ' QDRANT_URL
+read -sp 'Enter your Qdrant API Key: ' QDRANT_API_KEY
+echo
+
 # Step 1: Create ECR repository
 echo ""
 echo "1️⃣ Creating ECR repository..."
@@ -82,11 +91,11 @@ run:
     - name: PORT
       value: "8000"
     - name: OPENAI_API_KEY
-      value: "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"
+      value: "$OPENAI_API_KEY"
     - name: QDRANT_URL
-      value: "https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333"
+      value: "$QDRANT_URL"
     - name: QDRANT_API_KEY
-      value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ"
+      value: "$QDRANT_API_KEY"
     - name: PYTHONPATH
       value: "/app"
 EOF
@@ -102,9 +111,9 @@ cat > service-config.json << EOF
         "Port": "8000",
         "RuntimeEnvironmentVariables": {
           "PORT": "8000",
-          "OPENAI_API_KEY": "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",
-          "QDRANT_URL": "https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333",
-          "QDRANT_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ",
+          "OPENAI_API_KEY": "$OPENAI_API_KEY",
+          "QDRANT_URL": "$QDRANT_URL",
+          "QDRANT_API_KEY": "$QDRANT_API_KEY",
           "PYTHONPATH": "/app"
         },
         "StartCommand": "uvicorn src.frontend.app:app --host 0.0.0.0 --port 8000"
