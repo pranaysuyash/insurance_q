@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import '../models/document_model.dart';
 import 'local_storage_service.dart';
+import 'session_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -28,33 +29,98 @@ class ApiService {
     return {'status': 'healthy', 'mode': 'local_storage'};
   }
 
-  Future<Map<String, dynamic>> uploadFile(File file) async {
+  Future<Map<String, dynamic>> uploadFile(File file, {String? email, String? phone}) async {
     try {
-      // Try to infer document type from filename
-      final documentType = _inferDocumentType(file.path);
-      final insurerInfo = _inferInsurerInfo(file.path);
+      // Get session ID for anti-abuse tracking
+      final sessionId = await SessionService.getSessionId();
       
-      // Create a base document with inferred metadata
-      final baseDocument = {
-        'document_type': documentType,
-        'insurer': insurerInfo['insurer'],
-      };
-      
-      // Save the document locally with additional metadata
-      final document = await _localStorageService.saveDocument(file, additionalMetadata: baseDocument);
-      
-      // Try to extract policy holders
-      final policyHolders = await extractPolicyHolders(document.id);
-      
-      // Return a success response
-      return {
-        'message': 'File uploaded successfully',
-        'document_id': document.id,
-        'document_type': documentType,
-        'insurer': insurerInfo['insurer'],
-        'policy_holders': policyHolders,
-        'text': 'This is a sample text extracted from the document.',
-      };
+      // Try to upload to backend first for real processing
+      try {
+        final formData = FormData.fromMap({
+          'file': await MultipartFile.fromFile(file.path),
+          if (email != null) 'email': email,
+          if (phone != null) 'phone': phone,
+        });
+        
+        final response = await _dio.post(
+          '/documents/upload',
+          data: formData,
+          options: Options(
+            headers: {
+              'X-Session-ID': sessionId,
+            },
+            contentType: 'multipart/form-data',
+          ),
+        );
+        
+        if (response.statusCode == 200) {
+          // Backend upload successful
+          final responseData = response.data;
+          
+          // Also save locally for offline access
+          final documentType = _inferDocumentType(file.path);
+          final insurerInfo = _inferInsurerInfo(file.path);
+          
+          final baseDocument = {
+            'document_type': documentType,
+            'insurer': insurerInfo['insurer'],
+          };
+          
+          await _localStorageService.saveDocument(file, additionalMetadata: baseDocument);
+          
+          return responseData;
+        } else if (response.statusCode == 429) {
+          // Rate limit exceeded
+          final errorData = response.data;
+          return {
+            'error': 'rate_limit_exceeded',
+            'message': errorData['detail'] ?? 'Upload limit exceeded. Please try again later.',
+            'retry_after': errorData['retry_after'],
+          };
+        } else {
+          throw DioException(
+            requestOptions: RequestOptions(path: '/documents/upload'),
+            response: response,
+            type: DioExceptionType.badResponse,
+          );
+        }
+      } catch (e) {
+        print('Backend upload failed, falling back to local storage: $e');
+        
+        // Check if it's a rate limit error
+        if (e is DioException && e.response?.statusCode == 429) {
+          final errorData = e.response?.data;
+          return {
+            'error': 'rate_limit_exceeded',
+            'message': errorData?['detail'] ?? 'Upload limit exceeded. Please try again later.',
+            'retry_after': errorData?['retry_after'],
+          };
+        }
+        
+        // Fall back to local storage for offline functionality
+        final documentType = _inferDocumentType(file.path);
+        final insurerInfo = _inferInsurerInfo(file.path);
+        
+        final baseDocument = {
+          'document_type': documentType,
+          'insurer': insurerInfo['insurer'],
+        };
+        
+        final document = await _localStorageService.saveDocument(file, additionalMetadata: baseDocument);
+        
+        // Try to extract policy holders
+        final policyHolders = await extractPolicyHolders(document.id);
+        
+        return {
+          'message': 'File uploaded successfully (offline mode)',
+          'document_id': document.id,
+          'document_type': documentType,
+          'insurer': insurerInfo['insurer'],
+          'policy_holders': policyHolders,
+          'text': 'This is a sample text extracted from the document.',
+          'offline_mode': true,
+        };
+      }
     } catch (e) {
       print('Error uploading file: $e');
       return {'error': e.toString()};
@@ -104,8 +170,8 @@ class ApiService {
     };
   }
 
-  Future<Map<String, dynamic>> uploadDocument(File file) {
-    return uploadFile(file);
+  Future<Map<String, dynamic>> uploadDocument(File file, {String? email, String? phone}) {
+    return uploadFile(file, email: email, phone: phone);
   }
 
   Future<List<InsuranceDocument>> getDocuments() async {
@@ -318,11 +384,17 @@ class ApiService {
         print('Sending query to: ${_dio.options.baseUrl}/query');
         print('Full query data: $data');
         
+        // Get session ID for tracking
+        final sessionId = await SessionService.getSessionId();
+        
         // Use correct content type and improved error handling
         Response response = await _dio.post(
           '/query',
           data: data,
           options: Options(
+            headers: {
+              'X-Session-ID': sessionId,
+            },
             contentType: Headers.jsonContentType,
             // Accept any response status to debug
             validateStatus: (status) => true,
@@ -529,6 +601,36 @@ class ApiService {
     return a < b ? a : b;
   }
 
+  Future<Map<String, dynamic>> getUsageStats() async {
+    try {
+      final sessionId = await SessionService.getSessionId();
+      
+      final response = await _dio.get(
+        '/documents/usage-stats',
+        options: Options(
+          headers: {
+            'X-Session-ID': sessionId,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw Exception('Failed to get usage stats: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error getting usage stats: $e');
+      // Return default stats for offline mode
+      return {
+        'session_uploads': 0,
+        'session_limit': 5,
+        'ip_uploads': 0,
+        'ip_limit': 10,
+      };
+    }
+  }
+
   Future<bool> deleteDocument(String documentId) async {
     try {
       // Get document first to record its filename
@@ -571,7 +673,7 @@ class ApiService {
 
   // This function checks if we have reached the document limit and
   // deletes the oldest document if necessary before uploading
-  Future<Map<String, dynamic>> uploadDocumentWithLimitCheck(File file) async {
+  Future<Map<String, dynamic>> uploadDocumentWithLimitCheck(File file, {String? email, String? phone}) async {
     try {
       // Get current documents
       final documents = await getDocuments();
@@ -592,7 +694,7 @@ class ApiService {
       }
       
       // Upload the new document
-      return await uploadDocument(file);
+      return await uploadDocument(file, email: email, phone: phone);
     } catch (e) {
       return {'error': e.toString()};
     }

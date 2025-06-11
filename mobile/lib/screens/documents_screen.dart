@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import '../services/api_service.dart'; // Assuming ApiService and DuplicateDocumentInfo are here or exported
+import '../services/contact_service.dart';
+import '../widgets/lead_capture_dialog.dart';
+import '../widgets/usage_stats_widget.dart';
 import 'documents_list.dart'; // For DocumentsListState and potentially DocumentsList widget
 
 class DocumentsScreen extends StatefulWidget {
@@ -126,6 +129,31 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     
     if (!mounted) return; // Check if the widget is still in the tree
 
+    // Show lead capture dialog
+    final savedContact = await ContactService.getSavedContact();
+    final leadInfo = await showDialog<Map<String, dynamic>?>(
+      context: context,
+      builder: (context) => LeadCaptureDialog(
+        initialEmail: savedContact['email'],
+        initialPhone: savedContact['phone'],
+        isRequired: false,
+      ),
+    );
+
+    if (leadInfo == null && mounted) {
+      // User cancelled the dialog
+      return;
+    }
+
+    // Save contact info if requested
+    if (leadInfo != null && leadInfo['save'] == true) {
+      await ContactService.saveContact(
+        email: leadInfo['email'],
+        phone: leadInfo['phone'],
+        saveForFuture: true,
+      );
+    }
+
     setState(() {
       _isUploading = true;
       _uploadError = null;
@@ -133,23 +161,49 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     });
 
     try {
-      final result =
-          await _apiService.uploadDocumentWithLimitCheck(_selectedFile!);
+      final result = await _apiService.uploadDocumentWithLimitCheck(
+        _selectedFile!,
+        email: leadInfo?['email'],
+        phone: leadInfo?['phone'],
+      );
+      
       if (mounted) {
+        // Check for rate limit error
+        if (result['error'] == 'rate_limit_exceeded') {
+          await showDialog(
+            context: context,
+            builder: (context) => RateLimitDialog(
+              message: result['message'] ?? 'Upload limit exceeded',
+              retryAfter: result['retry_after'],
+            ),
+          );
+          setState(() {
+            _uploadError = result['message'];
+          });
+          return;
+        }
+
         setState(() {
           _ocrResult = result;
-           // _selectedFile = null; // Clear selection after successful upload
-           // _showUploadDetails = false; // Hide details section
         });
         _refreshDocumentsList(); // Refresh the list after successful upload
-         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully!')),
+        
+        final isOfflineMode = result['offline_mode'] == true;
+        final message = isOfflineMode 
+            ? '${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully (offline mode)'
+            : '${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully!';
+            
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: isOfflineMode ? Colors.orange : null,
+          ),
         );
-         setState(() { // Reset UI for next upload
-            _selectedFile = null;
-            _showUploadDetails = false;
-          });
-
+        
+        setState(() { // Reset UI for next upload
+          _selectedFile = null;
+          _showUploadDetails = false;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -189,6 +243,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Usage stats widget
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: UsageStatsWidget(),
+          ),
           if (_showUploadDetails || _selectedFile != null)
             Card(
               margin: const EdgeInsets.all(16.0),
