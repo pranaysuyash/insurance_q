@@ -153,6 +153,8 @@ class DocumentSelectionDialog extends StatelessWidget {
         return const Icon(Icons.favorite, color: Colors.pink);
       case 'home insurance':
         return const Icon(Icons.home, color: Colors.brown);
+      case 'travel insurance':
+        return const Icon(Icons.flight, color: Colors.orange);
       default:
         return const Icon(Icons.description);
     }

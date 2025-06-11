@@ -240,6 +240,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 _buildDocumentTypeCard('Auto Insurance', Icons.directions_car, Colors.blue),
                 _buildDocumentTypeCard('Home Insurance', Icons.home, Colors.brown),
                 _buildDocumentTypeCard('Life Insurance', Icons.favorite, Colors.red),
+                _buildDocumentTypeCard('Travel Insurance', Icons.flight, Colors.orange),
                 _buildDocumentTypeCard('Other', Icons.description, Colors.grey),
               ],
             ),

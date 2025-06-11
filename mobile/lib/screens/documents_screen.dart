@@ -233,12 +233,59 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     _documentsListKey.currentState?.loadDocuments();
   }
 
+  Future<void> _refreshDocumentTypes() async {
+    setState(() {
+      _isUploading = true;
+    });
+    
+    try {
+      // Show loading message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refreshing document types...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Refresh document types
+      await _apiService.refreshAllDocumentTypes();
+      
+      // Refresh the documents list
+      await _documentsListKey.currentState?.loadDocuments();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Document types refreshed successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error refreshing document types: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold( // Added Scaffold for better structure and SnackBar support
       appBar: AppBar(
         title: const Text('Manage Documents'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshDocumentTypes,
+            tooltip: 'Refresh Document Types',
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

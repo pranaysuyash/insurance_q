@@ -54,13 +54,21 @@ class ApiService {
           // Backend upload successful
           final responseData = response.data;
           
-          // Also save locally for offline access
-          final documentType = _inferDocumentType(file.path);
-          final insurerInfo = _inferInsurerInfo(file.path);
+          // Extract document type from backend response if available, otherwise infer from filename
+          String documentType = responseData['document_type'] ?? _inferDocumentType(file.path);
+          String insurer = responseData['insurer'] ?? _inferInsurerInfo(file.path)['insurer'];
+          
+          // If backend provided document type, use it; otherwise use filename inference
+          if (responseData['document_type'] != null) {
+            print('Using backend document type: ${responseData['document_type']}');
+            documentType = responseData['document_type'];
+          } else {
+            print('Using inferred document type: $documentType');
+          }
           
           final baseDocument = {
             'document_type': documentType,
-            'insurer': insurerInfo['insurer'],
+            'insurer': insurer,
           };
           
           await _localStorageService.saveDocument(file, additionalMetadata: baseDocument);
@@ -214,30 +222,70 @@ class ApiService {
   }
   
   Future<String> inferDocumentTypeFromContent(String documentId) async {
-    // In a real implementation, we would query the document content
-    // For now, use simple inference based on document ID to simulate
     try {
-      // Try to query for document type
+      print('Inferring document type for document: $documentId');
+      
+      // Try to query for document type using the backend
       final result = await queryDocument(
-        "What type of insurance policy is this? Please answer with just the type: Health, Auto, Home, or Life.",
+        "What type of insurance policy is this? Please answer with just the type: Health Insurance, Auto Insurance, Home Insurance, Life Insurance, or Other Insurance.",
         documentId: documentId,
       );
       
       if (result.containsKey('answer')) {
         final answer = result['answer'].toString().toLowerCase();
+        print('Backend answer for document type: $answer');
         
-        if (answer.contains('health')) {
+        // More comprehensive matching including Indian insurance companies
+        if (answer.contains('health') || answer.contains('medical') || 
+            answer.contains('niva bupa') || answer.contains('star health') || 
+            answer.contains('apollo munich') || answer.contains('max bupa') ||
+            answer.contains('icici lombard') || answer.contains('hdfc ergo') ||
+            answer.contains('bajaj allianz') || answer.contains('oriental insurance') ||
+            answer.contains('new india assurance') || answer.contains('united india insurance')) {
           return 'Health Insurance';
-        } else if (answer.contains('auto')) {
+        } else if (answer.contains('auto') || answer.contains('car') || answer.contains('vehicle') || 
+                   answer.contains('motor') || answer.contains('two wheeler') || answer.contains('bike')) {
           return 'Auto Insurance';
-        } else if (answer.contains('home')) {
+        } else if (answer.contains('home') || answer.contains('property') || answer.contains('house') ||
+                   answer.contains('fire') || answer.contains('burglary')) {
           return 'Home Insurance';
-        } else if (answer.contains('life')) {
+        } else if (answer.contains('life') || answer.contains('term') || answer.contains('endowment') ||
+                   answer.contains('ulip') || answer.contains('pension')) {
           return 'Life Insurance';
+        } else if (answer.contains('travel') || answer.contains('overseas')) {
+          return 'Travel Insurance';
+        } else if (answer.contains('insurance')) {
+          return 'Insurance Policy';
         }
       }
       
+      // If no clear type found, try to get document metadata from backend
+      try {
+        final metadataResult = await queryDocument(
+          "What is the name of the insurance company and what type of coverage does this policy provide?",
+          documentId: documentId,
+        );
+        
+        if (metadataResult.containsKey('answer')) {
+          final metadataAnswer = metadataResult['answer'].toString().toLowerCase();
+          print('Metadata answer: $metadataAnswer');
+          
+          if (metadataAnswer.contains('health') || metadataAnswer.contains('medical')) {
+            return 'Health Insurance';
+          } else if (metadataAnswer.contains('auto') || metadataAnswer.contains('car')) {
+            return 'Auto Insurance';
+          } else if (metadataAnswer.contains('home') || metadataAnswer.contains('property')) {
+            return 'Home Insurance';
+          } else if (metadataAnswer.contains('life')) {
+            return 'Life Insurance';
+          }
+        }
+      } catch (e) {
+        print('Error getting document metadata: $e');
+      }
+      
       // Fallback to default
+      print('Using fallback document type: Insurance Policy');
       return 'Insurance Policy';
     } catch (e) {
       print('Error inferring document type: $e');
@@ -721,6 +769,46 @@ class ApiService {
       return await uploadDocument(file, email: email, phone: phone);
     } catch (e) {
       return {'error': e.toString()};
+    }
+  }
+
+  // Add method to force refresh document types for all documents
+  Future<void> refreshAllDocumentTypes() async {
+    try {
+      print('Refreshing document types for all documents...');
+      final documents = await _localStorageService.getDocuments();
+      
+      for (final doc in documents) {
+        print('Refreshing document type for: ${doc.filename}');
+        
+        // Force re-inference of document type
+        final newType = await inferDocumentTypeFromContent(doc.id);
+        
+        if (newType != doc.documentType) {
+          print('Updating document type from "${doc.documentType}" to "$newType"');
+          
+          // Create updated document with new type
+          final updatedDoc = InsuranceDocument(
+            id: doc.id,
+            filename: doc.filename,
+            uploadedOn: doc.uploadedOn,
+            documentType: newType,
+            insurer: doc.insurer,
+            status: doc.status,
+            processingCompletedAt: doc.processingCompletedAt,
+            size: doc.size,
+            localFilePath: doc.localFilePath,
+            policyHolders: doc.policyHolders,
+          );
+          
+          // Update the document in local storage
+          await _localStorageService.updateDocument(updatedDoc);
+        }
+      }
+      
+      print('Document type refresh completed');
+    } catch (e) {
+      print('Error refreshing document types: $e');
     }
   }
 } 
