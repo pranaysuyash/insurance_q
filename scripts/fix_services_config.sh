@@ -20,7 +20,7 @@ echo "Getting Redis password..."
 REDIS_PASSWORD=$(az redis list-keys --name insurance-app-redis --resource-group insurance-app-rg --query primaryKey -o tsv)
 
 # OpenAI API Key
-OPENAI_API_KEY="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"
+OPENAI_API_KEY="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"
 
 echo "=== Configuring RAG Service ==="
 # Fix RAG service startup command

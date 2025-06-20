@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import '../services/api_service.dart';
-import '../services/session_service.dart';
 
 class UsageStatsWidget extends StatefulWidget {
   const UsageStatsWidget({super.key});
