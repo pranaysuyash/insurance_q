@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.medpiper.insurance_app"
+    namespace = "com.coverwise.app"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
 
@@ -41,7 +41,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.medpiper.insurance_app"
+        applicationId = "com.coverwise.app"
         minSdk = 23
         targetSdk = 35
         versionCode = flutter.versionCode

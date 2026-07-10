@@ -4,9 +4,9 @@ import '../services/api_service.dart';
 
 class DocumentsList extends StatefulWidget {
   final Function(String)? onDocumentSelectedForQA;
-  
+
   const DocumentsList({
-    super.key, 
+    super.key,
     this.onDocumentSelectedForQA,
   });
 
@@ -52,7 +52,8 @@ class DocumentsListState extends State<DocumentsList> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Deletion'),
-        content: Text('Are you sure you want to delete "${document.filename}"?'),
+        content:
+            Text('Are you sure you want to delete "${document.filename}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -74,9 +75,11 @@ class DocumentsListState extends State<DocumentsList> {
       try {
         final success = await _apiService.deleteDocument(document.id);
         if (success) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Document deleted successfully')),
           );
+          if (!mounted) return;
           loadDocuments();
         } else {
           setState(() {
@@ -166,7 +169,8 @@ class DocumentsListState extends State<DocumentsList> {
               itemBuilder: (context, index) {
                 final doc = _documents[index];
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: ExpansionTile(
                     leading: _getDocumentIcon(doc.documentType),
                     title: Text(
@@ -181,9 +185,12 @@ class DocumentsListState extends State<DocumentsList> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildMetadataRow('Document ID', doc.id),
-                            _buildMetadataRow('Type', doc.documentType ?? 'Unknown'),
-                            _buildMetadataRow('Upload Date', doc.formattedUploadDate),
-                            _buildMetadataRow('Analysis Date', doc.formattedAnalyzedDate),
+                            _buildMetadataRow(
+                                'Type', doc.documentType ?? 'Unknown'),
+                            _buildMetadataRow(
+                                'Upload Date', doc.formattedUploadDate),
+                            _buildMetadataRow(
+                                'Analysis Date', doc.formattedAnalyzedDate),
                             if (doc.size != null)
                               _buildMetadataRow('Size', doc.formattedFileSize),
                             const SizedBox(height: 16),
@@ -195,7 +202,8 @@ class DocumentsListState extends State<DocumentsList> {
                                   label: const Text('Ask Questions'),
                                   onPressed: () {
                                     // If callback is provided, use it directly
-                                    if (widget.onDocumentSelectedForQA != null) {
+                                    if (widget.onDocumentSelectedForQA !=
+                                        null) {
                                       widget.onDocumentSelectedForQA!(doc.id);
                                     } else {
                                       // Otherwise, use the default navigation
@@ -260,7 +268,7 @@ class DocumentsListState extends State<DocumentsList> {
     if (documentType == null) {
       return const Icon(Icons.description);
     }
-    
+
     switch (documentType.toLowerCase()) {
       case 'health insurance':
         return const Icon(Icons.health_and_safety, color: Colors.red);
@@ -276,4 +284,4 @@ class DocumentsListState extends State<DocumentsList> {
         return const Icon(Icons.description);
     }
   }
-} 
+}

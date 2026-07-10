@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from src.api.user import router as user_router
@@ -8,10 +8,11 @@ from src.api.document import router as document_router, set_processing_service
 from src.utils.firebase_auth import init_firebase
 
 # Import RAG components and enhanced document processing
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import sys
 import logging
 import os
+import asyncio
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ document_processing_service = None
 class QueryRequest(BaseModel):
     query: str
     filters: Optional[Dict[str, Any]] = None
-    _cache_buster: Optional[int] = None
+    _cache_buster: Optional[Union[int, str]] = None
 
 class QueryResponse(BaseModel):
     answer: str
@@ -92,9 +93,17 @@ async def startup_event():
         print(f"⚠️ Document processing service init failed: {e}", file=sys.stderr)
         print("Continuing without enhanced document processing...", file=sys.stderr)
     
-    # Process any unprocessed documents in storage directory
+    # Process any unprocessed documents in background (don't block startup)
     if document_processing_service:
+        loop = asyncio.get_event_loop()
+        loop.create_task(_background_doc_processing())
+
+async def _background_doc_processing():
+    """Run document processing in background so startup doesn't block."""
+    try:
         await process_existing_documents()
+    except Exception as e:
+        logger.warning("Background doc processing failed: %s", e)
 
 async def process_existing_documents():
     """Process any existing documents in storage that haven't been processed yet"""
@@ -116,10 +125,15 @@ async def process_existing_documents():
         logger.info(f"Found {len(document_files)} existing documents to process")
         
         # Check if documents are already indexed by testing a query
-        test_result = await document_processing_service.query_documents(
-            query="health insurance coverage",
-            filters=None
-        )
+        try:
+            test_result = await document_processing_service.query_documents(
+                query="health insurance coverage",
+                filters=None
+            )
+        except Exception as e:
+            # Skip startup processing if API calls fail (e.g. quota exhausted)
+            logger.warning("Startup query check failed (%s), skipping startup processing", e)
+            return
         
         # If we get meaningful results, documents are already processed
         if (test_result.get("result", {}).get("sources") and 
@@ -213,10 +227,17 @@ async def query_documents(request: QueryRequest):
                 error="Document processing service not initialized"
             )
         
+        # Normalize filters: mobile sends document_id (singular), backend expects document_ids (plural list)
+        filters = request.filters
+        if filters and "document_id" in filters and "document_ids" not in filters:
+            doc_id = filters.pop("document_id")
+            if doc_id:
+                filters["document_ids"] = [doc_id] if isinstance(doc_id, str) else doc_id
+
         # Use the document processing service to query
         result = await document_processing_service.query_documents(
             query=request.query,
-            filters=request.filters
+            filters=filters
         )
         
         # Handle the response format
@@ -275,6 +296,53 @@ async def query_documents(request: QueryRequest):
             sources=[],
             error=str(e)
         )
+
+@app.post("/process-and-ingest")
+async def process_and_ingest(file: UploadFile = File(...)):
+    """
+    Synchronous document processing endpoint.
+    Replaces the standalone OCR service's /process_and_ingest.
+    Processes the document inline and returns OCR text + layout + metadata.
+    """
+    if not document_processing_service:
+        raise HTTPException(status_code=503, detail="Document processing service not available")
+
+    try:
+        content = await file.read()
+        filename = file.filename or "document"
+        file_ext = os.path.splitext(filename.lower())[1]
+
+        allowed = {'.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp', '.doc', '.docx'}
+        if file_ext not in allowed:
+            raise HTTPException(status_code=400, detail=f"Unsupported format: {file_ext}")
+
+        result = await document_processing_service.process_document_full(
+            file_content=content,
+            filename=filename,
+            processing_mode="full",
+        )
+
+        ocr_stage = result.get("stages", {}).get("ocr", {})
+        full_text = ocr_stage.get("full_text", "")
+        layout = ocr_stage.get("layout_elements", [])
+
+        return {
+            "message": f"Document processed: {filename}",
+            "filename": filename,
+            "ocr_doc_key": result.get("document_id", ""),
+            "rag_ingestion_status": "success" if result.get("status") == "completed" else "failed",
+            "rag_ingestion_detail": f"Points: {result.get('points_added', 0)}",
+            "text": full_text,
+            "layout_elements": layout,
+            "ocr_metadata": ocr_stage.get("metadata", {}),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("process-and-ingest failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/documents")
 def get_test_documents():

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import '../config/app_config.dart';
 import '../services/api_service.dart'; // Assuming ApiService and DuplicateDocumentInfo are here or exported
 import '../services/contact_service.dart';
 import '../widgets/lead_capture_dialog.dart';
@@ -22,6 +26,31 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   final GlobalKey<DocumentsListState> _documentsListKey =
       GlobalKey<DocumentsListState>();
   bool _showUploadDetails = false;
+  bool _demoPolicyPreloaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (AppConfig.bootstrapPolicyDemo) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _demoPolicyPreloaded) return;
+        _demoPolicyPreloaded = true;
+        _pickFile();
+      });
+    }
+  }
+
+  Future<File> _loadBundledDemoPolicyFile() async {
+    final byteData = await rootBundle.load('assets/demo/policy.pdf');
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File(path.join(tempDir.path, 'policy_demo.pdf'));
+    final bytes = byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
+    await tempFile.writeAsBytes(bytes, flush: true);
+    return tempFile;
+  }
 
   Future<void> _pickFile() async {
     setState(() {
@@ -30,12 +59,30 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       // _selectedFile = null; // Reset selected file when picking a new one
     });
 
+    if (AppConfig.bootstrapPolicyDemo) {
+      try {
+        final file = await _loadBundledDemoPolicyFile();
+        if (!mounted) return;
+        setState(() {
+          _selectedFile = file;
+          _showUploadDetails = true;
+        });
+        return;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _uploadError = 'Failed to load bundled policy sample: $e';
+        });
+        return;
+      }
+    }
+
     final typeGroup = XTypeGroup(
       label: 'Documents',
       // Only UTI (iOS ignores extensions)
       uniformTypeIdentifiers: [
         'com.adobe.pdf',
-        'public.image',    // covers jpeg, png, etc.
+        'public.image', // covers jpeg, png, etc.
       ],
       // Optional: mimeTypes for Android/web if you ever go there
       mimeTypes: [
@@ -75,7 +122,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               const Text('A similar document already exists:'),
               const SizedBox(height: 8),
               Text(
-                duplicate.filename, // Assumes DuplicateDocumentInfo has filename
+                duplicate
+                    .filename, // Assumes DuplicateDocumentInfo has filename
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -98,14 +146,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               child: const Text('Replace'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, 'keep'), // 'keep' or null for keep both
+              onPressed: () => Navigator.pop(
+                  context, 'keep'), // 'keep' or null for keep both
               child: const Text('Keep Both'),
             ),
           ],
         ),
       );
 
-      if (shouldProceed == 'cancel' || shouldProceed == null && mounted) { // if dialog dismissed
+      if (shouldProceed == 'cancel' || shouldProceed == null && mounted) {
+        // if dialog dismissed
         return;
       }
 
@@ -113,9 +163,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         setState(() {
           _isUploading = true;
         });
-        
+
         // Assumes deleteDocument takes the ID from DuplicateDocumentInfo
-        final deleted = await _apiService.deleteDocument(duplicate.id); 
+        final deleted = await _apiService.deleteDocument(duplicate.id);
         if (!deleted && mounted) {
           setState(() {
             _isUploading = false;
@@ -126,11 +176,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       }
       // If "Keep Both" was selected (shouldProceed is 'keep'), continue with upload
     }
-    
+
     if (!mounted) return; // Check if the widget is still in the tree
 
     // Show lead capture dialog
     final savedContact = await ContactService.getSavedContact();
+    if (!mounted) return;
     final leadInfo = await showDialog<Map<String, dynamic>?>(
       context: context,
       builder: (context) => LeadCaptureDialog(
@@ -166,7 +217,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         email: leadInfo?['email'],
         phone: leadInfo?['phone'],
       );
-      
+
       if (mounted) {
         // Check for rate limit error
         if (result['error'] == 'rate_limit_exceeded') {
@@ -187,20 +238,21 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           _ocrResult = result;
         });
         _refreshDocumentsList(); // Refresh the list after successful upload
-        
+
         final isOfflineMode = result['offline_mode'] == true;
-        final message = isOfflineMode 
+        final message = isOfflineMode
             ? '${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully (offline mode)'
             : '${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully!';
-            
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
             backgroundColor: isOfflineMode ? Colors.orange : null,
           ),
         );
-        
-        setState(() { // Reset UI for next upload
+
+        setState(() {
+          // Reset UI for next upload
           _selectedFile = null;
           _showUploadDetails = false;
         });
@@ -237,22 +289,23 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     setState(() {
       _isUploading = true;
     });
-    
+
     try {
       // Show loading message
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Refreshing document types...'),
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       // Refresh document types
       await _apiService.refreshAllDocumentTypes();
-      
+
       // Refresh the documents list
       await _documentsListKey.currentState?.loadDocuments();
-      
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Document types refreshed successfully!'),
@@ -260,6 +313,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error refreshing document types: $e'),
@@ -275,7 +329,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Added Scaffold for better structure and SnackBar support
+    return Scaffold(
+      // Added Scaffold for better structure and SnackBar support
       appBar: AppBar(
         title: const Text('Manage Documents'),
         centerTitle: true,
@@ -328,14 +383,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                           label: const Text('Select Document'),
                           onPressed: _pickFile,
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
                           ),
                         ),
                       ),
                     if (_selectedFile != null) ...[
                       Row(
                         children: [
-                          const Icon(Icons.insert_drive_file, color: Colors.grey),
+                          const Icon(Icons.insert_drive_file,
+                              color: Colors.grey),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -354,9 +411,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                 label: const Text('Upload Selected File'),
                                 onPressed: _uploadFile,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(context).primaryColor,
+                                  backgroundColor:
+                                      Theme.of(context).primaryColor,
                                   foregroundColor: Colors.white,
-                                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 12),
                                 ),
                               ),
                       ),
@@ -372,7 +431,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       const SizedBox(height: 12),
                       const Text(
                         'Upload & OCR Successful!',
-                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: Colors.green, fontWeight: FontWeight.bold),
                       ),
                       // Optionally display some OCR results or a success message
                     ],
@@ -381,27 +441,28 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               ),
             )
           else // Show button to initiate upload if nothing is selected
-             Padding(
-               padding: const EdgeInsets.all(16.0),
-               child: Center(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.file_upload_outlined),
-                    label: const Text('Upload a Document'),
-                    onPressed: _pickFile, // This will set _showUploadDetails to true
-                     style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        textStyle: const TextStyle(fontSize: 16)
-                      ),
-                  ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Center(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.file_upload_outlined),
+                  label: const Text('Upload a Document'),
+                  onPressed:
+                      _pickFile, // This will set _showUploadDetails to true
+                  style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 16),
+                      textStyle: const TextStyle(fontSize: 16)),
                 ),
-             ),
+              ),
+            ),
           const Divider(height: 32),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                 Text(
+                Text(
                   'Your Documents',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
@@ -426,4 +487,4 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ),
     );
   }
-} 
+}

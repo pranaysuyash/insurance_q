@@ -4,9 +4,10 @@ Quick diagnostic script to check if all imports work correctly
 """
 import sys
 import os
+from pathlib import Path
 
 # Add the project root to Python path
-sys.path.insert(0, '/Users/pranay/Projects/medpiper/insurance_app')
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 print("🔍 Diagnosing Enhanced Insurance RAG App imports...")
 print("=" * 50)

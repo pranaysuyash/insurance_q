@@ -1,319 +1,291 @@
 """
-Core RAG pipeline implementation with fallback mechanism - OpenAI primary and Hugging Face fallback.
+Core RAG pipeline — Settings-backed, async OpenAI, structured output support.
 """
-import os
+import asyncio
 import json
-from typing import List, Dict, Optional, Any
-from openai import OpenAI
-from qdrant_client import QdrantClient, models as qdrant_models
-import redis
-from datetime import datetime
-import uuid
-import time
 import logging
+import uuid
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 
-# Configure logging
+from openai import AsyncOpenAI
+from qdrant_client import QdrantClient, models as qdrant_models
+
+from src.config.settings import settings
+from src.llm.client import LLMClient
+
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
+
+EMBEDDING_DIMENSIONS = {
+    "text-embedding-ada-002": 1536,
+    "text-embedding-3-small": 1536,
+    "text-embedding-3-large": 3072,
+}
+
+HF_EMBEDDING_DIMENSIONS = {
+    "sentence-transformers/all-mpnet-base-v2": 768,
+    "sentence-transformers/all-MiniLM-L6-v2": 384,
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2": 384,
+    "sentence-transformers/multi-qa-mpnet-base-dot-v1": 768,
+    "intfloat/e5-large-v2": 1024,
+    "sentence-transformers/all-distilroberta-v1": 768,
+    "BAAI/bge-base-en-v1.5": 768,
+}
+
+OLLAMA_EMBEDDING_DIMENSIONS = {
+    "nomic-embed-text": 768,
+    "mxbai-embed-large": 1024,
+    "all-minilm": 384,
+    "bge-m3": 1024,
+    "snowflake-arctic-embed": 1024,
+}
+
 
 class RAGPipeline:
-    def __init__(
-        self,
-        qdrant_host: str = os.getenv("QDRANT_HOST", "qdrant"),
-        qdrant_port: int = int(os.getenv("QDRANT_PORT", 6333)),
-        collection_name: str = os.getenv("QDRANT_COLLECTION", "insurance_documents_v2"),
-        redis_host: str = os.getenv("REDIS_HOST", "redis"),
-        redis_port: int = int(os.getenv("REDIS_PORT", 6379)),
-        cache_ttl: int = int(os.getenv("CACHE_TTL_SECONDS", 3600)),
-        embedding_model: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-mpnet-base-v2"),
-        openai_embedding_model: str = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-ada-002"),
-        openai_chat_model: str = os.getenv("OPENAI_CHAT_MODEL", "gpt-3.5-turbo"),
-        use_openai_first: bool = os.getenv("USE_OPENAI_FIRST", "true").lower() == "true"
-    ):
-        """Initialize the RAG pipeline with OpenAI (primary) and Hugging Face (fallback) embedding options."""
-        # Initialize OpenAI client for embeddings and chat
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        if not self.openai_api_key:
-            logger.error("OPENAI_API_KEY environment variable not set.")
-            raise ValueError("OPENAI_API_KEY environment variable not set.")
-        
-        # Initialize OpenAI client with minimal parameters
-        try:
-            self.openai_client = OpenAI(api_key=self.openai_api_key)
-            logger.info("✅ OpenAI client initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize OpenAI client: {e}")
-            raise
-            
-        self.openai_chat_model = openai_chat_model
-        self.openai_embedding_model = openai_embedding_model
-        
-        # Initialize Hugging Face client for fallback embeddings
-        self.hf_token = os.getenv("HF_TOKEN")
-        if not self.hf_token:
-            logger.warning("HF_TOKEN environment variable not set. Using Hugging Face model without authentication.")
-        
-        # Initialize HF client with minimal parameters to avoid compatibility issues
-        try:
-            from huggingface_hub import InferenceClient
-            if self.hf_token:
-                self.hf_client = InferenceClient(token=self.hf_token)
-            else:
-                self.hf_client = InferenceClient()
-            logger.info("✅ HuggingFace client initialized successfully")
-        except Exception as e:
-            logger.warning(f"Failed to initialize HF client: {e}. HF fallback unavailable.")
-            self.hf_client = None
-            
-        self.embedding_model = embedding_model
-        
-        # Set embedding strategy and dimensions
-        self.use_openai_first = use_openai_first
-        self.openai_embedding_dimensions = self._get_openai_dimensions(openai_embedding_model)
-        self.hf_embedding_dimensions = self._get_hf_dimensions(embedding_model)
-        
-        # The dimensions actually used depend on which model is active
-        self.active_embedding_model = openai_embedding_model if use_openai_first else embedding_model
-        self.embedding_dimensions = self.openai_embedding_dimensions if use_openai_first else self.hf_embedding_dimensions
-        
-        logger.info(f"Clients initialized. Primary embedding: {'OpenAI ' + self.openai_embedding_model if use_openai_first else 'HF ' + self.embedding_model} ({self.embedding_dimensions}d)")
-        logger.info(f"Fallback embedding: {'HF ' + self.embedding_model if use_openai_first else 'OpenAI ' + self.openai_embedding_model}")
-        logger.info(f"OpenAI Chat model: {self.openai_chat_model}")
+    def __init__(self):
+        if not settings.openai_api_key:
+            raise ValueError("OPENAI_API_KEY is not set")
 
-        # Initialize Qdrant vector store client - prioritize cloud over local
-        qdrant_url = os.getenv("QDRANT_URL")
-        qdrant_api_key = os.getenv("QDRANT_API_KEY")
-        
-        if qdrant_url and qdrant_api_key:
-            # Use cloud Qdrant (for production/Azure)
-            try:
-                self.qdrant_client = QdrantClient(
-                    url=qdrant_url,
-                    api_key=qdrant_api_key
-                )
-                self.collection_name = collection_name
-                self._ensure_collection_exists()
-                logger.info(f"Qdrant Cloud client initialized. URL: {qdrant_url}, Collection: {self.collection_name}")
-            except Exception as e:
-                logger.error(f"Failed to connect to Qdrant Cloud at {qdrant_url}: {e}")
-                logger.info("Falling back to in-memory Qdrant client")
-                self.qdrant_client = QdrantClient(":memory:")
-                self.collection_name = collection_name
-                self._ensure_collection_exists()
-                logger.info(f"In-memory Qdrant client initialized. Collection: {self.collection_name}")
-        elif os.getenv("QDRANT_HOST"):
-            # Use local Qdrant (for development)
-            try:
-                self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port)
-                self.collection_name = collection_name
-                self._ensure_collection_exists()
-                logger.info(f"Local Qdrant client initialized. Host: {qdrant_host}, Port: {qdrant_port}, Collection: {self.collection_name}")
-            except Exception as e:
-                logger.warning(f"Failed to connect to local Qdrant at {qdrant_host}:{qdrant_port}: {e}")
-                logger.info("Falling back to in-memory Qdrant client")
-                self.qdrant_client = QdrantClient(":memory:")
-                self.collection_name = collection_name
-                self._ensure_collection_exists()
-                logger.info(f"In-memory Qdrant client initialized. Collection: {self.collection_name}")
-        else:
-            # No Qdrant configured, use in-memory directly
-            logger.info("No Qdrant configuration found, using in-memory vector store")
-            self.qdrant_client = QdrantClient(":memory:")
-            self.collection_name = collection_name
-            self._ensure_collection_exists()
-            logger.info(f"In-memory Qdrant client initialized. Collection: {self.collection_name}")
+        self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self.llm = LLMClient()
+        self.openai_chat_model = settings.openai_chat_model
+        self.openai_embedding_model = settings.openai_embedding_model
+        self.hf_embedding_model = settings.hf_embedding_model
 
-        # Initialize Redis cache with graceful fallback
-        try:
-            # For local development, try without SSL first
-            redis_password = os.getenv("REDIS_PASSWORD")
-            if not redis_password:
-                logger.info("REDIS_PASSWORD not set. Disabling Redis cache.")
-                self.cache = None
-            else:
-                # Try with SSL first (for Azure Redis Cache)
-                try:
-                    self.cache = redis.Redis(
-                        host=redis_host, 
-                        port=redis_port, 
-                        password=redis_password,
-                        ssl=True,
-                        ssl_cert_reqs=None,
-                        decode_responses=True
-                    )
-                    self.cache.ping()
-                    logger.info(f"Redis cache initialized with SSL. Host: {redis_host}, Port: {redis_port}")
-                except:
-                    # Fallback to non-SSL connection
-                    try:
-                        self.cache = redis.Redis(
-                            host=redis_host, 
-                            port=redis_port, 
-                            password=redis_password,
-                            decode_responses=True
-                        )
-                        self.cache.ping()
-                        logger.info(f"Redis cache initialized without SSL. Host: {redis_host}, Port: {redis_port}")
-                    except Exception as e:
-                        logger.warning(f"Redis connection failed: {e}. Cache will be unavailable.")
-                        self.cache = None
-        except Exception as e:
-            logger.warning(f"Unexpected error connecting to Redis: {e}. Cache will be unavailable.")
-            self.cache = None
-        self.cache_ttl = cache_ttl
-        
-        # Track embedding failures to help with debugging
+        self.openai_embedding_dimensions = EMBEDDING_DIMENSIONS.get(
+            self.openai_embedding_model, 1536
+        )
+        self.embedding_dimensions = self.openai_embedding_dimensions
+        self.active_embedding_model = self.openai_embedding_model
+
+        self._init_hf_client()
+        self._init_qdrant()
+        self._init_redis()
+
         self.openai_failure_count = 0
         self.hf_failure_count = 0
-        
-        # Track current embedding model for health checks
-        self.current_embedding_model = self.openai_embedding_model if self.use_openai_first else self.embedding_model
-        self.use_openai_embeddings = self.use_openai_first
-        self.huggingface_model_name = self.embedding_model
 
-    def _get_openai_dimensions(self, model_name: str) -> int:
-        """Get embedding dimensions for OpenAI models."""
-        dimensions_map = {
-            "text-embedding-ada-002": 1536,
-            "text-embedding-3-small": 1536,
-            "text-embedding-3-large": 3072
-        }
-        return dimensions_map.get(model_name, 1536)  # Default to 1536 for unknown OpenAI models
-    
-    def _get_hf_dimensions(self, model_name: str) -> int:
-        """Get embedding dimensions for HF models."""
-        dimensions_map = {
-            "sentence-transformers/all-mpnet-base-v2": 768,
-            "sentence-transformers/all-MiniLM-L6-v2": 384,
-            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2": 384,
-            "sentence-transformers/multi-qa-mpnet-base-dot-v1": 768,
-            "intfloat/e5-large-v2": 1024
-        }
-        return dimensions_map.get(model_name, 768)  # Default to 768 for unknown HF models
+        logger.info(
+            "Pipeline: chat=%s embed=%s (%dd) qdrant=%s redis=%s",
+            self.openai_chat_model, self.active_embedding_model,
+            self.embedding_dimensions, settings.qdrant_collection,
+            "enabled" if self.cache else "disabled",
+        )
+
+    # ------------------------------------------------------------------
+    #  Init helpers
+    # ------------------------------------------------------------------
+
+    def _init_hf_client(self):
+        self.hf_client = None
+        self.local_embed_model = None
+        self.ollama_embed_client = None
+        try:
+            from sentence_transformers import SentenceTransformer
+            model_name = self.hf_embedding_model
+            self.local_embed_model = SentenceTransformer(model_name)
+            self.hf_embedding_dimension = HF_EMBEDDING_DIMENSIONS.get(model_name, 768)
+            logger.info("Local embedding model loaded (%s, %dd)", model_name, self.hf_embedding_dimension)
+        except Exception as e:
+            logger.warning("Local sentence-transformers unavailable: %s", e)
+
+        # Ollama embedding client (local, OpenAI-compatible)
+        if settings.ollama_base_url and settings.ollama_embedding_model:
+            try:
+                self.ollama_embed_client = AsyncOpenAI(
+                    base_url=settings.ollama_base_url,
+                    api_key=settings.ollama_api_key,
+                )
+                self.ollama_embedding_model = settings.ollama_embedding_model
+                self.ollama_embedding_dimension = OLLAMA_EMBEDDING_DIMENSIONS.get(
+                    self.ollama_embedding_model, 768
+                )
+                logger.info(
+                    "Ollama embedding client ready (%s, %dd)",
+                    self.ollama_embedding_model, self.ollama_embedding_dimension,
+                )
+            except Exception as e:
+                logger.warning("Ollama embedding client init failed: %s", e)
+                self.ollama_embed_client = None
+
+    def _init_qdrant(self):
+        self.collection_name = settings.qdrant_collection
+
+        if settings.qdrant_url and settings.qdrant_api_key:
+            qdrant_kwargs = dict(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
+        else:
+            qdrant_kwargs = dict(host=settings.qdrant_host, port=settings.qdrant_port)
+
+        for use_memory in [False, True]:
+            try:
+                self.qdrant_client = QdrantClient(":memory:") if use_memory else QdrantClient(**qdrant_kwargs)
+                self._ensure_collection_exists()
+                return
+            except Exception:
+                if not use_memory:
+                    logger.warning("Qdrant connection failed, using in-memory")
+                    continue
+                raise
+
+    def _init_redis(self):
+        self.cache = None
+        if not settings.redis_password:
+            logger.info("REDIS_PASSWORD not set, disabling cache")
+            return
+        try:
+            import redis as redis_lib
+            self.cache = redis_lib.Redis(
+                host=settings.redis_host, port=settings.redis_port,
+                password=settings.redis_password, decode_responses=True,
+            )
+            self.cache.ping()
+        except Exception as e:
+            logger.warning("Redis unavailable: %s", e)
 
     def _ensure_collection_exists(self):
-        """Ensure the Qdrant collection exists with the correct configuration."""
         try:
             self.qdrant_client.get_collection(collection_name=self.collection_name)
-            logger.info(f"Qdrant collection '{self.collection_name}' already exists.")
-        except Exception as e:
-            logger.info(f"Qdrant collection '{self.collection_name}' not found: {e}. Creating it.")
+        except Exception:
+            logger.info("Creating Qdrant collection '%s' (%dd)", self.collection_name, self.embedding_dimensions)
             self.qdrant_client.recreate_collection(
                 collection_name=self.collection_name,
                 vectors_config=qdrant_models.VectorParams(
-                    size=self.embedding_dimensions,
-                    distance=qdrant_models.Distance.COSINE
-                )
+                    size=self.embedding_dimensions, distance=qdrant_models.Distance.COSINE
+                ),
             )
-            logger.info(f"Qdrant collection '{self.collection_name}' created with vector size {self.embedding_dimensions}.")
 
-    async def _generate_openai_embeddings(self, texts: List[str], max_retries=3) -> List[List[float]]:
-        """Generate embeddings using OpenAI with detailed error logging and retry logic."""
+    # ------------------------------------------------------------------
+    #  Embeddings
+    # ------------------------------------------------------------------
+
+    async def _generate_openai_embeddings(
+        self, texts: List[str], max_retries: int = 3
+    ) -> List[List[float]]:
         if not texts:
             return []
-        
-        # Clean and prepare texts
-        max_chars = 8191  # OpenAI limit
+
         texts_to_embed = []
         for text in texts:
-            cleaned_text = text.replace("\n", " ").strip()
-            if len(cleaned_text) > max_chars:
-                cleaned_text = cleaned_text[:max_chars]
-                logger.warning(f"Text truncated to {max_chars} chars for OpenAI embedding")
-            texts_to_embed.append(cleaned_text)
-        
-        retries = 0
-        while retries <= max_retries:
+            cleaned = text.replace("\n", " ").strip()[:8191]
+            texts_to_embed.append(cleaned)
+
+        for attempt in range(1, max_retries + 1):
             try:
-                logger.debug(f"Generating OpenAI embeddings for {len(texts_to_embed)} texts using model {self.openai_embedding_model}")
-                start_time = time.time()
-                
-                response = self.openai_client.embeddings.create(
-                    input=texts_to_embed,
-                    model=self.openai_embedding_model
+                response = await self.openai_client.embeddings.create(
+                    input=texts_to_embed, model=self.openai_embedding_model
                 )
-                embeddings = [item.embedding for item in response.data]
-                
-                # Log success
-                logger.info(f"OpenAI embeddings completed in {time.time() - start_time:.2f}s")
-                return embeddings
-                    
+                return [item.embedding for item in response.data]
             except Exception as e:
-                retries += 1
                 error_str = str(e)
-                self.openai_failure_count += 1
-                logger.error(f"OpenAI embedding error ({retries}/{max_retries}): {error_str}")
-                
-                if retries > max_retries:
-                    logger.error(f"OpenAI embedding failed after {max_retries} retries. Error: {e}", exc_info=True)
+                # Don't retry quota errors — they won't resolve
+                if "insufficient_quota" in error_str or "quota" in error_str.lower():
+                    logger.error("OpenAI quota exhausted, aborting embedding")
                     raise
-                
-                wait_time = (2 ** retries) + 1  # Exponential backoff
-                logger.warning(f"Retrying OpenAI embedding in {wait_time} seconds...")
-                time.sleep(wait_time)
+                self.openai_failure_count += 1
+                logger.error("OpenAI embedding error (%d/%d): %s", attempt, max_retries, e)
+                if attempt < max_retries:
+                    await asyncio.sleep(min(2 ** attempt + 1, 30))
+                else:
+                    raise
 
-    async def _generate_embeddings_with_fallback(self, texts: List[str], max_retries=3) -> List[List[float]]:
-        """Generate embeddings with OpenAI embedding models only (no fallback to HF)."""
-        logger.info(f"Generating embeddings using OpenAI {self.openai_embedding_model}")
-        
+    async def _generate_hf_embeddings(
+        self, texts: List[str]
+    ) -> List[List[float]]:
+        if not self.local_embed_model:
+            raise RuntimeError("Local embedding model unavailable")
+        loop = asyncio.get_event_loop()
+        vecs = await loop.run_in_executor(None, self.local_embed_model.encode, texts)
+        return vecs.tolist()
+
+    async def _generate_ollama_embeddings(
+        self, texts: List[str]
+    ) -> List[List[float]]:
+        if not self.ollama_embed_client:
+            raise RuntimeError("Ollama embedding client unavailable")
+        response = await self.ollama_embed_client.embeddings.create(
+            input=texts, model=self.ollama_embedding_model
+        )
+        return [item.embedding for item in response.data]
+
+    async def _generate_embeddings_with_fallback(
+        self, texts: List[str], max_retries: int = 3
+    ) -> List[List[float]]:
+        # 1. Try OpenAI
         try:
-            # Always use OpenAI for embeddings (no fallback)
-            embeddings = await self._generate_openai_embeddings(texts, max_retries)
-            
-            # Update active model info
-            self.active_embedding_model = self.openai_embedding_model
-            self.embedding_dimensions = self.openai_embedding_dimensions
-            
-            return embeddings
-            
+            return await self._generate_openai_embeddings(texts, max_retries)
         except Exception as e:
-            logger.error(f"OpenAI embedding failed: {str(e)}")
-            raise Exception(f"OpenAI embedding failed: {str(e)}")
+            logger.warning("OpenAI embedding failed: %s", e)
 
-    async def ingest_document_data(self, document_id: str, text_blocks: List[Dict[str, Any]], document_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Process document data, generate embeddings with fallback strategy, and store in Qdrant."""
+        # 2. Try Ollama (local, OpenAI-compatible)
+        if self.ollama_embed_client:
+            try:
+                prev_dims = self.embedding_dimensions
+                self.active_embedding_model = self.ollama_embedding_model
+                self.embedding_dimensions = self.ollama_embedding_dimension
+                if prev_dims != self.embedding_dimensions:
+                    logger.warning("Embedding dims %d→%d, recreating Qdrant collection", prev_dims, self.embedding_dimensions)
+                    self.qdrant_client.recreate_collection(
+                        collection_name=self.collection_name,
+                        vectors_config=qdrant_models.VectorParams(
+                            size=self.embedding_dimensions, distance=qdrant_models.Distance.COSINE
+                        ),
+                    )
+                return await self._generate_ollama_embeddings(texts)
+            except Exception as e2:
+                logger.warning("Ollama embedding failed: %s", e2)
+
+        # 3. Try local sentence-transformers
+        if not self.local_embed_model:
+            raise RuntimeError("All embedding backends failed and no local fallback available")
+        logger.warning("Falling back to local sentence-transformers")
+        prev_dims = self.embedding_dimensions
+        self.active_embedding_model = self.hf_embedding_model
+        self.embedding_dimensions = self.hf_embedding_dimension
+        if prev_dims != self.embedding_dimensions:
+            logger.warning("Embedding dims %d→%d, recreating Qdrant collection", prev_dims, self.embedding_dimensions)
+            self.qdrant_client.recreate_collection(
+                collection_name=self.collection_name,
+                vectors_config=qdrant_models.VectorParams(
+                    size=self.embedding_dimensions, distance=qdrant_models.Distance.COSINE
+                ),
+            )
+        return await self._generate_hf_embeddings(texts)
+
+    # ------------------------------------------------------------------
+    #  Ingestion
+    # ------------------------------------------------------------------
+
+    async def ingest_document_data(
+        self,
+        document_id: str,
+        text_blocks: List[Dict[str, Any]],
+        document_metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         if not text_blocks:
-            logger.warning(f"No text blocks provided for document_id: {document_id}. Nothing to ingest.")
             return {"status": "success", "message": "No text blocks to ingest.", "points_added": 0}
-        
-        logger.info(f"Starting ingestion for document_id: {document_id}, number of text blocks: {len(text_blocks)}")
-        
-        # Filter and truncate text blocks
-        filtered_blocks = []
+
+        filtered = []
         for block in text_blocks:
-            if not block.get("text"):
+            text = block.get("text", "")
+            if not text:
                 continue
-                
-            # Limit text length
-            max_chars = 2000  # Safe limit for embedding models
-            if len(block["text"]) > max_chars:
-                logger.warning(f"Truncating text block with {len(block['text'])} chars for document {document_id}")
-                block["text"] = block["text"][:max_chars]
-                
-            filtered_blocks.append(block)
-            
-        text_blocks = filtered_blocks
-        texts_for_embedding = [block["text"] for block in text_blocks]
+            if len(text) > 2000:
+                text = text[:2000]
+            filtered.append({**block, "text": text})
+        text_blocks = filtered
 
-        if not texts_for_embedding:
-            logger.warning(f"All text blocks for document_id: {document_id} are empty. Nothing to embed.")
-            return {"status": "success", "message": "No text content in blocks to ingest.", "points_added": 0}
+        texts = [b["text"] for b in text_blocks]
+        if not texts:
+            return {"status": "success", "message": "No text content.", "points_added": 0}
 
-        points_to_upsert = []
         try:
-            # Use the fallback mechanism for embeddings
-            embeddings = await self._generate_embeddings_with_fallback(texts_for_embedding)
-            logger.info(f"Successfully generated embeddings for document {document_id} using model: {self.active_embedding_model}")
+            embeddings = await self._generate_embeddings_with_fallback(texts)
         except Exception as e:
-            logger.error(f"Failed to generate embeddings for document_id: {document_id}. Error: {e}")
-            return {"status": "error", "error": f"Embedding generation failed: {e}"}
+            logger.error("Embedding failed for %s: %s", document_id, e)
+            return {"status": "error", "error": f"Embedding failed: {e}"}
 
-        # Prepare points for Qdrant
-        embedding_idx = 0
-        for block in text_blocks:
-            if not block.get("text"):
-                continue
-            
+        points = []
+        for i, block in enumerate(text_blocks):
             payload = {
                 "document_id": document_id,
                 "text_content": block["text"],
@@ -321,128 +293,178 @@ class RAGPipeline:
                 "block_id": block.get("id", str(uuid.uuid4())),
                 "bbox": block.get("bbox"),
                 "embedding_model": self.active_embedding_model,
-                "embedding_timestamp": datetime.now().isoformat()
+                "embedding_timestamp": datetime.now().isoformat(),
             }
             if document_metadata:
                 payload.update(document_metadata)
-            
-            points_to_upsert.append(qdrant_models.PointStruct(
-                id=block.get("id", str(uuid.uuid4())),
-                vector=embeddings[embedding_idx],
-                payload=payload
-            ))
-            embedding_idx += 1
-
-        if points_to_upsert:
-            try:
-                self.qdrant_client.upsert(
-                    collection_name=self.collection_name,
-                    points=points_to_upsert,
-                    wait=True
+            points.append(
+                qdrant_models.PointStruct(
+                    id=block.get("id", str(uuid.uuid4())),
+                    vector=embeddings[i],
+                    payload=payload,
                 )
-                logger.info(f"Successfully upserted {len(points_to_upsert)} points for document_id: {document_id}")
-                return {
-                    "status": "success", 
-                    "document_id": document_id, 
-                    "points_added": len(points_to_upsert),
-                    "embedding_model_used": self.active_embedding_model,
-                    "embedding_dimensions": self.embedding_dimensions
-                }
-            except Exception as e:
-                logger.error(f"Qdrant upsert failed for document_id: {document_id}. Error: {e}", exc_info=True)
-                return {"status": "error", "error": f"Qdrant upsert failed: {e}"}
-        else:
-            logger.info(f"No points were prepared for upsert for document_id: {document_id}.")
-            return {"status": "success", "message": "No valid points to upsert.", "points_added": 0}
+            )
 
-    async def query_rag(self, user_query: str, top_k: int = 5, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Process user query using embedding model for retrieval and OpenAI for generation."""
-        logger.info(f"Received query: '{user_query}', top_k: {top_k}, filters: {filters}")
-        
-        try:
-            # Generate query embedding
-            query_embedding_list = await self._generate_embeddings_with_fallback([user_query])
-            if not query_embedding_list:
-                raise ValueError("Failed to generate query embedding.")
-            query_embedding = query_embedding_list[0]
-            logger.info(f"Query embedding generated successfully using {self.active_embedding_model}")
-        except Exception as e:
-            logger.error(f"Failed to generate embedding for query '{user_query}': {e}", exc_info=True)
-            return {"status": "error", "error": f"Query embedding generation failed: {e}"}
-
-        # Search in Qdrant
-        try:
-            search_results = self.qdrant_client.search(
+        if points:
+            self.qdrant_client.upsert(
                 collection_name=self.collection_name,
-                query_vector=query_embedding,
+                points=points,
+                wait=True,
+            )
+            logger.info("Upserted %d points for doc %s", len(points), document_id)
+            return {
+                "status": "success",
+                "document_id": document_id,
+                "points_added": len(points),
+                "embedding_model_used": self.active_embedding_model,
+            }
+
+        return {"status": "success", "message": "No valid points.", "points_added": 0}
+
+    # ------------------------------------------------------------------
+    #  Query
+    # ------------------------------------------------------------------
+
+    async def query_rag(
+        self,
+        user_query: str,
+        top_k: int = 5,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        logger.info("Query: '%s' top_k=%d", user_query, top_k)
+
+        try:
+            emb = await self._generate_embeddings_with_fallback([user_query])
+            query_vector = emb[0]
+        except Exception as e:
+            logger.error("Query embedding failed: %s", e)
+            return {"status": "error", "error": f"Query embedding failed: {e}"}
+
+        try:
+            results = self.qdrant_client.search(
+                collection_name=self.collection_name,
+                query_vector=query_vector,
                 limit=top_k,
-                with_payload=True
+                with_payload=True,
             )
         except Exception as e:
-            logger.error(f"Qdrant search failed for query '{user_query}': {e}", exc_info=True)
+            logger.error("Vector search failed: %s", e)
             return {"status": "error", "error": f"Vector search failed: {e}"}
-        
-        # Process search results
-        logger.info(f"Found {len(search_results)} relevant contexts from Qdrant for query: '{user_query}'")
-        
-        if not search_results:
-            logger.info(f"No relevant contexts found for query: '{user_query}'. Returning direct message.")
-            final_response = {
-                "answer": "I could not find any relevant information in the documents for your query.",
-                "sources": [],
-                "query": user_query
-            }
-            return {"status": "success", "result": final_response}
 
-        # Build context from search results
+        if not results:
+            return {
+                "status": "success",
+                "result": {
+                    "answer": "No relevant information found in documents.",
+                    "sources": [],
+                    "query": user_query,
+                },
+            }
+
         contexts = []
-        retrieved_sources = []
-        for i, hit in enumerate(search_results):
-            context_text = hit.payload.get("text_content", "")
-            contexts.append(f"Context [{i+1}]: {context_text}")
-            retrieved_sources.append({
+        sources = []
+        for i, hit in enumerate(results):
+            text = hit.payload.get("text_content", "")
+            contexts.append(f"Context [{i+1}]: {text}")
+            sources.append({
                 "id": str(hit.id),
                 "score": hit.score,
                 "document_id": hit.payload.get("document_id"),
                 "page_number": hit.payload.get("page_number"),
-                "text": context_text[:200] + "..." if len(context_text) > 200 else context_text
+                "text": text[:200] + "..." if len(text) > 200 else text,
             })
 
-        # Generate response with OpenAI
-        system_prompt = "You are a helpful AI assistant. Based on the provided context from insurance documents, answer the user's question. If the context does not contain the answer, state that clearly. Be concise and stick to the information in the context."
         context_str = "\n\n".join(contexts)
-        user_prompt_template = f"Contexts:\n{context_str}\n\nQuestion: {user_query}\n\nAnswer:"
 
+        answer = None
+        llm_unavailable = False
         try:
-            chat_response = self.openai_client.chat.completions.create(
-                model=self.openai_chat_model,
+            answer = await self.llm.generate(
                 messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt_template}
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a helpful AI assistant. Based on the provided context from "
+                            "insurance documents, answer the user's question. If the context does "
+                            "not contain the answer, state that clearly. Be concise and stick to "
+                            "the information in the context."
+                        ),
+                    },
+                    {"role": "user", "content": f"Contexts:\n{context_str}\n\nQuestion: {user_query}\n\nAnswer:"},
                 ],
                 temperature=0.2,
+                fallback_models=["gpt-4o-mini"],
             )
-            llm_answer = chat_response.choices[0].message.content.strip()
-            logger.info(f"Received answer from LLM for query '{user_query}': '{llm_answer[:100]}...'")
         except Exception as e:
-            logger.error(f"OpenAI chat completion failed for query '{user_query}': {e}", exc_info=True)
-            return {"status": "error", "error": f"LLM response generation failed: {e}"}
+            logger.warning("LLM unavailable, using context-only mode: %s", e)
+            llm_unavailable = True
 
-        final_response = {
-            "answer": llm_answer,
-            "sources": retrieved_sources,
-            "query": user_query,
-            "embedding_model_used": self.active_embedding_model
+        if llm_unavailable or not answer:
+            # Context-only fallback: extract best match from sources
+            top = sources[0] if sources else {}
+            answer = (
+                f"[LLM unavailable — showing raw context]\n\n"
+                f"Best match (score: {top.get('score', 0):.3f}): "
+                f"{top.get('text', 'No relevant content found.')}"
+            )
+
+        return {
+            "status": "success",
+            "result": {
+                "answer": answer,
+                "sources": sources,
+                "query": user_query,
+                "embedding_model_used": self.active_embedding_model,
+                "llm_used": not llm_unavailable,
+            },
         }
 
-        return {"status": "success", "result": final_response}
+    async def query_rag_structured(
+        self,
+        user_query: str,
+        response_model: type,
+        top_k: int = 5,
+        filters: Optional[Dict[str, Any]] = None,
+    ):
+        """Query with structured output (typed Pydantic model)."""
+        result = await self.query_rag(user_query, top_k=top_k, filters=filters)
+        if result.get("status") != "success":
+            return result
+
+        inner = result["result"]
+        system_prompt = (
+            "Extract structured information from the provided context. "
+            "If a field cannot be found, use null. Be precise and accurate."
+        )
+        context_str = "\n\n".join(
+            f"Context [{i+1}]: {s['text']}" for i, s in enumerate(inner.get("sources", []))
+        )
+        user_prompt = f"{context_str}\n\nQuestion: {user_query}"
+
+        try:
+            structured = await self.llm.generate_structured(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_model=response_model,
+                temperature=0.1,
+            )
+            return {"status": "success", "result": structured, "sources": inner["sources"]}
+        except Exception as e:
+            logger.error("Structured extraction failed: %s", e)
+            return {"status": "error", "error": f"Structured extraction failed: {e}"}
+
+    # ------------------------------------------------------------------
+    #  Stats
+    # ------------------------------------------------------------------
 
     async def get_embedding_stats(self) -> Dict[str, Any]:
-        """Return stats about embedding usage and failures."""
+        cost = self.llm.get_cost_summary()
         return {
             "active_embedding_model": self.active_embedding_model,
-            "primary_model": self.openai_embedding_model,
+            "embedding_dimensions": self.embedding_dimensions,
             "openai_embedding_failures": self.openai_failure_count,
             "hf_embedding_failures": self.hf_failure_count,
-            "embedding_dimensions": self.embedding_dimensions,
+            "llm_cost": cost,
         }

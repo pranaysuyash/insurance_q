@@ -7,6 +7,243 @@
 
 ---
 
+## 🏗️ System Architecture Diagrams
+
+### **1. High-Level System Architecture**
+
+```mermaid
+graph TB
+    subgraph "Client Applications"
+        MA["Flutter Mobile App<br/>(Android/iOS)"]
+        WA["Web Application<br/>(React/Streamlit)"]
+        API_CLIENT["API Clients<br/>(Testing/Future)"]
+    end
+
+    subgraph "Load Balancer & Gateway"
+        LB["AWS App Runner<br/>Load Balancer"]
+    end
+
+    subgraph "Backend Services (Containerized)"
+        OCR["OCR Service<br/>:8001<br/>Document Processing"]
+        RAG["RAG Service<br/>:8000<br/>Q&A Engine"]
+        FRONTEND["Frontend Service<br/>:8080<br/>Web Interface"]
+    end
+
+    subgraph "Data Storage Layer"
+        QDRANT["Qdrant Cloud<br/>Vector Database<br/>(GCP us-east4-0)"]
+        REDIS["Redis Cloud<br/>Cache Layer<br/>(SSL)"]
+        LOCAL["Local Storage<br/>(Temp Files)"]
+    end
+
+    subgraph "External AI Services"
+        OPENAI["OpenAI API<br/>GPT-4 + Embeddings<br/>(ada-002)"]
+        HF["Hugging Face API<br/>OCR + Fallback<br/>Embeddings"]
+    end
+
+    subgraph "Infrastructure"
+        ECR["AWS ECR<br/>Container Registry"]
+        CLOUDWATCH["AWS CloudWatch<br/>Monitoring & Logs"]
+    end
+
+    %% Client connections
+    MA --> LB
+    WA --> LB
+    API_CLIENT --> LB
+
+    %% Load balancer to services
+    LB --> OCR
+    LB --> RAG
+    LB --> FRONTEND
+
+    %% Service interconnections
+    OCR --> RAG
+    FRONTEND --> OCR
+    FRONTEND --> RAG
+
+    %% Data layer connections
+    OCR --> REDIS
+    RAG --> QDRANT
+    RAG --> REDIS
+    OCR --> LOCAL
+    RAG --> LOCAL
+
+    %% External service connections
+    OCR --> HF
+    RAG --> OPENAI
+    RAG --> HF
+
+    %% Infrastructure connections
+    LB --> ECR
+    LB --> CLOUDWATCH
+
+    %% Styling
+    classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef service fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef storage fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef external fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef infra fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+
+    class MA,WA,API_CLIENT client
+    class OCR,RAG,FRONTEND,LB service
+    class QDRANT,REDIS,LOCAL storage
+    class OPENAI,HF external
+    class ECR,CLOUDWATCH infra
+```
+
+### **2. Current Data Processing Flow**
+
+```mermaid
+graph TD
+    subgraph "Document Processing Pipeline"
+        UPLOAD["📄 Document Upload<br/>(PDF/Image)"]
+        VALIDATE["✅ Validation & Security<br/>Check"]
+        OCR_PROCESS["🔍 OCR Processing<br/>(DocTR/HuggingFace)"]
+        EXTRACT["📝 Text Extraction<br/>& Chunking"]
+        EMBED["🧠 OpenAI Embeddings<br/>(ada-002)"]
+    end
+
+    subgraph "Session-Based Storage"
+        SESSION_ID["🎫 Session ID Generation<br/>(24-hour expiry)"]
+        QDRANT_STORE["📦 Qdrant Storage<br/>(insurance_documents_v2)"]
+        REDIS_CACHE["⚡ Redis Caching<br/>(OCR results)"]
+    end
+
+    subgraph "Query & Response System"
+        USER_QUERY["❓ User Question"]
+        VECTOR_SEARCH["🔍 Vector Search<br/>(Qdrant)"]
+        CONTEXT["📖 Context Assembly"]
+        LLM_RESPONSE["🤖 GPT-4 Response<br/>Generation"]
+        FINAL_ANSWER["💬 Final Answer<br/>with Sources"]
+    end
+
+    subgraph "Current Data Management"
+        SESSION_EXPIRE["⏱️ Session Expiry<br/>(24 hours)"]
+        MANUAL_CLEANUP["🔧 Manual Cleanup<br/>(Not Implemented)"]
+        PERSISTENT_DATA["💾 Data Persists<br/>(Currently)"]
+    end
+
+    %% Processing flow
+    UPLOAD --> VALIDATE
+    VALIDATE --> OCR_PROCESS
+    OCR_PROCESS --> EXTRACT
+    EXTRACT --> EMBED
+    EMBED --> SESSION_ID
+    SESSION_ID --> QDRANT_STORE
+    OCR_PROCESS --> REDIS_CACHE
+
+    %% Query flow
+    USER_QUERY --> VECTOR_SEARCH
+    VECTOR_SEARCH --> QDRANT_STORE
+    VECTOR_SEARCH --> CONTEXT
+    CONTEXT --> LLM_RESPONSE
+    LLM_RESPONSE --> FINAL_ANSWER
+
+    %% Current retention (limited)
+    SESSION_EXPIRE --> MANUAL_CLEANUP
+    MANUAL_CLEANUP --> PERSISTENT_DATA
+
+    %% Styling
+    classDef process fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef storage fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef query fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef current fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+
+    class UPLOAD,VALIDATE,OCR_PROCESS,EXTRACT,EMBED process
+    class SESSION_ID,QDRANT_STORE,REDIS_CACHE storage
+    class USER_QUERY,VECTOR_SEARCH,CONTEXT,LLM_RESPONSE,FINAL_ANSWER query
+    class SESSION_EXPIRE,MANUAL_CLEANUP,PERSISTENT_DATA current
+```
+
+### **3. Qdrant Integration Architecture**
+
+```mermaid
+graph LR
+    subgraph "Application Layer"
+        MOBILE["📱 Flutter Mobile App"]
+        WEB["🌐 Web Frontend"]
+    end
+
+    subgraph "API Gateway"
+        GATEWAY["🚪 FastAPI Gateway<br/>AWS App Runner"]
+    end
+
+    subgraph "Processing Services"
+        OCR_SVC["📄 OCR Service<br/>Port 8001"]
+        RAG_SVC["🧠 RAG Service<br/>Port 8000"]
+    end
+
+    subgraph "Qdrant Cloud Integration"
+        QDRANT_CLIENT["🔌 Qdrant Python Client<br/>HTTPS + API Key"]
+        
+        subgraph "Current Collection"
+            MAIN_COLLECTION["📚 Main Collection<br/>insurance_documents_v2<br/>All Document Data"]
+        end
+    end
+
+    subgraph "Vector Operations"
+        UPSERT["⬆️ Upsert Operations<br/>Batch Processing"]
+        SEARCH["🔍 Vector Search<br/>Cosine Similarity"]
+        DELETE["🗑️ Selective Deletion<br/>PII Cleanup"]
+        FILTER["🎯 Payload Filtering<br/>Multi-tenant Isolation"]
+    end
+
+    subgraph "Data Pipeline"
+        CHUNK["📝 Text Chunking<br/>Max 2000 chars"]
+        EMBED["🧮 OpenAI Embeddings<br/>ada-002 (1536 dim)"]
+        PAYLOAD["📦 Rich Payload<br/>Metadata + Content"]
+    end
+
+    subgraph "External Services"
+        OPENAI_API["🤖 OpenAI API<br/>Embeddings + Chat"]
+        REDIS["⚡ Redis Cache<br/>Performance Layer"]
+    end
+
+    %% Flow connections
+    MOBILE --> GATEWAY
+    WEB --> GATEWAY
+    GATEWAY --> OCR_SVC
+    GATEWAY --> RAG_SVC
+    
+    OCR_SVC --> RAG_SVC
+    RAG_SVC --> QDRANT_CLIENT
+    
+    QDRANT_CLIENT --> MAIN_COLLECTION
+    
+    RAG_SVC --> CHUNK
+    CHUNK --> EMBED
+    EMBED --> PAYLOAD
+    PAYLOAD --> UPSERT
+    
+    UPSERT --> MAIN_COLLECTION
+    
+    RAG_SVC --> SEARCH
+    RAG_SVC --> DELETE
+    RAG_SVC --> FILTER
+    
+    SEARCH --> MAIN_COLLECTION
+    
+    RAG_SVC --> OPENAI_API
+    OCR_SVC --> REDIS
+    RAG_SVC --> REDIS
+
+    %% Styling
+    classDef app fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef service fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef qdrant fill:#e8f5e8,stroke:#1b5e20,stroke-width:3px
+    classDef operation fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef pipeline fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef external fill:#f9fbe7,stroke:#33691e,stroke-width:2px
+
+    class MOBILE,WEB app
+    class GATEWAY,OCR_SVC,RAG_SVC service
+    class QDRANT_CLIENT,MAIN_COLLECTION qdrant
+    class UPSERT,SEARCH,DELETE,FILTER operation
+    class CHUNK,EMBED,PAYLOAD pipeline
+    class OPENAI_API,REDIS external
+```
+
+---
+
 ## 📋 Executive Summary
 
 This document prepares for a technical consultation with Qdrant's DevRel team to optimize our insurance policy document processing application. We're seeking guidance on architecture, performance, and scaling strategies before public launch.
@@ -137,20 +374,30 @@ Insurance PDF → OCR (DocTR) → Text Chunking → OpenAI Embeddings → Qdrant
 - **Question**: "Would vector quantization help reduce costs without significantly impacting search quality for our use case?"
 - **Follow-up**: "Are there other cost optimization techniques for document-heavy applications?"
 
-### **4. Advanced Features**
+### **4. Advanced Features & Data Privacy**
+
+#### **Selective Data Deletion & FAQ System**
+- **Current Strategy**: Delete PII while retaining generic insurance content for FAQ building
+- **Question**: "What's the best approach for selective deletion of PII from vector payloads while preserving generic insurance knowledge?"
+- **Follow-up**: "How can we efficiently categorize and filter content as 'PII' vs 'generic knowledge' for FAQ systems?"
+
+#### **Data Anonymization**
+- **Question**: "Best practices for anonymizing insurance document content before embedding?"
+- **Context**: "We want to build a knowledge base of common insurance terms and coverage explanations"
+- **Follow-up**: "Should we use separate collections for anonymized FAQ content vs user-specific data?"
 
 #### **Payload Filtering**
 - **Current**: Filter by document_type, user_id, policy metadata
-- **Question**: "What's the most efficient way to structure payloads for complex filtering scenarios?"
-- **Follow-up**: "How do filters impact query performance at scale?"
+- **Question**: "What's the most efficient way to structure payloads for complex filtering scenarios including content classification?"
+- **Follow-up**: "How do filters impact query performance when separating PII vs generic content?"
 
 #### **Hybrid Search**
 - **Question**: "Should we consider combining vector search with keyword search for specific insurance terms and policy numbers?"
 - **Context**: "Users often search for exact policy numbers or specific coverage terms"
 
-#### **Multi-tenancy**
-- **Question**: "What's the best approach for user data isolation - separate collections, payload filtering, or other methods?"
-- **Context**: "Need to ensure users only see their own documents"
+#### **Multi-tenancy & Privacy**
+- **Question**: "What's the best approach for user data isolation while building shared FAQ knowledge base?"
+- **Context**: "Need user document isolation + shared anonymized knowledge base"
 
 ### **5. Monitoring & Quality**
 
@@ -171,6 +418,7 @@ Insurance PDF → OCR (DocTR) → Text Chunking → OpenAI Embeddings → Qdrant
 #### **Data Management**
 - **Question**: "What's the recommended approach for backing up vector data and handling data migrations?"
 - **Follow-up**: "How do we handle schema changes or embedding model updates?"
+- **Context**: "We're planning to implement selective data deletion for privacy compliance"
 
 ### **7. Technical Deep Dive**
 
@@ -214,9 +462,11 @@ Insurance PDF → OCR (DocTR) → Text Chunking → OpenAI Embeddings → Qdrant
 
 ### **Technical Challenges**
 1. **Pre-launch Status**: Haven't stress-tested at scale yet
-2. **Domain Specificity**: Optimizing for insurance terminology and legal language
-3. **Document Complexity**: Handling tables, forms, and structured data
-4. **Search Quality**: Ensuring relevance for complex insurance queries
+2. **Data Privacy Implementation**: Planning selective PII deletion while preserving knowledge
+3. **Domain Specificity**: Optimizing for insurance terminology and legal language
+4. **Document Complexity**: Handling tables, forms, and structured data
+5. **Search Quality**: Ensuring relevance for complex insurance queries
+6. **Content Classification**: Identifying PII vs generic insurance knowledge
 
 ### **Business Constraints**
 1. **Budget Sensitivity**: Bootstrapped startup, need cost-effective scaling
@@ -242,9 +492,10 @@ Insurance PDF → OCR (DocTR) → Text Chunking → OpenAI Embeddings → Qdrant
 
 ### **Long-term Vision**
 1. **Performance Excellence**: Sub-second query responses at scale
-2. **Advanced Features**: Hybrid search, multi-modal capabilities
-3. **Global Expansion**: Multi-region deployment strategy
-4. **AI Enhancement**: Better understanding of insurance context
+2. **Privacy-First FAQ System**: Robust anonymized knowledge base for common insurance questions
+3. **Advanced Features**: Hybrid search, multi-modal capabilities
+4. **Global Expansion**: Multi-region deployment strategy
+5. **AI Enhancement**: Better understanding of insurance context with privacy preservation
 
 ---
 

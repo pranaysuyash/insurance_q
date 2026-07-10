@@ -51,7 +51,7 @@ app.mount("/static", StaticFiles(directory="src/frontend/static"), name="static"
 templates = Jinja2Templates(directory="src/frontend/templates")
 
 # Service URLs from environment variables
-OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL", "http://ocr_service:8001")
+OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL", "http://rag_service:8000")  # Now points to main app
 RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8000")
 
 # HTTP client (managed by lifespan events)
@@ -113,15 +113,15 @@ async def upload_document(file: UploadFile = File(...)):
                 detail=f"Unsupported file format: {file_ext}. Supported formats: PDF, PNG, JPG, TIFF, DOC, DOCX"
             )
         
-        # 1. Call OCR service's /process_and_ingest endpoint
+        # Call main app's /process-and-ingest (replaces standalone OCR service)
         files_for_ocr = {"file": (filename, file.file, file.content_type)}
-        ocr_process_url = f"{OCR_SERVICE_URL.rstrip('/')}/process_and_ingest"
-        logger.debug(f"Calling OCR process endpoint: {ocr_process_url}")
+        ocr_process_url = f"{OCR_SERVICE_URL.rstrip('/')}/process-and-ingest"
+        logger.debug(f"Calling process endpoint: {ocr_process_url}")
         
         ocr_response = await http_client.post(ocr_process_url, files=files_for_ocr)
         ocr_response.raise_for_status()
         ocr_process_result = ocr_response.json()
-        logger.info("ocr_process_and_ingest_response", filename=filename, response=ocr_process_result)
+        logger.info("process_and_ingest_response", filename=filename, response=ocr_process_result)
 
         ocr_doc_key = ocr_process_result.get("ocr_doc_key")
         rag_status = ocr_process_result.get("rag_ingestion_status")
@@ -132,35 +132,16 @@ async def upload_document(file: UploadFile = File(...)):
             error_msg = str(rag_detail)
             if "429" in error_msg or "exceeded your current quota" in error_msg or "rate limit" in error_msg.lower():
                 logger.warning("openai_rate_limit_exceeded", filename=filename)
-                # We'll continue since OCR was successful, just add a note about RAG failure
                 rag_detail = "OpenAI API rate limit exceeded. Text extraction worked, but Q&A features may be limited."
         
         if not ocr_doc_key:
             logger.error("ocr_doc_key_missing", ocr_response=ocr_process_result)
-            raise HTTPException(status_code=500, detail="OCR service response missing 'ocr_doc_key'.")
+            raise HTTPException(status_code=500, detail="Process response missing 'ocr_doc_key'.")
 
-        # 2. Fetch the cached full OCR data using the ocr_doc_key
-        # Make sure we strip any 'ocr_cache:' prefix from the key to avoid double-prefixing
-        clean_ocr_key = ocr_doc_key.replace("ocr_cache:", "") if ocr_doc_key.startswith("ocr_cache:") else ocr_doc_key
-        ocr_data_url = f"{OCR_SERVICE_URL.rstrip('/')}/cached_ocr_data/{clean_ocr_key}"
-        logger.debug(f"Fetching cached OCR data from: {ocr_data_url}")
-        cached_data_response = await http_client.get(ocr_data_url)
-        cached_data_response.raise_for_status()
-        cached_data_payload = cached_data_response.json()
+        # Extract data from inline response (no separate /cached_ocr_data call needed)
+        display_text = ocr_process_result.get("text", "Text not found in OCR output.")
+        layout_elements = ocr_process_result.get("layout_elements", [])
         
-        # The actual OCR output is nested under 'cached_ocr_result' and then 'result'
-        actual_ocr_output = cached_data_payload.get("cached_ocr_result", {}).get("result", {})
-        if not actual_ocr_output:
-            logger.warning("empty_ocr_output_from_cache", filename=filename, doc_key=ocr_doc_key)
-            # Fallback or decide how to handle if cached data is unexpectedly empty
-
-        # 3. Extract data for frontend
-        # For V2, we primarily show full_text and layout_elements (which might be QA pairs)
-        display_text = actual_ocr_output.get("full_text", "Text not found in OCR output.")
-        layout_elements = actual_ocr_output.get("layout_elements", [])
-        
-        # Convert layout_elements into a simpler dictionary for the template if needed,
-        # or the template can iterate through the list of dicts.
         # Group layout elements by ID to create sections
         sections = {}
         for element in layout_elements:
@@ -172,10 +153,10 @@ async def upload_document(file: UploadFile = File(...)):
         return {
             "message": f"OCR processing for '{filename}' complete. RAG Ingestion: {rag_status} - {rag_detail}",
             "filename": filename,
-            "doc_key": ocr_doc_key, # This is the key for cached OCR data
+            "doc_key": ocr_doc_key,
             "text": display_text,
-            "layout_elements": layout_elements, # Pass the list of layout elements
-            "sections": sections  # Add the sections dictionary
+            "layout_elements": layout_elements,
+            "sections": sections
         }
             
     except httpx.HTTPStatusError as e:

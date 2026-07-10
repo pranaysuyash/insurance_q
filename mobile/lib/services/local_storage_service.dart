@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
 import '../models/document_model.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
@@ -11,23 +12,22 @@ class LocalStorageService {
   static const Uuid _uuid = Uuid();
 
   // Save a document file to local storage and store metadata in SharedPreferences
-  Future<InsuranceDocument> saveDocument(File file, {Map<String, dynamic>? additionalMetadata}) async {
-    final prefs = await SharedPreferences.getInstance();
-    
+  Future<InsuranceDocument> saveDocument(File file,
+      {Map<String, dynamic>? additionalMetadata}) async {
     // Create a unique ID for the document
     final docId = _uuid.v4();
-    
+
     // Get the app's documents directory
     final directory = await getApplicationDocumentsDirectory();
     final fileName = path.basename(file.path);
-    
+
     // Copy the file to our app's documents directory with a unique name
     final localFilePath = path.join(directory.path, '${docId}_$fileName');
     await file.copy(localFilePath);
-    
+
     // Get the file size
     final fileSize = await File(localFilePath).length();
-    
+
     // Create a document object
     final document = InsuranceDocument(
       id: docId,
@@ -41,16 +41,16 @@ class LocalStorageService {
       documentType: additionalMetadata?['document_type'],
       insurer: additionalMetadata?['insurer'],
     );
-    
+
     // Get existing documents
     final documents = await getDocuments();
-    
+
     // Add new document to the list
     documents.add(document);
-    
+
     // Save the updated list back to SharedPreferences
     await _saveDocumentsList(documents);
-    
+
     return document;
   }
 
@@ -58,39 +58,73 @@ class LocalStorageService {
   Future<List<InsuranceDocument>> getDocuments() async {
     final prefs = await SharedPreferences.getInstance();
     final documentsList = prefs.getStringList(_documentsKey) ?? [];
-    
+
+    if (documentsList.isEmpty && AppConfig.bootstrapPolicyDemo) {
+      final demoDocument = InsuranceDocument(
+        id: '3022ffcb-86c5-42ae-ae9f-2d6e00025631',
+        filename: 'policy.pdf',
+        uploadedOn: DateTime.parse('2026-07-08T13:10:22.277452'),
+        documentType: 'Health Insurance',
+        insurer: 'ICICI Lombard General Insurance Company Limited',
+        status: 'completed',
+        processingCompletedAt: DateTime.parse('2026-07-08T13:10:22.277452'),
+        size: 550955,
+        localFilePath: null,
+        policyHolders: [
+          PolicyHolder(
+            name: 'Pranay Suyash',
+            dob: '10-May-1988',
+            relationship: 'SELF',
+          ),
+          PolicyHolder(
+            name: 'Diksha Sinha',
+            dob: '02-Aug-1992',
+            relationship: 'SPOUSE',
+          ),
+          PolicyHolder(
+            name: 'Advay Sinha',
+            dob: '28-May-2023',
+            relationship: 'SON',
+          ),
+        ],
+      );
+
+      await _saveDocumentsList([demoDocument]);
+      return [demoDocument];
+    }
+
     return documentsList
         .map((jsonStr) => InsuranceDocument.fromJsonString(jsonStr))
         .toList();
   }
-  
+
   // Update an existing document
   Future<bool> updateDocument(InsuranceDocument updatedDocument) async {
     try {
       // Get all existing documents
       final documents = await getDocuments();
-      
+
       // Find the index of the document to update
       final index = documents.indexWhere((doc) => doc.id == updatedDocument.id);
-      
+
       // If document not found, return false
       if (index == -1) {
         return false;
       }
-      
+
       // Replace the document at the found index
       documents[index] = updatedDocument;
-      
+
       // Save the updated list back to SharedPreferences
       await _saveDocumentsList(documents);
-      
+
       return true;
     } catch (e) {
       debugPrint('Error updating document: $e');
       return false;
     }
   }
-  
+
   // Get a specific document by ID
   Future<InsuranceDocument?> getDocumentById(String documentId) async {
     final documents = await getDocuments();
@@ -101,19 +135,19 @@ class LocalStorageService {
       return null;
     }
   }
-  
+
   // Delete a document from SharedPreferences and the local file system
   Future<bool> deleteDocument(String documentId) async {
     try {
       // Get existing documents
       final documents = await getDocuments();
-      
+
       // Find the document to delete
       final documentToDelete = documents.firstWhere(
         (doc) => doc.id == documentId,
         orElse: () => throw Exception('Document not found'),
       );
-      
+
       // Delete the local file if it exists
       if (documentToDelete.localFilePath != null) {
         final file = File(documentToDelete.localFilePath!);
@@ -121,38 +155,38 @@ class LocalStorageService {
           await file.delete();
         }
       }
-      
+
       // Remove the document from the list
       documents.removeWhere((doc) => doc.id == documentId);
-      
+
       // Save the updated list back to SharedPreferences
       await _saveDocumentsList(documents);
-      
+
       return true;
     } catch (e) {
       debugPrint('Error deleting document: $e');
       return false;
     }
   }
-  
+
   // Helper method to save the list of documents to SharedPreferences
   Future<void> _saveDocumentsList(List<InsuranceDocument> documents) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStrings = documents.map((doc) => doc.toJsonString()).toList();
     await prefs.setStringList(_documentsKey, jsonStrings);
   }
-  
+
   // Check if a document with the same filename already exists
   Future<InsuranceDocument?> findDuplicateDocument(String filename) async {
     final documents = await getDocuments();
-    
+
     // First check for exact filename match
     for (final doc in documents) {
       if (doc.filename.toLowerCase() == filename.toLowerCase()) {
         return doc;
       }
     }
-    
+
     // Then check for similar filenames (ignoring version numbers or timestamps)
     // This handles cases like "policy_v1.pdf" and "policy_v2.pdf"
     final baseFilename = _getBaseFilename(filename);
@@ -164,25 +198,26 @@ class LocalStorageService {
         }
       }
     }
-    
+
     return null; // No duplicate found
   }
-  
+
   // Helper to extract base filename by removing version numbers and common suffixes
   String _getBaseFilename(String filename) {
     // Remove file extension
     final withoutExtension = filename.contains('.')
         ? filename.substring(0, filename.lastIndexOf('.'))
         : filename;
-    
+
     // Remove common patterns like _v1, -2, (2023-05-01), etc.
     final baseFilename = withoutExtension
         .replaceAll(RegExp(r'[-_]v\d+$'), '') // Remove _v1, -v2, etc.
         .replaceAll(RegExp(r'[-_]rev\d+$'), '') // Remove _rev1, -rev2
         .replaceAll(RegExp(r'[-_]\d+$'), '') // Remove _1, -2, etc.
-        .replaceAll(RegExp(r'\(\d{4}-\d{2}-\d{2}\)$'), '') // Remove dates like (2023-05-01)
+        .replaceAll(RegExp(r'\(\d{4}-\d{2}-\d{2}\)$'),
+            '') // Remove dates like (2023-05-01)
         .trim();
-    
+
     return baseFilename;
   }
-} 
+}

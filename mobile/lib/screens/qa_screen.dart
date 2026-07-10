@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/qa_models.dart';
 import '../models/document_model.dart';
+import '../config/app_config.dart';
 import '../providers/questions_provider.dart';
 import '../providers/storage_provider.dart';
 import '../services/api_service.dart';
@@ -12,78 +13,151 @@ final currentAnswerProvider = StateProvider<QaAnswer?>((ref) => null);
 
 class QaScreen extends ConsumerStatefulWidget {
   final String? initialDocumentId;
-  
-  const QaScreen({super.key, this.initialDocumentId});
+  final bool isActive;
+
+  const QaScreen({super.key, this.initialDocumentId, this.isActive = true});
 
   @override
-  _QaScreenState createState() => _QaScreenState();
+  QaScreenState createState() => QaScreenState();
 }
 
-class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderStateMixin {
+class QaScreenState extends ConsumerState<QaScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _customQuestionController = TextEditingController();
+  final TextEditingController _customQuestionController =
+      TextEditingController();
   final ApiService _apiService = ApiService();
   List<InsuranceDocument> _documents = [];
   bool _isLoadingDocuments = false;
-  
+  bool _demoSequenceStarted = false;
+  int _demoSequenceGeneration = 0;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    
+
     // Load documents first, then handle document selection
     _loadDocuments().then((_) {
       _loadSavedDocumentId();
-      
+
       // Set the initial document ID if provided
       if (widget.initialDocumentId != null) {
-        ref.read(selectedDocumentProvider.notifier).state = widget.initialDocumentId;
+        ref.read(selectedDocumentProvider.notifier).state =
+            widget.initialDocumentId;
         _saveSelectedDocumentId(widget.initialDocumentId);
       }
+
+      _maybeStartDemoSequence();
     });
   }
-  
+
+  @override
+  void didUpdateWidget(covariant QaScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive != widget.isActive && !widget.isActive) {
+      // Stop any remaining scripted demo steps once QA is no longer visible.
+      _demoSequenceStarted = false;
+      _demoSequenceGeneration++;
+    }
+  }
+
+  @override
+  void deactivate() {
+    // Cancel any in-flight demo work the moment this screen leaves the tree.
+    _demoSequenceGeneration++;
+    _demoSequenceStarted = false;
+    super.deactivate();
+  }
+
+  Future<void> _maybeStartDemoSequence() async {
+    if (!AppConfig.bootstrapPolicyDemo || _demoSequenceStarted) return;
+    if (!widget.isActive) return;
+    if (_documents.isEmpty) return;
+
+    _demoSequenceStarted = true;
+    final demoGeneration = _demoSequenceGeneration;
+    final selectedDocument = _documents.first;
+    ref.read(selectedDocumentProvider.notifier).state = selectedDocument.id;
+    await _saveSelectedDocumentId(selectedDocument.id);
+
+    if (!mounted ||
+        !widget.isActive ||
+        demoGeneration != _demoSequenceGeneration) {
+      return;
+    }
+    _tabController.animateTo(1);
+
+    const demoQuestions = [
+      'What is my policy number?',
+      'When does my policy start and end?',
+      'Who is the insurer for this policy?',
+      'What is my premium amount?',
+      'What is the claims process?',
+      'Are there any waiting periods?',
+    ];
+
+    for (final question in demoQuestions) {
+      if (!mounted ||
+          !widget.isActive ||
+          demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
+      _customQuestionController.text = question;
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted ||
+          !widget.isActive ||
+          demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
+      await _askQuestion(question, demoGeneration: demoGeneration);
+      await Future.delayed(const Duration(seconds: 2));
+    }
+  }
+
   Future<void> _loadSavedDocumentId() async {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       if (prefs != null) {
         // First try to use explicit initial document ID if provided
         if (widget.initialDocumentId != null) {
-          ref.read(selectedDocumentProvider.notifier).state = widget.initialDocumentId;
+          ref.read(selectedDocumentProvider.notifier).state =
+              widget.initialDocumentId;
           return;
         }
-        
+
         // Next, try to use the previously selected document ID
         final savedId = prefs.getString(StorageKeys.selectedDocumentId);
         if (savedId != null) {
           ref.read(selectedDocumentProvider.notifier).state = savedId;
           return;
         }
-        
+
         // Then, try to use the most recently viewed document
         final lastViewedId = prefs.getString(StorageKeys.lastViewedDocumentId);
         if (lastViewedId != null) {
           ref.read(selectedDocumentProvider.notifier).state = lastViewedId;
           return;
         }
-        
+
         // Finally, try to use the last uploaded document
-        final lastUploadedId = prefs.getString(StorageKeys.lastUploadedDocumentId);
+        final lastUploadedId =
+            prefs.getString(StorageKeys.lastUploadedDocumentId);
         if (lastUploadedId != null) {
           ref.read(selectedDocumentProvider.notifier).state = lastUploadedId;
           return;
         }
-        
+
         // If there's just one document, auto-select it
         if (_documents.length == 1) {
           ref.read(selectedDocumentProvider.notifier).state = _documents[0].id;
         }
       }
     } catch (e) {
-      print('Error loading saved document ID: $e');
+      debugPrint('Error loading saved document ID: $e');
     }
   }
-  
+
   Future<void> _saveSelectedDocumentId(String? documentId) async {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
@@ -97,15 +171,15 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
         }
       }
     } catch (e) {
-      print('Error saving document ID: $e');
+      debugPrint('Error saving document ID: $e');
     }
   }
-  
+
   Future<void> _loadDocuments() async {
     setState(() {
       _isLoadingDocuments = true;
     });
-    
+
     try {
       final documents = await _apiService.getDocuments();
       setState(() {
@@ -116,12 +190,13 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       setState(() {
         _isLoadingDocuments = false;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading documents: $e')),
       );
     }
   }
-  
+
   void _showDocumentSelectionDialog() {
     showDialog(
       context: context,
@@ -135,115 +210,143 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       ),
     );
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
     _customQuestionController.dispose();
     super.dispose();
   }
-  
-  Future<void> _askQuestion(String question) async {
+
+  Future<void> _askQuestion(String question, {int? demoGeneration}) async {
+    if (!mounted || !widget.isActive) return;
+    if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+      return;
+    }
     final selectedDoc = ref.read(selectedDocumentProvider);
-    
+
     ref.read(isLoadingProvider.notifier).state = true;
     ref.read(currentAnswerProvider.notifier).state = null;
-    
+
     // Add some logs to help debug
-    print('Asking question: $question');
-    print('Selected document: $selectedDoc');
-    
+    debugPrint('Asking question: $question');
+    debugPrint('Selected document: $selectedDoc');
+
     try {
       // Format the question to be more conversational and specific
       // This often helps LLMs understand the intent better
       String formattedQuestion = question;
-      
+
       // For standard questions, enhance them slightly to help the model
       if (question == "What is my policy number?") {
-        formattedQuestion = "What is the policy number shown in this insurance document?";
+        formattedQuestion =
+            "What is the policy number shown in this insurance document?";
       } else if (question.contains("deductible")) {
-        formattedQuestion = "What is the deductible amount specified in this insurance policy?";
+        formattedQuestion =
+            "What is the deductible amount specified in this insurance policy?";
       } else if (question.contains("premium")) {
-        formattedQuestion = "What is the premium amount stated in this insurance document?";
+        formattedQuestion =
+            "What is the premium amount stated in this insurance document?";
       }
-      
-      print('Formatted question: $formattedQuestion');
-      
+
+      debugPrint('Formatted question: $formattedQuestion');
+
       // Query with document filtering to get results from the selected document
       final result = await _apiService.queryDocument(
-        formattedQuestion, 
+        formattedQuestion,
         documentId: selectedDoc, // Re-enable document filtering
       );
-      
-      print('API response: $result');
-      
+
+      if (!mounted || !widget.isActive) return;
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
+      debugPrint('API response: $result');
+
       if (result.containsKey('error')) {
         // Don't immediately show error - try to show answer if available
         if (!result.containsKey('answer')) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: ${result['error']}')),
           );
           return;
         }
       }
-      
+
       // Create answer from result
-      print('Creating QaAnswer from result: $result');
+      debugPrint('Creating QaAnswer from result: $result');
       final answer = QaAnswer.fromJson({
         ...result,
         'query': question, // Keep the original question for the UI
         'document_id': selectedDoc ?? '',
       });
-      print('Created QaAnswer: ${answer.text}');
-      
+      debugPrint('Created QaAnswer: ${answer.text}');
+
+      if (!mounted) return;
+      if (!widget.isActive) return;
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
+
       // Update UI with answer
       ref.read(currentAnswerProvider.notifier).state = answer;
-      
+
       // Add to history if there's an actual answer
       if (answer.text.isNotEmpty) {
         ref.read(qaHistoryProvider.notifier).addItem(question, answer);
-        
+
         // Save to recent questions list (up to 5 questions)
         try {
           final prefs = ref.read(sharedPreferencesProvider);
           if (prefs != null) {
-            final recentQuestions = prefs.getStringList(StorageKeys.recentQuestions) ?? [];
+            final recentQuestions =
+                prefs.getStringList(StorageKeys.recentQuestions) ?? [];
             if (!recentQuestions.contains(question)) {
               recentQuestions.insert(0, question);
               // Keep only the 5 most recent questions
               if (recentQuestions.length > 5) {
                 recentQuestions.removeLast();
               }
-              await prefs.setStringList(StorageKeys.recentQuestions, recentQuestions);
+              await prefs.setStringList(
+                  StorageKeys.recentQuestions, recentQuestions);
             }
           }
         } catch (e) {
-          print('Error saving recent question: $e');
+          debugPrint('Error saving recent question: $e');
         }
       }
-      
     } catch (e) {
-      print('Error during question: $e');
-      
+      debugPrint('Error during question: $e');
+
       // Create a fallback answer
       final fallbackAnswer = QaAnswer(
-        text: 'Sorry, I encountered an error while processing your question. This may be due to a network issue or server problem. Please try again later.',
+        text:
+            'Sorry, I encountered an error while processing your question. This may be due to a network issue or server problem. Please try again later.',
         sources: [],
         timestamp: DateTime.now(),
         documentId: selectedDoc ?? '',
         question: question,
       );
-      
+
+      if (!mounted) return;
+      if (!widget.isActive) return;
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
       ref.read(currentAnswerProvider.notifier).state = fallbackAnswer;
-      
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     } finally {
-      ref.read(isLoadingProvider.notifier).state = false;
+      if (mounted && widget.isActive) {
+        ref.read(isLoadingProvider.notifier).state = false;
+      }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(questionCategoriesProvider);
@@ -251,7 +354,7 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
     final qaHistory = ref.watch(qaHistoryProvider);
     final isLoading = ref.watch(isLoadingProvider);
     final currentAnswer = ref.watch(currentAnswerProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Insurance Q&A'),
@@ -293,9 +396,14 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
                     ),
                     const SizedBox(height: 4),
                     Consumer(builder: (context, ref, child) {
-                      final selectedDocumentId = ref.watch(selectedDocumentProvider);
-                      final selectedDoc =
-                          _documents.firstWhere((doc) => doc.id == selectedDocumentId, orElse: () => InsuranceDocument(id: '', filename: 'No document selected', uploadedOn: DateTime.now()));
+                      final selectedDocumentId =
+                          ref.watch(selectedDocumentProvider);
+                      final selectedDoc = _documents.firstWhere(
+                          (doc) => doc.id == selectedDocumentId,
+                          orElse: () => InsuranceDocument(
+                              id: '',
+                              filename: 'No document selected',
+                              uploadedOn: DateTime.now()));
 
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -313,8 +421,11 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
                           TextButton.icon(
                             icon: const Icon(Icons.folder_open, size: 18),
                             label: const Text('Change'),
-                            onPressed: _isLoadingDocuments ? null : _showDocumentSelectionDialog,
-                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                            onPressed: _isLoadingDocuments
+                                ? null
+                                : _showDocumentSelectionDialog,
+                            style:
+                                TextButton.styleFrom(padding: EdgeInsets.zero),
                           ),
                         ],
                       );
@@ -329,11 +440,13 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
               ),
             ),
           ),
-          Expanded( // Make TabBarView take remaining space
+          Expanded(
+            // Make TabBarView take remaining space
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildStandardQuestionsTab(categories, standardQuestions, isLoading, currentAnswer),
+                _buildStandardQuestionsTab(
+                    categories, standardQuestions, isLoading, currentAnswer),
                 _buildCustomQuestionTab(isLoading, currentAnswer),
                 _buildHistoryTab(qaHistory),
               ],
@@ -343,7 +456,7 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       ),
     );
   }
-  
+
   Widget _buildStandardQuestionsTab(
       List<QuestionCategory> categories,
       List<StandardQuestion> questions,
@@ -366,7 +479,7 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
             child: _buildAnswerCard(currentAnswer),
           );
         }
-        
+
         final category = categories[index];
         final categoryQuestions = groupedQuestions[category.id] ?? [];
 
@@ -382,14 +495,19 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
               children: [
                 Text(
                   category.name,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 ...categoryQuestions.map((q) => ListTile(
                       title: Text(q.text, style: const TextStyle(fontSize: 15)),
                       trailing: isLoading && currentAnswer?.query == q.text
-                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.question_answer_outlined, color: Colors.blue),
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.question_answer_outlined,
+                              color: Colors.blue),
                       onTap: isLoading ? null : () => _askQuestion(q.text),
                       contentPadding: EdgeInsets.zero,
                     )),
@@ -402,7 +520,8 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
   }
 
   Widget _buildCustomQuestionTab(bool isLoading, QaAnswer? currentAnswer) {
-    return SingleChildScrollView( // Make this tab scrollable
+    return SingleChildScrollView(
+      // Make this tab scrollable
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -415,13 +534,12 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
           TextField(
             controller: _customQuestionController,
             decoration: InputDecoration(
-              hintText: 'e.g., What is the effective date?',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () => _customQuestionController.clear(),
-              )
-            ),
+                hintText: 'e.g., What is the effective date?',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _customQuestionController.clear(),
+                )),
             minLines: 2,
             maxLines: 4,
             textInputAction: TextInputAction.send,
@@ -435,17 +553,18 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
           ElevatedButton.icon(
             icon: const Icon(Icons.send),
             label: const Text('Ask Question'),
-            onPressed: isLoading || _customQuestionController.text.trim().isEmpty
-                ? null
-                : () => _askQuestion(_customQuestionController.text.trim()),
+            onPressed:
+                isLoading || _customQuestionController.text.trim().isEmpty
+                    ? null
+                    : () => _askQuestion(_customQuestionController.text.trim()),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
           const SizedBox(height: 24),
-          if (isLoading)
-            const Center(child: CircularProgressIndicator()),
-          if (currentAnswer != null && currentAnswer.query == _customQuestionController.text.trim())
+          if (isLoading) const Center(child: CircularProgressIndicator()),
+          if (currentAnswer != null &&
+              currentAnswer.query == _customQuestionController.text.trim())
             _buildAnswerCard(currentAnswer),
         ],
       ),
@@ -564,4 +683,4 @@ class _QaScreenState extends ConsumerState<QaScreen> with SingleTickerProviderSt
       ),
     );
   }
-} 
+}

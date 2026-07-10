@@ -4,12 +4,22 @@ import '../models/qa_models.dart';
 
 // Define categories
 final List<QuestionCategory> _categories = [
-  QuestionCategory(id: 'Policy Basics', name: 'Policy Basics', icon: Icons.fact_check),
-  QuestionCategory(id: 'Coverage Details', name: 'Coverage Details', icon: Icons.shield),
-  QuestionCategory(id: 'Premiums & Payments', name: 'Premiums & Payments', icon: Icons.payments),
-  QuestionCategory(id: 'Claims', name: 'Claims', icon: Icons.assignment_turned_in),
-  QuestionCategory(id: 'Exclusions & Limitations', name: 'Exclusions & Limitations', icon: Icons.block),
-  QuestionCategory(id: 'Benefits', name: 'Benefits', icon: Icons.health_and_safety),
+  QuestionCategory(
+      id: 'Policy Basics', name: 'Policy Basics', icon: Icons.fact_check),
+  QuestionCategory(
+      id: 'Coverage Details', name: 'Coverage Details', icon: Icons.shield),
+  QuestionCategory(
+      id: 'Premiums & Payments',
+      name: 'Premiums & Payments',
+      icon: Icons.payments),
+  QuestionCategory(
+      id: 'Claims', name: 'Claims', icon: Icons.assignment_turned_in),
+  QuestionCategory(
+      id: 'Exclusions & Limitations',
+      name: 'Exclusions & Limitations',
+      icon: Icons.block),
+  QuestionCategory(
+      id: 'Benefits', name: 'Benefits', icon: Icons.health_and_safety),
 ];
 
 final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
@@ -45,7 +55,7 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Policy Basics',
       icon: Icons.category,
     ),
-    
+
     // Coverage Details
     StandardQuestion(
       id: 'cd1',
@@ -77,7 +87,7 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Coverage Details',
       icon: Icons.medication,
     ),
-    
+
     // Premiums & Payments
     StandardQuestion(
       id: 'pp1',
@@ -97,7 +107,7 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Premiums & Payments',
       icon: Icons.event,
     ),
-    
+
     // Claims
     StandardQuestion(
       id: 'cl1',
@@ -117,7 +127,7 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Claims',
       icon: Icons.description,
     ),
-    
+
     // Exclusions & Limitations
     StandardQuestion(
       id: 'el1',
@@ -137,7 +147,7 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Exclusions & Limitations',
       icon: Icons.history,
     ),
-    
+
     // Benefits
     StandardQuestion(
       id: 'bn1',
@@ -166,7 +176,8 @@ final questionCategoriesProvider = Provider<List<QuestionCategory>>((ref) {
 
 final selectedDocumentProvider = StateProvider<String?>((ref) => null);
 
-final qaHistoryProvider = StateNotifierProvider<QaHistoryNotifier, List<QaPair>>((ref) {
+final qaHistoryProvider =
+    StateNotifierProvider<QaHistoryNotifier, List<QaPair>>((ref) {
   return QaHistoryNotifier();
 });
 
@@ -174,45 +185,45 @@ class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
   QaHistoryNotifier() : super([]) {
     _loadHistory();
   }
-  
+
   Future<void> _loadHistory() async {
     try {
       // For now, just keep in memory
       // TODO: Add SharedPreferences persistence if needed
     } catch (e) {
-      print('Error loading QA history: $e');
+      debugPrint('Error loading QA history: $e');
     }
   }
-  
+
   void addItem(String question, QaAnswer answer) {
     final newItem = QaPair(
       question: question,
       answer: answer,
       timestamp: DateTime.now(),
     );
-    
+
     state = [newItem, ...state];
-    
+
     // Keep only the last 50 items to prevent memory issues
     if (state.length > 50) {
       state = state.take(50).toList();
     }
-    
+
     _saveHistory();
   }
-  
+
   Future<void> _saveHistory() async {
     try {
       // For now, just keep in memory
       // TODO: Add SharedPreferences persistence if needed
-      print('QA History updated: ${state.length} items');
+      debugPrint('QA History updated: ${state.length} items');
     } catch (e) {
-      print('Error saving QA history: $e');
+      debugPrint('Error saving QA history: $e');
     }
   }
-  
+
   void clearHistory() {
     state = [];
     _saveHistory();
   }
-} 
+}

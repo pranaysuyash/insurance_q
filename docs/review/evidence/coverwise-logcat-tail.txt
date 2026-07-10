@@ -1,0 +1,200 @@
+07-08 12:12:44.223   571  2370 D CoreBackPreview: Window{4207a4a u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}: Setting back callback null
+07-08 12:12:44.225   571   589 D CoreBackPreview: Window{4207a4a u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@e28a725, mPriority=-1, mIsAnimationCallback=false}
+07-08 12:12:44.225   571   589 D CoreBackPreview: Window{4207a4a u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@5daa0fa, mPriority=0, mIsAnimationCallback=true}
+07-08 12:12:44.233   571  1984 D SearchUiPerUserService: Removing callback for session Id=com.google.android.apps.nexuslauncher:c8708bde-43a2-4d4e-b527-01cc6027730a,0 and callback=android.os.BinderProxy@fbd10d6
+07-08 12:12:44.235   571   589 D SearchUiPerUserService: Removing all callbacks for session Id=com.google.android.apps.nexuslauncher:c8708bde-43a2-4d4e-b527-01cc6027730a,0 and 0 callbacks.
+07-08 12:12:44.237   571  1984 D ActivityTaskManager: Remove task fragment: deleteTaskFragment
+07-08 12:12:44.250   571   690 I ImeTracker: com.coverwise.app:7a3c6bc7: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+07-08 12:12:44.250   571   690 I ImeTracker: com.coverwise.app:7a3c6bc7: onCancelled at PHASE_SERVER_SHOULD_HIDE
+07-08 12:12:44.268   953  1029 V WindowManagerShell: Transition requested (#15): android.os.BinderProxy@5f954ad TransitionRequestInfo { type = CLOSE, triggerTask = null, pipTask = null, remoteTransition = RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@dc3f3e2, appThread = null, debugName = null }, displayChange = null, flags = 0, debugId = 15 }
+07-08 12:12:44.268   953  1029 V WindowManagerShell: RemoteTransition directly requested for (#15) android.os.BinderProxy@5f954ad: RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@dc3f3e2, appThread = null, debugName = null }
+07-08 12:12:44.315  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():3157 
+07-08 12:12:44.316  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.updateDeviceLockedStatus():2248 repeatCheckTimes = 0, locked = false
+07-08 12:12:44.316  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1986 onStartInput(EditorInfo{EditorInfo{packageName=com.coverwise.app, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+07-08 12:12:44.318  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.updateDeviceLockedStatus():2248 repeatCheckTimes = 1, locked = false
+07-08 12:12:44.319  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.onStartInputInternal():2077 Reset input view per cached request.
+07-08 12:12:44.320  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.clearInputMethodServiceData():1613 clearInputMethodServiceData for resetInputView
+07-08 12:12:44.322  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.discardAllKeyboardViewAndInputView():1818 discardAllKeyboardViewAndInputView()
+07-08 12:12:44.340  1495  1495 I KeyboardModeManager: KeyboardModeManager.setInputViewKeyboardViewHolderProvider():625 setInputView() : supportsOneHandedMode=true supportsSplitMode=true
+07-08 12:12:44.341  1495  1495 I NormalModeController: NormalModeController.getKeyboardBodyViewHolderPaddingBottom():104 currentPrimeKeyboardType:SOFT systemPaddingBottom:-1
+07-08 12:12:44.341  1495  1495 I KeyboardModeManager: KeyboardModeManager.setInputViewKeyboardViewHolderProvider():613 setInputView() : supportsOneHandedMode=true, supportSplitMode=true
+07-08 12:12:44.341  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.initializeInputMethodServiceData():1382 initializeInputMethodServiceData for kct{languageTag=en-US, variant=qwerty, hasLocalizedResources=true, conditionCacheKey=_cache_additional_ime_defs_for_condition_change=false_cache_ime_defs_for_condition_change=false_device=phone_device_size=default_enable_flick_symbols=false_enable_more_candidates_view_for_multilingual=false_enable_number_row=false_enable_preemptive_decode=true_enable_secondary_digits=true_enable_secondary_symbols=false_enable_show_foldable_layout_on_small_tablet=true_expressions=normal_four_or_more_letter_rows=false_keyboard_mode=normal_language=en-US_orientation=portrait_physical_keyboard=nokeys_rtl_layout=false_show_secondary_digits=true_show_suggestions=true_split_with_duplicate_keys=true_variant=qwerty, imeDef.stringId=ime_english_united_states, imeDef.className=com.google.android.apps.inputmethod.libs.latin5.LatinIme, imeDef.languageTag=en-US}
+07-08 12:12:44.377  1495  1495 I StyledKeyboardThemeBuilder: StyledKeyboardThemeBuilder.build():132 Pref: [], themeName: [silk:], darkMode: [false], cacheKey: [overlay_builtin_dynamic_color_light_base.binarypb:dynamic-gm3-light-fffefbff-ff475d92-21eef06c8465a51eb0abebf952ba428b]
+07-08 12:12:44.441  1495  1495 I KeyboardThemeProvider: KeyboardThemeProvider.applyKeyboardTheme():27 Apply keyboard theme: theme_border_stylesheet_noshadow_gsans_pillkey_silkpopup_hover_light_phone_bottom4dp_navredesign_400_overlay_builtin_dynamic_color_light_base.binarypb:dynamic-gm3-light-fffefbff-ff475d92-21eef06c8465a51eb0abebf952ba428b_port
+07-08 12:12:44.451  1495  1495 I AndroidIME: InputBundleManager.loadActiveInputBundleId():450 loadActiveInputBundleId: und-Latn-x-password, password
+07-08 12:12:44.451  1495  1495 I GoogleInputMethodService: GoogleInputMethodService.onCreateInputView():1884 onCreateInputView()
+07-08 12:12:44.530  1308  1308 D AutofillManager: Fill dialog is enabled:false, hints=[password, passwordAuto, creditCardNumber, creditCardSecurityCode, creditCardExpirationDate]
+07-08 12:12:44.539  1308  1308 D DeviceSearchAlg: search timeout = %d200
+07-08 12:12:44.540   470   470 W IPCThreadState: Sending oneway calls to frozen process.
+07-08 12:12:44.543   421   421 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+07-08 12:12:44.548  1308  1308 W PageIndicator: Total number of pages invalid: 0. Assuming 1 page.
+07-08 12:12:44.549  1308  1308 W BcSmartspaceView: Current card is not present in the Adapter; cannot log.
+07-08 12:12:44.559  1308  1308 I OverviewComponentObserver: updateOverviewTargets: mIsHomeDisabled=false, isDefaultHomeNull=false, mIsDefaultHome=true
+07-08 12:12:44.562  1308  1308 D OverviewActionsView: updateActionButtonsVisibility() called: showSingleTaskActions = [true], showGroupActions = [false]
+07-08 12:12:44.581   571  1984 I AppWidgetServiceImpl: startListening() 0
+07-08 12:12:44.582  1308  1308 D ModelCallbacks: startBinding: hotseat layout was vertical: false and is setting to false
+07-08 12:12:44.594  1308  1308 D Launcher.Workspace: addInScreenFromBind: hotseat inflation with x = 0 and y = 0
+07-08 12:12:44.594  1308  1308 D Launcher.Workspace: addInScreenFromBind: hotseat inflation with x = 1 and y = 0
+07-08 12:12:44.594  1308  1308 D Launcher.Workspace: addInScreenFromBind: hotseat inflation with x = 2 and y = 0
+07-08 12:12:44.596  1308  1308 D Launcher.Workspace: addInScreenFromBind: hotseat inflation with x = 3 and y = 0
+07-08 12:12:44.644  1308  1308 D OverviewActionsView: updateActionButtonsVisibility() called: showSingleTaskActions = [true], showGroupActions = [false]
+07-08 12:12:44.657   571  2370 V WindowManager: Queueing transition: TransitionRecord{7ea7976 id=-1 type=CHANGE flags=0x0}
+07-08 12:12:44.659   571   589 D SearchUiPerUserService: Creating SearchSessionInfo for session Id=com.google.android.apps.nexuslauncher:570a3eae-3e5b-4001-93bf-fc929fecac22,0
+07-08 12:12:44.661   571   589 D SearchUiPerUserService: Storing callback for session Id=com.google.android.apps.nexuslauncher:570a3eae-3e5b-4001-93bf-fc929fecac22,0 and callback=android.os.BinderProxy@71bdb77
+07-08 12:12:44.670  1308  1331 D InputMonitorCompat: Input monitor (minus-one-disp0) created
+07-08 12:12:44.711  1576  1576 I AiAiEcho: SearchContextManagerImpl::setSearchContext resultTypes=[141151] extras=[Bundle[{launcher.maxInlineIcons=3, dynamic_ranking_m3_enabled=true, qs_tiles_asi_enabled=true, allowlist_enabled=false, one_search_enabled=true, system_clock=true, version_code=12, gms_play_query_lower_bound=2, gms_play_query_upper_bound=20, recent_search_block_enabled=true, gms_play_feature_supported=true, launcher.gridSize=4, showhiddentargets_enabled=false, ose_info=1}]] sessionId=[com.google.android.apps.nexuslauncher:570a3eae-3e5b-4001-93bf-fc929fecac22,0]
+07-08 12:12:44.809  1308  1308 W SplitSelectStateCtor: Missing session instanceIds
+07-08 12:12:44.809  1308  1308 D StatsLog: LAUNCHER_SPLIT_SELECTION_EXIT_INTERRUPTED
+07-08 12:12:44.827   571  1984 I AppWidgetServiceImpl: getInstalledProvidersForProfiles() 0
+07-08 12:12:44.828   571  1984 I AppWidgetServiceImpl: notifyProviderInheritance() 0
+07-08 12:12:44.909   571   670 D ActivityManager: freezing 1641 com.google.android.googlequicksearchbox:search
+07-08 12:12:44.910   571   670 D ActivityManager: freezing 2687 com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0
+07-08 12:12:44.946  1308  1308 D StateManager: goToState - fromState: Normal, toState: Normal, partial trace:
+07-08 12:12:44.946  1308  1308 D StateManager: 	at com.android.launcher3.statemanager.StateManager.moveToRestState(go/retraceme 31f9979659277bb965985aff1272c33e3c3c9e755b77166d20a2465454178f2c:4)
+07-08 12:12:44.946  1308  1308 D StateManager: 	at com.android.launcher3.statemanager.StateManager.moveToRestState(go/retraceme 31f9979659277bb965985aff1272c33e3c3c9e755b77166d20a2465454178f2c:1)
+07-08 12:12:44.946  1308  1308 D StateManager: 	at com.android.launcher3.statemanager.StatefulActivity.onStop(go/retraceme 31f9979659277bb965985aff1272c33e3c3c9e755b77166d20a2465454178f2c:34)
+07-08 12:12:44.948   571  2370 I AppWidgetServiceImpl: setAppWidgetHidden() 0
+07-08 12:12:44.948  1308  1308 D StatsLog: LAUNCHER_GOOGLE_SEARCH_RESTORE_LIST_SIZE_AFTER_ACTIVITY_RESTART
+07-08 12:12:44.949  1308  1308 I Choreographer: Skipped 52 frames!  The application may be doing too much work on its main thread.
+07-08 12:12:45.012  1308  1308 D OverviewActionsView: updateActionButtonsVisibility() called: showSingleTaskActions = [true], showGroupActions = [false]
+07-08 12:12:45.040  1308  1331 D InputMonitorCompat: Input event receiver for monitor (minus-one-disp0) created
+07-08 12:12:45.046  1308  1308 I SsCardPagerAdapter: [rmv] Rendering flag - enabled: false 
+07-08 12:12:45.046  1308  1308 I SsCardPagerAdapter: Use UI template for the feature: 1
+07-08 12:12:45.160  1495  1495 I KeyboardModeManager: KeyboardModeManager.setInputViewKeyboardViewHolderProvider():625 setInputView() : supportsOneHandedMode=true supportsSplitMode=true
+07-08 12:12:45.161  1495  1495 I AndroidIME: KeyboardViewManager.updateKeyboardBackgroundFrameVisibility():314 Set background frame visibility. old:8, new:8
+07-08 12:12:45.161  1495  1495 I NormalModeController: NormalModeController.getKeyboardBodyViewHolderPaddingBottom():104 currentPrimeKeyboardType:SOFT systemPaddingBottom:-1
+07-08 12:12:45.161  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.162  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.162  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.162  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.162  1495  1495 I NormalModeController: NormalModeController.getKeyboardBodyViewHolderPaddingBottom():104 currentPrimeKeyboardType:SOFT systemPaddingBottom:-1
+07-08 12:12:45.180  1308  1308 D SsBaseTemplateCard: No text view can be set up
+07-08 12:12:45.180  1308  1308 D SsBaseTemplateCard: Passed-in item info is null
+07-08 12:12:45.180  1308  1308 D SsBaseTemplateCard: Passed-in item info is null
+07-08 12:12:45.180  1308  1308 D SsBaseTemplateCard: Passed-in item info is null
+07-08 12:12:45.180  1308  1308 I SsBaseTemplateCard: Secondary card pane is null
+07-08 12:12:45.224  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.224  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.224  1495  1495 I KeyboardModeManager: KeyboardModeManager.setInputViewKeyboardViewHolderProvider():613 setInputView() : supportsOneHandedMode=true, supportSplitMode=true
+07-08 12:12:45.252  1308  1331 D SearchTargetUtil: query= size=1
+07-08 12:12:45.284  1495  1495 I KeyboardModeManager: KeyboardModeManager.setInputViewKeyboardViewHolderProvider():625 setInputView() : supportsOneHandedMode=true supportsSplitMode=true
+07-08 12:12:45.284  1495  1495 I NormalModeController: NormalModeController.getKeyboardBodyViewHolderPaddingBottom():104 currentPrimeKeyboardType:SOFT systemPaddingBottom:-1
+07-08 12:12:45.285  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.285  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.286  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.286  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.286  1495  1495 I NormalModeController: NormalModeController.getKeyboardBodyViewHolderPaddingBottom():104 currentPrimeKeyboardType:SOFT systemPaddingBottom:-1
+07-08 12:12:45.286  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.314  1308  1308 D InputMonitorCompat: Input event receiver for monitor (minus-one-disp0) disposed
+07-08 12:12:45.314  1308  1308 D InputMonitorCompat: Input monitor (minus-one-disp0) disposed
+07-08 12:12:45.315  1308  1308 D TISBindHelper: TIS service connected
+07-08 12:12:45.315  1308  1308 D b/254119092: Set mActivity=com.google.android.apps.nexuslauncher.NexusLauncherActivity@7878d8a
+07-08 12:12:45.315  1308  1308 D b/254119092: mActivity and mContext agree taskbarIsPresent=false
+07-08 12:12:45.315  1308  1308 D b/254119092: registering activity lifecycle callbacks from setActivity().
+07-08 12:12:45.323   953  1029 D WindowManagerShell: setLauncherKeepClearAreaHeight: visible=true, height=527
+07-08 12:12:45.329   571  1984 I ActivityTaskManager: Activity reported stop, but no longer stopping: ActivityRecord{2b17914 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t7} STOPPED
+07-08 12:12:45.335   571  2370 W InputManager-JNI: Input channel object '[Gesture Monitor] minus-one (client)' was disposed without first being removed with the input manager!
+07-08 12:12:45.336  1308  1331 D SearchTargetUtil: layoutType=icon_row resultType=4096 packageName= extras=Bundle{aiai_settings_enabled=true,icon_container_enabled=true,zero_state_query_ready=true,zero_state_all_apps_web_suggest_count=3,rank=1.0,toast_settings_toggle_values=16777476,key_ipc_start=367332,hide_subtitle=true,enable_launch_animations=true,zero_state_qsb_web_suggest_count=10,}ParentID: null targetID: SESSION_INFO:0::zero_state_flags
+07-08 12:12:45.358   953   962 V WindowManagerShell: onTransitionReady(transaction=2452426326494)
+07-08 12:12:45.358   953  1029 V WindowManagerShell: onTransitionReady (#15) android.os.BinderProxy@5f954ad: {id=15 t=CLOSE f=0x0 trk=0 r=[] c=[]}
+07-08 12:12:45.358   953  1029 V WindowManagerShell: No transition roots in (#15) android.os.BinderProxy@5f954ad@0 so abort
+07-08 12:12:45.286  1495  1495 I KeyboardHeightUtil: KeyboardHeightUtil.calculateMaxKeyboardBodyHeight():45 leave 281 height for app when ime window height:2272, header height:116 and isFullscreenMode:false, so the max keyboard body height is:1875
+07-08 12:12:45.378  1495  1495 I KeyboardModeManager: KeyboardModeManager.setInputViewKeyboardViewHolderProvider():613 setInputView() : supportsOneHandedMode=true, supportSplitMode=true
+07-08 12:12:45.381  1495  1495 I AndroidIME: InputBundleManager.loadActiveInputBundleId():450 loadActiveInputBundleId: und-Latn-x-password, password
+07-08 12:12:45.383   571   589 W PackageConfigPersister: App-specific configuration not found for packageName: com.coverwise.app and userId: 0
+07-08 12:12:45.384   953  2458 I HWUI    : Davey! duration=805ms; Flags=0, FrameTimelineVsyncId=11704, IntendedVsync=366440513274, Vsync=366540513270, InputEventId=0, HandleInputStart=366558720632, AnimationStart=366558721257, PerformTraversalsStart=366558913840, DrawStart=366559016090, FrameDeadline=366457179940, FrameInterval=366550636965, FrameStartTime=16666666, SyncQueued=366559186299, SyncStart=366612655382, IssueDrawCommandsStart=366614708840, SwapBuffers=366788504674, FrameCompleted=367299251466, DequeueBufferDuration=3250, QueueBufferDuration=216250, GpuCompleted=367299251466, SwapBuffersCompleted=367077782007, DisplayPresentTime=144115222452437076, CommandSubmissionCompleted=366788504674, 
+07-08 12:12:45.391   571   589 V WindowManager: Queueing transition: TransitionRecord{fdd168b id=-1 type=CLOSE flags=0x0}
+07-08 12:12:45.470   571  2370 W UserManagerService: Requested status bar icon for non-badged user 0
+07-08 12:12:45.602   953  1029 V WindowManagerShell: Transition animation finished (aborted=true), notifying core (#15) android.os.BinderProxy@5f954ad@0
+07-08 12:12:45.602   571   593 V WindowManager: Sent Transition (#15) createdAt=07-08 12:12:44.235 via request=TransitionRequestInfo { type = CLOSE, triggerTask = null, pipTask = null, remoteTransition = RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@8832368, appThread = null, debugName = null }, displayChange = null, flags = 0, debugId = 15 }
+07-08 12:12:45.602   571   593 V WindowManager:     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+07-08 12:12:45.602   571   593 V WindowManager:     info={id=15 t=CLOSE f=0x0 trk=0 r=[] c=[]}
+07-08 12:12:45.602   571   593 W Looper  : Slow delivery took 229ms android.fg h=android.os.Handler c=com.android.server.wm.TransitionController$Logger@f0ff381 m=0
+07-08 12:12:45.607   571   593 V WindowManager: Finish Transition (#15): created at 07-08 12:12:44.235 collect-started=0.029ms request-sent=6.659ms started=40.413ms ready=1101.298ms sent=1122.765ms finished=1369.494ms
+07-08 12:12:45.607   571   593 W Looper  : Drained
+07-08 12:12:45.676   953  1029 V WindowManagerShell: Track 0 became idle
+07-08 12:12:45.684   953  1029 V WindowManagerShell: All active transition animations finished
+07-08 12:12:45.685   953  1029 W Looper  : Slow dispatch took 327ms wmshell.main h=android.os.Handler c=com.android.wm.shell.transition.Transitions$TransitionPlayerImpl$$ExternalSyntheticLambda0@9d1215c m=0
+07-08 12:12:45.688   953  1029 V WindowManagerShell: Transition requested (#16): android.os.BinderProxy@f5d6c65 TransitionRequestInfo { type = CHANGE, triggerTask = null, pipTask = null, remoteTransition = RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@cec1d3a, appThread = null, debugName = null }, displayChange = null, flags = 0, debugId = 16 }
+07-08 12:12:45.688   953  1029 V WindowManagerShell: RemoteTransition directly requested for (#16) android.os.BinderProxy@f5d6c65: RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@cec1d3a, appThread = null, debugName = null }
+07-08 12:12:45.688   953  1029 W Looper  : Slow delivery took 85ms wmshell.main h=android.os.Handler c=com.android.wm.shell.transition.Transitions$TransitionPlayerImpl$$ExternalSyntheticLambda1@64c4deb m=0
+07-08 12:12:45.688   953  1036 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda11@e37dd64
+07-08 12:12:45.689   571   589 D CoreBackPreview: Window{9325544 u0 Splash Screen com.coverwise.app EXITING}: Setting back callback null
+07-08 12:12:45.689   571  1984 W InputManager-JNI: Input channel object '9325544 Splash Screen com.coverwise.app (client)' was disposed without first being removed with the input manager!
+07-08 12:12:45.689   571   593 V WindowManager: Sent Transition (#16) createdAt=07-08 12:12:44.657 via request=TransitionRequestInfo { type = CHANGE, triggerTask = null, pipTask = null, remoteTransition = RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@8a691b9, appThread = null, debugName = null }, displayChange = null, flags = 0, debugId = 16 }
+07-08 12:12:45.689   571   593 V WindowManager:     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+07-08 12:12:45.689   571   593 V WindowManager:     info={id=16 t=CHANGE f=0x0 trk=1 r=[] c=[]}
+07-08 12:12:45.690   953   962 V WindowManagerShell: onTransitionReady(transaction=2452426326507)
+07-08 12:12:45.690   953  1029 V WindowManagerShell: onTransitionReady (#16) android.os.BinderProxy@f5d6c65: {id=16 t=CHANGE f=0x0 trk=1 r=[] c=[]}
+07-08 12:12:45.690   953  1029 V WindowManagerShell: No transition roots in (#16) android.os.BinderProxy@f5d6c65@1 so abort
+07-08 12:12:45.690   953  1029 V WindowManagerShell: Transition animation finished (aborted=true), notifying core (#16) android.os.BinderProxy@f5d6c65@1
+07-08 12:12:45.698   953  1029 V WindowManagerShell: Track 1 became idle
+07-08 12:12:45.698   953  1029 V WindowManagerShell: All active transition animations finished
+07-08 12:12:45.698   953  1029 W Looper  : Drained
+07-08 12:12:45.699   571   593 V WindowManager: Finish Transition (#16): created at 07-08 12:12:44.657 collect-started=716.5ms request-sent=721.4ms started=1030.76ms ready=1030.744ms sent=1031.88ms finished=1033.046ms
+07-08 12:12:45.731   571  1984 W UserManagerService: Requested status bar icon for non-badged user 0
+07-08 12:12:45.750   953  1029 V WindowManagerShell: Transition requested (#17): android.os.BinderProxy@4bd69e1 TransitionRequestInfo { type = CLOSE, triggerTask = null, pipTask = null, remoteTransition = RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@feed306, appThread = null, debugName = null }, displayChange = null, flags = 0, debugId = 17 }
+07-08 12:12:45.750   953  1029 V WindowManagerShell: RemoteTransition directly requested for (#17) android.os.BinderProxy@4bd69e1: RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@feed306, appThread = null, debugName = null }
+07-08 12:12:45.763   953  1422 V WindowManagerShell: onTransitionReady(transaction=2452426326519)
+07-08 12:12:45.763   953  1029 V WindowManagerShell: onTransitionReady (#17) android.os.BinderProxy@4bd69e1: {id=17 t=CLOSE f=0x0 trk=2 r=[] c=[]}
+07-08 12:12:45.763   953  1029 V WindowManagerShell: No transition roots in (#17) android.os.BinderProxy@4bd69e1@2 so abort
+07-08 12:12:45.763   953  1029 V WindowManagerShell: Transition animation finished (aborted=true), notifying core (#17) android.os.BinderProxy@4bd69e1@2
+07-08 12:12:45.832   571   593 V WindowManager: Sent Transition (#17) createdAt=07-08 12:12:45.391 via request=TransitionRequestInfo { type = CLOSE, triggerTask = null, pipTask = null, remoteTransition = RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@f220bac, appThread = null, debugName = null }, displayChange = null, flags = 0, debugId = 17 }
+07-08 12:12:45.832   571   593 V WindowManager:     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+07-08 12:12:45.927   953  1029 V WindowManagerShell: Track 2 became idle
+07-08 12:12:45.933   953  1029 V WindowManagerShell: All active transition animations finished
+07-08 12:12:45.933   953  1029 W Looper  : Slow dispatch took 170ms wmshell.main h=android.os.Handler c=com.android.wm.shell.transition.Transitions$TransitionPlayerImpl$$ExternalSyntheticLambda0@99fddc7 m=0
+07-08 12:12:45.940   571  1984 W system_server: Long monitor contention with owner binder:571_1F (2370) at void com.android.server.wm.WindowManagerService.onAnimationFinished()(WindowManagerService.java:9019) waiters=0 in android.app.ActivityTaskManager$RootTaskInfo com.android.server.wm.ActivityTaskManagerService.getFocusedRootTaskInfo() for 107ms
+07-08 12:12:45.943   571  1984 W UserManagerService: Requested status bar icon for non-badged user 0
+07-08 12:12:46.055   571   593 V WindowManager:     info={id=17 t=CLOSE f=0x0 trk=2 r=[] c=[]}
+07-08 12:12:46.055   571   593 W Looper  : Slow dispatch took 222ms android.fg h=android.os.Handler c=com.android.server.wm.TransitionController$Logger@97a3698 m=0
+07-08 12:12:46.055   571   593 V WindowManager: Finish Transition (#17): created at 07-08 12:12:45.391 collect-started=298.871ms request-sent=349.205ms started=359.375ms ready=359.354ms sent=368.803ms finished=440.769ms
+07-08 12:12:46.055   571   593 W Looper  : Slow delivery took 223ms android.fg h=android.os.Handler c=com.android.server.wm.Transition$$ExternalSyntheticLambda0@73bbef1 m=0
+07-08 12:12:46.391   571   875 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+07-08 12:12:46.393   571   875 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+07-08 12:12:46.393   571   875 D InetDiagMessage: Destroyed live tcp sockets for uids={99000} in 3ms
+07-08 12:12:47.110   571  1984 D OomAdjuster: Not killing cached processes
+07-08 12:12:47.233  4234  4318 D ProfileInstaller: Installing profile for com.coverwise.app
+07-08 12:12:48.088   571   875 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+07-08 12:12:48.089   571   875 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+07-08 12:12:48.089   571   875 D InetDiagMessage: Destroyed live tcp sockets for uids={10139} in 1ms
+07-08 12:12:48.089   571   875 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+07-08 12:12:48.089   571   875 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+07-08 12:12:48.089   571   875 D InetDiagMessage: Destroyed live tcp sockets for uids={20139} in 1ms
+07-08 12:12:50.411  1770  1770 I wpa_supplicant: wlan0: CTRL-EVENT-BEACON-LOSS 
+07-08 12:12:51.878  1347  1347 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.feedback.internal.IFeedbackService dat=chimera-action:/... cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+07-08 12:12:52.055  1347  1353 W gle.android.gms: ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~3GPzrKjZAY1Lh69nBjeLJA==/com.coverwise.app-G97ko0GQEQvCna-8lXXuIA==/base.apk' with 1 weak references
+07-08 12:12:52.180   571  2370 D OomAdjuster: Not killing cached processes
+07-08 12:12:52.468   571   670 D ActivityManager: freezing 964 com.google.android.permissioncontroller
+07-08 12:12:52.470   571   875 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+07-08 12:12:52.471   571   875 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+07-08 12:12:52.471   571   875 D InetDiagMessage: Destroyed live tcp sockets for uids={10185} in 1ms
+07-08 12:12:52.969   571   593 W Looper  : Drained
+07-08 12:12:53.908   571   670 D ActivityManager: freezing 3239 com.google.android.apps.messaging
+07-08 12:12:58.347  1770  1770 I wpa_supplicant: wlan0: CTRL-EVENT-BEACON-LOSS 
+07-08 12:12:59.512  1599  1783 I BistoHotwordHelper: (REDACTED) getHotwordActive::active query: %s, watch: %s, devices connected: %s
+07-08 12:13:00.006  1576  1852 I AiAiEcho: Predicting[0]:  [CONTEXT sampling_count=5 ]
+07-08 12:13:00.006  1576  1852 I AiAiEcho: EchoTargets: 
+07-08 12:13:00.006  1576  1852 I AiAiEcho: Filtered by AiAi flag check: 
+07-08 12:13:00.006  1576  1852 I AiAiEcho: [CONTEXT ratelimit_period="10 SECONDS" ]
+07-08 12:13:00.006  1576  1852 I AiAiEcho: Ranked targets strategy: SORT, count: 0, ranking metadata:  [CONTEXT ratelimit_period="10 SECONDS" ]
+07-08 12:13:00.006  1576  1852 I AiAiEcho: #remoteViewsTwiddler: feature disabled.
+07-08 12:13:00.007  1576  1852 I AiAiEcho: Predicting[0]:  [CONTEXT sampling_count=5 ]
+07-08 12:13:00.007  1576  1852 I AiAiEcho: EchoTargets: 
+07-08 12:13:00.007  1576  1852 I AiAiEcho: Filtered by AiAi flag check: 
+07-08 12:13:00.007  1576  1852 I AiAiEcho: [CONTEXT ratelimit_period="10 SECONDS" ]
+07-08 12:13:00.007  1576  1852 I AiAiEcho: Ranked targets strategy: SORT, count: 0, ranking metadata:  [CONTEXT ratelimit_period="10 SECONDS" ]
+07-08 12:13:00.007  1576  1852 I AiAiEcho: #remoteViewsTwiddler: feature disabled.
+07-08 12:13:00.008  1576  1852 I AiAiEcho: #postPredictionTargets: Sending updates to UISurface lockscreen with targets# 0 (types=[])
+07-08 12:13:00.009  1576  1852 I AiAiEcho: #postPredictionTargets: Sending updates to UISurface home with targets# 0 (types=[])
+07-08 12:13:00.011  1308  1308 D SsBaseTemplateCard: No text view can be set up
+07-08 12:13:00.011  1308  1308 D SsBaseTemplateCard: Passed-in item info is null
+07-08 12:13:00.011  1308  1308 D SsBaseTemplateCard: Passed-in item info is null
+07-08 12:13:00.011  1308  1308 D SsBaseTemplateCard: Passed-in item info is null
+07-08 12:13:00.011  1308  1308 I SsBaseTemplateCard: Secondary card pane is null
+07-08 12:13:00.018   953   953 W PageIndicator: Total number of pages invalid: 0. Assuming 1 page.
+07-08 12:13:00.025   953  1079 D EGL_emulation: app_time_stats: avg=18811.81ms min=18811.81ms max=18811.81ms count=1
+07-08 12:13:02.218   571   670 D ActivityManager: freezing 1347 com.google.android.gms
+07-08 12:13:06.281  1770  1770 I wpa_supplicant: wlan0: CTRL-EVENT-BEACON-LOSS 
+07-08 12:13:08.985   571  1985 D OomAdjuster: Not killing cached processes
+07-08 12:13:09.002   372   372 I netd    : tetherGetStats() -> {[]} <1.46ms>

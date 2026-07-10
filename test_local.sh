@@ -59,5 +59,5 @@ echo "Press Ctrl+C to stop the server"
 echo ""
 
 # Run the application with explicit module path
-cd /Users/pranay/Projects/medpiper/insurance_app
+cd "$(dirname "$0")"
 uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload --log-level info

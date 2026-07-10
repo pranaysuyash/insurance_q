@@ -1,7 +1,19 @@
 """
-OCR service for processing documents using Hugging Face APIs via OCRPipeline,
-and then triggering ingestion into the RAG service.
+@deprecated — Standalone OCR microservice.
+
+This service is DEPRECATED. The main app (src/app/main.py) now handles
+document processing inline via /process-and-ingest, using the same
+OCRPipeline internally. This avoids duplicate model loading, HTTP
+latency, and code drift between two parallel code paths.
+
+Migration:
+  - Frontend: call POST /process-and-ingest on the main app instead
+  - The main app's endpoint returns the same response shape
+  - No separate Redis cache needed — results are returned inline
+
+Removal target: next major release after all consumers are migrated.
 """
+
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import os

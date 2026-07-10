@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <long name="flutter.session_created" value="1783497742181" />
+    <string name="flutter.session_id">27fa7a67-6334-4d96-af13-0433bd3827cd</string>
+    <set name="flutter.local_documents_list">
+        <string>{"id": "3022ffcb-86c5-42ae-ae9f-2d6e00025631", "filename": "policy.pdf", "upload_date": "2026-07-08T13:10:22.277452", "document_type": "Health Insurance", "insurer": "ICICI Lombard General Insurance Company Limited", "status": "completed", "processing_completed_at": "2026-07-08T13:10:22.277452", "size": 550955, "local_file_path": "/data/data/com.coverwise.app/app_flutter/3022ffcb-86c5-42ae-ae9f-2d6e00025631_policy.pdf", "policy_holders": [{"name": "Pranay Suyash", "dob": "10-May-1988", "relationship": "SELF"}, {"name": "Diksha Sinha", "dob": "02-Aug-1992", "relationship": "SPOUSE"}, {"name": "Advay Sinha", "dob": "28-May-2023", "relationship": "SON"}]}</string>
+    </set>
+    <string name="flutter.selected_document_id">3022ffcb-86c5-42ae-ae9f-2d6e00025631</string>
+    <string name="flutter.last_uploaded_document_id">3022ffcb-86c5-42ae-ae9f-2d6e00025631</string>
+    <string name="flutter.last_viewed_document_id">3022ffcb-86c5-42ae-ae9f-2d6e00025631</string>
+    <set name="flutter.recent_questions">
+        <string>What is my policy number?</string>
+        <string>What is my premium amount?</string>
+    </set>
+</map>

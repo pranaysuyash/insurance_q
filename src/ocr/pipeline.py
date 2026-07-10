@@ -16,6 +16,8 @@ import time
 import numpy as np # For potential doctr input/output
 import sys # Add this at the top of the file
 
+from src.config.settings import settings
+
 # doctr imports
 from doctr.models import ocr_predictor as doctr_ocr_predictor # Renamed to avoid clash if any
 from doctr.io import DocumentFile as DoctrDocumentFile
@@ -83,6 +85,63 @@ class OCRPipeline:
         logger.info(f"OCRPipeline initialized. Using local doctr for OCR. DocQA Model set to: {self.doc_qa_model_name} (currently bypassed in _get_layout_elements_for_image).")
 
 
+    async def _process_pdf_with_docling(self, pdf_path: str) -> Optional[Dict[str, Any]]:
+        """
+        Process a PDF using Docling (IBM) for text + layout extraction.
+        Returns dict with full_text and layout_elements, or None if docling is not available.
+        """
+        try:
+            from docling.document_converter import DocumentConverter
+        except ImportError:
+            logger.warning("docling is not installed. Install with: pip install docling")
+            return None
+
+        try:
+            logger.info("Processing PDF with Docling...")
+            converter = DocumentConverter()
+            result = converter.convert(pdf_path)
+            doc = result.document
+
+            full_text = doc.text if hasattr(doc, 'text') else ""
+            if not full_text:
+                full_text = "\n".join(
+                    item.text for item in doc.texts
+                ) if hasattr(doc, 'texts') else ""
+
+            layout_elements = []
+            if hasattr(doc, 'pages'):
+                for page in doc.pages:
+                    page_num = page.page_number if hasattr(page, 'page_number') else 0
+                    if hasattr(page, 'items'):
+                        for item in page.items:
+                            bbox = None
+                            if hasattr(item, 'bbox') and item.bbox:
+                                bbox = [
+                                    float(item.bbox.l),
+                                    float(item.bbox.t),
+                                    float(item.bbox.r),
+                                    float(item.bbox.b),
+                                ]
+                            layout_elements.append({
+                                "id": str(uuid.uuid4()),
+                                "text": item.text if hasattr(item, 'text') else "",
+                                "page": page_num,
+                                "bbox": bbox or [0.0, 0.0, 1.0, 1.0],
+                            })
+
+            logger.info(
+                f"Docling extracted {len(full_text)} chars, "
+                f"{len(layout_elements)} layout elements"
+            )
+            return {
+                "full_text": full_text,
+                "layout_elements": layout_elements,
+            }
+
+        except Exception as e:
+            logger.error(f"Docling processing failed: {e}", exc_info=True)
+            return None
+
     async def _process_pdf(self, file_content: bytes) -> List[Dict[str, Any]]:
         """
         Process a PDF file to extract text and/or images.
@@ -130,6 +189,13 @@ class OCRPipeline:
         elif file_type.lower() in ["png", "jpg", "jpeg", "tiff", "tif", "bmp", "webp"]:
             # For single images, wrap in a list with page number 1
             return [{"page_num": 1, "image_bytes": file_content}]
+        elif file_type.lower() in ["txt", "text", "md", "csv", "json", "xml", "html"]:
+            # Text-based files: decode and use directly
+            try:
+                text = file_content.decode("utf-8", errors="replace")
+            except Exception:
+                text = file_content.decode("latin-1", errors="replace")
+            return [{"page_num": 1, "text": text}]
         else:
             logger.error(f"Unsupported file type for conversion: {file_type}")
             raise ValueError(f"Unsupported file type: {file_type}")
@@ -182,67 +248,65 @@ class OCRPipeline:
             logger.error(f"Page {page_num}: Error during local doctr OCR processing: {e}", exc_info=True)
         return ocr_text
 
-    async def _get_layout_elements_for_image(self, image_bytes: bytes, page_num: int, questions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Get layout elements by asking questions to the document QA model for a single image."""
-        logger.info(f"Page {page_num}: Skipping DocQA and returning empty layout_elements for now.")
-        return [] # Immediately return empty list to bypass DocQA
+    async def _get_layout_elements_for_text(
+        self, page_text: str, page_num: int, questions: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Extract layout elements by querying the LLM with the page text."""
+        if not page_text.strip():
+            return []
 
-        # The rest of the original method is now effectively disabled by the return above.
-        # Keeping it here commented out for future reference if we re-enable local DocQA.
-        '''
-        # layout_elements = []
-        # if not questions:
-        #     return layout_elements
+        logger.debug("Page %d: extracting elements via LLM (%d questions)", page_num, len(questions))
 
-        # # Convert image_bytes to PIL Image because some HF doc_qa models expect it directly
-        # # or InferenceClient handles it better. If direct bytes are preferred by the model, adjust.
-        # try:
-        #     pil_image = Image.open(io.BytesIO(image_bytes))
-        # except Exception as e:
-        #     logger.error(f"Page {page_num}: Failed to convert image bytes to PIL Image for DocQA: {e}", exc_info=True)
-        #     return layout_elements
+        try:
+            from src.llm.client import LLMClient
+            from src.models.extraction import InsuranceDocumentExtraction
 
-        # for q_item in questions:
-        #     question_text = q_item["question"]
-        #     element_type = q_item["type"]
-        #     field_id = q_item.get("id", str(uuid.uuid4())) # Allow predefined ID for element type
-        #     try:
-        #         logger.debug(f"Page {page_num}: Querying DocQA model ({self.doc_qa_model}) with question: '{question_text}'")
-                
-        #         # Fix: Use document_question_answering method instead of post
-        #         api_answers = self.client.document_question_answering(
-        #             image=pil_image,
-        #             question=question_text,
-        #             model=self.doc_qa_model
-        #         )
-                                
-        #         if not isinstance(api_answers, list):
-        #             logger.warning(f"Page {page_num}: DocQA model ({self.doc_qa_model}) returned non-list for question '{question_text}'. Response: {str(api_answers)[:500]}")
-        #             continue
+            llm = LLMClient()
+            system_prompt = (
+                "Extract the following insurance document fields from the text below. "
+                "Return values exactly as they appear. Use null for missing fields."
+            )
+            question_descriptions = "\n".join(
+                f"- {q['id']} ({q['type']}): {q['question']}" for q in questions
+            )
+            user_prompt = (
+                f"Document text (page {page_num}):\n{page_text[:8000]}\n\n"
+                f"Extract these fields:\n{question_descriptions}"
+            )
 
-        #         for answer_item in api_answers:
-        #             if isinstance(answer_item, dict) and all(k in answer_item for k in ["answer", "score"]):
-        #                 # box_2d might not always be present or might be named differently (e.g. "box")
-        #                 bbox = answer_item.get("box_2d", answer_item.get("box")) 
-        #                 layout_elements.append({
-        #                     "id": field_id, # Use the id from question config
-        #                     "type": element_type,
-        #                     "text": str(answer_item["answer"]),
-        #                     "answer_box": bbox, 
-        #                     "confidence": float(answer_item["score"]),
-        #                     "page": page_num,
-        #                     "question_asked": question_text # For traceability
-        #                 })
-        #             else:
-        #                 logger.warning(f"Page {page_num}: Unexpected answer item format from DocQA for question '{question_text}'. Item: {str(answer_item)[:200]}")
-        #     except Exception as e:
-        #         # If it's a StopIteration, it means the model likely isn't available on inference API for this task
-        #         if isinstance(e, StopIteration):\n            logger.error(f"Page {page_num}: StopIteration encountered for DocQA model {self.doc_qa_model} with question '{question_text}'. This often means the model is not deployed on a free Inference API provider for 'document-question-answering'. Error: {e}", exc_info=True)
-        #         else:
-        #             logger.error(f"Page {page_num}: Error during HF Inference API call for DocQA ({self.doc_qa_model}) with question '{question_text}': {e}", exc_info=True)
-        # logger.debug(f"Page {page_num}: Extracted {len(layout_elements)} layout elements.")
-        # return layout_elements
-        ''' 
+            result = await llm.generate_structured(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_model=InsuranceDocumentExtraction,
+                temperature=0.1,
+            )
+
+            elements = []
+            value_map = result.model_dump(exclude_none=True)
+            for q in questions:
+                field_id = q["id"]
+                value = value_map.get(field_id)
+                if value is not None:
+                    elements.append({
+                        "id": q.get("id", field_id),
+                        "type": q["type"],
+                        "text": str(value),
+                        "confidence": 1.0,
+                        "page": page_num,
+                        "question_asked": q["question"],
+                    })
+
+            logger.debug("Page %d: extracted %d/%d elements", page_num, len(elements), len(questions))
+            return elements
+
+        except ImportError:
+            logger.warning("LLM client not available, skipping extraction")
+            return []
+        except Exception as e:
+            logger.error("Page %d: extraction error: %s", page_num, e)
+            return []
 
     async def process_document(self, file_content: bytes, file_type: str, filename: str, layout_questions_config: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
         print(f"DEBUG_PRINT: process_document CALLED for {filename}", file=sys.stderr)
@@ -250,6 +314,46 @@ class OCRPipeline:
         start_time = time.time()
 
         try:
+            # If docling is enabled and this is a PDF, try docling first
+            if settings.docling_enabled and file_type.lower() == "pdf":
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                    tmp.write(file_content)
+                    tmp_path = tmp.name
+                try:
+                    docling_result = await self._process_pdf_with_docling(tmp_path)
+                    if docling_result is not None:
+                        logger.info(f"Docling processing succeeded for {filename}")
+                        processing_time = time.time() - start_time
+                        final_result = {
+                            "metadata": {
+                                "filename": filename,
+                                "processed_at": datetime.now().isoformat(),
+                                "page_count": 1,
+                                "ocr_model": "docling",
+                                "doc_qa_model": self.doc_qa_model_name,
+                                "processing_time_seconds": round(processing_time, 2),
+                            },
+                            "full_text": docling_result["full_text"],
+                            "text_blocks": [
+                                {
+                                    "id": str(uuid.uuid4()),
+                                    "page": 1,
+                                    "text": docling_result["full_text"],
+                                    "bbox": [0.0, 0.0, 1.0, 1.0],
+                                    "confidence": None,
+                                    "extraction_method": "docling",
+                                }
+                            ],
+                            "layout_elements": docling_result["layout_elements"],
+                        }
+                        return {"status": "success", "result": final_result}
+                    logger.info(f"Docling returned None for {filename}, falling back to standard pipeline")
+                except Exception as e:
+                    logger.warning(f"Docling failed for {filename}: {e}, falling back to standard pipeline")
+                finally:
+                    os.unlink(tmp_path)
+
             processed_pages = await self._convert_file_to_images_bytes(file_content, file_type)
             
             page_count = len(processed_pages)
@@ -302,10 +406,10 @@ class OCRPipeline:
                         "extraction_method": "direct" if "text" in page_data else "ocr"
                     })
                 
-                # Use image for document QA regardless of text extraction method
-                if "image_bytes" in page_data:
-                    page_layout_elements = await self._get_layout_elements_for_image(
-                        page_data["image_bytes"], page_num, layout_questions_config
+                # Extract structured fields from page text via LLM
+                if page_text.strip():
+                    page_layout_elements = await self._get_layout_elements_for_text(
+                        page_text, page_num, layout_questions_config
                     )
                     all_pages_layout_elements.extend(page_layout_elements)
 

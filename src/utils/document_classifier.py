@@ -4,6 +4,7 @@ Document Classification Utility
 Intelligently determines document type from content using RAG queries.
 """
 
+import json
 import re
 import logging
 from typing import Dict, Optional, List, Tuple
@@ -84,36 +85,43 @@ class DocumentClassifier:
             'United India Insurance': ['united india insurance']
         }
     
+    _LLM_CLASSIFY_PROMPT = (
+        "You are an insurance document classifier. Based on the document text below, "
+        "determine the document type (one of: Health Insurance, Auto Insurance, "
+        "Home Insurance, Life Insurance, or Unknown), the insurance company name, "
+        "and the policy number if present. Respond in JSON."
+    )
+
     async def classify_document(self, document_id: str, text_content: str = None) -> Dict[str, any]:
         """
-        Classify document type and extract metadata
+        Classify document type and extract metadata.
         
-        Args:
-            document_id: Document identifier
-            text_content: Optional text content (if not provided, will query RAG)
-            
-        Returns:
-            Classification results with type, insurer, confidence, etc.
+        Uses keyword/regex analysis first. Falls back to LLM when keyword
+        confidence is low and an LLM is available.
         """
         try:
-            # If no text provided, try to get it from RAG
             if not text_content and self.rag_pipeline:
-                # Query for document content
                 query_result = await self._query_document_content(document_id)
                 text_content = query_result.get('content', '')
-            
+
             if not text_content:
-                logger.warning(f"No text content available for document {document_id}")
+                logger.warning(f"No text content for document {document_id}")
                 return self._default_classification()
-            
-            # Perform classification
+
             doc_type = self._classify_document_type(text_content)
             insurer = self._extract_insurer(text_content)
             policy_info = self._extract_policy_info(text_content)
-            
-            # Calculate confidence based on keyword matches
             confidence = self._calculate_confidence(text_content, doc_type)
-            
+
+            if confidence < 0.3 and self.rag_pipeline and len(text_content) > 100:
+                llm_result = await self._classify_with_llm(text_content)
+                if llm_result:
+                    doc_type = llm_result.get('document_type', doc_type)
+                    insurer = llm_result.get('insurer', insurer)
+                    confidence = max(confidence, llm_result.get('confidence', 0.0))
+                    if llm_result.get('policy_number'):
+                        policy_info['policy_number'] = llm_result['policy_number']
+
             classification = {
                 'document_type': doc_type,
                 'insurer': insurer,
@@ -122,15 +130,45 @@ class DocumentClassifier:
                 'expiration_date': policy_info.get('expiration_date'),
                 'confidence': confidence,
                 'classified_at': datetime.utcnow().isoformat(),
-                'method': 'content_analysis'
+                'method': 'content_analysis',
             }
-            
-            logger.info(f"Document {document_id} classified as {doc_type} with {confidence:.2f} confidence")
+
+            logger.info("Document %s classified as %s (%.2f)", document_id, doc_type, confidence)
             return classification
-            
+
         except Exception as e:
-            logger.error(f"Classification failed for document {document_id}: {str(e)}")
+            logger.error("Classification failed for %s: %s", document_id, e)
             return self._default_classification()
+
+    async def _classify_with_llm(self, text: str) -> Optional[Dict[str, any]]:
+        """Use LLM to classify document when keyword confidence is low."""
+        try:
+            from pydantic import BaseModel, Field
+
+            class LLMClassification(BaseModel):
+                document_type: str = Field(description="One of: Health Insurance, Auto Insurance, Home Insurance, Life Insurance")
+                insurer: str = Field(description="Insurance company name or Unknown")
+                policy_number: Optional[str] = None
+
+            text_sample = text[:3000]
+            result = await self.rag_pipeline.llm.generate_structured(
+                messages=[
+                    {"role": "system", "content": self._LLM_CLASSIFY_PROMPT},
+                    {"role": "user", "content": f"Document text:\n{text_sample}\n\nClassify this document."},
+                ],
+                response_model=LLMClassification,
+                temperature=0.1,
+                fallback_models=["gpt-4o-mini"],
+            )
+            return {
+                'document_type': result.document_type,
+                'insurer': result.insurer,
+                'policy_number': result.policy_number,
+                'confidence': 0.7,
+            }
+        except Exception as e:
+            logger.warning("LLM classification failed: %s", e)
+            return None
     
     async def _query_document_content(self, document_id: str) -> Dict[str, any]:
         """Query RAG system for document content"""
@@ -139,14 +177,15 @@ class DocumentClassifier:
         
         try:
             # Query for general document content
-            result = await self.rag_pipeline.query(
-                "What type of insurance document is this? Provide details about the policy type, insurer, and key information.",
+            result = await self.rag_pipeline.query_rag(
+                user_query="What type of insurance document is this? Provide details about the policy type, insurer, and key information.",
                 filters={'document_id': document_id}
             )
             
+            inner = result.get("result", {})
             return {
-                'content': result.get('answer', ''),
-                'sources': result.get('sources', [])
+                'content': inner.get('answer', ''),
+                'sources': inner.get('sources', [])
             }
         except Exception as e:
             logger.error(f"Failed to query document content: {str(e)}")
@@ -222,8 +261,8 @@ class DocumentClassifier:
         # Date patterns
         date_patterns = [
             r'effective\s*(?:date|from):?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
-            r'policy\s*period:?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*(?:to|through|-)\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
-            r'coverage\s*period:?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*(?:to|through|-)\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+            r'(?:policy|coverage)\s*period\s*(?:from|:)?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*(?:to|through|-)\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+            r'(?:policy|coverage)\s*:?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*(?:to|through|-)\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
         ]
         
         for pattern in date_patterns:

@@ -3,6 +3,7 @@ Enhanced Document Processing Service
 Handles the complete pipeline: Document Upload → OCR → RAG Ingestion → Vector Database
 """
 import os
+import re
 import asyncio
 import uuid
 import logging
@@ -37,8 +38,10 @@ class DocumentProcessingService:
     
     def __init__(self, rag_pipeline: Optional['RAGPipeline'] = None):
         self.rag_pipeline = rag_pipeline
-        self.pdf_processor = PDFProcessor() if PDFProcessor else None
-        self.image_processor = ImageProcessor() if ImageProcessor else None
+        # Share a single OCR pipeline instance across processors
+        self._ocr_pipeline = None
+        self.pdf_processor = None
+        self.image_processor = None
         self.processing_status = {}  # Track processing status by document_id
         
         # Create storage directories
@@ -158,9 +161,19 @@ class DocumentProcessingService:
         file_extension = os.path.splitext(filename)[1].lower()
         
         try:
-            if file_extension == '.pdf' and self.pdf_processor:
+            if self._ocr_pipeline is None:
+                from src.ocr.pipeline import OCRPipeline
+                self._ocr_pipeline = OCRPipeline()
+
+            if file_extension == '.pdf':
+                if not self.pdf_processor:
+                    from src.ocr.pdf_processor import PDFProcessor
+                    self.pdf_processor = PDFProcessor(ocr_pipeline=self._ocr_pipeline)
                 result = await self._run_in_executor(self.pdf_processor.process_pdf, file_path)
-            elif file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.webp'] and self.image_processor:
+            elif file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.webp']:
+                if not self.image_processor:
+                    from src.ocr.image_processor import ImageProcessor
+                    self.image_processor = ImageProcessor(ocr_pipeline=self._ocr_pipeline)
                 result = await self._run_in_executor(self.image_processor.process_image, file_path)
             else:
                 # Fallback: try to read as text
@@ -225,27 +238,47 @@ class DocumentProcessingService:
             }
     
     def _split_text_into_blocks(self, text: str, max_block_size: int = 1000) -> List[Dict[str, Any]]:
-        """Split text into manageable blocks for RAG ingestion"""
+        """Split text into manageable blocks for RAG ingestion using structure-aware boundaries."""
         if len(text) <= max_block_size:
             return [{"text": text, "id": str(uuid.uuid4())}]
-        
-        # Simple sentence-aware splitting
-        sentences = text.split('. ')
+
+        # Split on known section headers first
+        section_headers = re.compile(
+            r'(?=^(?:COVERAGE|EXCLUSIONS|DEDUCTIBLE|PREMIUM|BENEFITS|'
+            r'POLICY|TERMS|CONDITIONS|ENDORSEMENT|SCHEDULE|DECLARATIONS|'
+            r'LIMITS|DEFINITIONS|GENERAL|SPECIAL|ADDITIONAL)\b)',
+            re.IGNORECASE | re.MULTILINE,
+        )
+        paragraphs = re.split(r'\n\s*\n', text)
+        raw_chunks = []
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            # Split long paragraphs at section header boundaries
+            parts = section_headers.split(para)
+            raw_chunks.extend(p for p in parts if p.strip())
+
+        if not raw_chunks:
+            return [{"text": text, "id": str(uuid.uuid4())}]
+
         blocks = []
-        current_block = ""
-        
-        for sentence in sentences:
-            if len(current_block) + len(sentence) + 2 <= max_block_size:
-                current_block += sentence + ". "
+        current = ""
+        for chunk in raw_chunks:
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            if len(current) + len(chunk) + 1 <= max_block_size:
+                current = (current + "\n\n" + chunk).strip()
             else:
-                if current_block:
-                    blocks.append({"text": current_block.strip(), "id": str(uuid.uuid4())})
-                current_block = sentence + ". "
-        
-        if current_block:
-            blocks.append({"text": current_block.strip(), "id": str(uuid.uuid4())})
-        
-        return blocks if blocks else [{"text": text, "id": str(uuid.uuid4())}]
+                if current:
+                    blocks.append({"text": current, "id": str(uuid.uuid4())})
+                current = chunk
+
+        if current:
+            blocks.append({"text": current, "id": str(uuid.uuid4())})
+
+        return blocks
     
     async def _run_in_executor(self, func, *args):
         """Run CPU-intensive tasks in executor"""

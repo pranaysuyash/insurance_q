@@ -14,6 +14,9 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Anti-abuse database path (configurable for tests)
+ANTI_ABUSE_DB_PATH = os.getenv('ANTI_ABUSE_DB_PATH', 'insurance_app.db')
+
 # Redis client for rate limiting
 try:
     redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
@@ -199,7 +202,7 @@ def check_document_hash_exists(document_hash: str) -> bool:
     """Check if document hash already exists in the system."""
     try:
         from src.utils.database_migration import check_document_hash_exists_db
-        return check_document_hash_exists_db(document_hash)
+        return check_document_hash_exists_db(document_hash, ANTI_ABUSE_DB_PATH)
     except ImportError:
         logger.warning("Database migration module not available, skipping hash check")
         return False
@@ -284,7 +287,8 @@ def log_usage_attempt(
                 session_id=session_id,
                 user_email=email,
                 user_agent=user_agent,
-                policy_fingerprint=policy_fingerprint
+                policy_fingerprint=policy_fingerprint,
+                db_path=ANTI_ABUSE_DB_PATH
             )
         except ImportError:
             logger.warning("Database migration module not available, skipping database logging")

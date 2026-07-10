@@ -257,7 +257,7 @@ az container create \
 ## Contact Information for Support
 
 **Azure Subscription:** Microsoft Azure Sponsorship-1 (`e173e4af-4327-46ef-bb5b-912d6e218bf2`)  
-**Tenant:** MedPiper Technologies Private Limited  
+**Tenant:** Private Azure tenant  
 **Region:** East US  
 **CLI Version:** Azure CLI 2.73.0  
 **Docker Version:** 28.1.1  

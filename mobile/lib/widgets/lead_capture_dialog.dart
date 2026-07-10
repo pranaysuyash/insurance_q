@@ -158,11 +158,11 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
           onPressed: () {
             if (_formKey.currentState!.validate()) {
               Navigator.of(context).pop({
-                'email': _emailController.text.trim().isEmpty 
-                    ? null 
+                'email': _emailController.text.trim().isEmpty
+                    ? null
                     : _emailController.text.trim(),
-                'phone': _phoneController.text.trim().isEmpty 
-                    ? null 
+                'phone': _phoneController.text.trim().isEmpty
+                    ? null
                     : _phoneController.text.trim(),
                 'save': _saveForFuture,
               });
@@ -208,9 +208,9 @@ class RateLimitDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -255,4 +255,4 @@ class RateLimitDialog extends StatelessWidget {
       return '$hours hours';
     }
   }
-} 
+}

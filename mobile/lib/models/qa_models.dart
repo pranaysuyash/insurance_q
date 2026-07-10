@@ -4,7 +4,7 @@ class QuestionCategory {
   final String id;
   final String name;
   final IconData icon;
-  
+
   const QuestionCategory({
     required this.id,
     required this.name,
@@ -17,7 +17,7 @@ class StandardQuestion {
   final String text;
   final String category;
   final IconData icon;
-  
+
   StandardQuestion({
     required this.id,
     required this.text,
@@ -32,7 +32,7 @@ class QaAnswer {
   final DateTime timestamp;
   final String documentId;
   final String question;
-  
+
   QaAnswer({
     required this.text,
     required this.sources,
@@ -40,9 +40,9 @@ class QaAnswer {
     required this.documentId,
     required this.question,
   });
-  
+
   String get query => question;
-  
+
   factory QaAnswer.fromJson(Map<String, dynamic> json) {
     // Handle sources that can be either strings or objects
     List<QaSource> parsedSources = [];
@@ -50,7 +50,7 @@ class QaAnswer {
       final sourcesList = json['sources'] as List;
       for (var source in sourcesList) {
         String sourceText = '';
-        
+
         // Extract text content to check for failed processing
         if (source is String) {
           sourceText = source;
@@ -59,24 +59,25 @@ class QaAnswer {
         } else {
           sourceText = source.toString();
         }
-        
+
         // Filter out failed document processing sources
-        if (sourceText.startsWith('Failed to process PDF:') || 
+        if (sourceText.startsWith('Failed to process PDF:') ||
             sourceText.contains('Failed to process') ||
             sourceText.contains('test_policy.pdf')) {
-          print('Filtering out failed source: ${sourceText.substring(0, 50)}...');
+          debugPrint(
+              'Filtering out failed source: ${sourceText.substring(0, 50)}...');
           continue; // Skip this source
         }
-        
+
         // Filter out sample documents if they contain obvious sample data
-        if (sourceText.contains('John Smith') || 
+        if (sourceText.contains('John Smith') ||
             sourceText.contains('Sarah Johnson') ||
             sourceText.contains('sample_health_policy') ||
             sourceText.contains('sample_auto_policy')) {
-          print('Filtering out sample document source');
+          debugPrint('Filtering out sample document source');
           continue; // Skip sample documents
         }
-        
+
         if (source is String) {
           // Backend returns sources as strings
           parsedSources.add(QaSource(
@@ -90,7 +91,7 @@ class QaAnswer {
         }
       }
     }
-    
+
     return QaAnswer(
       text: json['answer'] ?? '',
       sources: parsedSources,
@@ -106,14 +107,14 @@ class QaSource {
   final int? pageNumber;
   final String text;
   final double score;
-  
+
   QaSource({
     required this.documentId,
     this.pageNumber,
     required this.text,
     required this.score,
   });
-  
+
   factory QaSource.fromJson(dynamic json) {
     // Handle both Map and String inputs
     if (json is String) {
@@ -144,10 +145,10 @@ class QaPair {
   final String question;
   final QaAnswer answer;
   final DateTime timestamp;
-  
+
   QaPair({
     required this.question,
     required this.answer,
     required this.timestamp,
   });
-} 
+}

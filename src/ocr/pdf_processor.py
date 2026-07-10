@@ -2,7 +2,7 @@
 PDF Processor using OCR Pipeline
 """
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from src.ocr.pipeline import OCRPipeline
 
 logger = logging.getLogger(__name__)
@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 class PDFProcessor:
     """PDF processing using the OCR pipeline"""
     
-    def __init__(self):
-        self.ocr_pipeline = OCRPipeline()
+    def __init__(self, ocr_pipeline: Optional['OCRPipeline'] = None):
+        self.ocr_pipeline = ocr_pipeline if ocr_pipeline else OCRPipeline()
         logger.info("PDFProcessor initialized")
     
     def process_pdf(self, file_path: str) -> Dict[str, Any]:

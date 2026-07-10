@@ -7,7 +7,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:new_mobile/main.dart';
+import 'package:coverwise/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,8 +15,8 @@ void main() {
   testWidgets('Insurance app smoke test', (WidgetTester tester) async {
     // Initialize shared preferences for testing
     SharedPreferences.setMockInitialValues({});
-    final sharedPreferences = await SharedPreferences.getInstance();
-    
+    await SharedPreferences.getInstance();
+
     // Build our app and trigger a frame.
     await tester.pumpWidget(
       ProviderScope(

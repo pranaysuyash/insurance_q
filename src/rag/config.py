@@ -1,9 +1,12 @@
 """
+@deprecated Use src.config.settings.Settings instead.
 Configuration settings for the RAG pipeline.
 """
 from typing import Dict, Any
 import os
 from dataclasses import dataclass
+import warnings
+warnings.warn("src.rag.config is deprecated. Use src.config.settings instead.", DeprecationWarning, stacklevel=2)
 
 @dataclass
 class RAGConfig:

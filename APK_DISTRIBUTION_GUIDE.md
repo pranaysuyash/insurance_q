@@ -188,12 +188,12 @@ Try these sample questions after uploading a document:
 
 **✅ WORKING APK (Use This One):**
 ```
-/Users/pranay/Projects/medpiper/insurance_app/mobile/build/app/outputs/apk/release/app-release.apk
+mobile/build/app/outputs/apk/release/app-release.apk
 ```
 
 **❌ Problematic APKs (Don't Use):**
 ```
-/Users/pranay/Projects/medpiper/insurance_app/mobile/build/app/outputs/flutter-apk/
+mobile/build/app/outputs/flutter-apk/
 ```
 
 **Note**: The `apk/release` directory contains properly built APKs, while `flutter-apk` may have signing issues.
@@ -227,7 +227,7 @@ For any issues or questions, refer to this guide or contact the development team
 - **Problem**: Previous APK showed "invalid package" on some devices
 - **Root Cause**: Improper signing configuration and namespace conflicts
 - **Solution**: 
-  - Fixed Android namespace: `com.medpiper.insurance_app`
+  - Fixed Android namespace: `com.coverwise.app`
   - Proper debug signing for testing compatibility
   - Disabled problematic minification
   - Created architecture-specific builds
@@ -314,7 +314,7 @@ For any issues or questions, refer to this guide or contact the development team
 - **Platform**: Android (API level 23+)
 - **Architecture**: ARM64 (recommended) or Universal
 - **Build Type**: Release (optimized)
-- **Application ID**: `com.medpiper.insurance_app`
+- **Application ID**: `com.coverwise.app`
 - **Signing**: Debug (compatible with all devices)
 
 ### **Backend Configuration**

@@ -365,7 +365,7 @@ The screen also includes a document selector to specify which insurance document
 ### 6. Run the Flutter App on Your Device
 - In your terminal:
   ```sh
-  cd /Users/pranay/Projects/medpiper/insurance_app/mobile
+  cd mobile
   flutter run
   ```
 - Select your device (should show up as a wireless device).
@@ -592,7 +592,7 @@ If you encounter build failures when running `flutter run` for Android, try the 
 ### 6. Run the Flutter App on Your Device
 - In your terminal:
   ```sh
-  cd /Users/pranay/Projects/medpiper/insurance_app/mobile
+  cd mobile
   flutter run
   ```
 - Select your device (should show up as a wireless device).

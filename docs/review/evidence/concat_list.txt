@@ -1,0 +1,2 @@
+file '/Users/pranay/Projects/medpiper/insurance_app/docs/review/evidence/coverwise_policy_demo_full.mp4'
+file '/Users/pranay/Projects/medpiper/insurance_app/docs/review/evidence/coverwise_policy_demo_nav.mp4'

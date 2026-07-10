@@ -4,6 +4,7 @@ import 'services/api_service.dart';
 import 'screens/qa_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'config/app_config.dart';
 import 'providers/storage_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/document_model.dart';
@@ -11,10 +12,10 @@ import 'models/document_model.dart';
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Get shared preferences instance
   final sharedPreferences = await SharedPreferences.getInstance();
-  
+
   runApp(
     ProviderScope(
       overrides: [
@@ -32,7 +33,7 @@ class InsuranceApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Insurance Policy App',
+      title: AppConfig.appName,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
@@ -41,7 +42,7 @@ class InsuranceApp extends StatelessWidget {
       routes: {
         '/qa': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as String?;
-          
+
           // Return the screen immediately
           return QAScreen(initialDocumentId: args);
         },
@@ -60,14 +61,7 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
-
-  static final List<Widget> _pages = <Widget>[
-    const DashboardScreen(),
-    const DocumentsScreen(),
-    const QAScreen(),
-    const FamilyScreen(),
-    const MoreScreen(),
-  ];
+  bool _demoNavigationScheduled = false;
 
   void _onItemTapped(int index) {
     setState(() {
@@ -76,15 +70,53 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    if (AppConfig.bootstrapPolicyDemo) {
+      _selectedIndex = 1;
+      _scheduleDemoNavigation();
+    }
+  }
+
+  void _scheduleDemoNavigation() {
+    if (_demoNavigationScheduled) return;
+    _demoNavigationScheduled = true;
+    Future.delayed(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      setState(() {
+        _selectedIndex = 2;
+      });
+    });
+  }
+
+  Widget _buildPage(int index) {
+    switch (index) {
+      case 0:
+        return const DashboardScreen();
+      case 1:
+        return const DocumentsScreen();
+      case 2:
+        return QAScreen(isActive: _selectedIndex == 2);
+      case 3:
+        return const FamilyScreen();
+      case 4:
+        return const MoreScreen();
+      default:
+        return const DashboardScreen();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: _buildPage(_selectedIndex),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.description), label: 'Documents'),
+          NavigationDestination(
+              icon: Icon(Icons.description), label: 'Documents'),
           NavigationDestination(icon: Icon(Icons.question_answer), label: 'QA'),
           NavigationDestination(icon: Icon(Icons.group), label: 'Family'),
           NavigationDestination(icon: Icon(Icons.menu), label: 'More'),
@@ -99,12 +131,13 @@ class _MainNavigationState extends State<MainNavigation> {
 
 class QAScreen extends StatelessWidget {
   final String? initialDocumentId;
+  final bool isActive;
 
-  const QAScreen({super.key, this.initialDocumentId});
+  const QAScreen({super.key, this.initialDocumentId, this.isActive = true});
 
   @override
   Widget build(BuildContext context) {
-    return QaScreen(initialDocumentId: initialDocumentId);
+    return QaScreen(initialDocumentId: initialDocumentId, isActive: isActive);
   }
 }
 
@@ -126,10 +159,10 @@ class FamilyMembersContent extends ConsumerStatefulWidget {
   const FamilyMembersContent({super.key});
 
   @override
-  _FamilyMembersContentState createState() => _FamilyMembersContentState();
+  FamilyMembersContentState createState() => FamilyMembersContentState();
 }
 
-class _FamilyMembersContentState extends ConsumerState<FamilyMembersContent> {
+class FamilyMembersContentState extends ConsumerState<FamilyMembersContent> {
   final _apiService = ApiService();
   List<InsuranceDocument> _documents = [];
   final Map<String, PolicyHolder> _policyHolders = {};
@@ -145,29 +178,29 @@ class _FamilyMembersContentState extends ConsumerState<FamilyMembersContent> {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       // Load documents
       final documents = await _apiService.getDocuments();
       setState(() {
         _documents = documents;
       });
-      
+
       // Extract policy holders from all documents
       await _loadFamilyInformation();
     } catch (e) {
       debugPrint('Error loading data: $e');
     }
-    
+
     setState(() {
       _isLoading = false;
     });
   }
-  
+
   Future<void> _loadFamilyInformation() async {
     // Clear existing data
     _policyHolders.clear();
-    
+
     // Collect all policy holders from all documents
     for (final doc in _documents) {
       try {
@@ -180,7 +213,7 @@ class _FamilyMembersContentState extends ConsumerState<FamilyMembersContent> {
         } else {
           // Extract policy holders if not already available
           final holders = await _apiService.extractPolicyHolders(doc.id);
-          
+
           // Add to unique holders by name
           for (final holder in holders) {
             _policyHolders[holder.name] = holder;
@@ -190,17 +223,17 @@ class _FamilyMembersContentState extends ConsumerState<FamilyMembersContent> {
         debugPrint('Error extracting policy holders: $e');
       }
     }
-    
+
     // Update UI
     setState(() {});
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (_policyHolders.isEmpty) {
       return Center(
         child: Column(
@@ -224,7 +257,8 @@ class _FamilyMembersContentState extends ConsumerState<FamilyMembersContent> {
               label: const Text('Add Family Member'),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Family management coming soon!')),
+                  const SnackBar(
+                      content: Text('Family management coming soon!')),
                 );
               },
             ),
@@ -232,7 +266,7 @@ class _FamilyMembersContentState extends ConsumerState<FamilyMembersContent> {
         ),
       );
     }
-    
+
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView(
@@ -247,63 +281,63 @@ class _FamilyMembersContentState extends ConsumerState<FamilyMembersContent> {
           ),
           const SizedBox(height: 16),
           ..._policyHolders.values.map((holder) => Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.blue.shade100,
-                        child: Icon(
-                          holder.relationship == 'Primary Insured' 
-                              ? Icons.person 
-                              : Icons.people_alt,
-                          color: Colors.blue,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              holder.name,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.blue.shade100,
+                            child: Icon(
+                              holder.relationship == 'Primary Insured'
+                                  ? Icons.person
+                                  : Icons.people_alt,
+                              color: Colors.blue,
                             ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  holder.name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  holder.relationship,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (holder.dob != null) ...[
+                        const Divider(height: 24),
+                        Row(
+                          children: [
+                            const Icon(Icons.cake, color: Colors.grey),
+                            const SizedBox(width: 8),
                             Text(
-                              holder.relationship,
-                              style: TextStyle(
-                                color: Colors.grey.shade700,
-                              ),
+                              'Date of Birth: ${holder.dob}',
+                              style: const TextStyle(fontSize: 14),
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                  if (holder.dob != null) ...[
-                    const Divider(height: 24),
-                    Row(
-                      children: [
-                        const Icon(Icons.cake, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Date of Birth: ${holder.dob}',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          )),
+                ),
+              )),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             icon: const Icon(Icons.add),
@@ -357,7 +391,8 @@ class MoreScreen extends StatelessWidget {
             subtitle: const Text('Manage your data and privacy settings'),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Privacy & Security coming soon!')),
+                const SnackBar(
+                    content: Text('Privacy & Security coming soon!')),
               );
             },
           ),

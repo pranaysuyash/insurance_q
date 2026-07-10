@@ -185,8 +185,10 @@ async def upload_document(
                 "session_id": session_id
             })
             
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Failed to upload {file.filename}: {str(e)}")
+            logger.error(f"Failed to upload {file.filename}: {e}")
             failed_docs += 1
     
     return {

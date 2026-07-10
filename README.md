@@ -1,4 +1,4 @@
-# Insurance Policy Assistant
+# CoverWise
 
 An AI-powered mobile application for analyzing insurance documents and providing intelligent Q&A capabilities.
 

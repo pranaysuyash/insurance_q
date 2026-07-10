@@ -28,7 +28,7 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
     try {
       final apiService = ApiService();
       final stats = await apiService.getUsageStats();
-      
+
       setState(() {
         _usageStats = stats;
       });
@@ -36,7 +36,7 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
       setState(() {
         _error = 'Unable to load usage stats';
       });
-      print('Error loading usage stats: $e');
+      debugPrint('Error loading usage stats: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -98,10 +98,11 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
     final sessionLimit = _usageStats!['session_limit'] ?? 5;
     final ipUploads = _usageStats!['ip_uploads'] ?? 0;
     final ipLimit = _usageStats!['ip_limit'] ?? 10;
-    
+
     final sessionRemaining = sessionLimit - sessionUploads;
     final ipRemaining = ipLimit - ipUploads;
-    final effectiveRemaining = sessionRemaining < ipRemaining ? sessionRemaining : ipRemaining;
+    final effectiveRemaining =
+        sessionRemaining < ipRemaining ? sessionRemaining : ipRemaining;
 
     Color getStatusColor() {
       if (effectiveRemaining <= 0) return Colors.red;
@@ -132,8 +133,8 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
                 Text(
                   'Upload Quota',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -153,15 +154,16 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
                       Text(
                         'Remaining Today',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
+                              color: Colors.grey[600],
+                            ),
                       ),
                       Text(
                         '$effectiveRemaining uploads',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: getStatusColor(),
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: getStatusColor(),
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
@@ -173,8 +175,8 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
                       Text(
                         'Session Usage',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
+                              color: Colors.grey[600],
+                            ),
                       ),
                       Text(
                         '$sessionUploads / $sessionLimit',
@@ -196,9 +198,10 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: getStatusColor().withOpacity(0.1),
+                  color: getStatusColor().withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: getStatusColor().withOpacity(0.3)),
+                  border: Border.all(
+                      color: getStatusColor().withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -228,4 +231,4 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
       ),
     );
   }
-} 
+}

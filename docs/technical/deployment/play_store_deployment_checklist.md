@@ -57,7 +57,7 @@
 - [ ] Set up app details (name, description, category)
 
 ### 2. App Store Listing
-- [ ] **App Name**: "Insurance Policy Assistant" (or preferred name)
+- [ ] **App Name**: "CoverWise"
 - [ ] **Short Description**: "AI-powered insurance document analysis and Q&A"
 - [ ] **Full Description**: Detailed app description
 - [ ] **Screenshots**: Take screenshots from app (required: phone, tablet)
