@@ -42,26 +42,7 @@ class DocumentSelectionDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            
-            // All documents option
-            ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text('All Documents'),
-              subtitle: const Text('Search across all your policies'),
-              selected: currentDocumentId == null,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              onTap: () {
-                onDocumentSelected(null);
-                Navigator.pop(context);
-              },
-            ),
-            
-            const SizedBox(height: 8),
-            const Divider(),
-            const SizedBox(height: 8),
-            
+
             // Document limit indicator
             Row(
               children: [

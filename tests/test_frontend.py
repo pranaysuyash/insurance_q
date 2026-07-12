@@ -10,7 +10,7 @@ def test_home_page():
     """Test that the home page loads successfully."""
     response = client.get("/")
     assert response.status_code == 200
-    assert "Insurance Policy Parser & QA" in response.text
+    assert "CoverWise" in response.text
 
 @pytest.mark.asyncio
 async def test_upload_document(mocker):

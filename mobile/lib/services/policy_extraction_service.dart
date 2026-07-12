@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../config/app_config.dart';
 import '../models/policy_summary.dart';
+import '../utils/policy_type.dart';
 import 'query_service.dart';
 
 class PolicyExtractionService {
@@ -208,9 +209,11 @@ class PolicyExtractionService {
 
   List<CoverageGap> analyzeCoverageGaps(List<PolicySummary> summaries) {
     final gaps = <CoverageGap>[];
-    final types = summaries.map((s) => s.documentType.toLowerCase()).toSet();
+    final policyTypes = summaries
+        .map((s) => classifyPolicyType(s.documentType))
+        .toSet();
 
-    if (!types.any((t) => t.contains('health'))) {
+    if (!policyTypes.contains(PolicyType.health)) {
       gaps.add(CoverageGap(
         category: 'Health Insurance',
         description: 'No health insurance policy found. Medical emergencies can be financially devastating without coverage.',
@@ -218,7 +221,7 @@ class PolicyExtractionService {
         recommendation: 'Consider purchasing health insurance to cover hospitalization and medical expenses.',
       ));
     }
-    if (!types.any((t) => t.contains('life') || t.contains('term'))) {
+    if (!policyTypes.contains(PolicyType.life)) {
       gaps.add(CoverageGap(
         category: 'Life Insurance',
         description: 'No life insurance policy found. If you have dependents, life insurance protects their financial future.',
@@ -226,7 +229,7 @@ class PolicyExtractionService {
         recommendation: 'Consider term life insurance, especially if you have dependents.',
       ));
     }
-    if (!types.any((t) => t.contains('auto') || t.contains('motor') || t.contains('car'))) {
+    if (!policyTypes.contains(PolicyType.auto)) {
       gaps.add(CoverageGap(
         category: 'Auto Insurance',
         description: 'No auto insurance policy found. In most jurisdictions, auto insurance is legally required.',
@@ -235,7 +238,7 @@ class PolicyExtractionService {
       ));
     }
     for (final s in summaries) {
-      if (s.documentType.toLowerCase().contains('health')) {
+      if (classifyPolicyType(s.documentType) == PolicyType.health) {
         if (!s.keyBenefits.any((b) => b.toLowerCase().contains('maternity'))) {
           gaps.add(CoverageGap(
             category: 'Maternity Coverage',

@@ -3,7 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Insurance Policy Parser & QA</title>
+    <title>CoverWise | Understand your insurance policy</title>
+    <meta name="description" content="CoverWise reads insurance policy documents, surfaces the details that matter, and answers grounded questions in plain language.">
+    <meta name="theme-color" content="#08111f">
+    <meta property="og:title" content="CoverWise | Understand your insurance policy">
+    <meta property="og:description" content="CoverWise reads insurance policy documents, surfaces the details that matter, and answers grounded questions in plain language.">
+    <meta property="og:image" content="/static/coverwise-og.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="/static/coverwise-og.png">
+    <link rel="icon" href="/favicon.ico" sizes="any">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
     <style>
@@ -27,15 +38,15 @@
     <div class="container mx-auto px-4 py-8 max-w-5xl">
         <!-- Header -->
         <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">Insurance Policy Parser & QA</h1>
-            <p class="text-gray-600">Upload your insurance policy documents and ask questions about them</p>
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">CoverWise</h1>
+            <p class="text-gray-600">Read policy documents, surface the details that matter, and ask grounded questions</p>
         </div>
         
         <!-- Main Content -->
         <div class="grid grid-cols-1 gap-8">
             <!-- Document Upload Section -->
             <div class="bg-white rounded-xl shadow-lg p-6 transition-all hover:shadow-xl">
-                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Upload Document</h2>
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Upload Policy</h2>
                 <div class="mb-6">
                     <div class="flex items-center justify-center w-full">
                         <label class="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
@@ -53,7 +64,7 @@
                 <div class="flex justify-center">
                     <button onclick="uploadDocument()" 
                             class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
-                        <span>Process Document</span>
+                        <span>Analyze Policy</span>
                         <span id="uploadSpinner" class="hidden">
                             <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -67,7 +78,7 @@
 
             <!-- OCR Results Section -->
             <div class="bg-white rounded-xl shadow-lg p-6">
-                <h2 class="text-2xl font-semibold mb-4 text-gray-800">OCR Results</h2>
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Policy Summary</h2>
                 <div id="ocrResults" class="prose max-w-none">
                     <p class="text-gray-500 text-center">No document processed yet</p>
                 </div>
@@ -75,10 +86,10 @@
 
             <!-- Query Section -->
             <div class="bg-white rounded-xl shadow-lg p-6">
-                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Ask Questions</h2>
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Ask Grounded Questions</h2>
                 <div class="mb-4">
                     <textarea id="queryInput"
-                             placeholder="Ask a question about the insurance policy..."
+                        placeholder="What does this policy cover, and what should I watch out for?"
                              class="w-full p-3 border rounded-lg resize-none h-32 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
                 </div>
                 <div class="flex justify-center">

@@ -417,3 +417,27 @@ PDF Input
 - Structure-aware chunking (3 tests: section headers, max block size, paragraph fallback)
 - Shared OCR pipeline (2 tests: single instance, shared between processors)
 - LLM classification fallback (2 tests: low confidence trigger, LLM unavailable)
+
+## Addendum — Local document intelligence evaluation (2026-07-12)
+
+`docs/technical/local_document_intelligence_evaluation_2026-07-12.md` is the
+current evidence-backed research record for Gemma, DeepSeek-OCR, OLM OCR,
+PaddleOCR-VL, Unlimited-OCR, and the existing local stack. It corrects the
+older assumption that generic VLM invocation is an interchangeable OCR path.
+
+Current machine proof on the synthetic policy fixture:
+
+- PyMuPDF remains the correct instantaneous fast path for embedded-text PDFs.
+- Gemma 3 4B transcribed the simple rendered page in 19.027s; 12B did so in
+  40.217s; Qwen2.5-VL 7B in 77.441s. None can replace PyMuPDF by default.
+- DeepSeek-OCR produced no text through the generic Ollama image request;
+  future work needs the model-native adapter rather than a fallback swap.
+- Unlimited-OCR and olmOCR currently require GPU-oriented official inference
+  paths, so are research-lane candidates, not App Runner / Apple Silicon launch
+  dependencies.
+
+The reusable, text-safe evaluator is
+`tools/evaluate_local_document_models.py`; reports contain hashes, timing, and
+expected-token checks by default. The next accepted model must meet the corpus
+contract in the technical evaluation record before becoming part of the
+canonical OCR pipeline.

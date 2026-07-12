@@ -2,11 +2,12 @@
 Frontend service for the Insurance Policy Parser & QA App.
 """
 from contextlib import asynccontextmanager
+from datetime import date
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response, FileResponse
 import os
 import httpx
 from typing import Optional, Dict, Any, List
@@ -30,9 +31,12 @@ structlog.configure(
 class Query(BaseModel):
     query: str
 
+SITE_NAME = "CoverWise"
+DEFAULT_LAUNCH_WINDOW = os.getenv("LAUNCH_WINDOW", "late July 2026")
+
 app = FastAPI(
-    title="Insurance Policy Frontend (Updated)",
-    description="Frontend service for insurance policy document processing and querying with new backend services.",
+    title="CoverWise | Insurance Policy Frontend",
+    description="CoverWise turns insurance policy PDFs into plain-language summaries, grounded answers, and launch-ready marketing pages.",
     version="2.0.0"
 )
 
@@ -73,13 +77,68 @@ async def lifespan(app: FastAPI):
 
 app.router.lifespan_context = lifespan
 
+
+def _resolve_public_site_url(request: Request) -> str:
+    configured_url = os.getenv("PUBLIC_SITE_URL", "").strip()
+    if configured_url:
+        return configured_url.rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Render the home page."""
+    site_url = _resolve_public_site_url(request)
     return templates.TemplateResponse(
         "index.html",
-        {"request": request}
+        {
+            "request": request,
+            "site_url": site_url,
+            "site_name": SITE_NAME,
+            "page_title": "CoverWise | Understand your insurance policy in plain language",
+            "page_description": (
+                "CoverWise reads insurance policy PDFs, surfaces coverage, exclusions, waiting periods, and claim details, then answers grounded questions."
+            ),
+            "launch_window": DEFAULT_LAUNCH_WINDOW,
+            "current_year": date.today().year,
+        }
     )
+
+
+@app.get("/robots.txt")
+async def robots_txt(request: Request):
+    site_url = _resolve_public_site_url(request)
+    content = "\n".join(
+        [
+            "User-agent: *",
+            "Allow: /",
+            f"Sitemap: {site_url}/sitemap.xml",
+            "",
+        ]
+    )
+    return PlainTextResponse(content, media_type="text/plain")
+
+
+@app.get("/sitemap.xml")
+async def sitemap_xml(request: Request):
+    site_url = _resolve_public_site_url(request)
+    today = date.today().isoformat()
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>{site_url}/</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
+"""
+    return Response(content=xml, media_type="application/xml")
+
+
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"])
+async def favicon():
+    return FileResponse(os.path.join("src/frontend/static", "favicon.ico"))
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -193,7 +252,9 @@ async def upload_document(file: UploadFile = File(...)):
             "doc_key": ocr_doc_key,
             "text": display_text,
             "layout_elements": layout_elements,
-            "sections": sections
+            "sections": sections,
+            "metadata": ocr_process_result.get("metadata")
+            or ocr_process_result.get("result", {}).get("metadata", {}),
         }
             
     except httpx.HTTPStatusError as e:

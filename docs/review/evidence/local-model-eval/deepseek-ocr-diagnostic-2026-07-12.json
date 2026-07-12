@@ -1,0 +1,41 @@
+{
+  "fixture": "sample_insurance.pdf",
+  "fixture_sha256": "04ce43931d0d8af97b6c81499d17ed192f1191463297be016452bca612082af2",
+  "page_count_evaluated": 1,
+  "dpi": 150,
+  "expected_tokens": [
+    "Insurance Policy",
+    "#12345"
+  ],
+  "prompt": "Transcribe every visible word on this insurance-policy page exactly. Preserve numbers, dates, currency symbols, headings, and table rows. Return only the transcription, with no commentary or markdown fence.",
+  "generated_at_epoch_seconds": 1783835602.0822048,
+  "results": [
+    {
+      "engine": "pymupdf_embedded_text",
+      "elapsed_seconds": 0.0,
+      "output_characters": 24,
+      "expected_token_matches": {
+        "Insurance Policy": true,
+        "#12345": true
+      }
+    },
+    {
+      "engine": "ollama",
+      "model": "deepseek-ocr:latest",
+      "elapsed_seconds": 65.321,
+      "output_characters": 0,
+      "expected_token_matches": {
+        "Insurance Policy": false,
+        "#12345": false
+      },
+      "ollama_completion": {
+        "done": true,
+        "done_reason": "stop",
+        "total_duration": 64895848458,
+        "load_duration": 54019559875,
+        "prompt_eval_count": 464,
+        "eval_count": 1
+      }
+    }
+  ]
+}

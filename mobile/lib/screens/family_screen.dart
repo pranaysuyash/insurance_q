@@ -37,7 +37,7 @@ class FamilyMembersContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final documentsAsync = ref.watch(documentsListProvider);
+    final documentsAsync = ref.watch(documentsProvider);
 
     return documentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),

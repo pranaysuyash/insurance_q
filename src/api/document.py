@@ -48,15 +48,16 @@ async def upload_document(
     metadata: Optional[str] = Form(None),
     user_email: Optional[str] = Form(None),  # Optional lead capture
     user_phone: Optional[str] = Form(None),  # Optional lead capture
-    consent: Optional[bool] = Form(False)    # User consent for data processing
+    consent: Optional[bool] = Form(False),
+    current_user: User = Depends(get_current_user),
 ):
-    """Upload insurance policy documents for processing with integrated OCR and RAG. No authentication required for lead generation."""
+    """Upload policy documents owned by the verified anonymous principal."""
     uploaded_docs = []
     failed_docs = 0
     
     # Extract client information for anti-abuse
     ip_address = get_client_ip(request)
-    session_id = request.headers.get('X-Session-ID', str(uuid.uuid4()))
+    session_id = current_user.uid
     user_agent = request.headers.get('User-Agent', '')
     
     logger.info(f"Upload request from IP: {ip_address}, Session: {session_id[:8]}...")
@@ -136,7 +137,7 @@ async def upload_document(
             
             # Add lead capture data and anti-abuse metadata
             metadata_dict = {
-                "session_id": session_id,
+                "owner_id": current_user.uid,
                 "document_hash": document_hash,
                 "ip_address": ip_address,
                 "user_agent": user_agent[:200] if user_agent else None,  # Truncate for storage
@@ -163,7 +164,8 @@ async def upload_document(
                     doc_id,
                     file_content,
                     file.filename,
-                    processing_mode
+                    processing_mode,
+                    current_user.uid,
                 )
                 logger.info(f"Background processing started for {file.filename} (ID: {doc_id}, Session: {session_id})")
             else:
@@ -182,7 +184,7 @@ async def upload_document(
                 "status": "processing" if processing_service else "uploaded",
                 "processing_mode": processing_mode,
                 "processing_id": doc_id,
-                "session_id": session_id
+                "owner_id": current_user.uid
             })
             
         except HTTPException:
@@ -195,7 +197,6 @@ async def upload_document(
         "documents": uploaded_docs,
         "total_uploaded": len(uploaded_docs),
         "total_failed": failed_docs,
-        "session_id": session_id,
         "message": f"Uploaded {len(uploaded_docs)} documents for processing" if processing_service else f"Uploaded {len(uploaded_docs)} documents (processing service unavailable)"
     }
 
@@ -203,7 +204,8 @@ async def process_document_background(
     document_id: str, 
     file_content: bytes, 
     filename: str, 
-    processing_mode: str
+    processing_mode: str,
+    owner_id: str,
 ):
     """Background task for document processing"""
     try:
@@ -216,7 +218,8 @@ async def process_document_background(
             file_content=file_content,
             filename=filename,
             document_id=document_id,
-            processing_mode=processing_mode
+            processing_mode=processing_mode,
+            owner_id=owner_id,
         )
         
         # Update document status
@@ -290,19 +293,14 @@ async def process_document_background(
 @router.get("/{document_id}/status")
 async def get_document_processing_status(
     document_id: str,
-    session_id: Optional[str] = Query(None, description="Session ID for anonymous access")
+    current_user: User = Depends(get_current_user),
 ):
-    """Get real-time processing status for a document. Use session_id for anonymous access."""
+    """Get processing status only for the owning principal."""
     # Find document by ID
     user_doc = None
     for doc in DOCUMENTS:
         if doc.id == document_id:
-            # If session_id provided, check if it matches
-            if session_id and doc.user_uid == session_id:
-                user_doc = doc
-                break
-            # For backward compatibility, if no session_id provided, return the document
-            elif not session_id:
+            if doc.user_uid == current_user.uid:
                 user_doc = doc
                 break
     
@@ -322,7 +320,6 @@ async def get_document_processing_status(
         "processing_completed_at": getattr(user_doc, 'processing_completed_at', None),
         "error_message": getattr(user_doc, 'error_message', None),
         "processing_details": processing_status,
-        "session_id": user_doc.user_uid if len(user_doc.user_uid) == 36 else None  # Only return if it's a session ID
     }
     
     # Include lead data if available
@@ -351,18 +348,16 @@ async def get_document_processing_status(
 @router.get("/usage-stats")
 async def get_usage_statistics(
     request: Request,
-    session_id: Optional[str] = Query(None, description="Session ID for anonymous access")
+    current_user: User = Depends(get_current_user),
 ):
     """Get current usage statistics for rate limiting transparency."""
     ip_address = get_client_ip(request)
-    actual_session_id = session_id or request.headers.get('X-Session-ID', 'unknown')
+    actual_session_id = current_user.uid
     
     stats = get_current_usage_stats(ip_address, actual_session_id)
     
     return {
         "usage_stats": stats,
-        "session_id": actual_session_id,
-        "ip_address": ip_address,
         "limits": {
             "ip_daily": stats['ip_limit'],
             "session_daily": stats['session_limit'],
@@ -379,16 +374,13 @@ async def query_documents(
     request: Request,
     query: str = Form(...),
     document_ids: Optional[List[str]] = Form(None),
-    session_id: Optional[str] = Form(None, description="Session ID for anonymous access")
+    current_user: User = Depends(get_current_user),
 ):
-    """Query processed documents using RAG. No authentication required for lead generation."""
+    """Query only documents that belong to the verified principal."""
     if not processing_service:
         raise HTTPException(status_code=503, detail="Document processing service not available")
     
-    # Build filters - if session_id provided, filter by it
-    filters = {}
-    if session_id:
-        filters["user_uid"] = session_id
+    filters = {"owner_id": current_user.uid}
     if document_ids:
         filters["document_ids"] = document_ids
     
@@ -469,12 +461,14 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
                 
                 # TODO: Remove from RAG database if processing service available
                 if processing_service and processing_service.rag_pipeline:
-                    try:
-                        # This would need to be implemented in the RAG pipeline
-                        # await processing_service.rag_pipeline.delete_document(document_id)
-                        pass
-                    except Exception as e:
-                        logger.warning(f"Failed to remove from RAG: {str(e)}")
+                    deletion = await processing_service.rag_pipeline.delete_document_data(
+                        document_id, current_user.uid
+                    )
+                    if deletion.get("status") != "success":
+                        raise HTTPException(status_code=503, detail="Unable to delete derived search data; retry deletion")
+
+                if processing_service and processing_service.policy_extraction_service:
+                    processing_service.policy_extraction_service.delete_summary(document_id)
                 
                 # Remove from list
                 deleted_doc = DOCUMENTS.pop(i)
@@ -499,26 +493,26 @@ async def get_all_processing_status(current_user: User = Depends(get_current_use
 
 @router.post("/capture-lead")
 async def capture_lead(
-    session_id: str = Form(...),
     user_email: str = Form(...),
     user_phone: Optional[str] = Form(None),
     user_name: Optional[str] = Form(None),
     consent: bool = Form(...),
     interest_level: Optional[str] = Form(None),  # "high", "medium", "low"
     preferred_contact: Optional[str] = Form(None),  # "email", "phone", "both"
-    notes: Optional[str] = Form(None)
+    notes: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
 ):
     """Capture lead information after user sees document analysis results."""
     
     # Find documents associated with this session
-    session_documents = [doc for doc in DOCUMENTS if doc.user_uid == session_id]
+    session_documents = [doc for doc in DOCUMENTS if doc.user_uid == current_user.uid]
     
     if not session_documents:
         raise HTTPException(status_code=404, detail="Session not found")
     
     # Create lead record
     lead_data = {
-        "session_id": session_id,
+        "owner_id": current_user.uid,
         "email": user_email,
         "phone": user_phone,
         "name": user_name,
@@ -537,18 +531,19 @@ async def capture_lead(
             doc.metadata = {}
         doc.metadata.update(lead_data)
     
-    logger.info(f"Lead captured for session {session_id}: {user_email}")
+    logger.info("Lead captured for owner %s", current_user.uid[:12])
     
     return {
         "status": "success",
         "message": "Lead information captured successfully",
-        "session_id": session_id,
         "documents_count": len(session_documents)
     }
 
 
 @router.get("/{document_id}/summary")
-async def get_policy_summary(document_id: str):
+async def get_policy_summary(
+    document_id: str, current_user: User = Depends(get_current_user)
+):
     """Get the structured policy summary for a document.
 
     Returns the extracted PolicySummaryExtraction data that was generated
@@ -556,6 +551,8 @@ async def get_policy_summary(document_id: str):
     mobile app's Emergency Card, Claims Assistant, Renewal Calendar,
     Coverage Gap Scan, and Policy Comparison features.
     """
+    if not any(doc.id == document_id and doc.user_uid == current_user.uid for doc in DOCUMENTS):
+        raise HTTPException(status_code=404, detail="Document not found")
     if not processing_service:
         raise HTTPException(status_code=503, detail="Processing service not available")
 
@@ -571,7 +568,7 @@ async def get_policy_summary(document_id: str):
 
 
 @router.get("/summaries/all")
-async def get_all_policy_summaries():
+async def get_all_policy_summaries(current_user: User = Depends(get_current_user)):
     """Get all stored policy summaries.
 
     Used by the mobile app to load all policy data at once for dashboard
@@ -583,5 +580,7 @@ async def get_all_policy_summaries():
     if not hasattr(processing_service, 'policy_extraction_service') or not processing_service.policy_extraction_service:
         raise HTTPException(status_code=503, detail="Policy extraction service not available")
 
+    owned_ids = {doc.id for doc in DOCUMENTS if doc.user_uid == current_user.uid}
     all_summaries = processing_service.policy_extraction_service.get_all_summaries()
-    return {"status": "success", "summaries": list(all_summaries.values()), "count": len(all_summaries)}
+    owned_summaries = [summary for doc_id, summary in all_summaries.items() if doc_id in owned_ids]
+    return {"status": "success", "summaries": owned_summaries, "count": len(owned_summaries)}

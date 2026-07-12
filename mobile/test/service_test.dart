@@ -1,10 +1,32 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 
 import 'package:coverwise/services/demo_service.dart';
+import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/providers/questions_provider.dart';
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/models/qa_models.dart';
+
 void main() {
+  late Directory hiveDirectory;
+
+  setUpAll(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp('coverwise-tests-');
+    Hive.init(hiveDirectory.path);
+    await Hive.openBox(AppStateStore.boxName);
+  });
+
+  setUp(() async {
+    await Hive.box(AppStateStore.boxName).clear();
+  });
+
+  tearDownAll(() async {
+    await Hive.close();
+    await hiveDirectory.delete(recursive: true);
+  });
+
   group('DemoService', () {
     late DemoService demoService;
 
@@ -13,7 +35,8 @@ void main() {
     });
 
     test('returns policy number for policy number query', () {
-      final result = demoService.buildLocalPolicyAnswer('What is my policy number?');
+      final result =
+          demoService.buildLocalPolicyAnswer('What is my policy number?');
       expect(result['answer'], contains('4214i/CPHSR/407834350/00/000'));
     });
 
@@ -23,17 +46,20 @@ void main() {
     });
 
     test('returns coverage amount for sum insured query', () {
-      final result = demoService.buildLocalPolicyAnswer('What is the sum insured?');
+      final result =
+          demoService.buildLocalPolicyAnswer('What is the sum insured?');
       expect(result['answer'], contains('25,00,000'));
     });
 
     test('returns fallback for unknown query', () {
-      final result = demoService.buildLocalPolicyAnswer('What is the weather today?');
+      final result =
+          demoService.buildLocalPolicyAnswer('What is the weather today?');
       expect(result['answer'], contains('more specific question'));
     });
 
     test('returns sources with every answer', () {
-      final result = demoService.buildLocalPolicyAnswer('What is my policy number?');
+      final result =
+          demoService.buildLocalPolicyAnswer('What is my policy number?');
       expect(result['sources'], isNotEmpty);
     });
   });
@@ -93,7 +119,8 @@ void main() {
 
   group('QaPair serialization', () {
     test('round-trips through JSON', () {
-      final source = QaSource(documentId: 'doc1', pageNumber: 1, text: 'Source text', score: 0.95);
+      final source = QaSource(
+          documentId: 'doc1', pageNumber: 1, text: 'Source text', score: 0.95);
       final answer = QaAnswer(
         text: 'Answer text',
         sources: [source],
@@ -102,7 +129,10 @@ void main() {
         question: 'Test question',
         confidence: 0.9,
       );
-      final pair = QaPair(question: 'Test question', answer: answer, timestamp: DateTime(2026, 7, 11, 10, 30));
+      final pair = QaPair(
+          question: 'Test question',
+          answer: answer,
+          timestamp: DateTime(2026, 7, 11, 10, 30));
 
       final json = pair.toJson();
       final restored = QaPair.fromJson(json);
@@ -117,13 +147,22 @@ void main() {
 
   group('InsuranceDocument model', () {
     test('formats file size correctly', () {
-      final doc = InsuranceDocument(id: '1', filename: 'test.pdf', uploadedOn: DateTime.now(), size: 500);
+      final doc = InsuranceDocument(
+          id: '1', filename: 'test.pdf', uploadedOn: DateTime.now(), size: 500);
       expect(doc.formattedFileSize, '500 B');
 
-      final docKb = InsuranceDocument(id: '2', filename: 'test.pdf', uploadedOn: DateTime.now(), size: 2048);
+      final docKb = InsuranceDocument(
+          id: '2',
+          filename: 'test.pdf',
+          uploadedOn: DateTime.now(),
+          size: 2048);
       expect(docKb.formattedFileSize, '2.0 KB');
 
-      final docMb = InsuranceDocument(id: '3', filename: 'test.pdf', uploadedOn: DateTime.now(), size: 1048576);
+      final docMb = InsuranceDocument(
+          id: '3',
+          filename: 'test.pdf',
+          uploadedOn: DateTime.now(),
+          size: 1048576);
       expect(docMb.formattedFileSize, '1.0 MB');
     });
 
@@ -137,7 +176,8 @@ void main() {
         insurer: 'ICICI Lombard',
         size: 1024,
         policyHolders: [
-          PolicyHolder(name: 'John Doe', dob: '10-May-1988', relationship: 'SELF'),
+          PolicyHolder(
+              name: 'John Doe', dob: '10-May-1988', relationship: 'SELF'),
         ],
       );
 

@@ -1,8 +1,9 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from src.api.user import router as user_router
+from src.api.user import router as user_router, get_current_user
+from src.models.user import User
 from src.api.family import router as family_router
 from src.api.policy import router as policy_router
 from src.api.document import router as document_router, set_processing_service
@@ -128,6 +129,12 @@ async def lifespan(app: FastAPI):
 
 
 app.router.lifespan_context = lifespan
+
+
+def require_nonproduction() -> None:
+    """Keep diagnostic and legacy synchronous routes out of public production."""
+    if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+        raise HTTPException(status_code=404, detail="Not found")
 
 async def _background_doc_processing():
     """Run document processing in background so startup doesn't block."""
@@ -283,7 +290,7 @@ async def health_check():
     )
 
 @app.post("/query")
-async def query_documents(request: QueryRequest):
+async def query_documents(request: QueryRequest, current_user: User = Depends(get_current_user)):
     """
     Root-level query endpoint that mobile app expects.
     Now uses the integrated document processing service with actual RAG.
@@ -300,11 +307,14 @@ async def query_documents(request: QueryRequest):
             )
         
         # Normalize filters: mobile sends document_id (singular), backend expects document_ids (plural list)
-        filters = dict(request.filters) if request.filters else None
+        filters = dict(request.filters) if request.filters else {}
         if filters and "document_id" in filters and "document_ids" not in filters:
             doc_id = filters.pop("document_id")
             if doc_id:
                 filters["document_ids"] = [doc_id] if isinstance(doc_id, str) else doc_id
+        # Owner scope is derived exclusively from the verified bearer token.
+        # Never accept a client-supplied owner filter.
+        filters["owner_id"] = current_user.uid
 
         # Use the document processing service to query
         result = await document_processing_service.query_documents(
@@ -390,7 +400,9 @@ async def query_documents(request: QueryRequest):
         )
 
 @app.post("/process-and-ingest")
-async def process_and_ingest(file: UploadFile = File(...)):
+async def process_and_ingest(
+    file: UploadFile = File(...), _: None = Depends(require_nonproduction)
+):
     """
     Synchronous document processing endpoint.
     Replaces the standalone OCR service's /process_and_ingest.
@@ -436,40 +448,9 @@ async def process_and_ingest(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/documents")
-def get_test_documents():
-    """Test endpoint for mobile app to fetch documents without authentication."""
-    return {
-        "documents": [
-            {
-                "id": "88d76c91-1484-41d8-93f3-b9c0b08fbd6e",
-                "filename": "health_policy_2024.pdf",
-                "size": 1258000,
-                "upload_date": "2023-05-25T14:22:30Z",
-                "status": "completed",
-                "document_type": "health_insurance",
-                "insurer": "Niva Bupa",
-                "processing_completed_at": "2023-05-25T14:25:45Z"
-            },
-            {
-                "id": "doc124",
-                "filename": "auto_insurance.pdf",
-                "size": 983000,
-                "upload_date": "2023-05-26T09:10:15Z",
-                "status": "processing",
-                "document_type": "auto_insurance",
-                "insurer": "Progressive" 
-            }
-        ],
-        "total": 2,
-        "page": 1,
-        "limit": 10,
-        "total_pages": 1
-    }
-
 # Additional endpoints for monitoring and debugging
 @app.get("/processing/status")
-async def get_processing_status():
+async def get_processing_status(_: None = Depends(require_nonproduction)):
     """Get overall processing status"""
     if not document_processing_service:
         return {"error": "Document processing service not available"}
@@ -486,7 +467,7 @@ async def get_processing_status():
         return {"error": str(e)}
 
 @app.get("/rag/stats")
-async def get_rag_stats():
+async def get_rag_stats(_: None = Depends(require_nonproduction)):
     """Get RAG system statistics"""
     if not rag_pipeline:
         return {"error": "RAG pipeline not available"}
@@ -500,7 +481,7 @@ async def get_rag_stats():
 
 # Debug endpoints for development
 @app.get("/debug/services")
-async def debug_services():
+async def debug_services(_: None = Depends(require_nonproduction)):
     """Debug endpoint to check service initialization status"""
     return {
         "rag_pipeline": "initialized" if rag_pipeline else "not initialized",
@@ -510,7 +491,7 @@ async def debug_services():
     }
 
 @app.post("/debug/test-processing")
-async def test_processing():
+async def test_processing(_: None = Depends(require_nonproduction)):
     """Test endpoint to verify processing pipeline"""
     if not document_processing_service:
         return {"error": "Document processing service not available"}

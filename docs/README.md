@@ -1,6 +1,8 @@
-# Insurance Policy Parser & QA App Documentation
+# CoverWise Documentation
 
-This is the comprehensive documentation for the Insurance Policy Parser & QA App. This documentation is organized in a logical directory structure to improve navigation and accessibility.
+This is the comprehensive documentation for CoverWise, the insurance companion that reads policy documents,
+surfaces the details that matter, and answers grounded questions in plain language. The documentation is
+organized in a logical directory structure to improve navigation and accessibility.
 
 ## Key Technical Documents
 
@@ -31,7 +33,9 @@ docs/
 
 ## Project Overview
 
-The Insurance Policy Parser & QA App is designed to revolutionize how users interact with their insurance policies. The app allows users to upload their insurance policy documents (PDFs), extract key information automatically, and ask free-form questions about their coverage, benefits, limitations, and any other aspects of their policies.
+CoverWise is designed to help people understand the policy they already own. The app lets users upload
+their insurance policy documents, extract key information automatically, and ask free-form questions
+about coverage, benefits, exclusions, and claim readiness.
 
 ### Key Features
 

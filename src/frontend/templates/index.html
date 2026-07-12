@@ -3,221 +3,635 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Insurance Policy Parser & QA</title>
-    <link href="/static/css/main.css" rel="stylesheet">
+    <title>{{ page_title }}</title>
+    <meta name="description" content="{{ page_description }}">
+    <meta name="robots" content="index,follow,max-image-preview:large">
+    <meta name="theme-color" content="#08111f">
+    <link rel="canonical" href="{{ site_url }}/">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ site_name }}">
+    <meta property="og:title" content="{{ page_title }}">
+    <meta property="og:description" content="{{ page_description }}">
+    <meta property="og:url" content="{{ site_url }}/">
+    <meta property="og:image" content="{{ site_url }}/static/coverwise-og.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:description" content="{{ page_description }}">
+    <meta name="twitter:image" content="{{ site_url }}/static/coverwise-og.png">
+    <link rel="stylesheet" href="/static/css/marketing.css">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "CoverWise",
+      "url": "{{ site_url }}/",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web, Android",
+      "description": "CoverWise reads insurance policy PDFs and helps people understand coverage, exclusions, waiting periods, and claim details in plain language."
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What does CoverWise do?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CoverWise reads insurance documents, pulls out the details that matter, and answers questions grounded in the policy text."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is CoverWise an insurer or broker?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. CoverWise helps people understand the policy they already have. The policy document and insurer remain the source of truth."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What kinds of questions can I ask?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You can ask about policy numbers, coverage periods, premiums, exclusions, waiting periods, claim steps, and other details already present in the document."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does CoverWise handle trust and safety?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It is explicit about limits, keeps answers grounded in the uploaded document, and reminds users to verify binding decisions with their insurer."
+          }
+        }
+      ]
+    }
+    </script>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-center mb-8">Insurance Policy Parser & QA</h1>
-        
-        <!-- Upload Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">Upload Insurance Document</h2>
-            <form id="uploadForm" class="space-y-4">
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <input type="file" id="fileInput" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.webp,.doc,.docx">
-                    <label for="fileInput" class="cursor-pointer text-blue-600 hover:text-blue-800">
-                        Click to upload or drag and drop
-                    </label>
-                    <p class="text-sm text-gray-500 mt-2">Supported formats: PDF, PNG, JPG, JPEG, TIFF, TIF, WEBP, DOC, DOCX</p>
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
-                    Upload Document
-                </button>
-            </form>
-        </div>
+<body>
+    <div class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="#top" aria-label="CoverWise home">
+                <span class="brand-mark" aria-hidden="true"></span>
+                <span>CoverWise</span>
+            </a>
+            <nav class="navlinks" aria-label="Primary">
+                <a class="navlink" href="#features">Features</a>
+                <a class="navlink" href="#how-it-works">How it works</a>
+                <a class="navlink" href="#try">Try the demo</a>
+                <a class="navlink" href="#faq">FAQ</a>
+            </nav>
+            <a class="btn btn-primary" href="#try">Try the demo</a>
+        </header>
 
-        <!-- OCR Results Section -->
-        <div id="ocrResults" class="bg-white rounded-lg shadow-md p-6 mb-8 hidden">
-            <h2 class="text-xl font-semibold mb-4">Document Analysis</h2>
-            
-            <!-- Processing Status -->
-            <div class="mb-6">
-                <h3 class="font-semibold text-gray-700">Status</h3>
-                <p id="processingStatus" class="text-green-600"></p>
-            </div>
-
-            <!-- Extracted Sections -->
-            <div class="mb-6">
-                <h3 class="font-semibold text-gray-700 mb-2">Extracted Sections</h3>
-                <div id="extractedSections" class="space-y-4">
-                    <!-- Sections will be added here dynamically -->
-                </div>
-            </div>
-
-            <!-- Full Text -->
-            <div>
-                <h3 class="font-semibold text-gray-700 mb-2">Full Text</h3>
-                <div id="fullText" class="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto text-sm">
-                    <!-- Full text will be added here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Query Section -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Ask Questions</h2>
-            <form id="queryForm" class="space-y-4">
-                <div>
-                    <textarea id="queryInput" rows="3" 
-                        class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Ask a question about the insurance policy..."></textarea>
-                </div>
-                <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700">
-                    Submit Question
-                </button>
-            </form>
-            <div id="answer" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
-                <h3 class="font-semibold mb-2">Answer:</h3>
-                <p id="answerText" class="text-gray-700"></p>
-                <div id="sourcesSection" class="mt-4 text-sm text-gray-600">
-                    <h4 class="font-semibold">Sources:</h4>
-                    <ul id="sourcesList" class="list-disc pl-5 mt-2">
-                        <!-- Sources will be added here -->
+        <main id="top">
+            <section class="hero section">
+                <div class="hero-copy">
+                    <div class="eyebrow">Built for Indian policyholders</div>
+                    <h1>Understand your insurance before you need it.</h1>
+                    <p class="lede">
+                        CoverWise reads your policy PDFs and scans, surfaces the dates, coverage, exclusions,
+                        premiums, and claim details that matter, and answers questions grounded in the document itself.
+                    </p>
+                    <ul class="hero-points">
+                        <li>See policy numbers, insurers, and coverage periods at a glance.</li>
+                        <li>Surface waiting periods, exclusions, and claim details without digging through legalese.</li>
+                        <li>Keep the critical information ready for renewal, claims, and family coverage checks.</li>
                     </ul>
+                    <div class="cta-row">
+                        <a class="btn btn-primary" href="#try">Try the demo</a>
+                        <a class="btn btn-secondary" href="#how-it-works">See how it works</a>
+                    </div>
+                    <p class="hero-note">
+                        CoverWise is not an insurer or broker. It helps you understand the policy you already own,
+                        and it always defers to the document and insurer for binding decisions.
+                    </p>
+                </div>
+
+                <aside class="hero-card" aria-label="Launch summary">
+                    <div class="hero-preview">
+                        <div class="preview-title">Launch window</div>
+                        <div class="summary-row">
+                            <div>
+                                <div class="summary-label">Positioning</div>
+                                <div class="summary-value">Insurance companion, not a sales funnel</div>
+                            </div>
+                        </div>
+                        <div class="summary-row">
+                            <div>
+                                <div class="summary-label">Focus</div>
+                                <div class="summary-value">Coverage, exclusions, claims, renewal readiness</div>
+                            </div>
+                        </div>
+                        <div class="summary-row">
+                            <div>
+                                <div class="summary-label">Delivery target</div>
+                                <div class="summary-value">{{ launch_window }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mini-badges">
+                        <span class="mini-badge">Policy PDF summaries</span>
+                        <span class="mini-badge">Grounded Q&A</span>
+                        <span class="mini-badge">Offline-ready details</span>
+                    </div>
+                    <div class="signal-grid">
+                        <div class="signal">
+                            <strong>Read</strong>
+                            <p>Extract the details that matter from long policy documents.</p>
+                        </div>
+                        <div class="signal">
+                            <strong>Ask</strong>
+                            <p>Get answers tied back to the uploaded policy text.</p>
+                        </div>
+                        <div class="signal">
+                            <strong>Act</strong>
+                            <p>Prepare for claims and renewals with less friction.</p>
+                        </div>
+                    </div>
+                </aside>
+            </section>
+
+            <section id="features" class="section">
+                <div class="section-heading">
+                    <div>
+                        <div class="eyebrow-small">Why it matters</div>
+                        <h2>One app for the moments insurance becomes real.</h2>
+                    </div>
+                    <p class="section-copy">
+                        The product is designed around the actual user workflow: upload a policy, understand it,
+                        ask grounded questions, and keep the critical details ready when something happens.
+                    </p>
+                </div>
+
+                <div class="card-grid">
+                    <article class="feature-card">
+                        <div class="feature-icon">1</div>
+                        <h3>Translate policy language into plain English</h3>
+                        <p>
+                            Pull out the policy number, insurer, coverage dates, premiums, waiting periods, and
+                            exclusions so the user can understand the policy without reading every page.
+                        </p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-icon">2</div>
+                        <h3>Answer questions from the actual document</h3>
+                        <p>
+                            Ask what the policy covers, what it excludes, how claims work, and where the important
+                            conditions live. Answers stay grounded in the uploaded policy text.
+                        </p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="feature-icon">3</div>
+                        <h3>Stay ready for renewal and claims</h3>
+                        <p>
+                            Surface the details a user needs when the pressure is high: expiry timing, family coverage,
+                            claim steps, and quick access to the most important policy facts.
+                        </p>
+                    </article>
+                </div>
+            </section>
+
+            <section id="how-it-works" class="section">
+                <div class="section-heading">
+                    <div>
+                        <div class="eyebrow-small">How it works</div>
+                        <h2>From policy PDF to usable answers in three steps.</h2>
+                    </div>
+                    <p class="section-copy">
+                        The interface is intentionally simple so the first useful moment happens fast: upload, analyze,
+                        then ask.
+                    </p>
+                </div>
+
+                <div class="step-grid">
+                    <article class="step">
+                        <div class="step-index">1</div>
+                        <h3>Upload the policy</h3>
+                        <p>Drop in a PDF or scan. The app extracts the text and prepares it for analysis.</p>
+                    </article>
+                    <article class="step">
+                        <div class="step-index">2</div>
+                        <h3>Read the important parts</h3>
+                        <p>See the document details, extracted sections, and the raw text that the system found.</p>
+                    </article>
+                    <article class="step">
+                        <div class="step-index">3</div>
+                        <h3>Ask grounded questions</h3>
+                        <p>Use plain language to ask about coverage, exclusions, waiting periods, or claims.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="split-grid">
+                    <article class="panel">
+                        <div class="eyebrow-small">What users can see</div>
+                        <h2>The product surfaces the policy facts people usually need in a hurry.</h2>
+                        <ul class="checklist">
+                            <li>Policy number, insurer, and coverage period.</li>
+                            <li>Premium amount, waiting periods, and exclusions.</li>
+                            <li>Claim steps and emergency contact details from the policy.</li>
+                            <li>Coverage gaps, renewal timing, and family coverage context.</li>
+                            <li>Answers with sources so users can verify the result themselves.</li>
+                        </ul>
+                    </article>
+
+                    <article class="panel">
+                        <div class="eyebrow-small">Example questions</div>
+                        <h2>Questions the app is built to answer.</h2>
+                        <div class="question-list">
+                            <div class="question-card">
+                                <strong>“What is my policy number and expiry date?”</strong>
+                                <p>Helps the user find the key reference details immediately.</p>
+                            </div>
+                            <div class="question-card">
+                                <strong>“What is excluded from this policy?”</strong>
+                                <p>Surfaces the clauses most people only discover too late.</p>
+                            </div>
+                            <div class="question-card">
+                                <strong>“How do I file a claim?”</strong>
+                                <p>Pulls the claim path into one place for a stressful moment.</p>
+                            </div>
+                            <div class="question-card">
+                                <strong>“Do I have waiting periods or coverage gaps?”</strong>
+                                <p>Helps people make better renewal and planning decisions.</p>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="try" class="section">
+                <div class="section-heading">
+                    <div>
+                        <div class="eyebrow-small">Try it now</div>
+                        <h2>Use the live policy analysis flow on this page.</h2>
+                    </div>
+                    <p class="section-copy">
+                        Upload a policy document, review what the system extracted, and ask a grounded follow-up
+                        question. This is the canonical app path used by the frontend service.
+                    </p>
+                </div>
+
+                <div class="demo-grid">
+                    <section class="panel form-panel">
+                        <h3>Upload document</h3>
+                        <form id="uploadForm" class="demo-form">
+                            <label class="field-label" for="documentInput">
+                                <span>Policy file</span>
+                                <input id="documentInput" type="file" class="file-drop" accept=".pdf,.jpg,.jpeg,.png,.tiff,.tif,.webp,.doc,.docx">
+                            </label>
+                            <div class="helper-text">
+                                PDF and scanned documents work best. The app will extract text and prepare it for
+                                policy Q&A.
+                            </div>
+                            <button id="uploadButton" type="submit" class="btn btn-primary">Analyze policy</button>
+                            <div id="uploadStatus" class="status status-neutral">Ready to analyze a policy.</div>
+                        </form>
+                    </section>
+
+                    <section class="panel results-panel">
+                        <div class="result-stack">
+                            <article class="result-card">
+                                <h3>Extracted policy content</h3>
+                                <div id="ocrResults" class="result-stack">
+                                    <div class="status status-neutral">No document analyzed yet.</div>
+                                </div>
+                            </article>
+
+                            <article class="result-card">
+                                <h3>Ask a question</h3>
+                                <form id="queryForm" class="demo-form">
+                                    <label class="field-label" for="queryInput">
+                                        <span>Question</span>
+                                        <textarea id="queryInput" class="text-input" placeholder="For example: What does this policy cover, and what should I watch out for at renewal time?"></textarea>
+                                    </label>
+                                    <button id="queryButton" type="submit" class="btn btn-secondary">Get an answer</button>
+                                </form>
+                                <div id="queryResults" class="result-stack" style="margin-top: 1rem;">
+                                    <div class="status status-neutral">Ask a question after analyzing a document.</div>
+                                </div>
+                            </article>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <section id="faq" class="section">
+                <div class="section-heading">
+                    <div>
+                        <div class="eyebrow-small">FAQ</div>
+                        <h2>Trust, limits, and launch questions.</h2>
+                    </div>
+                    <p class="section-copy">
+                        The copy is intentionally precise so the marketing surface does not promise more than the
+                        product can actually deliver.
+                    </p>
+                </div>
+
+                <div class="faq-grid">
+                    <details class="faq-item">
+                        <summary>Is CoverWise an insurer or broker?</summary>
+                        <p>No. CoverWise helps people understand the insurance policy they already have. It is not a broker, and it does not replace the insurer or the policy document.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>What file types can I upload?</summary>
+                        <p>The backend accepts policy PDFs and common image/document formats so scanned policies can be analyzed as well.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>How does the app handle answers it cannot fully confirm?</summary>
+                        <p>It should say what it found, what it could not find, and point the user back to the source document instead of pretending certainty.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>What should the user verify before relying on an answer?</summary>
+                        <p>Any binding or high-stakes decision should be verified with the policy document and the insurer. CoverWise is a helper, not the source of legal truth.</p>
+                    </details>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-inner">
+                <div>
+                    <strong>CoverWise</strong><br>
+                    Insurance companion for policy summaries, grounded Q&A, and launch-ready clarity.
+                </div>
+                <div>
+                    © {{ current_year }} CoverWise. Built for launch readiness and honest policy understanding.
                 </div>
             </div>
-        </div>
+        </footer>
     </div>
 
     <script>
-        // File upload handling
-        const uploadForm = document.getElementById('uploadForm');
-        const ocrResults = document.getElementById('ocrResults');
-        const processingStatus = document.getElementById('processingStatus');
-        const extractedSections = document.getElementById('extractedSections');
-        const fullText = document.getElementById('fullText');
+        const uploadForm = document.getElementById("uploadForm");
+        const queryForm = document.getElementById("queryForm");
+        const uploadStatus = document.getElementById("uploadStatus");
+        const uploadResults = document.getElementById("ocrResults");
+        const queryResults = document.getElementById("queryResults");
+        const uploadButton = document.getElementById("uploadButton");
+        const queryButton = document.getElementById("queryButton");
 
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            if (!file) return;
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
 
-            const formData = new FormData();
-            formData.append('file', file);
+        function setStatus(container, message, tone = "neutral") {
+            const toneClass = tone === "success" ? "status-success" : tone === "error" ? "status-error" : "status-neutral";
+            container.className = `status ${toneClass}`;
+            container.innerHTML = escapeHtml(message);
+        }
+
+        function renderMetadataChips(data) {
+            const chips = [];
+            if (data.filename) chips.push(`<span class="chip">${escapeHtml(data.filename)}</span>`);
+            if (data.doc_key) chips.push(`<span class="chip">Document ID: ${escapeHtml(data.doc_key)}</span>`);
+            if (data.metadata && data.metadata.page_count) {
+                chips.push(`<span class="chip">${escapeHtml(data.metadata.page_count)} pages</span>`);
+            }
+            if (data.metadata && typeof data.metadata.confidence === "number") {
+                chips.push(`<span class="chip">Confidence ${(data.metadata.confidence * 100).toFixed(1)}%</span>`);
+            }
+            return chips.join("");
+        }
+
+        function renderSections(data) {
+            const metadata = data.metadata || {};
+            const sectionEntries = Object.entries(data.sections || {}).filter(([, value]) => value);
+            const layoutEntries = Array.isArray(data.layout_elements) ? data.layout_elements : [];
+            const cards = [];
+
+            if (Object.keys(metadata).length || data.filename || data.doc_key) {
+                cards.push(`
+                    <div class="result-card">
+                        <div class="result-meta">${renderMetadataChips(data)}</div>
+                        <p>${escapeHtml(data.message || "Policy analyzed successfully.")}</p>
+                    </div>
+                `);
+            }
+
+            if (sectionEntries.length) {
+                cards.push(`
+                    <div class="result-card">
+                        <h3>Extracted sections</h3>
+                        <div class="item-grid">
+                            ${sectionEntries.map(([key, value]) => `
+                                <div class="item">
+                                    <strong>${escapeHtml(key)}</strong>
+                                    <p>${escapeHtml(value)}</p>
+                                </div>
+                            `).join("")}
+                        </div>
+                    </div>
+                `);
+            } else if (layoutEntries.length) {
+                cards.push(`
+                    <div class="result-card">
+                        <h3>Layout elements</h3>
+                        <div class="item-grid">
+                            ${layoutEntries.slice(0, 8).map((element, index) => {
+                                const title = element.question || element.id || element.type || `Element ${index + 1}`;
+                                const body = element.answer || element.text || element.content || "No extracted content";
+                                return `
+                                    <div class="item">
+                                        <strong>${escapeHtml(title)}</strong>
+                                        <p>${escapeHtml(body)}</p>
+                                    </div>
+                                `;
+                            }).join("")}
+                        </div>
+                    </div>
+                `);
+            }
+
+            if (data.text) {
+                cards.push(`
+                    <div class="result-card">
+                        <h3>Full text</h3>
+                        <pre class="result-pre">${escapeHtml(data.text)}</pre>
+                    </div>
+                `);
+            }
+
+            return cards.length ? cards.join("") : `<div class="status status-neutral">No extracted content returned yet.</div>`;
+        }
+
+        function renderQueryResult(data) {
+            const answer = data.answer || data.result || "No answer returned.";
+            const cards = [];
+            const meta = [];
+
+            if (typeof data.confidence === "number") {
+                meta.push(`<span class="chip">Confidence ${(data.confidence * 100).toFixed(1)}%</span>`);
+            }
+            if (typeof data.retrieval_confidence === "number") {
+                meta.push(`<span class="chip">Retrieval ${(data.retrieval_confidence * 100).toFixed(1)}%</span>`);
+            }
+            if (data.retrieval_strategy) {
+                meta.push(`<span class="chip">${escapeHtml(data.retrieval_strategy)}</span>`);
+            }
+            if (data.embedding_model_used) {
+                meta.push(`<span class="chip">${escapeHtml(data.embedding_model_used)}</span>`);
+            }
+
+            cards.push(`
+                <div class="result-card">
+                    <h3>Answer</h3>
+                    <div class="result-meta">${meta.join("")}</div>
+                    <p>${escapeHtml(answer)}</p>
+                </div>
+            `);
+
+            if (Array.isArray(data.citations) && data.citations.length) {
+                cards.push(`
+                    <div class="result-card">
+                        <h3>Citations</h3>
+                        <div class="item-grid">
+                            ${data.citations.map((citation, index) => {
+                                const citationLabel = typeof citation === "string"
+                                    ? citation
+                                    : citation.source || citation.page || citation.quote || citation.text || `Citation ${index + 1}`;
+                                return `
+                                    <div class="item">
+                                        <strong>Citation ${index + 1}</strong>
+                                        <p>${escapeHtml(citationLabel)}</p>
+                                    </div>
+                                `;
+                            }).join("")}
+                        </div>
+                    </div>
+                `);
+            }
+
+            if (Array.isArray(data.sources) && data.sources.length) {
+                cards.push(`
+                    <div class="result-card">
+                        <h3>Sources</h3>
+                        <div class="item-grid">
+                            ${data.sources.map((source, index) => {
+                                const sourceLabel = typeof source === "string"
+                                    ? source
+                                    : source.source_text || source.page || source.document_id || `Source ${index + 1}`;
+                                return `
+                                    <div class="item">
+                                        <strong>Source ${index + 1}</strong>
+                                        <p>${escapeHtml(sourceLabel)}</p>
+                                    </div>
+                                `;
+                            }).join("")}
+                        </div>
+                    </div>
+                `);
+            }
+
+            if (Array.isArray(data.follow_up_questions) && data.follow_up_questions.length) {
+                cards.push(`
+                    <div class="result-card">
+                        <h3>Follow-up questions</h3>
+                        <div class="question-list">
+                            ${data.follow_up_questions.map((item) => `
+                                <div class="question-card">
+                                    <strong>${escapeHtml(item)}</strong>
+                                </div>
+                            `).join("")}
+                        </div>
+                    </div>
+                `);
+            }
+
+            return cards.join("");
+        }
+
+        uploadForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const fileInput = document.getElementById("documentInput");
+            const file = fileInput.files && fileInput.files[0];
+
+            if (!file) {
+                setStatus(uploadStatus, "Choose a policy PDF or scan first.", "error");
+                return;
+            }
+
+            const originalButton = uploadButton.textContent;
+            uploadButton.disabled = true;
+            uploadButton.textContent = "Analyzing...";
+            setStatus(uploadStatus, "Uploading and extracting the policy now.", "neutral");
 
             try {
-                processingStatus.textContent = 'Processing document...';
-                ocrResults.classList.remove('hidden');
+                const formData = new FormData();
+                formData.append("file", file);
 
-                const response = await fetch('/upload', {
-                    method: 'POST',
+                const response = await fetch("/upload", {
+                    method: "POST",
                     body: formData,
-                    // Don't set Content-Type header, let the browser set it with the correct boundary
                 });
+
                 const data = await response.json();
-                
-                // Update status
-                processingStatus.textContent = data.message;
-
-                // Display extracted sections
-                if (data.sections) {
-                    extractedSections.innerHTML = Object.entries(data.sections)
-                        .map(([key, value]) => `
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <h4 class="font-semibold text-gray-700">${key}</h4>
-                                <p class="text-sm mt-2">${value}</p>
-                            </div>
-                        `).join('');
-                } else if (data.layout_elements && data.layout_elements.length > 0) {
-                    extractedSections.innerHTML = data.layout_elements
-                        .map(element => `
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <h4 class="font-semibold text-gray-700">${element.id || element.type || 'Section'}</h4>
-                                <p class="text-sm mt-2">${element.answer || element.text || 'No content'}</p>
-                            </div>
-                        `).join('');
-                } else {
-                    extractedSections.innerHTML = '<p class="text-gray-500">No sections extracted</p>';
+                if (!response.ok) {
+                    throw new Error(data.detail || data.message || "Upload failed");
                 }
 
-                // Display full text
-                if (data.text) {
-                    fullText.textContent = data.text;
-                }
-
+                uploadResults.innerHTML = renderSections(data);
+                setStatus(uploadStatus, data.message || "Policy analyzed successfully.", "success");
             } catch (error) {
-                processingStatus.textContent = 'Error: ' + error.message;
-                processingStatus.classList.remove('text-green-600');
-                processingStatus.classList.add('text-red-600');
+                uploadResults.innerHTML = `<div class="status status-error">Could not analyze the policy: ${escapeHtml(error.message)}</div>`;
+                setStatus(uploadStatus, `Could not analyze the policy: ${error.message}`, "error");
+            } finally {
+                uploadButton.disabled = false;
+                uploadButton.textContent = originalButton;
             }
         });
 
-        // Query handling
-        const queryForm = document.getElementById('queryForm');
-        queryForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const query = document.getElementById('queryInput').value;
-            if (!query) return;
+        queryForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const queryInput = document.getElementById("queryInput");
+            const query = queryInput.value.trim();
+
+            if (!query) {
+                queryResults.innerHTML = '<div class="status status-error">Ask a question first.</div>';
+                return;
+            }
+
+            const originalButton = queryButton.textContent;
+            queryButton.disabled = true;
+            queryButton.textContent = "Thinking...";
+            queryResults.innerHTML = '<div class="status status-neutral">Thinking through the policy text...</div>';
 
             try {
-                const response = await fetch('/query', {
-                    method: 'POST',
+                const response = await fetch("/query", {
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json'
+                        "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ query: query })
+                    body: JSON.stringify({ query }),
                 });
+
                 const data = await response.json();
-                
-                // Display answer
-                const answerDiv = document.getElementById('answer');
-                const answerText = document.getElementById('answerText');
-                const sourcesList = document.getElementById('sourcesList');
-                
-                answerText.textContent = data.answer;
-                
-                // Display sources if available
-                if (data.sources && data.sources.length > 0) {
-                    sourcesList.innerHTML = data.sources
-                        .map(source => `<li>Page ${source.page_number || 'N/A'}, Document: ${source.document_id || 'Unknown'} (Score: ${source.score ? source.score.toFixed(2) : 'N/A'})</li>`)
-                        .join('');
-                    document.getElementById('sourcesSection').classList.remove('hidden');
-                } else {
-                    document.getElementById('sourcesSection').classList.add('hidden');
+                if (!response.ok) {
+                    throw new Error(data.detail || data.error || "Query failed");
                 }
-                
-                answerDiv.classList.remove('hidden');
+
+                queryResults.innerHTML = renderQueryResult(data);
             } catch (error) {
-                alert('Error querying document: ' + error.message);
+                queryResults.innerHTML = `<div class="status status-error">Could not answer the question: ${escapeHtml(error.message)}</div>`;
+            } finally {
+                queryButton.disabled = false;
+                queryButton.textContent = originalButton;
             }
         });
-
-        // Drag and drop handling
-        const dropZone = document.querySelector('.border-dashed');
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, highlight, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, unhighlight, false);
-        });
-
-        function highlight(e) {
-            dropZone.classList.add('border-blue-500', 'bg-blue-50');
-        }
-
-        function unhighlight(e) {
-            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-        }
-
-        dropZone.addEventListener('drop', handleDrop, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            document.getElementById('fileInput').files = files;
-        }
     </script>
 </body>
-</html> 
+</html>

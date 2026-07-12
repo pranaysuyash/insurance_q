@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/qa_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -15,9 +16,13 @@ import 'screens/settings_screen.dart';
 import 'screens/help_support_screen.dart';
 import 'screens/privacy_security_screen.dart';
 import 'screens/about_screen.dart';
+import 'screens/policy_detail_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/claim_tracking_screen.dart';
 import 'config/app_config.dart';
 import 'services/local_storage_service.dart';
 import 'services/app_state_store.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,15 +33,37 @@ void main() async {
   await Hive.openBox<String>(LocalStorageService.documentsBoxName);
   await Hive.openBox(AppStateStore.boxName);
 
+  // Initialize local notifications for renewal reminders
+  await NotificationService.init();
+
+  // Check if onboarding has been completed
+  final prefs = await SharedPreferences.getInstance();
+  final hasOnboarded = prefs.getBool('onboarding_complete') ?? false;
+
   runApp(
-    const ProviderScope(
-      child: InsuranceApp(),
+    ProviderScope(
+      child: InsuranceApp(showOnboarding: !hasOnboarded),
     ),
   );
 }
 
-class InsuranceApp extends StatelessWidget {
-  const InsuranceApp({super.key});
+class InsuranceApp extends StatefulWidget {
+  final bool showOnboarding;
+
+  const InsuranceApp({super.key, this.showOnboarding = false});
+
+  @override
+  State<InsuranceApp> createState() => _InsuranceAppState();
+}
+
+class _InsuranceAppState extends State<InsuranceApp> {
+  late bool _showOnboarding;
+
+  @override
+  void initState() {
+    super.initState();
+    _showOnboarding = widget.showOnboarding;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +73,11 @@ class InsuranceApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const MainNavigation(),
+      home: _showOnboarding
+          ? OnboardingScreen(onComplete: () {
+              setState(() => _showOnboarding = false);
+            })
+          : const MainNavigation(),
       routes: {
         '/qa': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as String?;
@@ -61,20 +92,26 @@ class InsuranceApp extends StatelessWidget {
         '/help': (context) => const HelpSupportScreen(),
         '/privacy': (context) => const PrivacySecurityScreen(),
         '/about': (context) => const AboutScreen(),
+        '/policy-detail': (context) {
+          final documentId =
+              ModalRoute.of(context)?.settings.arguments as String;
+          return PolicyDetailScreen(documentId: documentId);
+        },
+        '/claim-tracker': (context) => const ClaimTrackingScreen(),
       },
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class MainNavigation extends StatefulWidget {
+class MainNavigation extends ConsumerStatefulWidget {
   const MainNavigation({super.key});
 
   @override
-  State<MainNavigation> createState() => _MainNavigationState();
+  ConsumerState<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends ConsumerState<MainNavigation> {
   int _selectedIndex = 0;
   bool _demoNavigationScheduled = false;
 
@@ -91,6 +128,25 @@ class _MainNavigationState extends State<MainNavigation> {
       _selectedIndex = 1;
       _scheduleDemoNavigation();
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _buildPage(_selectedIndex),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _onItemTapped,
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+          NavigationDestination(
+              icon: Icon(Icons.description), label: 'Documents'),
+          NavigationDestination(icon: Icon(Icons.question_answer), label: 'QA'),
+          NavigationDestination(icon: Icon(Icons.group), label: 'Family'),
+          NavigationDestination(icon: Icon(Icons.menu), label: 'More'),
+        ],
+      ),
+    );
   }
 
   void _scheduleDemoNavigation() {
@@ -119,23 +175,5 @@ class _MainNavigationState extends State<MainNavigation> {
       default:
         return const DashboardScreen();
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _buildPage(_selectedIndex),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onItemTapped,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.description), label: 'Documents'),
-          NavigationDestination(icon: Icon(Icons.question_answer), label: 'QA'),
-          NavigationDestination(icon: Icon(Icons.group), label: 'Family'),
-          NavigationDestination(icon: Icon(Icons.menu), label: 'More'),
-        ],
-      ),
-    );
   }
 }

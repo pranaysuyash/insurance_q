@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:hive/hive.dart';
 
+import '../models/claim_record.dart';
 import '../models/document_model.dart';
 import 'app_state_store.dart';
 
@@ -133,5 +134,50 @@ class AppStateRepository {
         m.name == name &&
         (relationship == null || m.relationship == relationship));
     await saveManualFamilyMembers(members);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Claim records — locally tracked insurance claims
+  // ---------------------------------------------------------------------------
+
+  static List<ClaimRecord> getClaimRecords() {
+    final raw = _box.get(AppStateStore.claimRecordsKey);
+    if (raw is! String) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+      return decoded
+          .map((item) => ClaimRecord.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<void> saveClaimRecords(List<ClaimRecord> records) async {
+    final encoded =
+        jsonEncode(records.map((r) => r.toJson()).toList());
+    await _box.put(AppStateStore.claimRecordsKey, encoded);
+  }
+
+  static Future<void> addClaimRecord(ClaimRecord record) async {
+    final records = getClaimRecords();
+    records.insert(0, record);
+    await saveClaimRecords(records);
+  }
+
+  static Future<void> updateClaimRecord(ClaimRecord updated) async {
+    final records = getClaimRecords();
+    final idx = records.indexWhere((r) => r.id == updated.id);
+    if (idx >= 0) {
+      records[idx] = updated;
+      await saveClaimRecords(records);
+    }
+  }
+
+  static Future<void> deleteClaimRecord(String id) async {
+    final records = getClaimRecords();
+    records.removeWhere((r) => r.id == id);
+    await saveClaimRecords(records);
   }
 }

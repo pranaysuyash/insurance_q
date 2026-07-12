@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 
-/// About screen: app identity, version, and a short description. No invented
-/// legal entities or claims.
+/// About screen: app identity, version, description, disclaimer, and legal links.
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
+
+  static const _privacyUrl = 'https://coverwise.app/privacy';
+  static const _tosUrl = 'https://coverwise.app/terms';
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,11 +51,29 @@ class AboutScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${AppConfig.appName} provides information based on your documents to '
-            'help you understand them. It does not constitute insurance advice, '
-            'and answers should not replace reviewing your policy or contacting '
-            'your insurer. Coverage decisions are determined by your policy and '
-            'insurer.',
+            'help you understand them. It does not constitute insurance, '
+            'financial, or legal advice. Answers are AI-generated and may '
+            'contain errors. Always verify coverage details against your policy '
+            'document and with your insurer. Coverage decisions are determined '
+            'by your policy and insurer, not by this app.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+          ),
+          const SizedBox(height: 24),
+          // Legal links
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.privacy_tip_outlined, size: 18),
+                label: const Text('Privacy Policy'),
+                onPressed: () => _openUrl(_privacyUrl),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.gavel_outlined, size: 18),
+                label: const Text('Terms of Service'),
+                onPressed: () => _openUrl(_tosUrl),
+              ),
+            ],
           ),
         ],
       ),

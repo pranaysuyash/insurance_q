@@ -1,6 +1,8 @@
 # CoverWise Play Store Listing Draft
 
-This draft is based on the verified `policy.pdf` flow and the current branded app state.
+This listing is aligned to the first-principles launch positioning for CoverWise:
+read the policy you already own, surface the details that matter, and answer
+questions from the document itself.
 
 ## App Name
 
@@ -8,27 +10,32 @@ CoverWise
 
 ## Short Description
 
-AI-powered insurance document analysis and Q&A.
+Understand your insurance policy in plain language.
 
 ## Full Description
 
-CoverWise helps you organize insurance documents, extract key policy details, and ask questions about your coverage in plain language.
+CoverWise reads your insurance policy PDF or scan, extracts the details that
+matter, and helps you understand coverage without digging through legalese.
 
-Upload a policy PDF, review insured members and document details, and ask questions like:
+Use it to:
+
+- Find your policy number, insurer, and coverage dates quickly.
+- See premiums, waiting periods, exclusions, and claim details in one place.
+- Ask grounded questions about your own policy.
+- Keep the important information ready for renewal, claims, and family review.
+
+CoverWise is designed for people who already own a policy and want to understand
+it better. It is not an insurer or broker. It does not replace the policy
+document or the insurer; it helps you read both more clearly.
+
+Example questions:
 
 - What is my policy number?
-- When does my policy start and end?
-- Who is the insurer?
-- What is my premium amount?
-- What is the claims process?
-- Are there any waiting periods?
-
-The app also includes:
-
-- A document library for policy files
-- A family members view populated from policy data
-- A terminology reference for common insurance terms
-- Quick access to upload and Q&A flows
+- When does my coverage start and end?
+- What is excluded from this policy?
+- How do I file a claim?
+- What waiting periods are mentioned?
+- What should I watch for at renewal?
 
 ## Verified Policy Data Used in Testing
 
@@ -50,14 +57,24 @@ The app also includes:
 
 ## Feature Graphic Notes
 
-- Keep the title readable at small size
-- Use the branded name `CoverWise`
-- Show one or two visual cues from the insurance workflow, not a cluttered collage
-- Prefer a clean, trust-focused composition that matches the app UI
+- Keep the title readable at small size.
+- Use the branded name `CoverWise`.
+- Show one or two visual cues from the insurance workflow, not a cluttered collage.
+- Prefer a calm, trust-focused composition that matches the app UI.
 
 ## Privacy / Policy Notes
 
 - The app handles user-uploaded insurance documents.
-- Any privacy policy should explain document storage, processing, and data retention clearly.
-- If production backend behavior changes, update this listing and the data safety disclosure together.
+- A privacy policy should explain document storage, processing, and retention clearly.
+- Answers are AI-generated from the uploaded policy text and should be verified
+  against the policy document and insurer for binding decisions.
+- If backend behavior changes, update this listing and the data safety disclosure together.
 
+## SEO / ASO Notes
+
+- Search intent to reinforce: insurance policy summary, policy Q&A, claim process,
+  renewal reminder, coverage gaps, and family coverage.
+- Positioning to avoid: broker, insurer, guaranteed claim approval, generic
+  insurance advice.
+- The product promise should stay narrow and credible: it helps people
+  understand the policy they already own.

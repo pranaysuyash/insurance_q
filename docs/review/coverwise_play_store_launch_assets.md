@@ -56,8 +56,21 @@ This note collects the repo-local evidence and launch artifacts produced from th
 - The QA screen now guards against disposal crashes during the bootstrap demo sequence.
 - The Home quick actions have been verified live with exact hit-box screenshots.
 
+## Marketing / SEO Positioning
+
+- Core promise: CoverWise helps people understand the insurance policy they already own.
+- Homepage hero: `Understand your insurance before you need it.`
+- Supporting message: turn policy PDFs and scans into plain-language summaries, grounded answers,
+  and renewal/claim readiness.
+- Trust language: CoverWise is not an insurer or broker; it always defers to the policy document
+  and insurer for binding decisions.
+- Search intent to target: insurance policy summary, policy Q&A, claim process, renewal reminder,
+  exclusions, waiting periods, and coverage gaps.
+
 ## Launch Bundle
 
+- Social preview image: [`src/frontend/static/coverwise-og.png`](/Users/pranay/Projects/medpiper/insurance_app/src/frontend/static/coverwise-og.png)
+- Preview source SVG: [`src/frontend/static/coverwise-og.svg`](/Users/pranay/Projects/medpiper/insurance_app/src/frontend/static/coverwise-og.svg)
 - Feature graphic: [`docs/review/play_store_launch_assets/feature_graphic.png`](/Users/pranay/Projects/medpiper/insurance_app/docs/review/play_store_launch_assets/feature_graphic.png)
 - Curated screenshot set: [`docs/review/play_store_launch_assets/screenshots/`](/Users/pranay/Projects/medpiper/insurance_app/docs/review/play_store_launch_assets/screenshots/)
 - Demo video copy: [`docs/review/play_store_launch_assets/policy_demo.mp4`](/Users/pranay/Projects/medpiper/insurance_app/docs/review/play_store_launch_assets/policy_demo.mp4)

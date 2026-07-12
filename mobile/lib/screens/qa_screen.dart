@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/qa_models.dart';
 import '../models/document_model.dart';
 import '../config/app_config.dart';
 import '../providers/questions_provider.dart';
 import '../providers/service_providers.dart';
+import '../providers/document_providers.dart';
+import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/loading_widget.dart';
 import '../widgets/shared/offline_banner.dart';
 import 'document_selection_dialog.dart';
-
-final documentsForQaProvider = FutureProvider<List<InsuranceDocument>>((ref) async {
-  return ref.read(documentServiceProvider).getDocuments();
-});
 
 class QaScreen extends ConsumerStatefulWidget {
   final String? initialDocumentId;
@@ -30,7 +29,8 @@ class QaScreen extends ConsumerStatefulWidget {
 class QaScreenState extends ConsumerState<QaScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _customQuestionController = TextEditingController();
+  final TextEditingController _customQuestionController =
+      TextEditingController();
   bool _demoSequenceStarted = false;
   int _demoSequenceGeneration = 0;
 
@@ -44,7 +44,8 @@ class QaScreenState extends ConsumerState<QaScreen>
 
   void _handleInitialDocumentId() {
     if (widget.initialDocumentId != null) {
-      ref.read(selectedDocumentProvider.notifier).state = widget.initialDocumentId;
+      ref.read(selectedDocumentProvider.notifier).state =
+          widget.initialDocumentId;
       AppStateRepository.setSelectedDocumentId(widget.initialDocumentId);
     }
   }
@@ -69,8 +70,10 @@ class QaScreenState extends ConsumerState<QaScreen>
     if (!AppConfig.bootstrapPolicyDemo || _demoSequenceStarted) return;
     if (!widget.isActive) return;
 
-    final documents = ref.read(documentsForQaProvider).valueOrNull ?? [];
-    if (documents.isEmpty) return;
+    final documents = ref.read(documentsProvider).valueOrNull ?? [];
+    if (documents.isEmpty) {
+      return;
+    }
 
     _demoSequenceStarted = true;
     final demoGeneration = _demoSequenceGeneration;
@@ -78,7 +81,11 @@ class QaScreenState extends ConsumerState<QaScreen>
     ref.read(selectedDocumentProvider.notifier).state = selectedDocument.id;
     await AppStateRepository.setSelectedDocumentId(selectedDocument.id);
 
-    if (!mounted || !widget.isActive || demoGeneration != _demoSequenceGeneration) return;
+    if (!mounted ||
+        !widget.isActive ||
+        demoGeneration != _demoSequenceGeneration) {
+      return;
+    }
     _tabController.animateTo(1);
 
     const demoQuestions = [
@@ -91,17 +98,25 @@ class QaScreenState extends ConsumerState<QaScreen>
     ];
 
     for (final question in demoQuestions) {
-      if (!mounted || !widget.isActive || demoGeneration != _demoSequenceGeneration) return;
+      if (!mounted ||
+          !widget.isActive ||
+          demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
       _customQuestionController.text = question;
       await Future.delayed(const Duration(milliseconds: 500));
-      if (!mounted || !widget.isActive || demoGeneration != _demoSequenceGeneration) return;
+      if (!mounted ||
+          !widget.isActive ||
+          demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
       await _askQuestion(question, demoGeneration: demoGeneration);
       await Future.delayed(const Duration(seconds: 2));
     }
   }
 
   void _showDocumentSelectionDialog() {
-    final documents = ref.read(documentsForQaProvider).valueOrNull ?? [];
+    final documents = ref.read(documentsProvider).valueOrNull ?? [];
     showDialog(
       context: context,
       builder: (context) => DocumentSelectionDialog(
@@ -123,8 +138,12 @@ class QaScreenState extends ConsumerState<QaScreen>
   }
 
   Future<void> _askQuestion(String question, {int? demoGeneration}) async {
-    if (!mounted || !widget.isActive) return;
-    if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) return;
+    if (!mounted || !widget.isActive) {
+      return;
+    }
+    if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+      return;
+    }
 
     final selectedDoc = ref.read(selectedDocumentProvider);
     ref.read(isLoadingProvider.notifier).state = true;
@@ -133,20 +152,27 @@ class QaScreenState extends ConsumerState<QaScreen>
     try {
       String formattedQuestion = question;
       if (question == "What is my policy number?") {
-        formattedQuestion = "What is the policy number shown in this insurance document?";
+        formattedQuestion =
+            "What is the policy number shown in this insurance document?";
       } else if (question.contains("deductible")) {
-        formattedQuestion = "What is the deductible amount specified in this insurance policy?";
+        formattedQuestion =
+            "What is the deductible amount specified in this insurance policy?";
       } else if (question.contains("premium")) {
-        formattedQuestion = "What is the premium amount stated in this insurance document?";
+        formattedQuestion =
+            "What is the premium amount stated in this insurance document?";
       }
 
       final result = await ref.read(queryServiceProvider).queryDocument(
-        formattedQuestion,
-        documentId: selectedDoc,
-      );
+            formattedQuestion,
+            documentId: selectedDoc,
+          );
 
-      if (!mounted || !widget.isActive) return;
-      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) return;
+      if (!mounted || !widget.isActive) {
+        return;
+      }
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
 
       if (result.containsKey('error') && !result.containsKey('answer')) {
         if (!mounted) return;
@@ -162,8 +188,12 @@ class QaScreenState extends ConsumerState<QaScreen>
         'document_id': selectedDoc ?? '',
       });
 
-      if (!mounted || !widget.isActive) return;
-      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) return;
+      if (!mounted || !widget.isActive) {
+        return;
+      }
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
 
       ref.read(currentAnswerProvider.notifier).state = answer;
 
@@ -178,15 +208,20 @@ class QaScreenState extends ConsumerState<QaScreen>
     } catch (e) {
       debugPrint('Error during question: $e');
       final fallbackAnswer = QaAnswer(
-        text: 'Sorry, I encountered an error while processing your question. Please try again later.',
+        text:
+            'Sorry, I encountered an error while processing your question. Please try again later.',
         sources: [],
         timestamp: DateTime.now(),
         documentId: selectedDoc ?? '',
         question: question,
       );
 
-      if (!mounted || !widget.isActive) return;
-      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) return;
+      if (!mounted || !widget.isActive) {
+        return;
+      }
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
       ref.read(currentAnswerProvider.notifier).state = fallbackAnswer;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -206,7 +241,7 @@ class QaScreenState extends ConsumerState<QaScreen>
     final qaHistory = ref.watch(qaHistoryProvider);
     final isLoading = ref.watch(isLoadingProvider);
     final currentAnswer = ref.watch(currentAnswerProvider);
-    final documentsAsync = ref.watch(documentsForQaProvider);
+    final documentsAsync = ref.watch(documentsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -263,7 +298,8 @@ class _DocumentSelector extends StatelessWidget {
   final AsyncValue<List<InsuranceDocument>> documentsAsync;
   final VoidCallback onSelectDocument;
 
-  const _DocumentSelector({required this.documentsAsync, required this.onSelectDocument});
+  const _DocumentSelector(
+      {required this.documentsAsync, required this.onSelectDocument});
 
   @override
   Widget build(BuildContext context) {
@@ -278,7 +314,10 @@ class _DocumentSelector extends StatelessWidget {
             children: [
               const Text(
                 'Ask Questions About',
-                style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Consumer(builder: (context, ref, child) {
@@ -286,7 +325,10 @@ class _DocumentSelector extends StatelessWidget {
                 final documents = documentsAsync.valueOrNull ?? [];
                 final selectedDoc = documents.firstWhere(
                   (doc) => doc.id == selectedDocumentId,
-                  orElse: () => InsuranceDocument(id: '', filename: 'No document selected', uploadedOn: DateTime.now()),
+                  orElse: () => InsuranceDocument(
+                      id: '',
+                      filename: 'No document selected',
+                      uploadedOn: DateTime.now()),
                 );
 
                 return Row(
@@ -295,7 +337,8 @@ class _DocumentSelector extends StatelessWidget {
                     Expanded(
                       child: Text(
                         selectedDoc.filename,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -329,8 +372,11 @@ class _StandardQuestionsTab extends StatelessWidget {
   final Future<void> Function(String) onAskQuestion;
 
   const _StandardQuestionsTab({
-    required this.categories, required this.questions,
-    required this.isLoading, required this.currentAnswer, required this.onAskQuestion,
+    required this.categories,
+    required this.questions,
+    required this.isLoading,
+    required this.currentAnswer,
+    required this.onAskQuestion,
   });
 
   @override
@@ -363,16 +409,22 @@ class _StandardQuestionsTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(category.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(category.name,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 ...categoryQuestions.map((q) => ListTile(
-                  title: Text(q.text, style: const TextStyle(fontSize: 15)),
-                  trailing: isLoading && currentAnswer?.query == q.text
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.question_answer_outlined, color: Colors.blue),
-                  onTap: isLoading ? null : () => onAskQuestion(q.text),
-                  contentPadding: EdgeInsets.zero,
-                )),
+                      title: Text(q.text, style: const TextStyle(fontSize: 15)),
+                      trailing: isLoading && currentAnswer?.query == q.text
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.question_answer_outlined,
+                              color: Colors.blue),
+                      onTap: isLoading ? null : () => onAskQuestion(q.text),
+                      contentPadding: EdgeInsets.zero,
+                    )),
               ],
             ),
           ),
@@ -389,8 +441,10 @@ class _CustomQuestionTab extends StatelessWidget {
   final Future<void> Function(String) onAskQuestion;
 
   const _CustomQuestionTab({
-    required this.controller, required this.isLoading,
-    required this.currentAnswer, required this.onAskQuestion,
+    required this.controller,
+    required this.isLoading,
+    required this.currentAnswer,
+    required this.onAskQuestion,
   });
 
   @override
@@ -400,7 +454,8 @@ class _CustomQuestionTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Ask your own question about the selected document.', style: TextStyle(fontSize: 16)),
+          const Text('Ask your own question about the selected document.',
+              style: TextStyle(fontSize: 16)),
           const SizedBox(height: 16),
           TextField(
             controller: controller,
@@ -426,11 +481,13 @@ class _CustomQuestionTab extends StatelessWidget {
             onPressed: isLoading || controller.text.trim().isEmpty
                 ? null
                 : () => onAskQuestion(controller.text.trim()),
-            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+            style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12)),
           ),
           const SizedBox(height: 24),
           if (isLoading) const LoadingWidget(),
-          if (currentAnswer != null && currentAnswer!.query == controller.text.trim())
+          if (currentAnswer != null &&
+              currentAnswer!.query == controller.text.trim())
             _AnswerCard(answer: currentAnswer!),
         ],
       ),
@@ -473,12 +530,44 @@ class _HistoryTab extends StatelessWidget {
   }
 }
 
-class _AnswerCard extends StatelessWidget {
+class _AnswerCard extends StatefulWidget {
   final QaAnswer answer;
   const _AnswerCard({required this.answer});
 
   @override
+  State<_AnswerCard> createState() => _AnswerCardState();
+}
+
+class _AnswerCardState extends State<_AnswerCard> {
+  int? _feedback; // 1 = helpful, -1 = not helpful, null = not yet
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeedback();
+  }
+
+  Future<void> _loadFeedback() async {
+    final box = Hive.box(AppStateStore.boxName);
+    final feedback =
+        box.get('${AppStateStore.answerFeedbackKey}:${widget.answer.question}');
+    if (mounted && feedback != null) {
+      setState(() => _feedback = int.tryParse(feedback.toString()));
+    }
+  }
+
+  Future<void> _saveFeedback(int value) async {
+    final box = Hive.box(AppStateStore.boxName);
+    await box.put(
+      '${AppStateStore.answerFeedbackKey}:${widget.answer.question}',
+      value.toString(),
+    );
+    setState(() => _feedback = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final answer = widget.answer;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Padding(
@@ -487,7 +576,9 @@ class _AnswerCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Q: ${answer.question}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Q: ${answer.question}',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const Divider(),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 300),
@@ -495,29 +586,34 @@ class _AnswerCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('A: ${answer.text}', style: const TextStyle(fontSize: 16)),
+                    Text('A: ${answer.text}',
+                        style: const TextStyle(fontSize: 16)),
                     if (answer.sources.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      const Text('Sources:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const Text('Sources:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
                       ...answer.sources.map((source) => Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (source.pageNumber != null)
-                                Text('Page ${source.pageNumber}',
-                                  style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold)),
-                              Text(source.text),
-                            ],
-                          ),
-                        ),
-                      )),
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Container(
+                              padding: const EdgeInsets.all(8.0),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (source.pageNumber != null)
+                                    Text('Page ${source.pageNumber}',
+                                        style: TextStyle(
+                                            color: Colors.blue.shade700,
+                                            fontWeight: FontWeight.bold)),
+                                  Text(source.text),
+                                ],
+                              ),
+                            ),
+                          )),
                     ],
                   ],
                 ),
@@ -527,11 +623,36 @@ class _AnswerCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
+                  tooltip: 'Helpful answer',
+                  icon: Icon(
+                    _feedback == 1 ? Icons.thumb_up : Icons.thumb_up_outlined,
+                  ),
+                  color: _feedback == 1
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                  onPressed: () => _saveFeedback(1),
+                ),
+                IconButton(
+                  tooltip: 'Unhelpful answer',
+                  icon: Icon(
+                    _feedback == -1
+                        ? Icons.thumb_down
+                        : Icons.thumb_down_outlined,
+                  ),
+                  color: _feedback == -1
+                      ? Theme.of(context).colorScheme.error
+                      : null,
+                  onPressed: () => _saveFeedback(-1),
+                ),
+                IconButton(
                   icon: const Icon(Icons.copy),
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: 'Q: ${answer.question}\nA: ${answer.text}'));
+                    Clipboard.setData(ClipboardData(
+                        text: 'Q: ${answer.question}\nA: ${answer.text}'));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Answer copied to clipboard'), duration: Duration(seconds: 2)),
+                      const SnackBar(
+                          content: Text('Answer copied to clipboard'),
+                          duration: Duration(seconds: 2)),
                     );
                   },
                 ),
@@ -539,7 +660,8 @@ class _AnswerCard extends StatelessWidget {
                   icon: const Icon(Icons.share),
                   onPressed: () {
                     SharePlus.instance.share(
-                      ShareParams(text: 'Q: ${answer.question}\nA: ${answer.text}'),
+                      ShareParams(
+                          text: 'Q: ${answer.question}\nA: ${answer.text}'),
                     );
                   },
                 ),

@@ -24,9 +24,15 @@ class MoreScreen extends StatelessWidget {
             onTap: () => Navigator.pushNamed(context, '/claims'),
           ),
           ListTile(
+            leading: const Icon(Icons.track_changes, color: Colors.deepOrange),
+            title: const Text('Claim Tracker'),
+            subtitle: const Text('Log and track your filed insurance claims'),
+            onTap: () => Navigator.pushNamed(context, '/claim-tracker'),
+          ),
+          ListTile(
             leading: const Icon(Icons.event, color: Colors.blue),
             title: const Text('Renewal Calendar'),
-            subtitle: const Text('Track policy expiry dates and get reminders'),
+            subtitle: const Text('Track policy expiry dates with reminders'),
             onTap: () => Navigator.pushNamed(context, '/renewals'),
           ),
           ListTile(

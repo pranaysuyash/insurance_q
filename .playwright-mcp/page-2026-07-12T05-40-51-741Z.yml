@@ -1,0 +1,9 @@
+- generic [ref=e4]:
+  - heading "No serve-sim stream running" [level=1] [ref=e5]
+  - paragraph [ref=e6]:
+    - text: Pick a simulator to boot, or start one yourself with
+    - code [ref=e7]: bunx serve-sim --detach
+    - text: .
+  - generic [ref=e9]:
+    - generic [ref=e10]: Simulators
+    - button "..." [disabled] [ref=e11] [cursor=pointer]

@@ -1,0 +1,53 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CoverWise</title>
+  <desc id="desc">Insurance policy companion that turns policy PDFs into plain-language answers.</desc>
+  <defs>
+    <linearGradient id="bg" x1="96" y1="72" x2="1106" y2="564" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#08111F"/>
+      <stop offset="1" stop-color="#0F1E35"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="168" y1="88" x2="1068" y2="540" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8DD8FF" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#8DF2C5" stop-opacity="0.28"/>
+    </linearGradient>
+    <linearGradient id="card" x1="320" y1="170" x2="892" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#101B30"/>
+      <stop offset="1" stop-color="#0A1425"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="56" fill="url(#bg)"/>
+  <circle cx="230" cy="130" r="170" fill="#8DD8FF" fill-opacity="0.12"/>
+  <circle cx="1036" cy="110" r="140" fill="#8DF2C5" fill-opacity="0.12"/>
+  <circle cx="998" cy="518" r="190" fill="#FFD27D" fill-opacity="0.08"/>
+  <rect x="86" y="78" width="1028" height="474" rx="40" fill="url(#glow)" fill-opacity="0.18" stroke="rgba(255,255,255,0.08)"/>
+  <rect x="90" y="82" width="1020" height="466" rx="36" fill="url(#card)" stroke="rgba(255,255,255,0.08)"/>
+
+  <g transform="translate(144 150)">
+    <rect x="0" y="0" width="88" height="88" rx="24" fill="url(#glow)"/>
+    <path d="M24 22L58 22L64 28L64 60L46 64L24 56V22Z" stroke="#08111F" stroke-width="5.5" stroke-linejoin="round"/>
+    <path d="M35 40L43 48L56 34" stroke="#08111F" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="262" y="190" fill="#F4F8FF" font-size="74" font-family="Manrope, Arial, sans-serif" font-weight="800" letter-spacing="-2">CoverWise</text>
+  <text x="262" y="250" fill="#B7C7E8" font-size="28" font-family="Manrope, Arial, sans-serif" font-weight="600">Insurance policy companion for plain-language answers</text>
+
+  <g transform="translate(142 310)">
+    <rect x="0" y="0" width="264" height="110" rx="26" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+    <text x="26" y="40" fill="#8DD8FF" font-size="18" font-family="Manrope, Arial, sans-serif" font-weight="800" letter-spacing="1.8">READ</text>
+    <text x="26" y="70" fill="#EDF4FF" font-size="26" font-family="Manrope, Arial, sans-serif" font-weight="700">Policy summaries</text>
+  </g>
+
+  <g transform="translate(426 310)">
+    <rect x="0" y="0" width="264" height="110" rx="26" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+    <text x="26" y="40" fill="#8DF2C5" font-size="18" font-family="Manrope, Arial, sans-serif" font-weight="800" letter-spacing="1.8">ASK</text>
+    <text x="26" y="70" fill="#EDF4FF" font-size="26" font-family="Manrope, Arial, sans-serif" font-weight="700">Grounded Q&A</text>
+  </g>
+
+  <g transform="translate(710 310)">
+    <rect x="0" y="0" width="264" height="110" rx="26" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+    <text x="26" y="40" fill="#FFD27D" font-size="18" font-family="Manrope, Arial, sans-serif" font-weight="800" letter-spacing="1.8">ACT</text>
+    <text x="26" y="70" fill="#EDF4FF" font-size="26" font-family="Manrope, Arial, sans-serif" font-weight="700">Claims and renewal ready</text>
+  </g>
+
+  <text x="144" y="492" fill="#A9B8D6" font-size="24" font-family="Manrope, Arial, sans-serif" font-weight="500">Read your policy. Understand the coverage. Know what to do next.</text>
+</svg>

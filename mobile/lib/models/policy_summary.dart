@@ -98,8 +98,13 @@ class PolicySummary {
         'deductible': deductible,
         'premium_amount': premiumAmount,
         'premium_frequency': premiumFrequency,
+        // Emit both key sets for backward compatibility:
+        // - start_date/end_date: used by older mobile builds and local Hive cache
+        // - effective_date/expiration_date: used by the backend extraction model
         'start_date': startDate?.toIso8601String(),
         'end_date': endDate?.toIso8601String(),
+        'effective_date': startDate?.toIso8601String(),
+        'expiration_date': endDate?.toIso8601String(),
         'key_benefits': keyBenefits,
         'exclusions': exclusions,
         'waiting_periods': waitingPeriods,
@@ -118,11 +123,13 @@ class PolicySummary {
         deductible: (json['deductible'] as num?)?.toDouble(),
         premiumAmount: (json['premium_amount'] as num?)?.toDouble(),
         premiumFrequency: json['premium_frequency'],
-        startDate: json['start_date'] != null
-            ? DateTime.parse(json['start_date'])
+        // Read both key sets: backend emits effective_date/expiration_date,
+        // local Hive cache and the 13-query fallback emit start_date/end_date.
+        startDate: (json['start_date'] ?? json['effective_date']) != null
+            ? DateTime.parse(json['start_date'] ?? json['effective_date'])
             : null,
-        endDate: json['end_date'] != null
-            ? DateTime.parse(json['end_date'])
+        endDate: (json['end_date'] ?? json['expiration_date']) != null
+            ? DateTime.parse(json['end_date'] ?? json['expiration_date'])
             : null,
         keyBenefits: (json['key_benefits'] as List?)
                 ?.map((e) => e.toString())

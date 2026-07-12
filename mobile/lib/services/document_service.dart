@@ -5,6 +5,7 @@ import '../models/document_model.dart';
 import 'local_storage_service.dart';
 import 'session_service.dart';
 import 'app_state_repository.dart';
+import 'ml_ocr_service.dart';
 
 class DocumentService {
   final Dio _dio;
@@ -425,10 +426,43 @@ class DocumentService {
           'document_limit': 5,
         };
       }
-      return await uploadDocument(file, email: email, phone: phone);
+
+      // On-device OCR for scanned PDFs: if the PDF has no embedded text,
+      // extract it with ML Kit before uploading. This handles scanned/image-
+      // only policies without needing doctr on the backend (slim production
+      // image). For digital PDFs (the common case), this is a fast no-op.
+      final uploadFile = await _preprocessForOcr(file);
+
+      return await uploadDocument(uploadFile, email: email, phone: phone);
     } catch (e) {
       return {'error': e.toString()};
     }
+  }
+
+  /// Pre-processes a file for upload. If it's a PDF with no direct text,
+  /// runs on-device ML Kit OCR and returns a text file. Otherwise returns
+  /// the original file unchanged.
+  Future<File> _preprocessForOcr(File file) async {
+    final path = file.path.toLowerCase();
+    if (!path.endsWith('.pdf')) return file;
+
+    try {
+      // Check if the PDF has direct text
+      final result = await MlOcrService.extractTextFromFile(file.path);
+      if (result.usedOcr && result.text.isNotEmpty) {
+        // The PDF was scanned — write the OCR'd text to a temp file and
+        // upload that instead. The backend processes text files fine.
+        final tempDir = await Directory.systemTemp.createTemp('coverwise_ocr');
+        final textFile = File('${tempDir.path}/${file.uri.pathSegments.last.replaceAll('.pdf', '')}_ocr.txt');
+        await textFile.writeAsString(result.text);
+        debugPrint('On-device OCR extracted ${result.text.length} chars from scanned PDF');
+        return textFile;
+      }
+    } catch (e) {
+      debugPrint('OCR preprocessing skipped: $e');
+    }
+
+    return file;
   }
 
   Future<void> refreshAllDocumentTypes() async {

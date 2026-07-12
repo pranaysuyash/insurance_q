@@ -1,6 +1,7 @@
-# Insurance Policy Parser & QA App: User Guide
+# CoverWise User Guide
 
-Welcome to the Insurance Policy Parser & QA App! This guide will help you understand how to use the application to manage and get insights from your insurance policies.
+Welcome to CoverWise. This guide explains how to use the app to manage your policies, understand what they
+cover, and ask grounded questions about your insurance documents.
 
 ## Table of Contents
 
@@ -16,7 +17,7 @@ Welcome to the Insurance Policy Parser & QA App! This guide will help you unders
 
 ## Introduction
 
-The Insurance Policy Parser & QA App helps you manage and understand your insurance policies. You can:
+CoverWise helps you manage and understand your insurance policies. You can:
 
 - Upload your insurance policy documents (PDFs).
 - View extracted text and information from your policies.

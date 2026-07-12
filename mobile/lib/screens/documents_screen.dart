@@ -179,7 +179,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         }
 
         setState(() => _ocrResult = result);
-        ref.invalidate(documentsListProvider);
+        ref.invalidate(documentsProvider);
 
         // Fetch policy summary from backend (single API call)
         final documentId = result['document_id']?.toString();
@@ -222,7 +222,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         const SnackBar(content: Text('Refreshing document types...'), duration: Duration(seconds: 2)),
       );
       await ref.read(documentServiceProvider).refreshAllDocumentTypes();
-      ref.invalidate(documentsListProvider);
+      ref.invalidate(documentsProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Document types refreshed successfully!'), backgroundColor: Colors.green),
@@ -341,7 +341,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 Text('Your Documents', style: Theme.of(context).textTheme.headlineSmall),
                 IconButton(
                   icon: const Icon(Icons.refresh),
-                  onPressed: () => ref.invalidate(documentsListProvider),
+                  onPressed: () => ref.invalidate(documentsProvider),
                   tooltip: 'Refresh list',
                 ),
               ],

@@ -27,7 +27,7 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final summaries = ref.watch(policySummariesProvider);
-    final documentsAsync = ref.watch(documentsListProvider);
+    final documentsAsync = ref.watch(documentsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Claims Assistant')),
@@ -79,26 +79,51 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
                   ),
                 );
               }),
-              if (_selectedIncident != null && summaries.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text('Select policy (optional):', style: TextStyle(fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String?>(
-                  value: _selectedDocumentId,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              if (_selectedIncident != null) ...[
+                if (summaries.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Select policy (optional):', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String?>(
+                    value: _selectedDocumentId,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('Auto-select best match')),
+                      ...summaries.map((s) => DropdownMenuItem(
+                        value: s.documentId,
+                        child: Text('${s.documentType} - ${s.insurer ?? "Unknown"}'),
+                      )),
+                    ],
+                    onChanged: (v) => setState(() => _selectedDocumentId = v),
                   ),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('Auto-select best match')),
-                    ...summaries.map((s) => DropdownMenuItem(
-                      value: s.documentId,
-                      child: Text('${s.documentType} - ${s.insurer ?? "Unknown"}'),
-                    )),
-                  ],
-                  onChanged: (v) => setState(() => _selectedDocumentId = v),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                ] else ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.blue, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'No policy summaries available — you will get a general guide without policy-specific helpline or email details.',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
                 FilledButton.icon(
                   icon: const Icon(Icons.assignment),
                   label: const Text('Get Claim Guide'),

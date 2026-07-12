@@ -1,6 +1,16 @@
 # CoverWise
 
-An AI-powered mobile application for analyzing insurance documents and providing intelligent Q&A capabilities.
+An insurance companion that reads your policy documents, surfaces the details that matter,
+and answers grounded questions in plain language.
+
+## CoverWise launch positioning
+
+- Core promise: help people understand the insurance policy they already own.
+- Primary surfaces: policy summaries, grounded Q&A, renewal readiness, and claim-time details.
+- Trust rule: the policy document remains the source of truth, and the app should always defer to
+  the insurer for binding decisions.
+- Launch copy reference: [`docs/review/coverwise_play_store_listing.md`](docs/review/coverwise_play_store_listing.md)
+- Launch assets reference: [`docs/review/coverwise_play_store_launch_assets.md`](docs/review/coverwise_play_store_launch_assets.md)
 
 ## 🚀 Current Status: PRODUCTION READY ON AWS
 

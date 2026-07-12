@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
+import '../providers/document_providers.dart';
+import '../providers/policy_providers.dart';
+import '../providers/family_providers.dart';
+import '../providers/questions_provider.dart';
+import '../services/app_state_store.dart';
+import '../services/local_storage_service.dart';
+import '../services/notification_service.dart';
 
-/// App settings. Currently exposes the backend environment override (useful for
-/// testing staging vs production) and a clear-data action. Kept deliberately
-/// small: only settings that actually do something are shown, so users never
-/// see dead toggles.
+/// App settings. Currently exposes the backend environment display and a
+/// clear-data action. Kept deliberately small: only settings that actually
+/// do something are shown.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -27,10 +35,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear local data?'),
+        title: const Text('Clear all local data?'),
         content: const Text(
-          'This removes locally stored documents, Q&A history, and session data '
-          'from this device. Uploaded documents on the server are not affected. '
+          'This permanently removes all locally stored documents, policy '
+          'summaries, Q&A history, family members, and session data from '
+          'this device. Uploaded documents on the server are not affected. '
           'This cannot be undone.',
         ),
         actions: [
@@ -51,11 +60,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
+      // 1. Clear Hive boxes (documents + all app state)
+      await Hive.box<String>(LocalStorageService.documentsBoxName).clear();
+      await Hive.box(AppStateStore.boxName).clear();
+
+      // 2. Clear SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
+
+      // 3. Delete physical document files
+      final appDir = await getApplicationDocumentsDirectory();
+      if (appDir.existsSync()) {
+        await appDir.delete(recursive: true);
+        appDir.createSync(recursive: true);
+      }
+
+      // 4. Invalidate all in-memory providers so the UI rebuilds empty
+      ref.invalidate(documentsProvider);
+      ref.invalidate(policySummariesProvider);
+      ref.invalidate(qaHistoryProvider);
+      refreshManualFamilyMembers(ref);
+
+      // 5. Cancel all scheduled renewal notifications
+      await NotificationService.cancelAll();
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Local data cleared.')),
+        const SnackBar(content: Text('All local data cleared.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -87,7 +118,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text('Clear local data',
                 style: TextStyle(color: Colors.red.shade700)),
             subtitle: const Text(
-                'Documents, history, and session stored on this device'),
+                'Documents, summaries, history, family members, and session'),
             onTap: _confirmClearData,
           ),
         ],

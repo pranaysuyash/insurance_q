@@ -12,7 +12,9 @@ POLICY_STORAGE = "storage/policies"
 POLICIES = []  # In-memory for now
 os.makedirs(POLICY_STORAGE, exist_ok=True)
 
-@router.post("/upload", response_model=Policy)
+@router.post(
+    "/upload", response_model=Policy, response_model_exclude={"file_path", "user_uid"}
+)
 def upload_policy(
     file: UploadFile = File(...),
     family_member_id: Optional[str] = Form(None),
@@ -35,13 +37,17 @@ def upload_policy(
     POLICIES.append(policy)
     return policy
 
-@router.get("/list", response_model=List[Policy])
+@router.get(
+    "/list", response_model=List[Policy], response_model_exclude={"file_path", "user_uid"}
+)
 def list_policies(current_user: User = Depends(get_current_user)):
     return [p for p in POLICIES if p.user_uid == current_user.uid]
 
-@router.get("/{policy_id}", response_model=Policy)
+@router.get(
+    "/{policy_id}", response_model=Policy, response_model_exclude={"file_path", "user_uid"}
+)
 def get_policy(policy_id: str, current_user: User = Depends(get_current_user)):
     for p in POLICIES:
         if p.id == policy_id and p.user_uid == current_user.uid:
             return p
-    raise HTTPException(status_code=404, detail="Policy not found") 
+    raise HTTPException(status_code=404, detail="Policy not found")

@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/document_model.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
+import '../providers/policy_providers.dart';
+import '../providers/family_providers.dart';
+import '../providers/questions_provider.dart';
+import '../services/app_state_repository.dart';
 import '../utils/document_icons.dart';
 
 class DocumentsList extends ConsumerWidget {
@@ -12,7 +16,7 @@ class DocumentsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final documentsAsync = ref.watch(documentsListProvider);
+    final documentsAsync = ref.watch(documentsProvider);
 
     return documentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -22,7 +26,7 @@ class DocumentsList extends ConsumerWidget {
           children: [
             Text('Error loading documents: $e', style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: () => ref.invalidate(documentsListProvider), child: const Text('Retry')),
+            ElevatedButton(onPressed: () => ref.invalidate(documentsProvider), child: const Text('Retry')),
           ],
         ),
       ),
@@ -43,7 +47,7 @@ class DocumentsList extends ConsumerWidget {
         }
 
         return RefreshIndicator(
-          onRefresh: () async => ref.invalidate(documentsListProvider),
+          onRefresh: () async => ref.invalidate(documentsProvider),
           child: Column(
             children: [
               Padding(
@@ -137,11 +141,28 @@ class DocumentsList extends ConsumerWidget {
       try {
         final success = await ref.read(documentServiceProvider).deleteDocument(document.id);
         if (success) {
+          // Cascade: remove derived data and invalidate all dependents
+          // so the UI stays consistent (dashboard, QA, summaries, family).
+          ref.read(policySummariesProvider.notifier).deleteSummary(document.id);
+
+          // Clear stale selected document pointer if it pointed at this doc
+          final selectedId = AppStateRepository.getSelectedDocumentId();
+          if (selectedId == document.id) {
+            await AppStateRepository.setSelectedDocumentId(null);
+            ref.read(selectedDocumentProvider.notifier).state = null;
+          }
+
+          // Invalidate the document list (all screens watching rebuild)
+          ref.invalidate(documentsProvider);
+
+          // Invalidate family members (auto-detected ones may have come
+          // from this document)
+          refreshManualFamilyMembers(ref);
+
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Document deleted successfully')),
           );
-          ref.invalidate(documentsListProvider);
         }
       } catch (e) {
         if (!context.mounted) return;

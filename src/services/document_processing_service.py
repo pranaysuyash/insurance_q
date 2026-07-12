@@ -76,7 +76,8 @@ class DocumentProcessingService:
         file_content: bytes, 
         filename: str, 
         document_id: Optional[str] = None,
-        processing_mode: str = "full"
+        processing_mode: str = "full",
+        owner_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Complete document processing pipeline
@@ -154,7 +155,9 @@ class DocumentProcessingService:
                     logger.warning(f"RAG-only mode but no extracted text for {document_id}")
                     extracted_text = f"Document: {filename}"  # Fallback
                 
-                rag_result = await self._ingest_into_rag(document_id, extracted_text, filename)
+                rag_result = await self._ingest_into_rag(
+                    document_id, extracted_text, filename, owner_id=owner_id
+                )
                 result["stages"]["rag_ingestion"] = rag_result
             elif processing_mode in ["full", "rag_only"]:
                 result["stages"]["rag_ingestion"] = {
@@ -334,7 +337,9 @@ class DocumentProcessingService:
                 "full_text": "",
             }
     
-    async def _ingest_into_rag(self, document_id: str, text: str, filename: str) -> Dict[str, Any]:
+    async def _ingest_into_rag(
+        self, document_id: str, text: str, filename: str, *, owner_id: Optional[str]
+    ) -> Dict[str, Any]:
         """Ingest document into RAG pipeline"""
         try:
             if not text or len(text.strip()) < 10:
@@ -350,6 +355,8 @@ class DocumentProcessingService:
                 "ingested_at": datetime.utcnow().isoformat(),
                 "text_length": len(text)
             }
+            if owner_id:
+                metadata["owner_id"] = owner_id
             
             # Split text into chunks for better RAG performance
             text_blocks = self._split_text_into_blocks(text)
