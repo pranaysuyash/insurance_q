@@ -1,8 +1,8 @@
 """Canonical metadata repository for policy documents.
 
 The API must never use process memory as the source of truth for customer
-documents. Local development uses SQLite; production requires an explicitly
-configured DynamoDB table. Both implementations enforce owner-scoped reads at
+documents. Local development uses SQLite; production uses Supabase Postgres
+unless an older adapter is explicitly selected. All implementations enforce owner-scoped reads at
 the repository boundary, so route code cannot accidentally list another
 principal's documents after a restart or scale-out event.
 """
@@ -177,11 +177,86 @@ class DynamoDBDocumentRepository(DocumentRepository):
         return bool(response.get("Attributes"))
 
 
+class SupabaseDocumentRepository(DocumentRepository):
+    """Owner-scoped document metadata stored in Supabase Postgres."""
+
+    def __init__(self, url: str, service_role_key: str, table_name: str = "documents"):
+        try:
+            from supabase import create_client
+        except ImportError as error:  # pragma: no cover - deployment dependency
+            raise RuntimeError("supabase is required for Supabase document storage") from error
+        if not url or not service_role_key:
+            raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
+        self._client = create_client(url, service_role_key)
+        self._table_name = table_name
+
+    @staticmethod
+    def _row(document: Document) -> dict:
+        return {
+            "id": document.id,
+            "owner_id": document.user_uid,
+            "payload": document.model_dump(mode="json"),
+            "status": document.status,
+            "object_reference": document.file_path,
+        }
+
+    @staticmethod
+    def _document(row: dict) -> Document:
+        return Document.model_validate(row["payload"])
+
+    def create(self, document: Document) -> None:
+        response = self._client.table(self._table_name).insert(self._row(document)).execute()
+        if not response.data:
+            raise RuntimeError("Supabase did not create document metadata")
+
+    def get(self, document_id: str, owner_id: str) -> Optional[Document]:
+        response = (
+            self._client.table(self._table_name)
+            .select("payload")
+            .eq("id", document_id)
+            .eq("owner_id", owner_id)
+            .limit(1)
+            .execute()
+        )
+        return self._document(response.data[0]) if response.data else None
+
+    def list_for_owner(self, owner_id: str) -> list[Document]:
+        response = (
+            self._client.table(self._table_name)
+            .select("payload")
+            .eq("owner_id", owner_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return [self._document(row) for row in (response.data or [])]
+
+    def update(self, document: Document) -> None:
+        response = (
+            self._client.table(self._table_name)
+            .update(self._row(document))
+            .eq("id", document.id)
+            .eq("owner_id", document.user_uid)
+            .execute()
+        )
+        if not response.data:
+            raise KeyError(f"Document {document.id} no longer exists for its owner")
+
+    def delete(self, document_id: str, owner_id: str) -> bool:
+        response = (
+            self._client.table(self._table_name)
+            .delete()
+            .eq("id", document_id)
+            .eq("owner_id", owner_id)
+            .execute()
+        )
+        return bool(response.data)
+
+
 def create_document_repository() -> DocumentRepository:
     """Create the only supported metadata store for the active environment."""
     environment = os.getenv("ENVIRONMENT", "development").lower()
     backend = os.getenv(
-        "DOCUMENT_REPOSITORY_BACKEND", "dynamodb" if environment == "production" else "sqlite"
+        "DOCUMENT_REPOSITORY_BACKEND", "supabase" if environment == "production" else "sqlite"
     ).lower()
     if backend == "sqlite":
         if environment == "production":
@@ -194,4 +269,10 @@ def create_document_repository() -> DocumentRepository:
         if not table_name:
             raise RuntimeError("DOCUMENT_METADATA_TABLE is required for DynamoDB document storage")
         return DynamoDBDocumentRepository(table_name, os.getenv("AWS_REGION"))
+    if backend == "supabase":
+        return SupabaseDocumentRepository(
+            os.getenv("SUPABASE_URL", "").strip(),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
+            os.getenv("SUPABASE_DOCUMENTS_TABLE", "documents").strip(),
+        )
     raise RuntimeError(f"Unsupported DOCUMENT_REPOSITORY_BACKEND: {backend}")

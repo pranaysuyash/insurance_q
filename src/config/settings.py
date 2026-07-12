@@ -9,10 +9,16 @@ class Settings(BaseSettings):
 
     # Ollama (local LLM/embeddings) - OpenAI-compatible API
     ollama_base_url: str = "http://localhost:11434/v1"
-    ollama_chat_model: str = "llama3.2"
-    ollama_alt_model: str = "phi3:mini"
+    ollama_chat_model: str = "gemma3:12b"
+    ollama_alt_model: str = "qwen2.5:7b"
     ollama_embedding_model: str = "nomic-embed-text"
     ollama_api_key: str = "ollama"
+
+    # Groq (cloud, LPU-accelerated, OpenAI-compatible) — free dev tier
+    # See docs/technical/llm_provider_evaluation_2026-07-12.md
+    groq_api_key: str = ""
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_chat_model: str = "llama-3.3-70b-versatile"
 
     # MLX (Apple Silicon local LLM) - OpenAI-compatible API
     mlx_enabled: bool = False

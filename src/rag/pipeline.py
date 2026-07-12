@@ -19,6 +19,7 @@ from qdrant_client import QdrantClient, models as qdrant_models
 from src.config.settings import settings
 from src.llm.client import LLMClient
 from src.models.rag import RAGAnswer, RAGCitation
+from src.services.supabase_vector_store import SupabaseVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -67,18 +68,29 @@ class RAGPipeline:
         self.active_embedding_model = self.openai_embedding_model
 
         self._init_hf_client()
-        self._init_qdrant()
+        self.vector_backend = os.getenv(
+            "RAG_VECTOR_BACKEND",
+            "supabase" if os.getenv("ENVIRONMENT", "development").lower() == "production" else "qdrant",
+        ).lower()
+        if self.vector_backend == "supabase":
+            self.vector_store = SupabaseVectorStore(
+                os.getenv("SUPABASE_URL", "").strip(),
+                os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
+            )
+        else:
+            self._init_qdrant()
         self._init_redis()
-        self._init_hybrid_index()
+        if self.vector_backend != "supabase":
+            self._init_hybrid_index()
         self._init_reranker()
 
         self.openai_failure_count = 0
         self.hf_failure_count = 0
 
         logger.info(
-            "Pipeline: chat=%s embed=%s (%dd) qdrant=%s redis=%s",
+            "Pipeline: chat=%s embed=%s (%dd) vector_backend=%s redis=%s",
             self.openai_chat_model, self.active_embedding_model,
-            self.embedding_dimensions, settings.qdrant_collection,
+                self.embedding_dimensions, self.vector_backend,
             "enabled" if self.cache else "disabled",
         )
 
@@ -430,6 +442,22 @@ class RAGPipeline:
             logger.error("Embedding failed for %s: %s", document_id, e)
             return {"status": "error", "error": f"Embedding failed: {e}"}
 
+        if getattr(self, "vector_backend", "qdrant") == "supabase":
+            points_added = await self.vector_store.upsert(
+                document_id,
+                text_blocks,
+                embeddings,
+                owner_id=(document_metadata or {}).get("owner_id"),
+            )
+            self._bump_query_cache_version()
+            return {
+                "status": "success",
+                "document_id": document_id,
+                "points_added": points_added,
+                "embedding_model_used": self.active_embedding_model,
+                "contextualized": True,
+            }
+
         points = []
         for i, block in enumerate(text_blocks):
             payload = {
@@ -586,6 +614,15 @@ class RAGPipeline:
 
     async def delete_document_data(self, document_id: str, owner_id: str) -> Dict[str, Any]:
         """Delete vector and lexical chunks for one verified owner/document pair."""
+        if getattr(self, "vector_backend", "qdrant") == "supabase":
+            try:
+                deleted = await self.vector_store.delete(document_id, owner_id)
+                self._bump_query_cache_version()
+                return {"status": "success", "document_id": document_id, "deleted": deleted}
+            except Exception as error:
+                logger.error("Failed to delete Supabase RAG data for %s: %s", document_id, error)
+                return {"status": "error", "error": str(error)}
+
         ownership_filter = qdrant_models.Filter(
             must=[
                 qdrant_models.FieldCondition(
@@ -642,18 +679,22 @@ class RAGPipeline:
             logger.error("Query embedding failed: %s", e)
             return {"status": "error", "error": f"Query embedding failed: {e}"}
 
-        qdrant_filter = self._build_qdrant_filter(filters)
-
         dense_results = []
         dense_error = None
         try:
-            dense_results = self.qdrant_client.search(
-                collection_name=self.collection_name,
-                query_vector=query_vector,
-                limit=max(top_k * 3, top_k),
-                with_payload=True,
-                query_filter=qdrant_filter,
-            )
+            if getattr(self, "vector_backend", "qdrant") == "supabase":
+                dense_results = await self.vector_store.search(
+                    query_vector, max(top_k * 3, top_k), filters
+                )
+            else:
+                qdrant_filter = self._build_qdrant_filter(filters)
+                dense_results = self.qdrant_client.search(
+                    collection_name=self.collection_name,
+                    query_vector=query_vector,
+                    limit=max(top_k * 3, top_k),
+                    with_payload=True,
+                    query_filter=qdrant_filter,
+                )
         except Exception as e:
             dense_error = e
             logger.error("Vector search failed: %s", e)

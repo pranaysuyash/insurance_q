@@ -6,7 +6,6 @@ from src.api.user import router as user_router, get_current_user
 from src.models.user import User
 from src.api.family import router as family_router
 from src.api.document import router as document_router, set_processing_service
-from src.utils.firebase_auth import init_firebase
 from src.utils.runtime_access import require_nonproduction
 
 # Import RAG components and enhanced document processing
@@ -83,11 +82,8 @@ async def lifespan(app: FastAPI):
         print(f"⚠️ Anti-abuse system init failed: {e}", file=sys.stderr)
         print("Continuing without anti-abuse protection...", file=sys.stderr)
     
-    try:
-        init_firebase()
-    except Exception as e:
-        print(f"⚠️ Firebase init failed: {e}", file=sys.stderr)
-        print("Continuing without Firebase authentication...", file=sys.stderr)
+    # Anonymous bearer identity is the launch auth mode. Firebase remains an
+    # optional historical integration and is not initialized in the core path.
     
     # Initialize RAG pipeline
     try:

@@ -1,8 +1,8 @@
 """Canonical encrypted source-document store.
 
-Local files are permitted only for development. Production uses an S3 bucket
-and requires KMS encryption, which prevents an App Runner filesystem from
-becoming an accidental customer-document database.
+Local files are permitted only for development. Production uses Supabase
+Storage. The historical S3 adapter remains available only when selected
+explicitly, so a Cloud Run filesystem cannot become a customer-document store.
 """
 
 from __future__ import annotations
@@ -76,9 +76,48 @@ class S3DocumentObjectStore(DocumentObjectStore):
         self._client.delete_object(Bucket=self._bucket, Key=object_reference.removeprefix(prefix))
 
 
+class SupabaseDocumentObjectStore(DocumentObjectStore):
+    """Durable source documents in a private Supabase Storage bucket."""
+
+    def __init__(self, url: str, service_role_key: str, bucket: str):
+        try:
+            from supabase import create_client
+        except ImportError as error:  # pragma: no cover - deployment dependency
+            raise RuntimeError("supabase is required for Supabase document storage") from error
+        if not url or not service_role_key or not bucket:
+            raise RuntimeError(
+                "SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_STORAGE_BUCKET are required"
+            )
+        self._client = create_client(url, service_role_key)
+        self._bucket = bucket
+
+    @staticmethod
+    def _path(document_id: str, filename: str) -> str:
+        return f"documents/{document_id}/{_safe_filename(filename)}"
+
+    def put(self, document_id: str, owner_id: str, filename: str, content: bytes) -> str:
+        path = self._path(document_id, filename)
+        self._client.storage.from_(self._bucket).upload(
+            path,
+            content,
+            {"content-type": "application/pdf", "upsert": "false"},
+        )
+        return f"supabase://{self._bucket}/{path}"
+
+    def delete(self, object_reference: str) -> None:
+        prefix = "supabase://"
+        if not object_reference.startswith(prefix):
+            raise ValueError("Object reference does not belong to configured Supabase bucket")
+        bucket_and_path = object_reference.removeprefix(prefix)
+        bucket, path = bucket_and_path.split("/", 1)
+        if bucket != self._bucket:
+            raise ValueError("Object reference belongs to a different Supabase bucket")
+        self._client.storage.from_(self._bucket).remove([path])
+
+
 def create_document_object_store() -> DocumentObjectStore:
     environment = os.getenv("ENVIRONMENT", "development").lower()
-    backend = os.getenv("DOCUMENT_OBJECT_STORE_BACKEND", "s3" if environment == "production" else "local").lower()
+    backend = os.getenv("DOCUMENT_OBJECT_STORE_BACKEND", "supabase" if environment == "production" else "local").lower()
     if backend == "local":
         if environment == "production":
             raise RuntimeError("Local document object storage is not allowed in production")
@@ -91,4 +130,10 @@ def create_document_object_store() -> DocumentObjectStore:
                 "DOCUMENT_STORAGE_BUCKET and DOCUMENT_STORAGE_KMS_KEY_ID are required for S3 document storage"
             )
         return S3DocumentObjectStore(bucket, kms_key_id, os.getenv("AWS_REGION"))
+    if backend == "supabase":
+        return SupabaseDocumentObjectStore(
+            os.getenv("SUPABASE_URL", "").strip(),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
+            os.getenv("SUPABASE_STORAGE_BUCKET", "coverwise-documents").strip(),
+        )
     raise RuntimeError(f"Unsupported DOCUMENT_OBJECT_STORE_BACKEND: {backend}")

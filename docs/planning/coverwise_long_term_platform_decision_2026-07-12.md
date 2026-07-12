@@ -5,6 +5,15 @@
 **Decision owner:** Pranay  
 **Launch target:** late July 2026
 
+**Implementation status:** Stage 1 is in progress. The repository and object-store
+factories now have Supabase production defaults, and the initial SQL schema is at
+[`infra/supabase/001_coverwise_schema.sql`](../../infra/supabase/001_coverwise_schema.sql).
+The RAG pipeline also has a Supabase `pgvector` adapter selected by
+`RAG_VECTOR_BACKEND=supabase` in production; local development remains on Qdrant
+until shadow comparison is complete.
+Cloud Run and Supabase credentials have not been provisioned in this repository,
+and production cutover is not yet claimed.
+
 ## Decision
 
 Use a **single Cloud Run FastAPI application service** backed by **one Supabase project**:
@@ -154,6 +163,16 @@ Retries must be idempotent. A repeated request with the same owner and source ha
 - Add Python Postgres access through a pooled connection or Supabase API boundary.
 - Add pgvector similarity search filtered by `document_id` and owner/session.
 - Add tests for transactions, duplicate uploads, partial writes, deletes, and stale states.
+
+### Stage 1 environment contract
+
+Cloud Run production must provide `ENVIRONMENT=production`,
+`DOCUMENT_REPOSITORY_BACKEND=supabase`, `DOCUMENT_OBJECT_STORE_BACKEND=supabase`,
+`RAG_VECTOR_BACKEND=supabase`,
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` (default
+`coverwise-documents`), and `ANONYMOUS_AUTH_SIGNING_KEY`. The service-role key is
+server-only. The Supabase SQL migration must be applied before the application is
+started with these backends.
 
 ### Stage 2: single-runtime path
 
