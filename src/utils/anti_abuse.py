@@ -17,9 +17,21 @@ logger = logging.getLogger(__name__)
 # Anti-abuse database path (configurable for tests)
 ANTI_ABUSE_DB_PATH = os.getenv('ANTI_ABUSE_DB_PATH', 'insurance_app.db')
 
-# Redis client for rate limiting
+# Redis client for rate limiting.
+# Build the URL from REDIS_HOST/REDIS_PORT/REDIS_PASSWORD (what the deploy
+# scripts set), falling back to REDIS_URL if provided, then localhost.
 try:
-    redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    redis_host = os.getenv('REDIS_HOST')
+    if redis_host:
+        redis_port = os.getenv('REDIS_PORT', '6379')
+        redis_password = os.getenv('REDIS_PASSWORD', '')
+        redis_url = (
+            f"redis://:{redis_password}@{redis_host}:{redis_port}/0"
+            if redis_password
+            else f"redis://{redis_host}:{redis_port}/0"
+        )
+    else:
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     redis_client = redis.from_url(redis_url)
     # Test connection
     redis_client.ping()

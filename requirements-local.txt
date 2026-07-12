@@ -1,0 +1,39 @@
+# =============================================================================
+# Local development requirements — extends requirements.txt with heavy ML deps
+#
+# Install with:  pip install -r requirements-local.txt
+#
+# These packages are NOT in the production image (requirements.txt). They add
+# ~2.5 GB (torch + doctr + sentence-transformers) and are used for:
+#   - Local OCR on scanned/image-only PDFs (python-doctr)
+#   - Local embedding fallback when OpenAI is unavailable (sentence-transformers)
+#   - Cross-encoder reranking (sentence-transformers CrossEncoder)
+#
+# In production, these paths degrade gracefully:
+#   - Scanned PDFs → user gets "direct text not found" message
+#   - OpenAI down → query returns "LLM unavailable" with raw context
+#   - Reranking → falls back to lexical scoring
+# =============================================================================
+
+-r requirements.txt
+
+# Local OCR (scanned/image-only PDFs)
+torch==2.1.0
+torchvision==0.16.0
+python-doctr[torch]==0.7.0
+
+# Local embedding + reranker fallbacks
+sentence-transformers==2.7.0
+
+# Redis client (local dev / optional caching)
+redis==5.0.1
+
+# Background task queue (unused in single-container deploy, kept for local dev)
+celery==5.3.4
+kombu==5.3.4
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0

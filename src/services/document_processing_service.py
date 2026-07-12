@@ -1,6 +1,6 @@
 """
 Enhanced Document Processing Service
-Handles the complete pipeline: Document Upload → OCR → RAG Ingestion → Vector Database
+Handles the complete pipeline: Document Upload → OCR → Structured Extraction → RAG Ingestion → Vector Database
 """
 import os
 import re
@@ -25,6 +25,14 @@ try:
 except ImportError:
     RAGPipeline = None
 
+# Policy extraction
+try:
+    from src.services.policy_extraction_service import PolicyExtractionService
+    from src.llm.client import LLMClient
+except ImportError:
+    PolicyExtractionService = None
+    LLMClient = None
+
 logger = logging.getLogger(__name__)
 
 class DocumentProcessingService:
@@ -43,6 +51,17 @@ class DocumentProcessingService:
         self.pdf_processor = None
         self.image_processor = None
         self.processing_status = {}  # Track processing status by document_id
+        
+        # Policy extraction service
+        self.policy_extraction_service = None
+        if PolicyExtractionService and LLMClient:
+            try:
+                llm_client = rag_pipeline.llm if rag_pipeline and hasattr(rag_pipeline, 'llm') else LLMClient()
+                redis_client = rag_pipeline.cache if rag_pipeline and hasattr(rag_pipeline, 'cache') else None
+                self.policy_extraction_service = PolicyExtractionService(llm_client, redis_client=redis_client)
+                logger.info("PolicyExtractionService initialized (redis=%s)", "enabled" if redis_client else "disabled")
+            except Exception as e:
+                logger.warning("PolicyExtractionService init failed: %s", e)
         
         # Create storage directories
         self.storage_dir = "storage/documents"
@@ -108,6 +127,24 @@ class DocumentProcessingService:
                 result["stages"]["ocr"] = ocr_result
                 result["extracted_text"] = extracted_text
             
+            # Stage 2.5: Structured Policy Extraction (if available)
+            if processing_mode in ["full"] and extracted_text and self.policy_extraction_service:
+                await self._update_status(document_id, "extracting_policy_data", 45)
+                try:
+                    doc_type = result.get("stages", {}).get("ocr", {}).get("document_type", "Unknown")
+                    summary = await self.policy_extraction_service.extract_summary(
+                        document_id, extracted_text, doc_type
+                    )
+                    if summary:
+                        summary["extracted_at"] = datetime.utcnow().isoformat()
+                        result["policy_summary"] = summary
+                        result["stages"]["policy_extraction"] = {"status": "completed"}
+                    else:
+                        result["stages"]["policy_extraction"] = {"status": "skipped", "reason": "No summary returned"}
+                except Exception as e:
+                    logger.warning("Policy extraction failed for %s: %s", document_id, e)
+                    result["stages"]["policy_extraction"] = {"status": "failed", "error": str(e)}
+            
             # Stage 3: RAG Ingestion (if needed and available)
             if processing_mode in ["full", "rag_only"] and self.rag_pipeline:
                 await self._update_status(document_id, "creating_embeddings", 60)
@@ -157,43 +194,144 @@ class DocumentProcessingService:
         return file_path
     
     async def _extract_text(self, file_path: str, filename: str) -> Dict[str, Any]:
-        """Extract text using OCR processors"""
-        file_extension = os.path.splitext(filename)[1].lower()
-        
-        try:
-            if self._ocr_pipeline is None:
-                from src.ocr.pipeline import OCRPipeline
-                self._ocr_pipeline = OCRPipeline()
+        """Extract text from a document.
 
-            if file_extension == '.pdf':
-                if not self.pdf_processor:
-                    from src.ocr.pdf_processor import PDFProcessor
-                    self.pdf_processor = PDFProcessor(ocr_pipeline=self._ocr_pipeline)
-                result = await self._run_in_executor(self.pdf_processor.process_pdf, file_path)
-            elif file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.webp']:
+        Production (slim image, no OCR): uses PyMuPDF direct-text extraction for
+        PDFs. Scanned/image-only PDFs are detected and flagged with a clear
+        message instead of crashing.
+
+        Local dev (with doctr installed): falls back to OCR for image-only pages.
+        """
+        file_extension = os.path.splitext(filename)[1].lower()
+
+        # --- Image files: need OCR (not available in slim production image) ---
+        if file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.webp']:
+            try:
+                if self._ocr_pipeline is None:
+                    from src.ocr.pipeline import OCRPipeline
+                    self._ocr_pipeline = OCRPipeline()
                 if not self.image_processor:
                     from src.ocr.image_processor import ImageProcessor
                     self.image_processor = ImageProcessor(ocr_pipeline=self._ocr_pipeline)
                 result = await self._run_in_executor(self.image_processor.process_image, file_path)
-            else:
-                # Fallback: try to read as text
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    text = f.read()
-                result = {
-                    "full_text": text,
-                    "status": "completed",
-                    "method": "text_fallback"
+                result["status"] = "completed"
+                return result
+            except ImportError:
+                return {
+                    "status": "failed",
+                    "error": "Image OCR is not available in this build. Please upload a text-based PDF instead of an image.",
+                    "full_text": "",
                 }
-            
-            result["status"] = "completed"
-            return result
-            
+            except Exception as e:
+                logger.error(f"Image OCR failed for {filename}: {str(e)}")
+                return {
+                    "status": "failed",
+                    "error": str(e),
+                    "full_text": "",
+                }
+
+        # --- PDF: try direct text first (PyMuPDF, always available) ---
+        if file_extension == '.pdf':
+            try:
+                import fitz  # PyMuPDF — always in requirements
+                doc = fitz.open(file_path)
+                all_text = []
+                image_only_pages = 0
+                for page in doc:
+                    text = page.get_text()
+                    if text and text.strip():
+                        all_text.append(text.strip())
+                    else:
+                        image_only_pages += 1
+                doc.close()
+
+                full_text = "\n\n".join(all_text).strip()
+
+                if full_text:
+                    method = "direct_text"
+                    if image_only_pages > 0:
+                        # Some pages had text, some didn't — partial extraction
+                        logger.info(
+                            "PDF %s: extracted text from %d pages, %d image-only pages skipped",
+                            filename, len(all_text), image_only_pages,
+                        )
+                    return {
+                        "full_text": full_text,
+                        "status": "completed",
+                        "method": method,
+                    }
+
+                # No direct text at all — this is a scanned/image-only PDF
+                # Try OCR if available (local dev), otherwise clear message
+                if self._ocr_pipeline is not None:
+                    if not self.pdf_processor:
+                        from src.ocr.pdf_processor import PDFProcessor
+                        self.pdf_processor = PDFProcessor(ocr_pipeline=self._ocr_pipeline)
+                    result = await self._run_in_executor(self.pdf_processor.process_pdf, file_path)
+                    result["status"] = "completed"
+                    return result
+
+                try:
+                    from src.ocr.pipeline import OCRPipeline  # noqa: F401
+                    # doctr is importable but pipeline not initialized yet
+                    if self._ocr_pipeline is None:
+                        self._ocr_pipeline = OCRPipeline()
+                    if not self.pdf_processor:
+                        from src.ocr.pdf_processor import PDFProcessor
+                        self.pdf_processor = PDFProcessor(ocr_pipeline=self._ocr_pipeline)
+                    result = await self._run_in_executor(self.pdf_processor.process_pdf, file_path)
+                    result["status"] = "completed"
+                    return result
+                except ImportError:
+                    return {
+                        "status": "failed",
+                        "error": "This PDF appears to be scanned (no embedded text). OCR is not available in this build. Please upload a digital/text-based PDF.",
+                        "full_text": "",
+                    }
+
+            except Exception as e:
+                logger.warning(f"PDF direct-text extraction failed for {filename}: {str(e)}")
+                # If PyMuPDF can't open it, try OCR pipeline as last resort
+                # (the file might be a valid image-based PDF that needs OCR)
+                try:
+                    if self._ocr_pipeline is None:
+                        from src.ocr.pipeline import OCRPipeline
+                        self._ocr_pipeline = OCRPipeline()
+                    if not self.pdf_processor:
+                        from src.ocr.pdf_processor import PDFProcessor
+                        self.pdf_processor = PDFProcessor(ocr_pipeline=self._ocr_pipeline)
+                    result = await self._run_in_executor(self.pdf_processor.process_pdf, file_path)
+                    result["status"] = "completed"
+                    return result
+                except ImportError:
+                    return {
+                        "status": "failed",
+                        "error": f"Could not extract text from this PDF: {str(e)}",
+                        "full_text": "",
+                    }
+                except Exception as ocr_err:
+                    logger.error(f"PDF OCR fallback also failed for {filename}: {str(ocr_err)}")
+                    return {
+                        "status": "failed",
+                        "error": str(e),
+                        "full_text": "",
+                    }
+
+        # --- Other text-based files (.txt, .csv, .json, etc.) ---
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                text = f.read()
+            return {
+                "full_text": text,
+                "status": "completed",
+                "method": "text_fallback",
+            }
         except Exception as e:
-            logger.error(f"OCR extraction failed for {filename}: {str(e)}")
+            logger.error(f"Text extraction failed for {filename}: {str(e)}")
             return {
                 "status": "failed",
                 "error": str(e),
-                "full_text": f"Failed to extract text from {filename}"
+                "full_text": "",
             }
     
     async def _ingest_into_rag(self, document_id: str, text: str, filename: str) -> Dict[str, Any]:

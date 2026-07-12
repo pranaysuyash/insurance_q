@@ -78,9 +78,9 @@ Create a `.env` file with:
 # Required - OpenAI API Key
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Vector Database (already configured for you)
+# Vector Database (configured via cloud provider / your own Qdrant instance)
 QDRANT_URL=https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333
-QDRANT_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ
+QDRANT_API_KEY=your_qdrant_api_key_here
 QDRANT_COLLECTION=insurance_documents_v2
 
 # Redis Cache (already configured)

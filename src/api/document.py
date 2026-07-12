@@ -545,3 +545,43 @@ async def capture_lead(
         "session_id": session_id,
         "documents_count": len(session_documents)
     }
+
+
+@router.get("/{document_id}/summary")
+async def get_policy_summary(document_id: str):
+    """Get the structured policy summary for a document.
+
+    Returns the extracted PolicySummaryExtraction data that was generated
+    at ingestion time via a single LLM call. This endpoint is used by the
+    mobile app's Emergency Card, Claims Assistant, Renewal Calendar,
+    Coverage Gap Scan, and Policy Comparison features.
+    """
+    if not processing_service:
+        raise HTTPException(status_code=503, detail="Processing service not available")
+
+    # Check if the document was processed and has a summary
+    if not hasattr(processing_service, 'policy_extraction_service') or not processing_service.policy_extraction_service:
+        raise HTTPException(status_code=503, detail="Policy extraction service not available")
+
+    summary = processing_service.policy_extraction_service.get_summary(document_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail=f"No policy summary found for document {document_id}")
+
+    return {"status": "success", "summary": summary}
+
+
+@router.get("/summaries/all")
+async def get_all_policy_summaries():
+    """Get all stored policy summaries.
+
+    Used by the mobile app to load all policy data at once for dashboard
+    rendering, coverage gap analysis, and comparison features.
+    """
+    if not processing_service:
+        raise HTTPException(status_code=503, detail="Processing service not available")
+
+    if not hasattr(processing_service, 'policy_extraction_service') or not processing_service.policy_extraction_service:
+        raise HTTPException(status_code=503, detail="Policy extraction service not available")
+
+    all_summaries = processing_service.policy_extraction_service.get_all_summaries()
+    return {"status": "success", "summaries": list(all_summaries.values()), "count": len(all_summaries)}

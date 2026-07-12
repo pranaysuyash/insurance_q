@@ -1,17 +1,14 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
+import 'app_state_store.dart';
 
 class ContactService {
-  static const String _emailKey = 'saved_email';
-  static const String _phoneKey = 'saved_phone';
-  static const String _saveContactKey = 'save_contact_enabled';
-
   /// Get saved email address
   static Future<String?> getSavedEmail() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saveEnabled = prefs.getBool(_saveContactKey) ?? false;
+    final box = Hive.box(AppStateStore.boxName);
+    final saveEnabled = box.get(AppStateStore.saveContactKey) as bool? ?? false;
     
     if (saveEnabled) {
-      return prefs.getString(_emailKey);
+      return box.get(AppStateStore.emailKey) as String?;
     }
     
     return null;
@@ -19,11 +16,11 @@ class ContactService {
 
   /// Get saved phone number
   static Future<String?> getSavedPhone() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saveEnabled = prefs.getBool(_saveContactKey) ?? false;
+    final box = Hive.box(AppStateStore.boxName);
+    final saveEnabled = box.get(AppStateStore.saveContactKey) as bool? ?? false;
     
     if (saveEnabled) {
-      return prefs.getString(_phoneKey);
+      return box.get(AppStateStore.phoneKey) as String?;
     }
     
     return null;
@@ -35,36 +32,36 @@ class ContactService {
     String? phone,
     required bool saveForFuture,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
+    final box = Hive.box(AppStateStore.boxName);
     
-    await prefs.setBool(_saveContactKey, saveForFuture);
+    await box.put(AppStateStore.saveContactKey, saveForFuture);
     
     if (saveForFuture) {
       if (email != null) {
-        await prefs.setString(_emailKey, email);
+        await box.put(AppStateStore.emailKey, email);
       }
       if (phone != null) {
-        await prefs.setString(_phoneKey, phone);
+        await box.put(AppStateStore.phoneKey, phone);
       }
     } else {
       // Clear saved contact info if user doesn't want to save
-      await prefs.remove(_emailKey);
-      await prefs.remove(_phoneKey);
+      await box.delete(AppStateStore.emailKey);
+      await box.delete(AppStateStore.phoneKey);
     }
   }
 
   /// Clear all saved contact information
   static Future<void> clearSavedContact() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_emailKey);
-    await prefs.remove(_phoneKey);
-    await prefs.setBool(_saveContactKey, false);
+    final box = Hive.box(AppStateStore.boxName);
+    await box.delete(AppStateStore.emailKey);
+    await box.delete(AppStateStore.phoneKey);
+    await box.put(AppStateStore.saveContactKey, false);
   }
 
   /// Check if contact saving is enabled
   static Future<bool> isSaveContactEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_saveContactKey) ?? false;
+    final box = Hive.box(AppStateStore.boxName);
+    return box.get(AppStateStore.saveContactKey) as bool? ?? false;
   }
 
   /// Get both saved email and phone

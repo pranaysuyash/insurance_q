@@ -1,19 +1,27 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import '../models/document_model.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorageService {
-  static const String _documentsKey = 'local_documents_list';
+  static const String legacyDocumentsKey = 'local_documents_list';
+  static const String documentsBoxName = 'documents_box';
   static const Uuid _uuid = Uuid();
 
-  // Save a document file to local storage and store metadata in SharedPreferences
+  Box<String> get _documentsBox => Hive.box<String>(documentsBoxName);
+
+  // Save a document file to local storage and persist metadata in Hive.
   Future<InsuranceDocument> saveDocument(File file,
-      {Map<String, dynamic>? additionalMetadata}) async {
+      {Map<String, dynamic>? additionalMetadata,
+      String? remoteId,
+      String syncState = 'synced',
+      String processingState = 'ready',
+      String? status}) async {
     // Create a unique ID for the document
     final docId = _uuid.v4();
 
@@ -31,10 +39,13 @@ class LocalStorageService {
     // Create a document object
     final document = InsuranceDocument(
       id: docId,
+      remoteId: remoteId,
       filename: fileName,
       uploadedOn: DateTime.now(),
       size: fileSize,
-      status: 'completed',
+      status: status ?? (syncState == 'synced' ? 'completed' : 'pending'),
+      syncState: syncState,
+      processingState: processingState,
       processingCompletedAt: DateTime.now(),
       localFilePath: localFilePath,
       // Add additional metadata if provided
@@ -42,31 +53,43 @@ class LocalStorageService {
       insurer: additionalMetadata?['insurer'],
     );
 
-    // Get existing documents
-    final documents = await getDocuments();
-
-    // Add new document to the list
-    documents.add(document);
-
-    // Save the updated list back to SharedPreferences
-    await _saveDocumentsList(documents);
+    await _documentsBox.put(docId, document.toJsonString());
 
     return document;
   }
 
-  // Get all documents from SharedPreferences
+  // Get all documents from local storage
   Future<List<InsuranceDocument>> getDocuments() async {
-    final prefs = await SharedPreferences.getInstance();
-    final documentsList = prefs.getStringList(_documentsKey) ?? [];
+    final entries = _documentsBox.values.toList();
 
-    if (documentsList.isEmpty && AppConfig.bootstrapPolicyDemo) {
+    if (entries.isEmpty) {
+      // Keep a one-time compatibility bridge for older SharedPreferences
+      // installs until they have been migrated into Hive.
+      final prefs = await SharedPreferences.getInstance();
+      final legacyEntries = prefs.getStringList(legacyDocumentsKey) ?? [];
+      if (legacyEntries.isNotEmpty) {
+        for (final raw in legacyEntries) {
+          final doc = InsuranceDocument.fromJsonString(raw);
+          await _documentsBox.put(doc.id, doc.toJsonString());
+        }
+        await prefs.remove(legacyDocumentsKey);
+        return _documentsBox.values
+            .map((jsonStr) => InsuranceDocument.fromJsonString(jsonStr))
+            .toList();
+      }
+    }
+
+    if (entries.isEmpty && AppConfig.bootstrapPolicyDemo) {
       final demoDocument = InsuranceDocument(
         id: '3022ffcb-86c5-42ae-ae9f-2d6e00025631',
+        remoteId: '3022ffcb-86c5-42ae-ae9f-2d6e00025631',
         filename: 'policy.pdf',
         uploadedOn: DateTime.parse('2026-07-08T13:10:22.277452'),
         documentType: 'Health Insurance',
         insurer: 'ICICI Lombard General Insurance Company Limited',
         status: 'completed',
+        syncState: 'synced',
+        processingState: 'ready',
         processingCompletedAt: DateTime.parse('2026-07-08T13:10:22.277452'),
         size: 550955,
         localFilePath: null,
@@ -89,11 +112,15 @@ class LocalStorageService {
         ],
       );
 
-      await _saveDocumentsList([demoDocument]);
+      await _documentsBox.put(demoDocument.id, demoDocument.toJsonString());
       return [demoDocument];
     }
 
-    return documentsList
+    if (entries.isEmpty) {
+      return [];
+    }
+
+    return entries
         .map((jsonStr) => InsuranceDocument.fromJsonString(jsonStr))
         .toList();
   }
@@ -101,22 +128,12 @@ class LocalStorageService {
   // Update an existing document
   Future<bool> updateDocument(InsuranceDocument updatedDocument) async {
     try {
-      // Get all existing documents
-      final documents = await getDocuments();
-
-      // Find the index of the document to update
-      final index = documents.indexWhere((doc) => doc.id == updatedDocument.id);
-
-      // If document not found, return false
-      if (index == -1) {
+      if (!_documentsBox.containsKey(updatedDocument.id)) {
         return false;
       }
 
-      // Replace the document at the found index
-      documents[index] = updatedDocument;
-
-      // Save the updated list back to SharedPreferences
-      await _saveDocumentsList(documents);
+      await _documentsBox.put(
+          updatedDocument.id, updatedDocument.toJsonString());
 
       return true;
     } catch (e) {
@@ -127,26 +144,39 @@ class LocalStorageService {
 
   // Get a specific document by ID
   Future<InsuranceDocument?> getDocumentById(String documentId) async {
-    final documents = await getDocuments();
     try {
-      return documents.firstWhere((doc) => doc.id == documentId);
+      final byLocalId = _documentsBox.get(documentId);
+      if (byLocalId != null) {
+        return InsuranceDocument.fromJsonString(byLocalId);
+      }
+      for (final raw in _documentsBox.values) {
+        final doc = InsuranceDocument.fromJsonString(raw);
+        if (doc.remoteId == documentId) {
+          return doc;
+        }
+      }
+      return null;
     } catch (e) {
       debugPrint('Document not found: $documentId');
       return null;
     }
   }
 
-  // Delete a document from SharedPreferences and the local file system
+  Future<String?> getBackendDocumentId(String documentId) async {
+    final document = await getDocumentById(documentId);
+    if (document == null) {
+      return documentId;
+    }
+    return document.remoteId;
+  }
+
+  // Delete a document from local storage and the local file system
   Future<bool> deleteDocument(String documentId) async {
     try {
-      // Get existing documents
-      final documents = await getDocuments();
-
-      // Find the document to delete
-      final documentToDelete = documents.firstWhere(
-        (doc) => doc.id == documentId,
-        orElse: () => throw Exception('Document not found'),
-      );
+      final documentToDelete = await getDocumentById(documentId);
+      if (documentToDelete == null) {
+        return false;
+      }
 
       // Delete the local file if it exists
       if (documentToDelete.localFilePath != null) {
@@ -156,24 +186,13 @@ class LocalStorageService {
         }
       }
 
-      // Remove the document from the list
-      documents.removeWhere((doc) => doc.id == documentId);
-
-      // Save the updated list back to SharedPreferences
-      await _saveDocumentsList(documents);
+      await _documentsBox.delete(documentToDelete.id);
 
       return true;
     } catch (e) {
       debugPrint('Error deleting document: $e');
       return false;
     }
-  }
-
-  // Helper method to save the list of documents to SharedPreferences
-  Future<void> _saveDocumentsList(List<InsuranceDocument> documents) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonStrings = documents.map((doc) => doc.toJsonString()).toList();
-    await prefs.setStringList(_documentsKey, jsonStrings);
   }
 
   // Check if a document with the same filename already exists
@@ -219,5 +238,9 @@ class LocalStorageService {
         .trim();
 
     return baseFilename;
+  }
+
+  Future<int> countDocuments() async {
+    return _documentsBox.length;
   }
 }

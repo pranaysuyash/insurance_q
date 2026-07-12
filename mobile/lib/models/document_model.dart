@@ -5,10 +5,23 @@ class PolicyHolder {
   final String? dob;
   final String relationship;
 
+  /// Where this member came from.
+  ///
+  /// - `'document'`: auto-detected from an uploaded policy. Cannot be deleted
+  ///   directly (remove the document instead).
+  /// - `'manual'`: added by the user, e.g. a dependent who has their own
+  ///   separate policy and isn't named in any uploaded document. Can be
+  ///   edited/deleted by the user.
+  ///
+  /// Defaults to `'document'` for backward compatibility with members parsed
+  /// from existing documents and backend responses.
+  final String source;
+
   PolicyHolder({
     required this.name,
     this.dob,
     required this.relationship,
+    this.source = 'document',
   });
 
   factory PolicyHolder.fromJson(Map<String, dynamic> json) {
@@ -16,6 +29,7 @@ class PolicyHolder {
       name: json['name'] ?? 'Unknown',
       dob: json['dob'],
       relationship: json['relationship'] ?? 'Insured',
+      source: json['source'] ?? 'document',
     );
   }
 
@@ -24,17 +38,24 @@ class PolicyHolder {
       'name': name,
       'dob': dob,
       'relationship': relationship,
+      'source': source,
     };
   }
+
+  bool get isManual => source == 'manual';
 }
 
 class InsuranceDocument {
   final String id;
+  final String? remoteId;
   final String filename;
   final DateTime uploadedOn;
   final String? documentType;
   final String? insurer;
   final String? status;
+  final String syncState;
+  final String processingState;
+  final int schemaVersion;
   final DateTime? processingCompletedAt;
   final int? size;
   final String? localFilePath; // Path to locally stored file
@@ -42,11 +63,15 @@ class InsuranceDocument {
 
   InsuranceDocument({
     required this.id,
+    this.remoteId,
     required this.filename,
     required this.uploadedOn,
     this.documentType,
     this.insurer,
     this.status = 'completed',
+    this.syncState = 'synced',
+    this.processingState = 'ready',
+    this.schemaVersion = 1,
     this.processingCompletedAt,
     this.size,
     this.localFilePath,
@@ -63,7 +88,8 @@ class InsuranceDocument {
     }
     
     return InsuranceDocument(
-      id: json['id'] ?? '',
+      id: json['local_id'] ?? json['id'] ?? '',
+      remoteId: json['remote_id'] ?? json['document_id'],
       filename: json['filename'] ?? '',
       uploadedOn: json['upload_date'] != null 
           ? DateTime.parse(json['upload_date']) 
@@ -71,6 +97,9 @@ class InsuranceDocument {
       documentType: json['document_type'],
       insurer: json['insurer'],
       status: json['status'] ?? 'completed',
+      syncState: json['sync_state'] ?? 'synced',
+      processingState: json['processing_state'] ?? json['status'] ?? 'ready',
+      schemaVersion: json['schema_version'] ?? 1,
       processingCompletedAt: json['processing_completed_at'] != null 
           ? DateTime.parse(json['processing_completed_at']) 
           : null,
@@ -83,11 +112,16 @@ class InsuranceDocument {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'local_id': id,
+      'remote_id': remoteId,
       'filename': filename,
       'upload_date': uploadedOn.toIso8601String(),
       'document_type': documentType,
       'insurer': insurer,
       'status': status,
+      'sync_state': syncState,
+      'processing_state': processingState,
+      'schema_version': schemaVersion,
       'processing_completed_at': processingCompletedAt?.toIso8601String(),
       'size': size,
       'local_file_path': localFilePath,
@@ -124,4 +158,8 @@ class InsuranceDocument {
       return '${(size! / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
   }
+
+  String get backendId => remoteId ?? id;
+
+  bool get isSynced => remoteId != null && syncState == 'synced';
 } 

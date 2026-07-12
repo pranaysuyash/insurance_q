@@ -32,6 +32,15 @@ class QaAnswer {
   final DateTime timestamp;
   final String documentId;
   final String question;
+  final List<Map<String, dynamic>> citations;
+  final List<String> missingInformation;
+  final List<String> followUpQuestions;
+  final double? confidence;
+  final double? retrievalConfidence;
+  final String? retrievalStrategy;
+  final String? embeddingModelUsed;
+  final String? error;
+  final String? status;
 
   QaAnswer({
     required this.text,
@@ -39,6 +48,15 @@ class QaAnswer {
     required this.timestamp,
     required this.documentId,
     required this.question,
+    this.citations = const [],
+    this.missingInformation = const [],
+    this.followUpQuestions = const [],
+    this.confidence,
+    this.retrievalConfidence,
+    this.retrievalStrategy,
+    this.embeddingModelUsed,
+    this.error,
+    this.status,
   });
 
   String get query => question;
@@ -98,6 +116,23 @@ class QaAnswer {
       timestamp: DateTime.now(),
       documentId: json['document_id'] ?? '',
       question: json['query'] ?? '',
+      citations: json['citations'] is List
+          ? List<Map<String, dynamic>>.from(json['citations'] as List)
+          : const [],
+      missingInformation: json['missing_information'] is List
+          ? (json['missing_information'] as List).map((item) => item.toString()).toList()
+          : const [],
+      followUpQuestions: json['follow_up_questions'] is List
+          ? (json['follow_up_questions'] as List).map((item) => item.toString()).toList()
+          : const [],
+      confidence: json['confidence'] is num ? (json['confidence'] as num).toDouble() : null,
+      retrievalConfidence: json['retrieval_confidence'] is num
+          ? (json['retrieval_confidence'] as num).toDouble()
+          : null,
+      retrievalStrategy: json['retrieval_strategy']?.toString(),
+      embeddingModelUsed: json['embedding_model_used']?.toString(),
+      error: json['error']?.toString(),
+      status: json['status']?.toString(),
     );
   }
 }
@@ -139,6 +174,15 @@ class QaSource {
       );
     }
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'document_id': documentId,
+      'page_number': pageNumber,
+      'text': text,
+      'score': score,
+    };
+  }
 }
 
 class QaPair {
@@ -151,4 +195,37 @@ class QaPair {
     required this.answer,
     required this.timestamp,
   });
+
+  factory QaPair.fromJson(Map<String, dynamic> json) {
+    return QaPair(
+      question: json['question'] ?? '',
+      answer: QaAnswer.fromJson(json['answer'] as Map<String, dynamic>),
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'])
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'question': question,
+      'answer': {
+        'answer': answer.text,
+        'sources': answer.sources.map((s) => s.toJson()).toList(),
+        'timestamp': answer.timestamp.toIso8601String(),
+        'document_id': answer.documentId,
+        'query': answer.question,
+        'citations': answer.citations,
+        'missing_information': answer.missingInformation,
+        'follow_up_questions': answer.followUpQuestions,
+        'confidence': answer.confidence,
+        'retrieval_confidence': answer.retrievalConfidence,
+        'retrieval_strategy': answer.retrievalStrategy,
+        'embedding_model_used': answer.embeddingModelUsed,
+        'error': answer.error,
+        'status': answer.status,
+      },
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
 }

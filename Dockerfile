@@ -16,9 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first (for better Docker caching)
 COPY requirements.txt .
 
-# Install Python dependencies with extended timeout and retries
+# Install Python dependencies — uses requirements-local.txt for full OCR + ML
+# For production (slim, no ML models), use requirements.txt instead.
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements.txt
+    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements-local.txt
 
 # Copy application code
 COPY src/ src/

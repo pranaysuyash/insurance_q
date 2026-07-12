@@ -201,15 +201,12 @@ async def health_check() -> APIResponse:
     # Add embedding model info to health check
     model_info = {}
     if rag_pipeline:
-        primary = rag_pipeline.openai_embedding_model if rag_pipeline.use_openai_embeddings else rag_pipeline.huggingface_model_name
-        fallback = rag_pipeline.huggingface_model_name if rag_pipeline.use_openai_embeddings else rag_pipeline.openai_embedding_model
-        active = rag_pipeline.current_embedding_model
-        
         model_info = {
-            "primary_embedding": primary,
-            "fallback_embedding": fallback,
-            "active_embedding": active,
-            "chat_model": rag_pipeline.openai_chat_model
+            "primary_embedding": rag_pipeline.openai_embedding_model,
+            "fallback_embedding": getattr(rag_pipeline, "ollama_embedding_model", None) or rag_pipeline.hf_embedding_model,
+            "active_embedding": rag_pipeline.active_embedding_model,
+            "chat_model": rag_pipeline.openai_chat_model,
+            "embedding_dimensions": rag_pipeline.embedding_dimensions,
         }
         
     return APIResponse(

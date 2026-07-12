@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from src.api.user import router as user_router
 from src.api.family import router as family_router
 from src.api.policy import router as policy_router
@@ -13,6 +14,7 @@ import sys
 import logging
 import os
 import asyncio
+from contextlib import asynccontextmanager
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -20,11 +22,22 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
 
 app = FastAPI(title="Insurance Policy Parser & QA API", version="2.0.0")
 
-# CORS setup (allow all for now, restrict in prod)
+# CORS setup — restrict origins in production, allow all in development.
+# allow_origins=["*"] with allow_credentials=True is a browser-rejected
+# combination and a security anti-pattern in production.
+_cors_env = os.environ.get("ENVIRONMENT", "development")
+if _cors_env == "production":
+    _allowed_origins = [
+        o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",")
+        if o.strip()
+    ] or ["https://aa2485vt7t.ap-south-1.awsapprunner.com"]
+else:
+    _allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_allowed_origins,
+    allow_credentials=_cors_env != "production",  # can't use creds with wildcard
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -32,6 +45,10 @@ app.add_middleware(
 # Initialize services
 rag_pipeline = None
 document_processing_service = None
+
+# Health-check embedding probe cache (avoids calling OpenAI on every poll)
+_last_embedding_probe = 0.0
+_embedding_probe_result = None
 
 # Models for the root query endpoint
 class QueryRequest(BaseModel):
@@ -41,14 +58,20 @@ class QueryRequest(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: str
-    sources: List[str] = []
+    sources: List[str] = Field(default_factory=list)
     confidence: Optional[float] = None
+    citations: List[Dict[str, Any]] = Field(default_factory=list)
+    missing_information: List[str] = Field(default_factory=list)
+    follow_up_questions: List[str] = Field(default_factory=list)
+    retrieval_confidence: Optional[float] = None
+    retrieval_strategy: Optional[str] = None
+    embedding_model_used: Optional[str] = None
     error: Optional[str] = None
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global rag_pipeline, document_processing_service
-    
+
     # Initialize anti-abuse system
     try:
         from src.utils.database_migration import create_anti_abuse_tables
@@ -97,6 +120,14 @@ async def startup_event():
     if document_processing_service:
         loop = asyncio.get_event_loop()
         loop.create_task(_background_doc_processing())
+
+    try:
+        yield
+    finally:
+        pass
+
+
+app.router.lifespan_context = lifespan
 
 async def _background_doc_processing():
     """Run document processing in background so startup doesn't block."""
@@ -198,17 +229,58 @@ app.include_router(policy_router)
 app.include_router(document_router)
 
 @app.get("/health")
-def health_check():
-    """Health check endpoint with service status"""
-    rag_status = "available" if rag_pipeline else "unavailable"
+async def health_check():
+    """Health check endpoint with real service reachability.
+
+    Reports 'degraded' (HTTP 503) when the RAG pipeline exists but embedding
+    generation is failing — so App Runner can drain a broken instance instead
+    of routing traffic to a service that 401s on every query. The embedding
+    probe is cached for 60s to avoid hammering OpenAI on every health check.
+    """
+    import time
+
+    global _last_embedding_probe, _embedding_probe_result
+
     doc_processing_status = "available" if document_processing_service else "unavailable"
-    return {
-        "status": "ok",
-        "rag_status": rag_status,
-        "document_processing_status": doc_processing_status,
-        "version": "2.0.0",
-        "timestamp": "2025-06-11T08:00:00Z"
-    }
+
+    if not rag_pipeline:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unavailable",
+                "rag_status": "unavailable",
+                "document_processing_status": doc_processing_status,
+                "version": "2.0.0",
+                "detail": "RAG pipeline not initialized",
+            },
+        )
+
+    # Cached probe: avoid calling OpenAI on every health check (App Runner
+    # polls frequently). Refresh every 60 seconds.
+    now = time.time()
+    if _embedding_probe_result is None or (now - _last_embedding_probe) > 60:
+        _last_embedding_probe = now
+        try:
+            await rag_pipeline._generate_embeddings_with_fallback(["health"])
+            _embedding_probe_result = "ok"
+        except Exception as e:
+            logger.warning("Health check embedding probe failed: %s", e)
+            _embedding_probe_result = f"failed: {e}"
+
+    rag_status = "available" if _embedding_probe_result == "ok" else "degraded"
+    overall = "ok" if rag_status == "available" else "degraded"
+    status_code = 200 if overall == "ok" else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": overall,
+            "rag_status": rag_status,
+            "embedding_probe": _embedding_probe_result,
+            "document_processing_status": doc_processing_status,
+            "version": "2.0.0",
+        },
+    )
 
 @app.post("/query")
 async def query_documents(request: QueryRequest):
@@ -228,7 +300,7 @@ async def query_documents(request: QueryRequest):
             )
         
         # Normalize filters: mobile sends document_id (singular), backend expects document_ids (plural list)
-        filters = request.filters
+        filters = dict(request.filters) if request.filters else None
         if filters and "document_id" in filters and "document_ids" not in filters:
             doc_id = filters.pop("document_id")
             if doc_id:
@@ -255,10 +327,22 @@ async def query_documents(request: QueryRequest):
                 answer = inner_result.get("answer", "I couldn't find a specific answer to your question.")
                 sources = inner_result.get("sources", [])
                 confidence = inner_result.get("confidence")
+                citations = inner_result.get("citations", [])
+                missing_information = inner_result.get("missing_information", [])
+                follow_up_questions = inner_result.get("follow_up_questions", [])
+                retrieval_confidence = inner_result.get("retrieval_confidence")
+                retrieval_strategy = inner_result.get("retrieval_strategy")
+                embedding_model_used = inner_result.get("embedding_model_used")
             else:
                 answer = result.get("answer", "I couldn't find a specific answer to your question.")
                 sources = result.get("sources", [])
                 confidence = result.get("confidence")
+                citations = result.get("citations", [])
+                missing_information = result.get("missing_information", [])
+                follow_up_questions = result.get("follow_up_questions", [])
+                retrieval_confidence = result.get("retrieval_confidence")
+                retrieval_strategy = result.get("retrieval_strategy")
+                embedding_model_used = result.get("embedding_model_used")
             
             # Format sources for mobile app
             formatted_sources = []
@@ -280,6 +364,14 @@ async def query_documents(request: QueryRequest):
                 answer=answer,
                 sources=formatted_sources,
                 confidence=confidence
+                if confidence is not None
+                else None,
+                citations=citations,
+                missing_information=missing_information,
+                follow_up_questions=follow_up_questions,
+                retrieval_confidence=retrieval_confidence,
+                retrieval_strategy=retrieval_strategy,
+                embedding_model_used=embedding_model_used,
             )
         
         # Fallback if result format is unexpected

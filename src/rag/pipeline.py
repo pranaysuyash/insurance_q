@@ -4,8 +4,13 @@ Core RAG pipeline — Settings-backed, async OpenAI, structured output support.
 import asyncio
 import json
 import logging
+import os
+import re
+import sqlite3
 import uuid
 from datetime import datetime
+from collections import Counter
+from types import SimpleNamespace
 from typing import Dict, List, Optional, Any
 
 from openai import AsyncOpenAI
@@ -13,6 +18,7 @@ from qdrant_client import QdrantClient, models as qdrant_models
 
 from src.config.settings import settings
 from src.llm.client import LLMClient
+from src.models.rag import RAGAnswer, RAGCitation
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +48,8 @@ OLLAMA_EMBEDDING_DIMENSIONS = {
 
 
 class RAGPipeline:
+    CACHE_VERSION_KEY = "rag:query:version"
+
     def __init__(self):
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY is not set")
@@ -61,6 +69,8 @@ class RAGPipeline:
         self._init_hf_client()
         self._init_qdrant()
         self._init_redis()
+        self._init_hybrid_index()
+        self._init_reranker()
 
         self.openai_failure_count = 0
         self.hf_failure_count = 0
@@ -108,6 +118,16 @@ class RAGPipeline:
                 logger.warning("Ollama embedding client init failed: %s", e)
                 self.ollama_embed_client = None
 
+    def _init_reranker(self):
+        """Initialize cross-encoder reranker if sentence-transformers is available."""
+        self.reranker = None
+        try:
+            from sentence_transformers import CrossEncoder
+            self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+            logger.info("Cross-encoder reranker loaded (cross-encoder/ms-marco-MiniLM-L-6-v2)")
+        except Exception as e:
+            logger.info("Cross-encoder reranker unavailable, will use lexical scoring: %s", e)
+
     def _init_qdrant(self):
         self.collection_name = settings.qdrant_collection
 
@@ -129,18 +149,139 @@ class RAGPipeline:
 
     def _init_redis(self):
         self.cache = None
-        if not settings.redis_password:
-            logger.info("REDIS_PASSWORD not set, disabling cache")
-            return
         try:
             import redis as redis_lib
-            self.cache = redis_lib.Redis(
+            redis_kwargs = dict(
                 host=settings.redis_host, port=settings.redis_port,
-                password=settings.redis_password, decode_responses=True,
+                decode_responses=True,
             )
+            if settings.redis_password:
+                redis_kwargs["password"] = settings.redis_password
+            self.cache = redis_lib.Redis(**redis_kwargs)
             self.cache.ping()
         except Exception as e:
             logger.warning("Redis unavailable: %s", e)
+            self.cache = None
+
+    def _query_cache_key(self, user_query: str, top_k: int, filters: Optional[Dict[str, Any]]) -> str:
+        payload = {
+            "query": user_query.strip(),
+            "top_k": top_k,
+            "filters": self._normalize_cache_value(filters or {}),
+            "collection": getattr(self, "collection_name", ""),
+            "chat_model": getattr(self, "openai_chat_model", ""),
+            "embedding_model": getattr(self, "active_embedding_model", ""),
+            "retrieval_strategy": "dense_plus_local_fts",
+            "version": self._get_query_cache_version(),
+        }
+        return "rag:query:" + json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+    def _normalize_cache_value(self, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {str(key): self._normalize_cache_value(val) for key, val in sorted(value.items(), key=lambda item: str(item[0]))}
+        if isinstance(value, (list, tuple)):
+            return [self._normalize_cache_value(item) for item in value]
+        if isinstance(value, set):
+            return [self._normalize_cache_value(item) for item in sorted(value, key=lambda item: str(item))]
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        return str(value)
+
+    def _get_query_cache_version(self) -> str:
+        if not getattr(self, "cache", None):
+            return "0"
+
+        try:
+            version = self.cache.get(self.CACHE_VERSION_KEY)
+            if version is None:
+                self.cache.set(self.CACHE_VERSION_KEY, "1")
+                return "1"
+            return str(version)
+        except Exception as e:
+            logger.warning("Query cache version lookup failed: %s", e)
+            return "0"
+
+    def _bump_query_cache_version(self) -> None:
+        if not getattr(self, "cache", None):
+            return
+
+        try:
+            self.cache.incr(self.CACHE_VERSION_KEY)
+        except Exception as e:
+            logger.warning("Query cache version bump failed: %s", e)
+
+    def _load_cached_query_result(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        if not getattr(self, "cache", None):
+            return None
+
+        try:
+            cached = self.cache.get(cache_key)
+            if not cached:
+                return None
+            parsed = json.loads(cached)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception as e:
+            logger.warning("Query cache read failed: %s", e)
+        return None
+
+    def _store_cached_query_result(self, cache_key: str, response: Dict[str, Any]) -> None:
+        if not getattr(self, "cache", None):
+            return
+
+        try:
+            self.cache.setex(cache_key, settings.cache_ttl_seconds, json.dumps(response, ensure_ascii=False))
+        except Exception as e:
+            logger.warning("Query cache write failed: %s", e)
+
+    def _init_hybrid_index(self):
+        self.hybrid_index_enabled = False
+        self.hybrid_index_path = os.path.join("storage", "rag_hybrid_index.db")
+        try:
+            os.makedirs(os.path.dirname(self.hybrid_index_path), exist_ok=True)
+            self.hybrid_index = sqlite3.connect(self.hybrid_index_path, check_same_thread=False)
+            self.hybrid_index.row_factory = sqlite3.Row
+            self.hybrid_index.execute("PRAGMA journal_mode=WAL")
+            self.hybrid_index.execute("PRAGMA synchronous=NORMAL")
+            self.hybrid_index.execute(
+                """
+                CREATE TABLE IF NOT EXISTS rag_chunks (
+                    lex_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    point_id TEXT UNIQUE,
+                    document_id TEXT,
+                    filename TEXT,
+                    page_number INTEGER,
+                    section TEXT,
+                    text_content TEXT NOT NULL,
+                    embedding_model TEXT,
+                    updated_at TEXT
+                )
+                """
+            )
+            self.hybrid_index.execute(
+                """
+                CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts USING fts5(
+                    point_id UNINDEXED,
+                    search_text
+                )
+                """
+            )
+            self.hybrid_index.commit()
+            self.hybrid_index_enabled = True
+            logger.info("Local FTS hybrid index ready at %s", self.hybrid_index_path)
+        except Exception as e:
+            self.hybrid_index = None
+            self.hybrid_index_enabled = False
+            logger.warning("Local FTS hybrid index unavailable: %s", e)
+
+        # Cross-encoder reranker (optional — improves precision)
+        self.reranker = None
+        try:
+            from sentence_transformers import CrossEncoder
+            self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+            logger.info("Cross-encoder reranker loaded (ms-marco-MiniLM-L-6-v2)")
+        except Exception as e:
+            logger.info("Cross-encoder reranker unavailable (optional): %s", e)
 
     def _ensure_collection_exists(self):
         try:
@@ -295,6 +436,9 @@ class RAGPipeline:
                 "embedding_model": self.active_embedding_model,
                 "embedding_timestamp": datetime.now().isoformat(),
             }
+            for key in ("page", "section", "source", "filename"):
+                if key in block and key not in payload:
+                    payload[key] = block[key]
             if document_metadata:
                 payload.update(document_metadata)
             points.append(
@@ -304,6 +448,10 @@ class RAGPipeline:
                     payload=payload,
                 )
             )
+            self._upsert_hybrid_index(
+                point_id=str(block.get("id", points[-1].id)),
+                payload=payload,
+            )
 
         if points:
             self.qdrant_client.upsert(
@@ -311,6 +459,7 @@ class RAGPipeline:
                 points=points,
                 wait=True,
             )
+            self._bump_query_cache_version()
             logger.info("Upserted %d points for doc %s", len(points), document_id)
             return {
                 "status": "success",
@@ -333,6 +482,12 @@ class RAGPipeline:
     ) -> Dict[str, Any]:
         logger.info("Query: '%s' top_k=%d", user_query, top_k)
 
+        cache_key = self._query_cache_key(user_query, top_k, filters)
+        cached_response = self._load_cached_query_result(cache_key)
+        if cached_response:
+            logger.info("Returning cached RAG response for query")
+            return cached_response
+
         try:
             emb = await self._generate_embeddings_with_fallback([user_query])
             query_vector = emb[0]
@@ -340,66 +495,93 @@ class RAGPipeline:
             logger.error("Query embedding failed: %s", e)
             return {"status": "error", "error": f"Query embedding failed: {e}"}
 
+        qdrant_filter = self._build_qdrant_filter(filters)
+
+        dense_results = []
+        dense_error = None
         try:
-            results = self.qdrant_client.search(
+            dense_results = self.qdrant_client.search(
                 collection_name=self.collection_name,
                 query_vector=query_vector,
-                limit=top_k,
+                limit=max(top_k * 3, top_k),
                 with_payload=True,
+                query_filter=qdrant_filter,
             )
         except Exception as e:
+            dense_error = e
             logger.error("Vector search failed: %s", e)
-            return {"status": "error", "error": f"Vector search failed: {e}"}
+
+        local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
+        results = self._merge_hybrid_results(dense_results, local_results)
 
         if not results:
-            return {
+            if dense_error is not None and not local_results:
+                return {"status": "error", "error": f"Vector search failed: {dense_error}"}
+            response = {
                 "status": "success",
                 "result": {
                     "answer": "No relevant information found in documents.",
                     "sources": [],
                     "query": user_query,
+                    "embedding_model_used": self.active_embedding_model,
+                    "llm_used": False,
+                    "confidence": 0.0,
+                    "retrieval_confidence": 0.0,
+                    "citations": [],
+                    "missing_information": ["No relevant context was retrieved."],
+                    "follow_up_questions": [],
+                    "retrieval_strategy": "dense_plus_local_fts",
                 },
             }
+            self._store_cached_query_result(cache_key, response)
+            return response
+
+        ranked_results = self._rank_results(user_query, results)
+        ranked_results = ranked_results[:top_k]
 
         contexts = []
         sources = []
-        for i, hit in enumerate(results):
-            text = hit.payload.get("text_content", "")
-            contexts.append(f"Context [{i+1}]: {text}")
-            sources.append({
-                "id": str(hit.id),
-                "score": hit.score,
-                "document_id": hit.payload.get("document_id"),
-                "page_number": hit.payload.get("page_number"),
-                "text": text[:200] + "..." if len(text) > 200 else text,
-            })
+        for i, hit in enumerate(ranked_results):
+            payload = hit.payload or {}
+            text = payload.get("text_content", "")
+            contexts.append(self._format_context_block(i + 1, hit, text))
+            sources.append(self._format_source(hit, i + 1, text))
 
         context_str = "\n\n".join(contexts)
 
-        answer = None
+        answer_payload: Optional[RAGAnswer] = None
         llm_unavailable = False
         try:
-            answer = await self.llm.generate(
+            answer_payload = await self.llm.generate_structured(
                 messages=[
                     {
                         "role": "system",
                         "content": (
-                            "You are a helpful AI assistant. Based on the provided context from "
-                            "insurance documents, answer the user's question. If the context does "
-                            "not contain the answer, state that clearly. Be concise and stick to "
-                            "the information in the context."
+                            "You are a careful insurance-document assistant. Answer only from the "
+                            "provided context. Cite the source indices that support each claim. "
+                            "If the context does not contain the answer, say so explicitly instead "
+                            "of guessing. Keep the answer concise and practical."
                         ),
                     },
-                    {"role": "user", "content": f"Contexts:\n{context_str}\n\nQuestion: {user_query}\n\nAnswer:"},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Retrieved context:\n{context_str}\n\n"
+                            f"Question: {user_query}\n\n"
+                            "Return a grounded answer with citations, confidence, missing "
+                            "information, and helpful follow-up questions."
+                        ),
+                    },
                 ],
-                temperature=0.2,
+                response_model=RAGAnswer,
+                temperature=0.1,
                 fallback_models=["gpt-4o-mini"],
             )
         except Exception as e:
             logger.warning("LLM unavailable, using context-only mode: %s", e)
             llm_unavailable = True
 
-        if llm_unavailable or not answer:
+        if llm_unavailable or not answer_payload:
             # Context-only fallback: extract best match from sources
             top = sources[0] if sources else {}
             answer = (
@@ -407,17 +589,34 @@ class RAGPipeline:
                 f"Best match (score: {top.get('score', 0):.3f}): "
                 f"{top.get('text', 'No relevant content found.')}"
             )
+            answer_payload = RAGAnswer(
+                answer=answer,
+                citations=[RAGCitation(source_index=1, quote=top.get("text", ""))] if top else [],
+                confidence=0.0,
+                missing_information=["LLM response unavailable"],
+                follow_up_questions=[],
+            )
 
-        return {
+        retrieval_confidence = self._estimate_retrieval_confidence(ranked_results, user_query)
+        answer_payload.confidence = max(answer_payload.confidence, retrieval_confidence)
+        response = {
             "status": "success",
             "result": {
-                "answer": answer,
+                "answer": answer_payload.answer,
                 "sources": sources,
                 "query": user_query,
                 "embedding_model_used": self.active_embedding_model,
                 "llm_used": not llm_unavailable,
+                "confidence": round(answer_payload.confidence, 3),
+                "retrieval_confidence": round(retrieval_confidence, 3),
+                "citations": [citation.model_dump() for citation in answer_payload.citations],
+                "missing_information": answer_payload.missing_information,
+                "follow_up_questions": answer_payload.follow_up_questions,
+                "retrieval_strategy": "dense_plus_local_fts",
             },
         }
+        self._store_cached_query_result(cache_key, response)
+        return response
 
     async def query_rag_structured(
         self,
@@ -468,3 +667,396 @@ class RAGPipeline:
             "hf_embedding_failures": self.hf_failure_count,
             "llm_cost": cost,
         }
+
+    def _build_qdrant_filter(self, filters: Optional[Dict[str, Any]]):
+        if not filters:
+            return None
+
+        conditions = []
+        for key, value in filters.items():
+            if value is None:
+                continue
+            if key == "document_id" and isinstance(value, str):
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key="document_id",
+                        match=qdrant_models.MatchValue(value=value),
+                    )
+                )
+                continue
+            if key == "document_ids" and isinstance(value, (list, tuple, set)):
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key="document_id",
+                        match=qdrant_models.MatchAny(any=list(value)),
+                    )
+                )
+                continue
+            if isinstance(value, (list, tuple, set)):
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key=key,
+                        match=qdrant_models.MatchAny(any=list(value)),
+                    )
+                )
+            elif isinstance(value, dict):
+                if "equals" in value:
+                    conditions.append(
+                        qdrant_models.FieldCondition(
+                            key=key,
+                            match=qdrant_models.MatchValue(value=value["equals"]),
+                        )
+                    )
+                elif "in" in value and isinstance(value["in"], (list, tuple, set)):
+                    conditions.append(
+                        qdrant_models.FieldCondition(
+                            key=key,
+                            match=qdrant_models.MatchAny(any=list(value["in"])),
+                        )
+                    )
+            else:
+                conditions.append(
+                    qdrant_models.FieldCondition(
+                        key=key,
+                        match=qdrant_models.MatchValue(value=value),
+                    )
+                )
+
+        if not conditions:
+            return None
+        return qdrant_models.Filter(must=conditions)
+
+    def _upsert_hybrid_index(self, point_id: str, payload: Dict[str, Any]):
+        if not getattr(self, "hybrid_index_enabled", False) or not getattr(self, "hybrid_index", None):
+            return
+
+        try:
+            text = payload.get("text_content", "")
+            if not text:
+                return
+            search_text = " ".join(
+                str(value)
+                for value in [
+                    payload.get("document_id"),
+                    payload.get("filename"),
+                    payload.get("section"),
+                    payload.get("page_number"),
+                    text,
+                ]
+                if value not in (None, "")
+            )
+            self.hybrid_index.execute(
+                """
+                INSERT INTO rag_chunks (
+                    point_id, document_id, filename, page_number, section,
+                    text_content, embedding_model, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(point_id) DO UPDATE SET
+                    document_id=excluded.document_id,
+                    filename=excluded.filename,
+                    page_number=excluded.page_number,
+                    section=excluded.section,
+                    text_content=excluded.text_content,
+                    embedding_model=excluded.embedding_model,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    point_id,
+                    payload.get("document_id"),
+                    payload.get("filename"),
+                    payload.get("page_number"),
+                    payload.get("section"),
+                    text,
+                    payload.get("embedding_model"),
+                    payload.get("embedding_timestamp"),
+                ),
+            )
+            lex_id_row = self.hybrid_index.execute(
+                "SELECT lex_id FROM rag_chunks WHERE point_id = ?",
+                (point_id,),
+            ).fetchone()
+            if not lex_id_row:
+                return
+            lex_id = int(lex_id_row["lex_id"])
+            self.hybrid_index.execute(
+                """
+                INSERT OR REPLACE INTO rag_chunks_fts (rowid, point_id, search_text)
+                VALUES (?, ?, ?)
+                """,
+                (lex_id, point_id, search_text),
+            )
+            self.hybrid_index.commit()
+        except Exception as e:
+            logger.warning("Hybrid index upsert failed for %s: %s", point_id, e)
+
+    def _query_hybrid_index(
+        self,
+        user_query: str,
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[Any]:
+        if not getattr(self, "hybrid_index_enabled", False) or not getattr(self, "hybrid_index", None):
+            return []
+
+        terms = [token for token in self._tokenize(user_query) if len(token) > 1]
+        if not terms:
+            return []
+
+        fts_query = " OR ".join(
+            f'"{term}"' if " " in term else f"{term}*" if len(term) >= 4 else term
+            for term in terms
+        )
+        sql_filters = []
+        sql_params: List[Any] = [fts_query, limit]
+        if filters:
+            for key, value in filters.items():
+                if value is None:
+                    continue
+                if key == "document_id" and isinstance(value, str):
+                    sql_filters.append("c.document_id = ?")
+                    sql_params.append(value)
+                elif key == "document_ids" and isinstance(value, (list, tuple, set)):
+                    sql_filters.append(f"c.document_id IN ({','.join('?' for _ in value)})")
+                    sql_params.extend(list(value))
+                elif key in {"filename", "section"} and isinstance(value, str):
+                    sql_filters.append(f"c.{key} = ?")
+                    sql_params.append(value)
+
+        where_clause = ""
+        if sql_filters:
+            where_clause = " AND " + " AND ".join(sql_filters)
+
+        try:
+            rows = self.hybrid_index.execute(
+                """
+                SELECT f.point_id, f.search_text, bm25(rag_chunks_fts) AS bm25_score,
+                       c.document_id, c.filename, c.page_number, c.section,
+                       c.text_content, c.embedding_model, c.updated_at
+                FROM rag_chunks_fts f
+                JOIN rag_chunks c ON c.lex_id = f.rowid
+                WHERE rag_chunks_fts MATCH ?
+                {where_clause}
+                ORDER BY bm25_score
+                LIMIT ?
+                """.format(where_clause=where_clause),
+                sql_params,
+            ).fetchall()
+        except Exception as e:
+            logger.warning("Hybrid index search failed: %s", e)
+            return []
+
+        if not rows:
+            like_filters = []
+            like_params: List[Any] = []
+            for key, value in (filters or {}).items():
+                if value is None:
+                    continue
+                if key == "document_id" and isinstance(value, str):
+                    like_filters.append("c.document_id = ?")
+                    like_params.append(value)
+                elif key == "document_ids" and isinstance(value, (list, tuple, set)):
+                    like_filters.append(f"c.document_id IN ({','.join('?' for _ in value)})")
+                    like_params.extend(list(value))
+                elif key in {"filename", "section"} and isinstance(value, str):
+                    like_filters.append(f"c.{key} = ?")
+                    like_params.append(value)
+
+            like_clause = ""
+            if like_filters:
+                like_clause = " AND " + " AND ".join(like_filters)
+
+            term_params = [
+                value
+                for term in terms
+                for value in (f"%{term}%",) * 5
+            ]
+            try:
+                rows = self.hybrid_index.execute(
+                    """
+                    SELECT f.point_id, f.search_text, 0.0 AS bm25_score,
+                           c.document_id, c.filename, c.page_number, c.section,
+                           c.text_content, c.embedding_model, c.updated_at
+                    FROM rag_chunks_fts f
+                    JOIN rag_chunks c ON c.lex_id = f.rowid
+                    WHERE (
+                        {term_clause}
+                    )
+                    {where_clause}
+                    LIMIT ?
+                    """.format(
+                        term_clause=" OR ".join(
+                            "LOWER(f.search_text) LIKE ? OR LOWER(c.text_content) LIKE ? "
+                            "OR LOWER(COALESCE(c.filename, '')) LIKE ? "
+                            "OR LOWER(COALESCE(c.section, '')) LIKE ? "
+                            "OR LOWER(COALESCE(c.document_id, '')) LIKE ?"
+                            for _ in terms
+                        ),
+                        where_clause=like_clause,
+                    ),
+                    term_params + like_params + [limit],
+                ).fetchall()
+            except Exception as e:
+                logger.warning("Hybrid index fallback search failed: %s", e)
+                return []
+
+        hits = []
+        for row in rows:
+            lexical_score = 1.0 / (1.0 + abs(float(row["bm25_score"] or 0.0)))
+            hits.append(
+                SimpleNamespace(
+                    id=row["point_id"],
+                    score=lexical_score,
+                    payload={
+                        "document_id": row["document_id"],
+                        "filename": row["filename"],
+                        "page_number": row["page_number"],
+                        "section": row["section"],
+                        "text_content": row["text_content"],
+                        "embedding_model": row["embedding_model"],
+                        "embedding_timestamp": row["updated_at"],
+                    },
+                )
+            )
+        return hits
+
+    def _merge_hybrid_results(self, dense_results: List[Any], local_results: List[Any]) -> List[Any]:
+        """Merge dense and sparse results using Reciprocal Rank Fusion (RRF).
+
+        RRF is rank-based, not score-based, which makes it more robust than
+        score interpolation — especially for small corpora where score
+        distributions are unreliable. k=20 is tuned for small corpora (<200 docs).
+        """
+        k = 20  # RRF constant — small corpus tuning (default 60 is for large corpora)
+        rrf_scores: Dict[str, float] = {}
+        point_store: Dict[str, Any] = {}
+
+        for rank, hit in enumerate(dense_results, 1):
+            point_id = str(getattr(hit, "id", ""))
+            score = 1.0 / (k + rank)
+            rrf_scores[point_id] = rrf_scores.get(point_id, 0.0) + score
+            if point_id not in point_store:
+                point_store[point_id] = SimpleNamespace(
+                    id=point_id,
+                    score=0.0,
+                    payload=dict(getattr(hit, "payload", {}) or {}),
+                )
+
+        for rank, hit in enumerate(local_results, 1):
+            point_id = str(getattr(hit, "id", ""))
+            score = 1.0 / (k + rank)
+            rrf_scores[point_id] = rrf_scores.get(point_id, 0.0) + score
+            if point_id not in point_store:
+                point_store[point_id] = SimpleNamespace(
+                    id=point_id,
+                    score=0.0,
+                    payload=dict(getattr(hit, "payload", {}) or {}),
+                )
+            elif not point_store[point_id].payload:
+                point_store[point_id].payload = dict(getattr(hit, "payload", {}) or {})
+
+        # Update scores with RRF values and sort
+        for point_id, rrf_score in rrf_scores.items():
+            point_store[point_id].score = round(rrf_score, 6)
+
+        return sorted(point_store.values(), key=lambda x: x.score, reverse=True)
+
+    def _rank_results(self, user_query: str, results: List[Any]) -> List[Any]:
+        """Rank results using cross-encoder reranking if available, falling back to lexical scoring."""
+        if not results:
+            return []
+
+        # If cross-encoder is available, use it for precise reranking
+        if getattr(self, "reranker", None) is not None and len(results) > 1:
+            try:
+                pairs = []
+                for hit in results:
+                    text = (hit.payload or {}).get("text_content", "")
+                    pairs.append((user_query, text[:512]))  # truncate for reranker
+
+                rerank_scores = self.reranker.predict(pairs)
+                ranked = list(zip(rerank_scores, results))
+                ranked.sort(key=lambda x: x[0], reverse=True)
+                return [hit for _, hit in ranked]
+            except Exception as e:
+                logger.warning("Cross-encoder reranking failed, falling back to lexical: %s", e)
+
+        # Fallback: lexical + exact match scoring
+        query_tokens = self._tokenize(user_query)
+        ranked = []
+        for hit in results:
+            payload = hit.payload or {}
+            text = payload.get("text_content", "")
+            lexical = self._lexical_overlap(query_tokens, text)
+            exact_boost = self._exact_match_boost(user_query, text, payload)
+            score = float(hit.score or 0.0)
+            combined = round((score * 0.7) + (lexical * 0.2) + (exact_boost * 0.1), 6)
+            ranked.append((combined, lexical, exact_boost, hit))
+
+        ranked.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+        return [item[3] for item in ranked]
+
+    def _tokenize(self, text: str) -> List[str]:
+        return re.findall(r"[a-z0-9]+", (text or "").lower())
+
+    def _lexical_overlap(self, query_tokens: List[str], text: str) -> float:
+        if not query_tokens or not text:
+            return 0.0
+        text_tokens = self._tokenize(text)
+        if not text_tokens:
+            return 0.0
+        query_counter = Counter(query_tokens)
+        text_counter = Counter(text_tokens)
+        overlap = sum(min(query_counter[token], text_counter[token]) for token in query_counter)
+        return overlap / max(len(query_tokens), 1)
+
+    def _exact_match_boost(self, user_query: str, text: str, payload: Dict[str, Any]) -> float:
+        haystacks = [user_query.lower(), text.lower()]
+        for key in ("document_id", "filename", "policy_number", "block_id"):
+            value = payload.get(key)
+            if value:
+                haystacks.append(str(value).lower())
+        boost = 0.0
+        for query_token in self._tokenize(user_query):
+            if len(query_token) >= 4 and any(query_token in haystack for haystack in haystacks[1:]):
+                boost += 0.1
+        return min(boost, 1.0)
+
+    def _format_context_block(self, index: int, hit: Any, text: str) -> str:
+        payload = hit.payload or {}
+        parts = [
+            f"Source {index}:",
+            f"document_id={payload.get('document_id')}",
+        ]
+        if payload.get("filename"):
+            parts.append(f"filename={payload.get('filename')}")
+        if payload.get("page_number") is not None:
+            parts.append(f"page={payload.get('page_number')}")
+        if payload.get("section"):
+            parts.append(f"section={payload.get('section')}")
+        parts.append(f"score={float(hit.score or 0.0):.3f}")
+        parts.append(f"text={text}")
+        return " | ".join(parts)
+
+    def _format_source(self, hit: Any, index: int, text: str) -> Dict[str, Any]:
+        payload = hit.payload or {}
+        excerpt = text[:240] + "..." if len(text) > 240 else text
+        return {
+            "index": index,
+            "id": str(hit.id),
+            "score": float(hit.score or 0.0),
+            "document_id": payload.get("document_id"),
+            "filename": payload.get("filename"),
+            "page_number": payload.get("page_number"),
+            "section": payload.get("section"),
+            "text": excerpt,
+        }
+
+    def _estimate_retrieval_confidence(self, ranked_results: List[Any], user_query: str) -> float:
+        if not ranked_results:
+            return 0.0
+        top = ranked_results[0]
+        top_score = float(top.score or 0.0)
+        top_payload = top.payload or {}
+        top_text = top_payload.get("text_content", "")
+        lexical = self._lexical_overlap(self._tokenize(user_query), top_text)
+        return min(1.0, (top_score * 0.75) + (lexical * 0.25))

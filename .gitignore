@@ -56,6 +56,7 @@ logs/
 data/
 qdrant_data/
 redis_data/
+storage/rag_hybrid_index.db
 
 # OS specific
 .DS_Store
@@ -96,7 +97,9 @@ mobile/android/app/release
 local.properties
 proguard/
 *.keystore
+*.jks
 !debug.keystore
+key.properties
 
 # iOS specific
 mobile/ios/Pods/

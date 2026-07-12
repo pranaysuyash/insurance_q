@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/document_model.dart';
+import '../utils/document_icons.dart';
 
 class DocumentSelectionDialog extends StatelessWidget {
   final List<InsuranceDocument> documents;
@@ -140,23 +141,9 @@ class DocumentSelectionDialog extends StatelessWidget {
   }
   
   Widget _getDocumentIcon(String? documentType) {
-    if (documentType == null) {
-      return const Icon(Icons.description);
-    }
-    
-    switch (documentType.toLowerCase()) {
-      case 'health insurance':
-        return const Icon(Icons.health_and_safety, color: Colors.red);
-      case 'auto insurance':
-        return const Icon(Icons.directions_car, color: Colors.blue);
-      case 'life insurance':
-        return const Icon(Icons.favorite, color: Colors.pink);
-      case 'home insurance':
-        return const Icon(Icons.home, color: Colors.brown);
-      case 'travel insurance':
-        return const Icon(Icons.flight, color: Colors.orange);
-      default:
-        return const Icon(Icons.description);
-    }
+    return Icon(
+      iconForDocumentType(documentType),
+      color: colorForDocumentType(documentType),
+    );
   }
 } 

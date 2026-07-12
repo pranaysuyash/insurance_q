@@ -1,6 +1,11 @@
 #!/bin/bash
 set -ex
 
+# Load secrets from .env if present (never hardcode secrets in this file)
+if [ -f .env ]; then set -a; source .env; set +a; fi
+: "${OPENAI_API_KEY:?OPENAI_API_KEY must be set in .env or environment}"
+: "${QDRANT_API_KEY:?QDRANT_API_KEY must be set in .env or environment}"
+
 echo "🚀 AWS ECS Fargate Deployment for Insurance App"
 echo "==============================================="
 
@@ -166,9 +171,9 @@ cat > task-definition.json << EOF
       ],
       "environment": [
         { "name": "PORT", "value": "8000" },
-        { "name": "OPENAI_API_KEY", "value": "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" },
+        { "name": "OPENAI_API_KEY", "value": "$OPENAI_API_KEY" },
         { "name": "QDRANT_URL", "value": "https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333" },
-        { "name": "QDRANT_API_KEY", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ" },
+        { "name": "QDRANT_API_KEY", "value": "$QDRANT_API_KEY" },
         { "name": "PYTHONPATH", "value": "/app" },
         { "name": "REDIS_HOST", "value": "$REDIS_ENDPOINT" },
         { "name": "REDIS_PORT", "value": "6379" },

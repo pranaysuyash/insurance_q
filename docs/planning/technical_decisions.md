@@ -107,6 +107,51 @@ This document captures specific technical decisions, issue resolutions, and arch
   * Better user experience with richer document information
   * Allows for future integration of sorting and filtering
 
+### Decision: Mobile Document Storage and Sync Semantics
+* **Context:** The mobile app was persisting documents in SharedPreferences and deleting the oldest record automatically when the user exceeded the limit.
+* **Options Considered:**
+  1. Keep SharedPreferences as the document store and auto-delete oldest entries.
+  2. Move documents to a typed local store and reject over-limit uploads explicitly.
+* **Decision:** Moved document persistence to a Hive-backed document box, added remote/local ID separation, and changed the upload limit behavior to explicit rejection.
+* **Rationale:**
+  * Preserves user data instead of silently deleting it.
+  * Makes local/offline documents distinguishable from synced backend records.
+  * Provides a clean migration path from the legacy SharedPreferences list.
+* **Consequences:**
+  * The storage path now needs initialization during app startup and tests.
+  * A document can exist locally before it is queryable remotely.
+  * The UI can now show honest pending/queued states instead of implying a successful sync.
+
+### Decision: Mobile QA Failure Semantics
+* **Context:** The mobile app returned hardcoded policy answers whenever backend query processing failed.
+* **Options Considered:**
+  1. Keep the fallback policy answers for all failures.
+  2. Restrict hardcoded answers to the demo flavor and return explicit unavailable states in production.
+* **Decision:** Production QA now returns an explicit unavailable state; demo answers remain available only behind the bootstrap demo flag.
+* **Rationale:**
+  * Avoids fabricated insurance answers in production flows.
+  * Preserves a safer demo path without conflating it with the real product.
+  * Keeps answer provenance visible for future grounded-answer UX.
+* **Consequences:**
+  * QA screens must handle unavailable states directly.
+  * The app is no longer pretending that failed network calls are policy answers.
+  * Structured metadata such as citations and retrieval confidence can now be preserved end to end.
+
+### Decision: Mobile Operational State Storage
+* **Context:** The mobile app was still using SharedPreferences as a lightweight database for selected document state, recent questions, last-uploaded document state, and deletion history.
+* **Options Considered:**
+  1. Keep the preference-based state model and continue extending it.
+  2. Move operational state to the same Hive-backed storage layer used for documents.
+* **Decision:** Moved operational state to a Hive-backed app-state box and removed the SharedPreferences provider from the app bootstrap.
+* **Rationale:**
+  * Keeps the app’s active state in one typed local store.
+  * Avoids parallel truth sources for document selection, recent questions, and activity history.
+  * Preserves only a narrow legacy migration bridge for old document lists.
+* **Consequences:**
+  * The mobile app now has a coherent local state model for documents and app metadata.
+  * SharedPreferences is no longer the runtime source of truth for operational state.
+  * Legacy migration code remains only for compatibility with previously stored document lists.
+
 ## Backend Architecture
 
 ### Decision: Service Separation
@@ -139,6 +184,37 @@ This document captures specific technical decisions, issue resolutions, and arch
   * Improved performance for respective operations
   * More infrastructure components to maintain
   * Better scalability for each data type
+
+### Decision: Hybrid Retrieval Without Qdrant Sparse Support
+* **Context:** The app needs exact-match retrieval for policy numbers, names, and IDs, but the installed Qdrant client stack in this repo does not expose sparse-vector APIs cleanly.
+* **Options Considered:**
+  1. Upgrade the Qdrant client/runtime stack immediately and wire sparse vectors end to end.
+  2. Add a second retrieval layer that can ship now and still respect first principles.
+* **Decision:** Implemented dense Qdrant search plus a local SQLite FTS candidate index, then reranked the merged candidate set.
+* **Rationale:**
+  * Restores exact-match behavior immediately for policy IDs and names.
+  * Keeps the canonical vector store path intact.
+  * Avoids pretending sparse-vector support exists when the current dependency stack does not expose it.
+* **Consequences:**
+  * Adds a small local retrieval index to maintain.
+  * Creates a clean upgrade path to Qdrant-native sparse vectors later if the stack is upgraded.
+  * Gives us a measurable hybrid retrieval contract now rather than a roadmap-only promise.
+
+### Decision: Versioned Redis Query Cache
+* **Context:** Query answers are expensive enough that repeated questions should avoid recomputing embeddings, search, and LLM output when the document corpus has not changed.
+* **Options Considered:**
+  1. Cache query responses with a static key and manual flushes.
+  2. Skip query caching entirely and pay the retrieval/LLM cost every time.
+  3. Cache query responses behind a corpus-versioned key that is bumped on ingest.
+* **Decision:** Implemented Redis query caching with a versioned cache key and ingest-time invalidation.
+* **Rationale:**
+  * Preserves correctness by invalidating stale answers after new document ingestion.
+  * Avoids manual cache management and hidden stale-answer risk.
+  * Keeps the optimization optional when Redis is unavailable.
+* **Consequences:**
+  * Slightly more moving parts in the RAG pipeline.
+  * Query latency improves for repeated questions on an unchanged corpus.
+  * Cache behavior is now explicit and observable through the version key.
 
 ## Testing & Quality Assurance
 

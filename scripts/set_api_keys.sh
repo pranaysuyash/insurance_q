@@ -1,14 +1,17 @@
 #!/bin/bash
 set -e
 
+# Load secrets from .env if present (never hardcode secrets in this file)
+if [ -f .env ]; then set -a; source .env; set +a; fi
+
 # Configuration
 AZURE_RESOURCE_GROUP="insurance-app-rg"
 RAG_APP_NAME="insurance-rag-app"
 OCR_APP_NAME="insurance-ocr-app"
 
-# API Keys (update these as needed)
-OPENAI_API_KEY="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"
-HF_TOKEN="your-huggingface-token-here"  # Update this if you have a Hugging Face token
+# API Keys: read from environment (set via .env or shell env, never hardcoded)
+: "${OPENAI_API_KEY:?OPENAI_API_KEY must be set in .env or environment}"
+HF_TOKEN="${HF_TOKEN:-your-huggingface-token-here}"  # Update this if you have a Hugging Face token
 
 echo "Setting API keys for deployed Azure services..."
 

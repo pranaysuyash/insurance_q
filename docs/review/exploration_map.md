@@ -113,9 +113,9 @@ One process, one model load, one code path.
 `RAGPipeline`
 - Embedding fallback: `try OpenAI → try Ollama → try local sentence-transformers`
 - Qdrant fallback: `try server → try in-memory`
-- Redis cache: `try connect → disable if fails`
+- Redis cache: `try connect → disable if fails`, used for versioned query-response caching
 - `ingest_document_data()` — async embedding + Qdrant upsert
-- `query_rag()` — embed query → Qdrant search → LLM answer
+- `query_rag()` — versioned cache lookup → embed query → Qdrant search + local FTS fallback → rerank → structured LLM answer with citations, confidence, and filter support
 - `query_rag_structured()` — same + structured output
 - Ollama embedding client (OpenAI-compatible, lazy init)
 

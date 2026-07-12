@@ -1,30 +1,30 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import '../config/app_config.dart';
-import '../services/api_service.dart'; // Assuming ApiService and DuplicateDocumentInfo are here or exported
+import '../providers/service_providers.dart';
+import '../providers/document_providers.dart';
+import '../providers/policy_providers.dart';
 import '../services/contact_service.dart';
 import '../widgets/lead_capture_dialog.dart';
 import '../widgets/usage_stats_widget.dart';
-import 'documents_list.dart'; // For DocumentsListState and potentially DocumentsList widget
+import 'documents_list.dart';
 
-class DocumentsScreen extends StatefulWidget {
+class DocumentsScreen extends ConsumerStatefulWidget {
   const DocumentsScreen({super.key});
   @override
-  State<DocumentsScreen> createState() => _DocumentsScreenState();
+  ConsumerState<DocumentsScreen> createState() => _DocumentsScreenState();
 }
 
-class _DocumentsScreenState extends State<DocumentsScreen> {
+class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   File? _selectedFile;
   bool _isUploading = false;
   String? _uploadError;
-  Map<String, dynamic>? _ocrResult; // Consider creating a typed model for this
-  final ApiService _apiService = ApiService();
-  final GlobalKey<DocumentsListState> _documentsListKey =
-      GlobalKey<DocumentsListState>();
+  Map<String, dynamic>? _ocrResult;
   bool _showUploadDetails = false;
   bool _demoPolicyPreloaded = false;
 
@@ -44,10 +44,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     final byteData = await rootBundle.load('assets/demo/policy.pdf');
     final tempDir = await getTemporaryDirectory();
     final tempFile = File(path.join(tempDir.path, 'policy_demo.pdf'));
-    final bytes = byteData.buffer.asUint8List(
-      byteData.offsetInBytes,
-      byteData.lengthInBytes,
-    );
+    final bytes = byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
     await tempFile.writeAsBytes(bytes, flush: true);
     return tempFile;
   }
@@ -56,62 +53,40 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     setState(() {
       _uploadError = null;
       _ocrResult = null;
-      // _selectedFile = null; // Reset selected file when picking a new one
     });
 
     if (AppConfig.bootstrapPolicyDemo) {
       try {
         final file = await _loadBundledDemoPolicyFile();
         if (!mounted) return;
-        setState(() {
-          _selectedFile = file;
-          _showUploadDetails = true;
-        });
+        setState(() { _selectedFile = file; _showUploadDetails = true; });
         return;
       } catch (e) {
         if (!mounted) return;
-        setState(() {
-          _uploadError = 'Failed to load bundled policy sample: $e';
-        });
+        setState(() => _uploadError = 'Failed to load bundled policy sample: $e');
         return;
       }
     }
 
     final typeGroup = XTypeGroup(
       label: 'Documents',
-      // Only UTI (iOS ignores extensions)
-      uniformTypeIdentifiers: [
-        'com.adobe.pdf',
-        'public.image', // covers jpeg, png, etc.
-      ],
-      // Optional: mimeTypes for Android/web if you ever go there
-      mimeTypes: [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-      ],
+      uniformTypeIdentifiers: ['com.adobe.pdf', 'public.image'],
+      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
     );
 
     final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
-
-    if (file != null) {
-      setState(() {
-        _selectedFile = File(file.path);
-        _showUploadDetails = true; // Show details once a file is picked
-      });
+    if (file != null && mounted) {
+      setState(() { _selectedFile = File(file.path); _showUploadDetails = true; });
     }
   }
 
   Future<void> _uploadFile() async {
     if (_selectedFile == null) return;
 
-    // Check for duplicate documents first
-    // This assumes checkForDuplicateDocument returns a class with 'filename' and 'formattedUploadDate'
-    final duplicate =
-        await _apiService.checkForDuplicateDocument(_selectedFile!);
+    final duplicate = await ref.read(documentServiceProvider).checkForDuplicateDocument(_selectedFile!);
 
     if (duplicate != null && mounted) {
-      final shouldProceed = await showDialog<String?>(
+      final shouldProceed = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Duplicate Document'),
@@ -121,14 +96,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             children: [
               const Text('A similar document already exists:'),
               const SizedBox(height: 8),
-              Text(
-                duplicate
-                    .filename, // Assumes DuplicateDocumentInfo has filename
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              Text(duplicate.filename, style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(
-                  'Uploaded on: ${duplicate.formattedUploadDate}'), // Assumes DuplicateDocumentInfo has formattedUploadDate
+              Text('Uploaded on: ${duplicate.formattedUploadDate}'),
               const SizedBox(height: 16),
               const Text(
                 'Uploading this document will count against your storage limit. Do you want to replace the existing document or keep both?',
@@ -137,52 +107,30 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, 'cancel'),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, 'replace'),
-              child: const Text('Replace'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(
-                  context, 'keep'), // 'keep' or null for keep both
-              child: const Text('Keep Both'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context, 'cancel'), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, 'replace'), child: const Text('Replace')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, 'keep'), child: const Text('Keep Both')),
           ],
         ),
       );
 
-      if (shouldProceed == 'cancel' || shouldProceed == null && mounted) {
-        // if dialog dismissed
-        return;
-      }
+      if (shouldProceed == 'cancel' || shouldProceed == null) return;
 
       if (shouldProceed == 'replace' && mounted) {
-        setState(() {
-          _isUploading = true;
-        });
-
-        // Assumes deleteDocument takes the ID from DuplicateDocumentInfo
-        final deleted = await _apiService.deleteDocument(duplicate.id);
+        setState(() => _isUploading = true);
+        final deleted = await ref.read(documentServiceProvider).deleteDocument(duplicate.id);
         if (!deleted && mounted) {
-          setState(() {
-            _isUploading = false;
-            _uploadError = 'Failed to delete existing document';
-          });
+          setState(() { _isUploading = false; _uploadError = 'Failed to delete existing document'; });
           return;
         }
       }
-      // If "Keep Both" was selected (shouldProceed is 'keep'), continue with upload
     }
 
-    if (!mounted) return; // Check if the widget is still in the tree
+    if (!mounted) return;
 
-    // Show lead capture dialog
     final savedContact = await ContactService.getSavedContact();
     if (!mounted) return;
-    final leadInfo = await showDialog<Map<String, dynamic>?>(
+    final leadInfo = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => LeadCaptureDialog(
         initialEmail: savedContact['email'],
@@ -191,35 +139,22 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ),
     );
 
-    if (leadInfo == null && mounted) {
-      // User cancelled the dialog
-      return;
-    }
+    if (leadInfo == null && mounted) return;
 
-    // Save contact info if requested
     if (leadInfo != null && leadInfo['save'] == true) {
-      await ContactService.saveContact(
-        email: leadInfo['email'],
-        phone: leadInfo['phone'],
-        saveForFuture: true,
-      );
+      await ContactService.saveContact(email: leadInfo['email'], phone: leadInfo['phone'], saveForFuture: true);
     }
 
-    setState(() {
-      _isUploading = true;
-      _uploadError = null;
-      _ocrResult = null;
-    });
+    setState(() { _isUploading = true; _uploadError = null; _ocrResult = null; });
 
     try {
-      final result = await _apiService.uploadDocumentWithLimitCheck(
+      final result = await ref.read(documentServiceProvider).uploadDocumentWithLimitCheck(
         _selectedFile!,
         email: leadInfo?['email'],
         phone: leadInfo?['phone'],
       );
 
       if (mounted) {
-        // Check for rate limit error
         if (result['error'] == 'rate_limit_exceeded') {
           await showDialog(
             context: context,
@@ -228,124 +163,93 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               retryAfter: result['retry_after'],
             ),
           );
-          setState(() {
-            _uploadError = result['message'];
-          });
+          setState(() => _uploadError = result['message']);
           return;
         }
 
-        setState(() {
-          _ocrResult = result;
-        });
-        _refreshDocumentsList(); // Refresh the list after successful upload
+        if (result['error'] == 'storage_limit_reached') {
+          setState(() {
+            _uploadError = result['message'] ?? 'You have reached the document storage limit.';
+            _isUploading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_uploadError!), backgroundColor: Colors.orange),
+          );
+          return;
+        }
 
-        final isOfflineMode = result['offline_mode'] == true;
-        final message = isOfflineMode
-            ? '${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully (offline mode)'
-            : '${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully!';
+        setState(() => _ocrResult = result);
+        ref.invalidate(documentsListProvider);
+
+        // Fetch policy summary from backend (single API call)
+        final documentId = result['document_id']?.toString();
+        final documentType = result['document_type']?.toString() ?? 'Unknown';
+        final isOfflineFlag = result['offline_mode'] == true;
+        if (documentId != null && !isOfflineFlag) {
+          ref.read(policySummariesProvider.notifier).fetchFromBackend(documentId, documentType);
+        }
+
+        final isOfflineModeFlag = isOfflineFlag;
+        final isQueuedOnly = result['status'] == 'pending_upload';
+        final message = isQueuedOnly
+            ? '${_selectedFile?.path.split('/').last ?? 'Document'} saved locally; sync pending'
+            : isOfflineModeFlag
+                ? '${_selectedFile?.path.split('/').last ?? 'Document'} saved locally (offline mode)'
+                : '${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully!';
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: isOfflineMode ? Colors.orange : null,
-          ),
+          SnackBar(content: Text(message), backgroundColor: (isOfflineModeFlag || isQueuedOnly) ? Colors.orange : null),
         );
 
-        setState(() {
-          // Reset UI for next upload
-          _selectedFile = null;
-          _showUploadDetails = false;
-        });
+        setState(() { _selectedFile = null; _showUploadDetails = false; });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _uploadError = e.toString();
-        });
-      }
+      if (mounted) setState(() => _uploadError = e.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-        });
-      }
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
   void _clearSelection() {
-    setState(() {
-      _selectedFile = null;
-      _ocrResult = null;
-      _uploadError = null;
-      _showUploadDetails = false;
-    });
-  }
-
-  void _refreshDocumentsList() {
-    _documentsListKey.currentState?.loadDocuments();
+    setState(() { _selectedFile = null; _ocrResult = null; _uploadError = null; _showUploadDetails = false; });
   }
 
   Future<void> _refreshDocumentTypes() async {
-    setState(() {
-      _isUploading = true;
-    });
-
+    setState(() => _isUploading = true);
     try {
-      // Show loading message
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Refreshing document types...'),
-          duration: Duration(seconds: 2),
-        ),
+        const SnackBar(content: Text('Refreshing document types...'), duration: Duration(seconds: 2)),
       );
-
-      // Refresh document types
-      await _apiService.refreshAllDocumentTypes();
-
-      // Refresh the documents list
-      await _documentsListKey.currentState?.loadDocuments();
+      await ref.read(documentServiceProvider).refreshAllDocumentTypes();
+      ref.invalidate(documentsListProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Document types refreshed successfully!'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('Document types refreshed successfully!'), backgroundColor: Colors.green),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error refreshing document types: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error refreshing document types: $e'), backgroundColor: Colors.red),
       );
     } finally {
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Added Scaffold for better structure and SnackBar support
       appBar: AppBar(
         title: const Text('Manage Documents'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshDocumentTypes,
-            tooltip: 'Refresh Document Types',
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshDocumentTypes, tooltip: 'Refresh Document Types'),
         ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Usage stats widget
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: UsageStatsWidget(),
@@ -362,17 +266,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Upload New Document',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
+                        const Text('Upload New Document', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         if (_selectedFile != null)
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: _clearSelection,
-                            tooltip: 'Clear selection',
-                          ),
+                          IconButton(icon: const Icon(Icons.close), onPressed: _clearSelection, tooltip: 'Clear selection'),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -382,24 +278,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                           icon: const Icon(Icons.file_upload_outlined),
                           label: const Text('Select Document'),
                           onPressed: _pickFile,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
-                          ),
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
                         ),
                       ),
                     if (_selectedFile != null) ...[
                       Row(
                         children: [
-                          const Icon(Icons.insert_drive_file,
-                              color: Colors.grey),
+                          const Icon(Icons.insert_drive_file, color: Colors.grey),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _selectedFile!.path.split('/').last,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          Expanded(child: Text(_selectedFile!.path.split('/').last, overflow: TextOverflow.ellipsis)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -411,48 +298,37 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                 label: const Text('Upload Selected File'),
                                 onPressed: _uploadFile,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      Theme.of(context).primaryColor,
+                                  backgroundColor: Theme.of(context).primaryColor,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 24, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                                 ),
                               ),
                       ),
                     ],
                     if (_uploadError != null) ...[
                       const SizedBox(height: 12),
-                      Text(
-                        'Error: $_uploadError',
-                        style: const TextStyle(color: Colors.red),
-                      ),
+                      Text('Error: $_uploadError', style: const TextStyle(color: Colors.red)),
                     ],
                     if (_ocrResult != null) ...[
                       const SizedBox(height: 12),
-                      const Text(
-                        'Upload & OCR Successful!',
-                        style: TextStyle(
-                            color: Colors.green, fontWeight: FontWeight.bold),
-                      ),
-                      // Optionally display some OCR results or a success message
+                      const Text('Upload & OCR Successful!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                     ],
                   ],
                 ),
               ),
             )
-          else // Show button to initiate upload if nothing is selected
+          else
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.file_upload_outlined),
                   label: const Text('Upload a Document'),
-                  onPressed:
-                      _pickFile, // This will set _showUploadDetails to true
+                  onPressed: _pickFile,
                   style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 16),
-                      textStyle: const TextStyle(fontSize: 16)),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
             ),
@@ -462,13 +338,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Your Documents',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
+                Text('Your Documents', style: Theme.of(context).textTheme.headlineSmall),
                 IconButton(
                   icon: const Icon(Icons.refresh),
-                  onPressed: _refreshDocumentsList,
+                  onPressed: () => ref.invalidate(documentsListProvider),
                   tooltip: 'Refresh list',
                 ),
               ],
@@ -476,8 +349,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           ),
           Expanded(
             child: DocumentsList(
-              key: _documentsListKey,
-              // Optionally pass a callback to handle document selection for QA
               onDocumentSelectedForQA: (documentId) {
                 Navigator.pushNamed(context, '/qa', arguments: documentId);
               },

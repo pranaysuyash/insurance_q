@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Load secrets from .env if present (never hardcode secrets in this file)
+if [ -f .env ]; then set -a; source .env; set +a; fi
+
 echo "🧪 Testing Enhanced Insurance RAG App Locally"
 echo "============================================="
 
@@ -43,7 +46,7 @@ sleep 2
 export PYTHONPATH="$(pwd)"
 export LOG_LEVEL="INFO"
 export QDRANT_URL="https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333"
-export QDRANT_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ"
+export QDRANT_API_KEY="${QDRANT_API_KEY:?QDRANT_API_KEY must be set in .env or environment}"
 export QDRANT_COLLECTION="insurance_documents_v2"
 export USE_OPENAI_FIRST="true"
 export OPENAI_EMBEDDING_MODEL="text-embedding-ada-002"

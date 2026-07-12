@@ -77,8 +77,8 @@ class AppConfig {
   ];
 
   // Debug configuration
-  static const bool enableDebugLogs = true;
-  static const bool enableNetworkLogs = true;
+  static const bool enableDebugLogs = false;
+  static const bool enableNetworkLogs = false;
 
   // Timeout configuration
   static const int connectTimeoutSeconds = 10;

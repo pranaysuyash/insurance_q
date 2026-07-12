@@ -2,6 +2,20 @@
 
 Based on the comprehensive app review feedback from May 2025, this document outlines specific improvements needed for the RAG (Retrieval-Augmented Generation) system in our insurance application. These improvements focus on enhancing reliability, accuracy, and user experience.
 
+## 2026-07-10 Hardening Pass
+
+The canonical RAG path is now more production-shaped than the original TODO list assumed:
+
+- `query_rag()` is filter-aware instead of ignoring the request filters.
+- Retrieval uses a hybrid path: Qdrant similarity plus a local full-text index plus lexical/exact-match boosts.
+- Answers are schema-driven via `RAGAnswer` / `RAGCitation` and return citations, confidence, missing information, and follow-up questions.
+- Query responses are cached in Redis behind a versioned key so new ingests invalidate stale answers.
+- The frontend upload path tolerates both the new inline OCR payload and the older cached wrapper payload.
+- The repo test harness can run from the checkout root without a manual `PYTHONPATH` export.
+- The eval runner now measures answer, retrieval, and citation checks separately.
+
+Remaining long-term work still includes deeper metadata normalization, Qdrant-native sparse-vector support once the client/runtime stack exposes it cleanly, and relationship-aware extraction for complex family/policy structures.
+
 ## Critical RAG Issues
 
 ### 1. Resolve RAG Service Error Response (P0-01)
@@ -98,13 +112,13 @@ The validation utility:
 ### 1. Improve Answer Quality and Sources
 - **Current Issues:**
   - Answers may be incomplete or inaccurate
-  - Source references aren't provided to build user trust
+  - Source references weren't provided to build user trust
   - No way to verify AI-generated answers against original text
 - **Implementation Tasks:**
-  - [ ] Implement source citations with page/paragraph references
+  - [x] Implement source citations with page/paragraph references
   - [ ] Add "View in Document" feature to verify answers
-  - [ ] Improve prompt engineering for more accurate answers
-  - [ ] Implement answer quality metrics and logging
+  - [x] Improve prompt engineering for more accurate answers
+  - [x] Implement answer quality metrics and logging
 
 ### 2. Enhance Query Understanding
 - **Current Issues:**
@@ -112,8 +126,8 @@ The validation utility:
   - No follow-up questions for clarification
   - Standard questions may be too generic
 - **Implementation Tasks:**
-  - [ ] Create insurance-specific prompt templates
-  - [ ] Implement domain-specific context for the LLM
+  - [x] Create insurance-specific prompt templates
+  - [x] Implement domain-specific context for the LLM
   - [ ] Add clarification requests for ambiguous questions
   - [ ] Develop better categorization of standard questions
 
@@ -122,7 +136,7 @@ The validation utility:
   - "Search across all your policies" option exists but functionality is unclear
   - No comparative analysis between policies
 - **Implementation Tasks:**
-  - [ ] Implement true multi-document vector search
+  - [x] Implement true multi-document vector search
   - [ ] Add cross-document reference resolution
   - [ ] Create specialized prompts for policy comparison
   - [ ] Develop visualization for multi-document answers
@@ -139,6 +153,23 @@ The validation utility:
   - [ ] Implement relationship-aware prompts
   - [ ] Add relationship verification mechanisms
   - [ ] Create test suite with complex relationship scenarios
+
+## Current Canonical RAG Contract
+
+- Ingestion stores `document_id`, `text_content`, `page_number`, `section`, `filename`, and document metadata in Qdrant payloads.
+- Querying accepts optional filters and converts them into Qdrant payload filters.
+- Search results are reranked with retrieval score plus lexical/exact-match boosts after combining dense Qdrant hits with the local FTS candidate set.
+- Query caching is versioned through Redis and is invalidated on ingest.
+- The generated response returns:
+  - `answer`
+  - `sources`
+  - `citations`
+  - `confidence`
+  - `retrieval_confidence`
+  - `missing_information`
+  - `follow_up_questions`
+  - `retrieval_strategy`
+- Frontend compatibility is preserved by accepting both the new inline OCR shape and the older cached OCR wrapper shape.
 
 ## Technical Debt and Architecture Improvements
 

@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Load secrets from .env if present (never hardcode secrets in this file)
+if [ -f .env ]; then set -a; source .env; set +a; fi
+: "${OPENAI_API_KEY:?OPENAI_API_KEY must be set in .env or environment}"
+: "${QDRANT_API_KEY:?QDRANT_API_KEY must be set in .env or environment}"
+
 echo "🚀 Deploying Enhanced Insurance RAG App with Document Processing"
 echo "============================================================="
 
@@ -110,9 +115,9 @@ cat > enhanced-service-config.json << EOF
           "PYTHONPATH": "/app",
           "PYTHONUNBUFFERED": "1",
           "LOG_LEVEL": "INFO",
-          "OPENAI_API_KEY": "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",
+          "OPENAI_API_KEY": "$OPENAI_API_KEY",
           "QDRANT_URL": "https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333",
-          "QDRANT_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ",
+          "QDRANT_API_KEY": "$QDRANT_API_KEY",
           "QDRANT_COLLECTION": "insurance_documents_v2",
           "REDIS_HOST": "insurance-app-redis-mumbai-public.y6jsma.0001.aps1.cache.amazonaws.com",
           "REDIS_PORT": "6379",

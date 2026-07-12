@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Rounded square background (solid blue, no gradient) -->
+  <rect width="1024" height="1024" rx="225" ry="225" fill="#1565c0"/>
+  <!-- Shield (solid white) -->
+  <path d="M512 200 L760 290 L760 500 C760 660 660 770 512 824 C364 770 264 660 264 500 L264 290 Z"
+        fill="#ffffff"/>
+  <!-- Checkmark (solid blue, matching background for cohesion) -->
+  <path d="M395 522 L476 610 L645 408"
+        fill="none" stroke="#1565c0" stroke-width="62"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

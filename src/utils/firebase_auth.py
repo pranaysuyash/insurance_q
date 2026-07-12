@@ -36,8 +36,14 @@ def init_firebase():
             except Exception as e:
                 print(f"⚠️ Failed to initialize Firebase with file: {e}")
         
-        # If both methods fail, raise error
-        raise FileNotFoundError("No valid Firebase service account found. Set FIREBASE_SERVICE_ACCOUNT_B64 or FIREBASE_SERVICE_ACCOUNT_PATH")
+        # If both methods fail, log and return — auth endpoints will be
+        # unavailable but the rest of the API works. This is intentional:
+        # the mobile app currently operates without Firebase auth, and
+        # failing hard here would block startup for no benefit.
+        print("⚠️ No Firebase service account configured. Auth endpoints disabled.")
+        return False
+
+    return True
 
 # Verify Firebase ID token and return decoded claims
 def verify_firebase_token(id_token: str):

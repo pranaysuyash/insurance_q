@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.coverwise.app"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -50,8 +50,15 @@ android {
 
     buildTypes {
         release {
-            // Use debug signing for testing - this will work on all devices
-            signingConfig = signingConfigs.getByName("debug")
+            // When a release keystore is configured (android/key.properties),
+            // sign with it for Play Store / production distribution. Otherwise
+            // fall back to the debug keystore so local release builds still work.
+            // See docs/technical/deployment/release_signing.md to create the keystore.
+            signingConfig = if (keystoreProperties.containsKey("keyAlias")) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = false
             isShrinkResources = false
         }

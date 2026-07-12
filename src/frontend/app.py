@@ -1,6 +1,7 @@
 """
 Frontend service for the Insurance Policy Parser & QA App.
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -57,17 +58,20 @@ RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8000")
 # HTTP client (managed by lifespan events)
 http_client: Optional[httpx.AsyncClient] = None
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global http_client
-    http_client = httpx.AsyncClient(timeout=None) # Long timeout for OCR potentially
+    http_client = httpx.AsyncClient(timeout=None)
     logger.info("Frontend service started up, httpx.AsyncClient initialized.")
+    try:
+        yield
+    finally:
+        if http_client:
+            await http_client.aclose()
+        logger.info("Frontend service shutting down, httpx.AsyncClient closed.")
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    if http_client:
-        await http_client.aclose()
-    logger.info("Frontend service shutting down, httpx.AsyncClient closed.")
+
+app.router.lifespan_context = lifespan
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -138,9 +142,42 @@ async def upload_document(file: UploadFile = File(...)):
             logger.error("ocr_doc_key_missing", ocr_response=ocr_process_result)
             raise HTTPException(status_code=500, detail="Process response missing 'ocr_doc_key'.")
 
-        # Extract data from inline response (no separate /cached_ocr_data call needed)
-        display_text = ocr_process_result.get("text", "Text not found in OCR output.")
-        layout_elements = ocr_process_result.get("layout_elements", [])
+        # Extract data from the inline response, but stay compatible with older
+        # nested cache-shaped payloads so the frontend keeps working across
+        # backend transition states.
+        display_text = (
+            ocr_process_result.get("text")
+            or ocr_process_result.get("full_text")
+            or ocr_process_result.get("cached_ocr_result", {}).get("result", {}).get("full_text")
+            or ocr_process_result.get("result", {}).get("full_text")
+            or "Text not found in OCR output."
+        )
+        layout_elements = (
+            ocr_process_result.get("layout_elements")
+            or ocr_process_result.get("cached_ocr_result", {}).get("result", {}).get("layout_elements", [])
+            or ocr_process_result.get("result", {}).get("layout_elements", [])
+        )
+
+        if (
+            display_text == "Text not found in OCR output."
+            and ocr_doc_key
+            and hasattr(http_client, "get")
+        ):
+            try:
+                cached_url = f"{OCR_SERVICE_URL.rstrip('/')}/cached_ocr_data/{ocr_doc_key}"
+                cached_response = await http_client.get(cached_url)
+                if cached_response.status_code == 200:
+                    cached_payload = cached_response.json()
+                    cached_result = cached_payload.get("cached_ocr_result", {}).get("result", {})
+                    display_text = cached_result.get("full_text", display_text)
+                    layout_elements = cached_result.get("layout_elements", layout_elements)
+            except Exception as cache_error:
+                logger.warning(
+                    "cached_ocr_fallback_failed",
+                    filename=filename,
+                    doc_key=ocr_doc_key,
+                    error=str(cache_error),
+                )
         
         # Group layout elements by ID to create sections
         sections = {}

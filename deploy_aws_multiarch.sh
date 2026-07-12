@@ -49,6 +49,28 @@ docker buildx inspect --bootstrap
 
 echo "✅ All prerequisites met"
 
+# --- Secrets (read from environment, never hardcoded) ---
+# Load from .env if present, or export them in your shell before running.
+# Example: export OPENAI_API_KEY="sk-..." ; export QDRANT_API_KEY="eyJ..."
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
+echo ""
+echo "🔐 Checking required secrets..."
+for var in OPENAI_API_KEY QDRANT_API_KEY; do
+    if [ -z "${!var}" ]; then
+        echo "❌ $var is not set. Export it or add it to .env before deploying."
+        echo "   Example: export $var=\"your-key-here\""
+        exit 1
+    fi
+done
+# QDRANT_URL has a sensible default but can be overridden
+QDRANT_URL="${QDRANT_URL:-https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333}"
+echo "✅ Secrets loaded from environment"
+
 # Step 1: Create new ECR repository
 echo ""
 echo "1️⃣ Creating new ECR repository..."
@@ -61,72 +83,61 @@ aws ecr create-repository \
 
 echo "✅ ECR repository ready: $ECR_URI"
 
+# Apply lifecycle policy: keep last 5 images, expire the rest
+echo "📋 Applying ECR lifecycle policy (keep last 5)..."
+aws ecr put-lifecycle-policy \
+    --repository-name $ECR_REPO_NAME \
+    --region $REGION \
+    --lifecycle-policy-text '{
+        "rules": [
+            {
+                "rulePriority": 1,
+                "description": "Keep last 5 images",
+                "selection": { "tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 5 },
+                "action": { "type": "expire" }
+            }
+        ]
+    }' > /dev/null 2>&1 || echo "Lifecycle policy skipped (may already exist)"
+
 # Step 2: Create optimized multi-architecture Dockerfile
 echo ""
 echo "2️⃣ Creating optimized Dockerfile for AWS App Runner..."
 cat > Dockerfile.aws << 'EOF'
-# Multi-stage build for optimal size and compatibility
-FROM --platform=linux/amd64 python:3.11-slim AS base
+# Production image — slim, API-first (no bundled ML models)
+# ~400MB vs ~3GB with torch/doctr/sentence-transformers
+FROM --platform=linux/amd64 python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies optimized for AWS including WeasyPrint requirements
+# Minimal system dependencies (PyMuPDF needs libgl for image rendering)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
     curl \
-    git \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    ca-certificates \
-    libpango-1.0-0 \
-    libpangoft2-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libffi-dev \
-    shared-mime-info \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
 COPY requirements.txt .
-
-# Install Python dependencies with multi-architecture compatibility
-RUN pip install --no-cache-dir --upgrade pip==23.3.1 && \
-    pip install --no-cache-dir --timeout 1000 --retries 5 \
-    --index-url https://pypi.org/simple/ \
-    --extra-index-url https://download.pytorch.org/whl/cpu \
-    torch==2.1.0+cpu torchvision==0.16.0+cpu && \
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements.txt
 
-# Copy application code
 COPY src/ src/
 COPY storage/ storage/
 
-# Create necessary directories
-RUN mkdir -p /app/storage/documents /app/logs /app/temp /app/uploads
+RUN mkdir -p /app/storage/documents /app/storage/summaries /app/temp /app/uploads
 
-# Create dummy Firebase service account for compatibility
-RUN echo '{"type": "service_account", "project_id": "dummy"}' > /app/serviceAccountKey.json
-
-# Set environment variables
+# Firebase service account is NOT baked in. Set FIREBASE_SERVICE_ACCOUNT_B64
+# as an App Runner env var if you need auth endpoints.
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED="1"
-ENV FIREBASE_SERVICE_ACCOUNT_PATH="/app/serviceAccountKey.json"
 ENV PLATFORM="linux/amd64"
 
-# Health check optimized for App Runner
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Expose port
 EXPOSE 8000
 
-# Optimized startup command for AWS App Runner
+CMD ["python", "-m", "uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+EOF
 CMD ["sh", "-c", "python -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --workers 1 --log-level info --access-log --no-use-colors"]
 EOF
 
@@ -209,18 +220,12 @@ if [ ! -z "$EXISTING_SERVICE_ARN" ] && [ "$EXISTING_SERVICE_ARN" != "None" ]; th
                         "PYTHONPATH": "/app",
                         "PYTHONUNBUFFERED": "1",
                         "LOG_LEVEL": "INFO",
-                        "OPENAI_API_KEY": "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",
-                        "QDRANT_URL": "https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333",
-                        "QDRANT_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ",
+                        "OPENAI_API_KEY": "'$OPENAI_API_KEY'",
+                        "QDRANT_URL": "'$QDRANT_URL'",
+                        "QDRANT_API_KEY": "'$QDRANT_API_KEY'",
                         "QDRANT_COLLECTION": "insurance_documents_v2",
-                        "REDIS_HOST": "insurance-app-redis-mumbai-public.y6jsma.0001.aps1.cache.amazonaws.com",
-                        "REDIS_PORT": "6379",
-                        "REDIS_PASSWORD": "",
-                        "CACHE_TTL_SECONDS": "3600",
-                        "EMBEDDING_MODEL": "sentence-transformers/all-mpnet-base-v2",
-                        "OPENAI_EMBEDDING_MODEL": "text-embedding-ada-002",
-                        "OPENAI_CHAT_MODEL": "gpt-3.5-turbo",
-                        "USE_OPENAI_FIRST": "true",
+                        "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",
+                        "OPENAI_CHAT_MODEL": "gpt-4o-mini",
                         "OCR_IMAGE_DPI": "200",
                         "ENVIRONMENT": "production",
                         "PLATFORM": "linux/amd64",
@@ -277,18 +282,12 @@ cat > enhanced-v2-service-config.json << EOF
           "PYTHONPATH": "/app",
           "PYTHONUNBUFFERED": "1",
           "LOG_LEVEL": "INFO",
-          "OPENAI_API_KEY": "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",
-          "QDRANT_URL": "https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333",
-          "QDRANT_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.gUETgUylDxoSvj1iw-P02in7mHnAkC5rL98tsqsSJYQ",
+          "OPENAI_API_KEY": "$OPENAI_API_KEY",
+          "QDRANT_URL": "$QDRANT_URL",
+          "QDRANT_API_KEY": "$QDRANT_API_KEY",
           "QDRANT_COLLECTION": "insurance_documents_v2",
-          "REDIS_HOST": "insurance-app-redis-mumbai-public.y6jsma.0001.aps1.cache.amazonaws.com",
-          "REDIS_PORT": "6379",
-          "REDIS_PASSWORD": "",
-          "CACHE_TTL_SECONDS": "3600",
-          "EMBEDDING_MODEL": "sentence-transformers/all-mpnet-base-v2",
-          "OPENAI_EMBEDDING_MODEL": "text-embedding-ada-002",
-          "OPENAI_CHAT_MODEL": "gpt-3.5-turbo",
-          "USE_OPENAI_FIRST": "true",
+          "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small",
+          "OPENAI_CHAT_MODEL": "gpt-4o-mini",
           "OCR_IMAGE_DPI": "200",
           "ENVIRONMENT": "production",
           "PLATFORM": "linux/amd64"
@@ -302,8 +301,8 @@ cat > enhanced-v2-service-config.json << EOF
     }
   },
   "InstanceConfiguration": {
-    "Cpu": "1024",
-    "Memory": "2048"
+    "Cpu": "512",
+    "Memory": "1024"
   },
   "HealthCheckConfiguration": {
     "Protocol": "HTTP",

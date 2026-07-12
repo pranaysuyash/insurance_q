@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">
+  <!-- Shield (solid blue) -->
+  <path d="M240 70 L380 120 L380 250 C380 335 320 390 240 420 C160 390 100 335 100 250 L100 120 Z"
+        fill="#1565c0"/>
+  <!-- Checkmark (solid white) -->
+  <path d="M170 250 L222 310 L320 195"
+        fill="none" stroke="#ffffff" stroke-width="32"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

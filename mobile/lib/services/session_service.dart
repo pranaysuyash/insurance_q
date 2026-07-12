@@ -1,9 +1,8 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
+import 'app_state_store.dart';
 
 class SessionService {
-  static const String _sessionIdKey = 'session_id';
-  static const String _sessionCreatedKey = 'session_created';
   static const Uuid _uuid = Uuid();
   
   static String? _currentSessionId;
@@ -13,12 +12,12 @@ class SessionService {
     if (_currentSessionId != null) {
       return _currentSessionId!;
     }
-    
-    final prefs = await SharedPreferences.getInstance();
+
+    final box = Hive.box(AppStateStore.boxName);
     
     // Check if we have an existing session
-    final existingSessionId = prefs.getString(_sessionIdKey);
-    final sessionCreated = prefs.getInt(_sessionCreatedKey);
+    final existingSessionId = box.get(AppStateStore.sessionIdKey) as String?;
+    final sessionCreated = box.get(AppStateStore.sessionCreatedKey) as int?;
     
     // Session expires after 24 hours
     const sessionDurationMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
@@ -34,8 +33,8 @@ class SessionService {
     
     // Create new session
     final newSessionId = _uuid.v4();
-    await prefs.setString(_sessionIdKey, newSessionId);
-    await prefs.setInt(_sessionCreatedKey, now);
+    await box.put(AppStateStore.sessionIdKey, newSessionId);
+    await box.put(AppStateStore.sessionCreatedKey, now);
     
     _currentSessionId = newSessionId;
     return newSessionId;
@@ -43,12 +42,12 @@ class SessionService {
   
   /// Force create a new session (useful for testing or reset)
   static Future<String> createNewSession() async {
-    final prefs = await SharedPreferences.getInstance();
+    final box = Hive.box(AppStateStore.boxName);
     final newSessionId = _uuid.v4();
     final now = DateTime.now().millisecondsSinceEpoch;
     
-    await prefs.setString(_sessionIdKey, newSessionId);
-    await prefs.setInt(_sessionCreatedKey, now);
+    await box.put(AppStateStore.sessionIdKey, newSessionId);
+    await box.put(AppStateStore.sessionCreatedKey, now);
     
     _currentSessionId = newSessionId;
     return newSessionId;
@@ -56,8 +55,8 @@ class SessionService {
   
   /// Get session creation time
   static Future<DateTime?> getSessionCreatedTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    final sessionCreated = prefs.getInt(_sessionCreatedKey);
+    final box = Hive.box(AppStateStore.boxName);
+    final sessionCreated = box.get(AppStateStore.sessionCreatedKey) as int?;
     
     if (sessionCreated != null) {
       return DateTime.fromMillisecondsSinceEpoch(sessionCreated);
@@ -68,8 +67,8 @@ class SessionService {
   
   /// Check if session is expired
   static Future<bool> isSessionExpired() async {
-    final prefs = await SharedPreferences.getInstance();
-    final sessionCreated = prefs.getInt(_sessionCreatedKey);
+    final box = Hive.box(AppStateStore.boxName);
+    final sessionCreated = box.get(AppStateStore.sessionCreatedKey) as int?;
     
     if (sessionCreated == null) {
       return true;
@@ -83,9 +82,9 @@ class SessionService {
   
   /// Clear session (logout)
   static Future<void> clearSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_sessionIdKey);
-    await prefs.remove(_sessionCreatedKey);
+    final box = Hive.box(AppStateStore.boxName);
+    await box.delete(AppStateStore.sessionIdKey);
+    await box.delete(AppStateStore.sessionCreatedKey);
     _currentSessionId = null;
   }
-} 
+}

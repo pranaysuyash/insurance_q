@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Load secrets from .env if present (never hardcode secrets in this file)
+if [ -f .env ]; then set -a; source .env; set +a; fi
+
 # Configuration
 AZURE_RESOURCE_GROUP="insurance-app-rg"
 RAG_APP_NAME="insurance-rag-app"
@@ -19,8 +22,8 @@ ACR_PASSWORD=$(az acr credential show --name "$AZURE_ACR_NAME" --resource-group 
 echo "Getting Redis password..."
 REDIS_PASSWORD=$(az redis list-keys --name insurance-app-redis --resource-group insurance-app-rg --query primaryKey -o tsv)
 
-# OpenAI API Key
-OPENAI_API_KEY="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"
+# OpenAI API Key: read from environment (set via .env or shell env, never hardcoded)
+: "${OPENAI_API_KEY:?OPENAI_API_KEY must be set in .env or environment}"
 
 echo "=== Configuring RAG Service ==="
 # Fix RAG service startup command

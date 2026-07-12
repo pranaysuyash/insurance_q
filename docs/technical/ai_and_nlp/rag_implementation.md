@@ -10,7 +10,18 @@ The RAG pipeline is responsible for:
 3.  Storing these embeddings and associated metadata in a Qdrant vector database.
 4.  Retrieving relevant context from Qdrant based on user queries.
 5.  Generating answers using an OpenAI chat model, conditioned on the retrieved context.
-6.  Caching query results in Redis.
+6.  Caching query results in Redis with versioned invalidation on ingest.
+
+## 2026-07-10 Query Contract Update
+
+The current canonical query path is more explicit than the older implementation notes below:
+
+- `query_rag()` now accepts optional payload filters and forwards them into Qdrant search and the local FTS fallback index.
+- Retrieved hits are lightly reranked before context generation using dense similarity plus local FTS plus lexical/exact-match boosts.
+- The answer path returns structured output through `RAGAnswer` / `RAGCitation` rather than raw free text only.
+- The response payload includes `confidence`, `retrieval_confidence`, `citations`, `missing_information`, `follow_up_questions`, and `retrieval_strategy`.
+- Query responses are cached in Redis with a versioned cache key that is invalidated when new chunks are ingested.
+- The frontend upload path keeps a compatibility fallback for older cached OCR payloads when inline OCR text is not present.
 
 ## Core Components
 
@@ -68,34 +79,35 @@ This is the central class managing the RAG process.
 -   **`query_rag(user_query: str, top_k: int = 5, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]`**:
     -   Handles an incoming user query.
     -   **Caching**:
-        -   Constructs a cache key based on the query, active models, `top_k`, and filters.
+        -   Constructs a versioned cache key based on the query, active models, `top_k`, filters, and corpus version.
         -   Checks Redis for a cached response first. If found, returns it.
     -   **Query Embedding**:
         -   Generates an embedding for the `user_query` using `_generate_openai_embeddings` (or the simplified `_generate_embeddings` method).
     -   **Vector Search**:
         -   Performs a search in Qdrant using the query embedding.
         -   Supports optional `filters` (e.g., to scope search by `document_id`).
-        -   Retrieves the `top_k` most similar text blocks.
+        -   Retrieves extra candidates from both dense Qdrant search and the local FTS index, then reranks them before the final `top_k` context set is chosen.
     -   **Context Preparation**:
         -   Extracts text content from search results to form a context string.
-        -   Collects metadata about the retrieved sources (ID, score, document ID, etc.).
+        -   Collects metadata about the retrieved sources (ID, score, document ID, page number, and section when available).
     -   **Answer Generation**:
-        -   If no relevant contexts are found, returns a default message.
-        -   Otherwise, constructs a prompt for an OpenAI chat model (e.g., `gpt-3.5-turbo`), including the system prompt and the retrieved contexts.
-        -   Calls the OpenAI Chat Completions API to generate an answer.
+        -   If no relevant contexts are found, returns a default message with empty citations and zero confidence.
+        -   Otherwise, constructs a prompt for an OpenAI chat model, including the system prompt and the retrieved contexts.
+        -   Calls the OpenAI chat client through `LLMClient.generate_structured()` to produce structured answer output.
     -   **Response Formatting**:
-        -   Packages the LLM's answer, retrieved sources, original query, and the embedding model used into a final dictionary.
+        -   Packages the answer, citations, retrieved sources, confidence values, and fallback metadata into a final dictionary.
     -   **Caching**:
         -   Stores the final response in Redis with the configured `cache_ttl`.
+        -   Ingest bumps the cache version so new documents invalidate stale answers.
     -   Returns the query result.
 
 -   **`get_embedding_stats() -> Dict[str, Any]`**:\n    -   Returns a dictionary containing statistics about embedding generation:\n        -   `active_embedding_model` (will be the OpenAI model)\n        -   `openai_embedding_failures`\n        -   `embedding_dimensions`
 
 ## Embedding Models
 
--   The system uses OpenAI embedding models exclusively (e.g., `text-embedding-ada-002`, `text-embedding-3-small`, `text-embedding-3-large`), configured via the `OPENAI_EMBEDDING_MODEL` environment variable.
--   The Hugging Face fallback mechanism has been removed to simplify the pipeline and ensure a consistent embedding space.
--   The `test_embedding_fallback.py` script mentioned in previous versions is no longer relevant for testing fallback logic but can still be used to test general embedding generation and RAG functionality with OpenAI models.
+-   The system prefers OpenAI embeddings first (e.g., `text-embedding-3-small` / `text-embedding-3-large`) and falls back to Ollama-compatible embeddings and then local sentence-transformers if the primary path fails.
+-   The active embedding model is tracked in the pipeline state so retrieval and health checks can report the real backend in use.
+-   The `test_embedding_fallback.py` script mentioned in previous versions is still useful as a general fallback-path smoke test, but the current canonical fallback chain is OpenAI → Ollama → local sentence-transformers.
 
 ## Data Flow
 
@@ -115,9 +127,10 @@ This is the central class managing the RAG process.
     a.  Checks Redis cache.
     b.  Generates query embedding via `_generate_openai_embeddings()`.
     c.  Searches Qdrant for relevant text blocks.
-    d.  Constructs a prompt with retrieved context.
-    e.  Calls OpenAI Chat Completions API for an answer.
-    f.  Caches and returns the answer.
+    d.  Retrieves extra lexical candidates from the local FTS index.
+    e.  Constructs a prompt with retrieved context.
+    f.  Calls OpenAI Chat Completions API for an answer.
+    g.  Caches and returns the answer.
 
 ## Complex Relationship Extraction Enhancement
 

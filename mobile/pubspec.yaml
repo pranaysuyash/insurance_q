@@ -42,9 +42,6 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   shared_preferences: ^2.1.0
-  firebase_core: ^3.13.1
-  firebase_auth: ^5.5.4
-  firebase_messaging: ^15.2.6
   intl: ^0.17.0
   provider: ^6.1.5
   url_launcher: ^6.3.1
@@ -52,6 +49,8 @@ dependencies:
   camera: ^0.11.1
   uuid: ^4.3.3
   path: ^1.8.3
+  share_plus: ^12.0.2
+  connectivity_plus: ^7.2.0
 
 dev_dependencies:
   flutter_test:
@@ -63,9 +62,30 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.6
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
+
+# Launcher icon generation (run: dart run flutter_launcher_icons)
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/branding/coverwise_icon.png"
+  min_sdk_android: 23
+  adaptive_icon_background: "#0d47a1"
+  adaptive_icon_foreground: "assets/branding/coverwise_icon.png"
+
+# Native splash screen generation (run: dart run flutter_native_splash:create)
+flutter_native_splash:
+  color: "#ffffff"
+  image: "assets/branding/coverwise_splash.png"
+  android_12:
+    color: "#ffffff"
+    image: "assets/branding/coverwise_splash.png"
+    icon_background_color: "#0d47a1"
 
 # The following section is specific to Flutter packages.
 flutter:

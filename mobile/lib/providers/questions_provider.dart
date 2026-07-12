@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 import '../models/qa_models.dart';
+import '../services/app_state_store.dart';
 
-// Define categories
+const _qaHistoryBoxKey = 'qa_history';
+
+final isLoadingProvider = StateProvider<bool>((ref) => false);
+final currentAnswerProvider = StateProvider<QaAnswer?>((ref) => null);
+
 final List<QuestionCategory> _categories = [
   QuestionCategory(
       id: 'Policy Basics', name: 'Policy Basics', icon: Icons.fact_check),
@@ -24,7 +30,6 @@ final List<QuestionCategory> _categories = [
 
 final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
   return [
-    // Policy Basics
     StandardQuestion(
       id: 'pb1',
       text: 'What is my policy number?',
@@ -55,8 +60,6 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Policy Basics',
       icon: Icons.category,
     ),
-
-    // Coverage Details
     StandardQuestion(
       id: 'cd1',
       text: 'What is the total coverage amount?',
@@ -87,8 +90,6 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Coverage Details',
       icon: Icons.medication,
     ),
-
-    // Premiums & Payments
     StandardQuestion(
       id: 'pp1',
       text: 'What is my premium amount?',
@@ -107,8 +108,6 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Premiums & Payments',
       icon: Icons.event,
     ),
-
-    // Claims
     StandardQuestion(
       id: 'cl1',
       text: 'How do I file a claim?',
@@ -127,8 +126,6 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Claims',
       icon: Icons.description,
     ),
-
-    // Exclusions & Limitations
     StandardQuestion(
       id: 'el1',
       text: 'What is not covered by this policy?',
@@ -147,8 +144,6 @@ final standardQuestionsProvider = Provider<List<StandardQuestion>>((ref) {
       category: 'Exclusions & Limitations',
       icon: Icons.history,
     ),
-
-    // Benefits
     StandardQuestion(
       id: 'bn1',
       text: 'Does this policy include dental coverage?',
@@ -188,8 +183,13 @@ class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
 
   Future<void> _loadHistory() async {
     try {
-      // For now, just keep in memory
-      // TODO: Add SharedPreferences persistence if needed
+      final box = Hive.box(AppStateStore.boxName);
+      final raw = box.get(_qaHistoryBoxKey) as List<dynamic>?;
+      if (raw != null) {
+        state = raw
+            .map((item) => QaPair.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
     } catch (e) {
       debugPrint('Error loading QA history: $e');
     }
@@ -204,7 +204,6 @@ class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
 
     state = [newItem, ...state];
 
-    // Keep only the last 50 items to prevent memory issues
     if (state.length > 50) {
       state = state.take(50).toList();
     }
@@ -214,9 +213,9 @@ class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
 
   Future<void> _saveHistory() async {
     try {
-      // For now, just keep in memory
-      // TODO: Add SharedPreferences persistence if needed
-      debugPrint('QA History updated: ${state.length} items');
+      final box = Hive.box(AppStateStore.boxName);
+      final serialized = state.map((item) => item.toJson()).toList();
+      await box.put(_qaHistoryBoxKey, serialized);
     } catch (e) {
       debugPrint('Error saving QA history: $e');
     }
@@ -227,3 +226,4 @@ class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
     _saveHistory();
   }
 }
+

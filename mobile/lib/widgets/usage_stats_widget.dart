@@ -1,108 +1,69 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/service_providers.dart';
 
-class UsageStatsWidget extends StatefulWidget {
+final usageStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  return ref.read(queryServiceProvider).getUsageStats();
+});
+
+class UsageStatsWidget extends ConsumerWidget {
   const UsageStatsWidget({super.key});
 
   @override
-  State<UsageStatsWidget> createState() => _UsageStatsWidgetState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(usageStatsProvider);
 
-class _UsageStatsWidgetState extends State<UsageStatsWidget> {
-  Map<String, dynamic>? _usageStats;
-  bool _isLoading = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUsageStats();
-  }
-
-  Future<void> _loadUsageStats() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final apiService = ApiService();
-      final stats = await apiService.getUsageStats();
-
-      setState(() {
-        _usageStats = stats;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Unable to load usage stats';
-      });
-      debugPrint('Error loading usage stats: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Card(
+    return statsAsync.when(
+      loading: () => const Card(
         child: Padding(
           padding: EdgeInsets.all(16.0),
           child: Row(
             children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
               SizedBox(width: 12),
               Text('Loading usage stats...'),
             ],
           ),
         ),
-      );
-    }
-
-    if (_error != null) {
-      return Card(
+      ),
+      error: (e, _) => Card(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
               Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
               const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ),
+              Expanded(child: Text('Unable to load usage stats', style: TextStyle(color: Colors.grey[600]))),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 20),
-                onPressed: _loadUsageStats,
+                onPressed: () => ref.invalidate(usageStatsProvider),
                 tooltip: 'Retry',
               ),
             ],
           ),
         ),
-      );
-    }
+      ),
+      data: (stats) => _UsageStatsContent(stats: stats, onRefresh: () => ref.invalidate(usageStatsProvider)),
+    );
+  }
+}
 
-    if (_usageStats == null) {
-      return const SizedBox.shrink();
-    }
+class _UsageStatsContent extends StatelessWidget {
+  final Map<String, dynamic> stats;
+  final VoidCallback onRefresh;
 
-    final sessionUploads = _usageStats!['session_uploads'] ?? 0;
-    final sessionLimit = _usageStats!['session_limit'] ?? 5;
-    final ipUploads = _usageStats!['ip_uploads'] ?? 0;
-    final ipLimit = _usageStats!['ip_limit'] ?? 10;
+  const _UsageStatsContent({required this.stats, required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionUploads = stats['session_uploads'] ?? 0;
+    final sessionLimit = stats['session_limit'] ?? 5;
+    final ipUploads = stats['ip_uploads'] ?? 0;
+    final ipLimit = stats['ip_limit'] ?? 10;
 
     final sessionRemaining = sessionLimit - sessionUploads;
     final ipRemaining = ipLimit - ipUploads;
-    final effectiveRemaining =
-        sessionRemaining < ipRemaining ? sessionRemaining : ipRemaining;
+    final effectiveRemaining = sessionRemaining < ipRemaining ? sessionRemaining : ipRemaining;
 
     Color getStatusColor() {
       if (effectiveRemaining <= 0) return Colors.red;
@@ -124,24 +85,11 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
           children: [
             Row(
               children: [
-                Icon(
-                  getStatusIcon(),
-                  color: getStatusColor(),
-                  size: 20,
-                ),
+                Icon(getStatusIcon(), color: getStatusColor(), size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  'Upload Quota',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
+                Text('Upload Quota', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                 const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.refresh, size: 20),
-                  onPressed: _loadUsageStats,
-                  tooltip: 'Refresh',
-                ),
+                IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: onRefresh, tooltip: 'Refresh'),
               ],
             ),
             const SizedBox(height: 12),
@@ -151,20 +99,9 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Remaining Today',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                      ),
-                      Text(
-                        '$effectiveRemaining uploads',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: getStatusColor(),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                      ),
+                      Text('Remaining Today', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
+                      Text('$effectiveRemaining uploads',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(color: getStatusColor(), fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -172,16 +109,8 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Session Usage',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                      ),
-                      Text(
-                        '$sessionUploads / $sessionLimit',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                      Text('Session Usage', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
+                      Text('$sessionUploads / $sessionLimit', style: Theme.of(context).textTheme.titleMedium),
                     ],
                   ),
                 ),
@@ -200,26 +129,18 @@ class _UsageStatsWidgetState extends State<UsageStatsWidget> {
                 decoration: BoxDecoration(
                   color: getStatusColor().withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                      color: getStatusColor().withValues(alpha: 0.3)),
+                  border: Border.all(color: getStatusColor().withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      effectiveRemaining <= 0 ? Icons.info : Icons.warning,
-                      color: getStatusColor(),
-                      size: 16,
-                    ),
+                    Icon(effectiveRemaining <= 0 ? Icons.info : Icons.warning, color: getStatusColor(), size: 16),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         effectiveRemaining <= 0
                             ? 'Upload limit reached. Try again tomorrow.'
                             : 'You\'re approaching your daily upload limit.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: getStatusColor(),
-                        ),
+                        style: TextStyle(fontSize: 12, color: getStatusColor()),
                       ),
                     ),
                   ],
