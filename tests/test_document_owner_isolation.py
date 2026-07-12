@@ -7,6 +7,7 @@ from src.api import document as document_api
 from src.app import main as main_app
 from src.models.document import Document
 from src.models.user import User
+from src.services.document_repository import SQLiteDocumentRepository
 
 
 OWNER_A = User(uid="anon:owner-a", identity_type="anonymous", email=None, phone=None, display_name=None)
@@ -14,8 +15,10 @@ OWNER_B = User(uid="anon:owner-b", identity_type="anonymous", email=None, phone=
 
 
 @pytest.fixture(autouse=True)
-def isolated_documents(monkeypatch):
-    monkeypatch.setattr(document_api, "DOCUMENTS", [])
+def isolated_documents(tmp_path, monkeypatch):
+    document_api.set_document_repository(
+        SQLiteDocumentRepository(str(tmp_path / "document-metadata.db"))
+    )
     monkeypatch.setattr(document_api, "processing_service", None)
 
 
@@ -32,7 +35,7 @@ def _document(owner: User) -> Document:
 
 @pytest.mark.asyncio
 async def test_status_is_hidden_from_a_different_anonymous_owner():
-    document_api.DOCUMENTS.append(_document(OWNER_A))
+    document_api.document_repository.create(_document(OWNER_A))
 
     owned = await document_api.get_document_processing_status("document-a", OWNER_A)
     assert owned["document_id"] == "document-a"

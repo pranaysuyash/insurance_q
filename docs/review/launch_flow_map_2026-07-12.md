@@ -83,6 +83,16 @@ Flutter framework metadata. This matches the minimum required by the installed
 `google_mlkit_commons` plugin and removes the prior CocoaPods resolution block
 when running the app on the current iOS simulator.
 
+### Encrypted policy PDFs
+
+Password-protected PDFs are now a supported upload input, not an OCR failure.
+The Documents screen provides an obscured optional password field with an
+explicit non-persistence notice. The canonical `/documents/upload` route
+checks an encrypted PDF before it writes metadata or object storage, returns a
+specific missing/invalid-password response, and passes a valid password only
+in memory into the extraction job. Passwords are never stored in document
+metadata, summaries, local app storage, or logs.
+
 ### What should exist
 - ✅ Welcome card — good
 - ✅ Policy summary cards — good, but should show key benefits/exclusions

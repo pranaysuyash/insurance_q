@@ -12,7 +12,19 @@ and answers grounded questions in plain language.
 - Launch copy reference: [`docs/review/coverwise_play_store_listing.md`](docs/review/coverwise_play_store_listing.md)
 - Launch assets reference: [`docs/review/coverwise_play_store_launch_assets.md`](docs/review/coverwise_play_store_launch_assets.md)
 
-## 🚀 Current Status: PRODUCTION READY ON AWS
+## Current deployment source of truth
+
+The company-era AWS deployment notes below are historical records and are not the
+current launch plan. CoverWise is now being prepared as a solo product. The
+canonical platform architecture is [`docs/planning/coverwise_long_term_platform_decision_2026-07-12.md`](docs/planning/coverwise_long_term_platform_decision_2026-07-12.md),
+which recommends one Railway Hobby project with private services and explicit
+cost/persistence guardrails. See [`docs/archive/deployment/README.md`](docs/archive/deployment/README.md)
+for the preserved historical deployment material.
+
+## Historical company-era status: AWS App Runner
+
+> Historical snapshot from June 2025. Do not use the AWS URL, scripts, service
+> names, or cost claims below for the CoverWise solo launch.
 
 **Last Updated**: June 11, 2025  
 **Deployment Status**: ✅ **Fully Operational on AWS App Runner**  

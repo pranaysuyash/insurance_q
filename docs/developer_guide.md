@@ -1,6 +1,13 @@
-# Developer Guide: Insurance Policy Parser & QA App
+# Developer Guide: CoverWise
 
-This guide provides instructions for developers working on the Insurance Policy Parser & QA App, including environment setup, code organization, development workflows, and contribution guidelines.
+This guide provides instructions for developers working on CoverWise, including environment setup, code organization, development workflows, and contribution guidelines.
+
+> **Architecture note (2026-07-12):** The Docker Compose/Qdrant/Redis layout
+> described in the local-development sections is a compatibility baseline, not
+> the target production architecture. The canonical long-term decision is
+> [`docs/planning/coverwise_long_term_platform_decision_2026-07-12.md`](planning/coverwise_long_term_platform_decision_2026-07-12.md): one Cloud Run
+> FastAPI service backed by Supabase Postgres/pgvector and Supabase Storage. Do not add new
+> production dependencies on Redis or Qdrant without updating that decision.
 
 ## Table of Contents
 
@@ -297,9 +304,11 @@ Integrate these into a cohesive testing strategy.
 
 ## Deployment
 
-- Deployment will typically involve building production-ready Docker images and deploying them to a cloud platform (e.g., AWS, GCP, Azure) or a Kubernetes cluster.
-- Ensure `.env` files are securely managed for production environments (e.g., using secrets management tools).
-- The `Dockerfile` and `docker-compose.yml` provide a starting point for containerization.
+- The canonical solo-launch deployment plan is [`docs/planning/coverwise_long_term_platform_decision_2026-07-12.md`](planning/coverwise_long_term_platform_decision_2026-07-12.md).
+- The target is one Cloud Run FastAPI service backed by Supabase Postgres/pgvector and Supabase Storage; the earlier Firestore and Railway comparisons remain preserved in their decision records.
+- Do not follow the historical AWS/Azure guides for the current launch; they remain preserved in [`docs/archive/deployment/README.md`](archive/deployment/README.md).
+- Ensure `.env` files are securely managed for production environments and use the host's secret manager rather than committing credentials.
+- The `Dockerfile` and `docker-compose.yml` are the local development baseline; production commands must omit `--reload`.
 - For the Flutter app, follow Flutter's build and release process for Android and iOS.
 
 ## Contribution Guidelines

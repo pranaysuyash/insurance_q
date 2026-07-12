@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:typed_data';
 import '../config/app_config.dart';
 import '../models/document_model.dart';
 import 'package:uuid/uuid.dart';
@@ -55,6 +56,35 @@ class LocalStorageService {
 
     await _documentsBox.put(docId, document.toJsonString());
 
+    return document;
+  }
+
+  Future<InsuranceDocument> saveWebDocument(
+    String filename,
+    Uint8List bytes, {
+    Map<String, dynamic>? additionalMetadata,
+    String? remoteId,
+    String syncState = 'synced',
+    String processingState = 'ready',
+    String? status,
+  }) async {
+    final docId = _uuid.v4();
+    final document = InsuranceDocument(
+      id: docId,
+      remoteId: remoteId,
+      filename: filename,
+      uploadedOn: DateTime.now(),
+      size: bytes.length,
+      status: status ?? (syncState == 'synced' ? 'completed' : 'pending'),
+      syncState: syncState,
+      processingState: processingState,
+      processingCompletedAt: DateTime.now(),
+      localFilePath: null,
+      documentType: additionalMetadata?['document_type'],
+      insurer: additionalMetadata?['insurer'],
+    );
+
+    await _documentsBox.put(docId, document.toJsonString());
     return document;
   }
 

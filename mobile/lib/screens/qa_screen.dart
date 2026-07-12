@@ -38,16 +38,7 @@ class QaScreenState extends ConsumerState<QaScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _handleInitialDocumentId();
     _maybeStartDemoSequence();
-  }
-
-  void _handleInitialDocumentId() {
-    if (widget.initialDocumentId != null) {
-      ref.read(selectedDocumentProvider.notifier).state =
-          widget.initialDocumentId;
-      AppStateRepository.setSelectedDocumentId(widget.initialDocumentId);
-    }
   }
 
   @override
@@ -77,9 +68,6 @@ class QaScreenState extends ConsumerState<QaScreen>
 
     _demoSequenceStarted = true;
     final demoGeneration = _demoSequenceGeneration;
-    final selectedDocument = documents.first;
-    ref.read(selectedDocumentProvider.notifier).state = selectedDocument.id;
-    await AppStateRepository.setSelectedDocumentId(selectedDocument.id);
 
     if (!mounted ||
         !widget.isActive ||
@@ -123,8 +111,10 @@ class QaScreenState extends ConsumerState<QaScreen>
         documents: documents,
         currentDocumentId: ref.read(selectedDocumentProvider),
         onDocumentSelected: (documentId) {
-          ref.read(selectedDocumentProvider.notifier).state = documentId;
-          AppStateRepository.setSelectedDocumentId(documentId);
+          Future(() {
+            if (!mounted) return;
+            ref.read(selectedDocumentProvider.notifier).state = documentId;
+          });
         },
       ),
     );
@@ -145,7 +135,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       return;
     }
 
-    final selectedDoc = ref.read(selectedDocumentProvider);
+    final selectedDoc = _currentDocumentId();
     ref.read(isLoadingProvider.notifier).state = true;
     ref.read(currentAnswerProvider.notifier).state = null;
 
@@ -234,6 +224,15 @@ class QaScreenState extends ConsumerState<QaScreen>
     }
   }
 
+  String? _currentDocumentId() {
+    final selectedDoc = ref.read(selectedDocumentProvider);
+    if (selectedDoc != null) return selectedDoc;
+    if (widget.initialDocumentId != null) return widget.initialDocumentId;
+    final documents = ref.read(documentsProvider).valueOrNull ?? [];
+    if (documents.isNotEmpty) return documents.first.id;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(questionCategoriesProvider);
@@ -242,6 +241,8 @@ class QaScreenState extends ConsumerState<QaScreen>
     final isLoading = ref.watch(isLoadingProvider);
     final currentAnswer = ref.watch(currentAnswerProvider);
     final documentsAsync = ref.watch(documentsProvider);
+    final selectedDocumentId =
+        ref.watch(selectedDocumentProvider) ?? widget.initialDocumentId;
 
     return Scaffold(
       appBar: AppBar(
@@ -260,6 +261,7 @@ class QaScreenState extends ConsumerState<QaScreen>
           const OfflineBanner(),
           _DocumentSelector(
             documentsAsync: documentsAsync,
+            selectedDocumentId: selectedDocumentId,
             onSelectDocument: _showDocumentSelectionDialog,
           ),
           Expanded(
@@ -282,7 +284,10 @@ class QaScreenState extends ConsumerState<QaScreen>
                 _HistoryTab(
                   qaHistory: qaHistory,
                   onSelectAnswer: (answer) {
-                    ref.read(currentAnswerProvider.notifier).state = answer;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      ref.read(currentAnswerProvider.notifier).state = answer;
+                    });
                   },
                 ),
               ],
@@ -296,10 +301,13 @@ class QaScreenState extends ConsumerState<QaScreen>
 
 class _DocumentSelector extends StatelessWidget {
   final AsyncValue<List<InsuranceDocument>> documentsAsync;
+  final String? selectedDocumentId;
   final VoidCallback onSelectDocument;
 
   const _DocumentSelector(
-      {required this.documentsAsync, required this.onSelectDocument});
+      {required this.documentsAsync,
+      required this.selectedDocumentId,
+      required this.onSelectDocument});
 
   @override
   Widget build(BuildContext context) {
@@ -320,8 +328,7 @@ class _DocumentSelector extends StatelessWidget {
                     fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
-              Consumer(builder: (context, ref, child) {
-                final selectedDocumentId = ref.watch(selectedDocumentProvider);
+              Builder(builder: (context) {
                 final documents = documentsAsync.valueOrNull ?? [];
                 final selectedDoc = documents.firstWhere(
                   (doc) => doc.id == selectedDocumentId,

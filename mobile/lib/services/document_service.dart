@@ -14,7 +14,7 @@ class DocumentService {
   DocumentService(this._dio);
 
   Future<Map<String, dynamic>> uploadFile(File file,
-      {String? email, String? phone}) async {
+      {String? email, String? phone, String? pdfPassword}) async {
     try {
       final sessionId = await SessionService.getSessionId();
 
@@ -22,6 +22,8 @@ class DocumentService {
         final formData = FormData.fromMap({
           'files': await MultipartFile.fromFile(file.path),
           'processing_mode': 'full',
+          if (pdfPassword != null && pdfPassword.trim().isNotEmpty)
+            'pdf_password': pdfPassword,
           if (email != null) 'user_email': email,
           if (phone != null) 'user_phone': phone,
           'consent': true,
@@ -103,6 +105,19 @@ class DocumentService {
           };
         }
 
+        if (e is DioException && e.response?.statusCode == 422) {
+          final detail = e.response?.data is Map
+              ? (e.response?.data as Map)['detail']
+              : null;
+          if (detail is Map && detail['code'] != null) {
+            return {
+              'error': detail['code'].toString(),
+              'message': detail['message']?.toString() ??
+                  'This document could not be opened.',
+            };
+          }
+        }
+
         final documentType = _inferDocumentType(file.path);
         final insurerInfo = _inferInsurerInfo(file.path);
 
@@ -158,11 +173,27 @@ class DocumentService {
   Map<String, dynamic> _inferInsurerInfo(String filePath) {
     final fileName = filePath.toLowerCase();
     const insurers = [
-      'Aetna', 'Anthem', 'Blue Cross', 'Blue Shield', 'Cigna',
-      'UnitedHealth', 'Humana', 'Kaiser', 'MetLife', 'Prudential',
-      'State Farm', 'Allstate', 'Geico', 'Progressive', 'Farmers',
-      'Liberty Mutual', 'Nationwide', 'Travelers', 'USAA',
-      'New York Life', 'Northwestern Mutual'
+      'Aetna',
+      'Anthem',
+      'Blue Cross',
+      'Blue Shield',
+      'Cigna',
+      'UnitedHealth',
+      'Humana',
+      'Kaiser',
+      'MetLife',
+      'Prudential',
+      'State Farm',
+      'Allstate',
+      'Geico',
+      'Progressive',
+      'Farmers',
+      'Liberty Mutual',
+      'Nationwide',
+      'Travelers',
+      'USAA',
+      'New York Life',
+      'Northwestern Mutual'
     ];
 
     for (final company in insurers) {
@@ -174,8 +205,143 @@ class DocumentService {
   }
 
   Future<Map<String, dynamic>> uploadDocument(File file,
-      {String? email, String? phone}) {
-    return uploadFile(file, email: email, phone: phone);
+      {String? email, String? phone, String? pdfPassword}) {
+    return uploadFile(
+      file,
+      email: email,
+      phone: phone,
+      pdfPassword: pdfPassword,
+    );
+  }
+
+  Future<Map<String, dynamic>> uploadWebDocument({
+    required String filename,
+    required Uint8List bytes,
+    String? email,
+    String? phone,
+    String? pdfPassword,
+  }) async {
+    try {
+      final sessionId = await SessionService.getSessionId();
+
+      try {
+        final formData = FormData.fromMap({
+          'files': MultipartFile.fromBytes(bytes, filename: filename),
+          'processing_mode': 'full',
+          if (pdfPassword != null && pdfPassword.trim().isNotEmpty)
+            'pdf_password': pdfPassword,
+          if (email != null) 'user_email': email,
+          if (phone != null) 'user_phone': phone,
+          'consent': true,
+        });
+
+        final response = await _dio.post(
+          '/documents/upload',
+          data: formData,
+          options: Options(
+            headers: {'X-Session-ID': sessionId},
+            contentType: 'multipart/form-data',
+          ),
+        );
+
+        if (response.statusCode == 202 || response.statusCode == 200) {
+          final responseData = response.data;
+          final documents = responseData['documents'] as List<dynamic>?;
+          final firstDoc = (documents != null && documents.isNotEmpty)
+              ? documents[0] as Map<String, dynamic>?
+              : null;
+
+          String documentType =
+              firstDoc?['document_type'] ?? _inferDocumentType(filename);
+          String insurer =
+              firstDoc?['insurer'] ?? _inferInsurerInfo(filename)['insurer'];
+          final documentId = firstDoc?['id'] ?? firstDoc?['processing_id'];
+
+          if (firstDoc?['document_type'] != null) {
+            documentType = firstDoc!['document_type'];
+          }
+
+          final baseDocument = {
+            'document_type': documentType,
+            'insurer': insurer,
+          };
+
+          final savedDocument = await _localStorageService.saveWebDocument(
+            filename,
+            bytes,
+            additionalMetadata: baseDocument,
+            remoteId: documentId?.toString(),
+            syncState: 'synced',
+            processingState: firstDoc?['status']?.toString() ?? 'ready',
+            status: firstDoc?['status']?.toString() ?? 'completed',
+          );
+          await AppStateRepository.setLastUploadedDocumentId(savedDocument.id);
+
+          return {
+            ...responseData,
+            if (documentId != null) 'document_id': documentId,
+            'document_type': documentType,
+            'insurer': insurer,
+          };
+        } else if (response.statusCode == 429) {
+          final errorData = response.data;
+          return {
+            'error': 'rate_limit_exceeded',
+            'message': errorData['detail'] ??
+                'Upload limit exceeded. Please try again later.',
+            'retry_after': errorData['retry_after'],
+          };
+        } else {
+          throw DioException(
+            requestOptions: RequestOptions(path: '/documents/upload'),
+            response: response,
+            type: DioExceptionType.badResponse,
+          );
+        }
+      } catch (e) {
+        debugPrint('Backend upload failed, falling back to local storage: $e');
+
+        if (e is DioException && e.response?.statusCode == 429) {
+          final errorData = e.response?.data;
+          return {
+            'error': 'rate_limit_exceeded',
+            'message': errorData?['detail'] ??
+                'Upload limit exceeded. Please try again later.',
+            'retry_after': errorData?['retry_after'],
+          };
+        }
+
+        final documentType = _inferDocumentType(filename);
+        final insurerInfo = _inferInsurerInfo(filename);
+        final baseDocument = {
+          'document_type': documentType,
+          'insurer': insurerInfo['insurer'],
+        };
+
+        final document = await _localStorageService.saveWebDocument(
+          filename,
+          bytes,
+          additionalMetadata: baseDocument,
+          syncState: 'pending_upload',
+          processingState: 'pending',
+          status: 'pending',
+        );
+        await AppStateRepository.setLastUploadedDocumentId(document.id);
+
+        return {
+          'message': 'File saved locally; sync pending',
+          'document_id': document.id,
+          'document_type': documentType,
+          'insurer': insurerInfo['insurer'],
+          'status': 'pending_upload',
+          'sync_state': 'pending_upload',
+          'offline_mode': true,
+        };
+      }
+    } catch (e) {
+      debugPrint('Error uploading web file: $e');
+      return {'error': e.toString()};
+    }
   }
 
   Future<List<InsuranceDocument>> getDocuments() async {
@@ -286,26 +452,39 @@ class DocumentService {
   }
 
   String? _matchTypeFromAnswer(String answer) {
-    if (answer.contains('health') || answer.contains('medical') ||
-        answer.contains('niva bupa') || answer.contains('star health') ||
-        answer.contains('apollo munich') || answer.contains('max bupa') ||
-        answer.contains('icici lombard') || answer.contains('hdfc ergo') ||
-        answer.contains('bajaj allianz') || answer.contains('oriental insurance') ||
-        answer.contains('new india assurance') || answer.contains('united india insurance')) {
+    if (answer.contains('health') ||
+        answer.contains('medical') ||
+        answer.contains('niva bupa') ||
+        answer.contains('star health') ||
+        answer.contains('apollo munich') ||
+        answer.contains('max bupa') ||
+        answer.contains('icici lombard') ||
+        answer.contains('hdfc ergo') ||
+        answer.contains('bajaj allianz') ||
+        answer.contains('oriental insurance') ||
+        answer.contains('new india assurance') ||
+        answer.contains('united india insurance')) {
       return 'Health Insurance';
     }
-    if (answer.contains('auto') || answer.contains('car') ||
-        answer.contains('vehicle') || answer.contains('motor') ||
-        answer.contains('two wheeler') || answer.contains('bike')) {
+    if (answer.contains('auto') ||
+        answer.contains('car') ||
+        answer.contains('vehicle') ||
+        answer.contains('motor') ||
+        answer.contains('two wheeler') ||
+        answer.contains('bike')) {
       return 'Auto Insurance';
     }
-    if (answer.contains('home') || answer.contains('property') ||
-        answer.contains('house') || answer.contains('fire') ||
+    if (answer.contains('home') ||
+        answer.contains('property') ||
+        answer.contains('house') ||
+        answer.contains('fire') ||
         answer.contains('burglary')) {
       return 'Home Insurance';
     }
-    if (answer.contains('life') || answer.contains('term') ||
-        answer.contains('endowment') || answer.contains('ulip') ||
+    if (answer.contains('life') ||
+        answer.contains('term') ||
+        answer.contains('endowment') ||
+        answer.contains('ulip') ||
         answer.contains('pension')) {
       return 'Life Insurance';
     }
@@ -381,7 +560,8 @@ class DocumentService {
 
     for (var i = 0; i < nameMatches.length; i++) {
       final name = nameMatches.elementAt(i).group(1);
-      final dob = i < dobMatches.length ? dobMatches.elementAt(i).group(1) : null;
+      final dob =
+          i < dobMatches.length ? dobMatches.elementAt(i).group(1) : null;
       if (name != null) {
         holders.add(PolicyHolder(
           name: name,
@@ -414,8 +594,13 @@ class DocumentService {
     return await _localStorageService.findDuplicateDocument(filename);
   }
 
+  Future<InsuranceDocument?> checkForDuplicateDocumentByName(
+      String filename) async {
+    return await _localStorageService.findDuplicateDocument(filename);
+  }
+
   Future<Map<String, dynamic>> uploadDocumentWithLimitCheck(File file,
-      {String? email, String? phone}) async {
+      {String? email, String? phone, String? pdfPassword}) async {
     try {
       final documents = await getDocuments();
       if (documents.length >= 5) {
@@ -433,7 +618,12 @@ class DocumentService {
       // image). For digital PDFs (the common case), this is a fast no-op.
       final uploadFile = await _preprocessForOcr(file);
 
-      return await uploadDocument(uploadFile, email: email, phone: phone);
+      return await uploadDocument(
+        uploadFile,
+        email: email,
+        phone: phone,
+        pdfPassword: pdfPassword,
+      );
     } catch (e) {
       return {'error': e.toString()};
     }
@@ -453,9 +643,11 @@ class DocumentService {
         // The PDF was scanned — write the OCR'd text to a temp file and
         // upload that instead. The backend processes text files fine.
         final tempDir = await Directory.systemTemp.createTemp('coverwise_ocr');
-        final textFile = File('${tempDir.path}/${file.uri.pathSegments.last.replaceAll('.pdf', '')}_ocr.txt');
+        final textFile = File(
+            '${tempDir.path}/${file.uri.pathSegments.last.replaceAll('.pdf', '')}_ocr.txt');
         await textFile.writeAsString(result.text);
-        debugPrint('On-device OCR extracted ${result.text.length} chars from scanned PDF');
+        debugPrint(
+            'On-device OCR extracted ${result.text.length} chars from scanned PDF');
         return textFile;
       }
     } catch (e) {

@@ -57,6 +57,9 @@ data/
 qdrant_data/
 redis_data/
 storage/rag_hybrid_index.db
+storage/document_metadata.db
+storage/documents/*.pdf
+insurance_app.db
 
 # OS specific
 .DS_Store

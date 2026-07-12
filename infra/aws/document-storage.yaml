@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CoverWise encrypted document storage, owner-scoped metadata, and App Runner instance permissions.
+
+Resources:
+  DocumentKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Encrypts CoverWise policy documents at rest.
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: RootAccountAdministration
+            Effect: Allow
+            Principal: {AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"}
+            Action: "kms:*"
+            Resource: "*"
+
+  DocumentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt DocumentKey.Arn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
+  DocumentMetadataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: owner_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: owner_id-index
+          KeySchema:
+            - AttributeName: owner_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  DocumentApiInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CoverWiseDocumentStorage
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject, s3:DeleteObject]
+                Resource: !Sub "${DocumentBucket.Arn}/documents/*"
+              - Effect: Allow
+                Action: [dynamodb:PutItem, dynamodb:GetItem, dynamodb:DeleteItem, dynamodb:Query]
+                Resource:
+                  - !GetAtt DocumentMetadataTable.Arn
+                  - !Sub "${DocumentMetadataTable.Arn}/index/owner_id-index"
+              - Effect: Allow
+                Action: [kms:Encrypt, kms:Decrypt, kms:GenerateDataKey]
+                Resource: !GetAtt DocumentKey.Arn
+
+Outputs:
+  DocumentStorageBucket:
+    Value: !Ref DocumentBucket
+  DocumentStorageKmsKeyId:
+    Value: !GetAtt DocumentKey.Arn
+  DocumentMetadataTable:
+    Value: !Ref DocumentMetadataTable
+  DocumentApiInstanceRoleArn:
+    Value: !GetAtt DocumentApiInstanceRole.Arn

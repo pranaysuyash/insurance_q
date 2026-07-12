@@ -5,9 +5,9 @@ from pydantic import BaseModel, Field
 from src.api.user import router as user_router, get_current_user
 from src.models.user import User
 from src.api.family import router as family_router
-from src.api.policy import router as policy_router
 from src.api.document import router as document_router, set_processing_service
 from src.utils.firebase_auth import init_firebase
+from src.utils.runtime_access import require_nonproduction
 
 # Import RAG components and enhanced document processing
 from typing import Dict, Any, List, Optional, Union
@@ -117,8 +117,10 @@ async def lifespan(app: FastAPI):
         print(f"⚠️ Document processing service init failed: {e}", file=sys.stderr)
         print("Continuing without enhanced document processing...", file=sys.stderr)
     
-    # Process any unprocessed documents in background (don't block startup)
-    if document_processing_service:
+    # Legacy local-file recovery is development-only. Production source and
+    # processing state live in the configured object store/repository, so an
+    # instance must never scan its ephemeral filesystem at startup.
+    if document_processing_service and os.environ.get("ENVIRONMENT", "development").lower() != "production":
         loop = asyncio.get_event_loop()
         loop.create_task(_background_doc_processing())
 
@@ -130,11 +132,6 @@ async def lifespan(app: FastAPI):
 
 app.router.lifespan_context = lifespan
 
-
-def require_nonproduction() -> None:
-    """Keep diagnostic and legacy synchronous routes out of public production."""
-    if os.environ.get("ENVIRONMENT", "development").lower() == "production":
-        raise HTTPException(status_code=404, detail="Not found")
 
 async def _background_doc_processing():
     """Run document processing in background so startup doesn't block."""
@@ -232,7 +229,6 @@ async def process_existing_documents():
 
 app.include_router(user_router)
 app.include_router(family_router)
-app.include_router(policy_router)
 app.include_router(document_router)
 
 @app.get("/health")

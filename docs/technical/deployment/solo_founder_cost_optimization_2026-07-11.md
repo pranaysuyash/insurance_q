@@ -1,4 +1,9 @@
-# ADR: Solo-Founder Cost-Optimized Deployment Architecture
+# Historical ADR: Solo-Founder Cost-Optimized Deployment Architecture
+
+> **SUPERSEDED on 2026-07-12.** This record describes an App Runner-based
+> interim direction and is retained as decision history. The current platform
+> recommendation is Railway Hobby; see
+> [`docs/planning/deployment_decision_2026-07-12.md`](../../planning/deployment_decision_2026-07-12.md).
 
 **Date:** 2026-07-11
 **Status:** Decided + Implemented

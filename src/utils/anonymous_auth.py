@@ -35,11 +35,13 @@ def _signing_key() -> str:
     return "coverwise-development-only-signing-key-change-me"
 
 
-def issue_anonymous_token() -> tuple[str, dict[str, Any]]:
+def issue_anonymous_token(subject: str | None = None) -> tuple[str, dict[str, Any]]:
+    """Issue a bearer token, preserving an existing anonymous subject on refresh."""
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(days=30)
     claims: dict[str, Any] = {
-        "sub": f"anon:{uuid.uuid4()}",
+        "sub": subject or f"anon:{uuid.uuid4()}",
+        "jti": str(uuid.uuid4()),
         "iss": ISSUER,
         "aud": AUDIENCE,
         "iat": now,

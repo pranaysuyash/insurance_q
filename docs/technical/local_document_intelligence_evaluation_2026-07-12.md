@@ -22,10 +22,11 @@ synthetic fixture.
 | doctr | Yes | Existing server OCR fallback | Keep until a benchmark justifies replacement |
 | Google ML Kit | Mobile dependency | Offline, on-device image/PDF fallback | Keep as mobile recovery option |
 | Docling / PaddleOCR / RapidOCR | No | Layout/OCR candidates | Do not add to production image before benchmark |
+| Surya 2 | Isolated local tool environment | OCR, layout, reading order, tables | Apple-Silicon run completed; leading local scan candidate pending corpus benchmark |
 | DeepSeek-OCR | Ollama, 3.3B | OCR-VLM | Requires provider-specific adapter evaluation |
 | Gemma 3 4B / 12B | Ollama, multimodal | Extraction reviewer / image fallback candidate | 4B is the only local Gemma candidate worth a second evaluation round |
 | Qwen2.5-VL 7B | Ollama, multimodal | OCR/VLM baseline | Too slow as a default OCR path |
-| Unlimited-OCR / olmOCR / PaddleOCR-VL | Not installed | GPU-oriented long-document/document-parsing candidates | Research only; not compatible with the launch machine as a drop-in service |
+| Unlimited-OCR / olmOCR / PaddleOCR-VL | Not installed | Long-document/document-parsing candidates | Benchmark separately; only PaddleOCR has an Apple-local traditional OCR option |
 
 ## Direct local evaluation
 
@@ -53,35 +54,62 @@ timing and expected-token checks by default; `--include-text` is deliberately
 opt-in and must only be used with synthetic or explicitly authorized policy
 documents.
 
-## Candidate landscape
+## Candidate landscape and deployment reality
 
-| Candidate | Relevant update | What it is good at | Constraint / decision |
+The machine is an Apple M3 Max with 96 GB unified memory.  That makes local
+Metal/llama.cpp inference viable, but does **not** make CUDA/vLLM-only recipes
+Apple-native.  A Hugging Face credential was checked without sending a policy;
+it can download public weights but is not consent to send a customer's policy
+to any hosted endpoint.
+
+| Candidate | Evidence | Fit for this product | Decision |
 | --- | --- | --- | --- |
-| Gemma 3 / Gemma 3n | Gemma 3n became available June 26, 2025 | Multimodal review, multilingual extraction, on-device oriented variants | Not a dedicated OCR engine. Keep Gemma 3 4B for a bounded post-OCR field-review experiment, not raw document parsing. |
-| OLM OCR | July/August 2025 releases improved speed, retries, rotation, and blank-page hallucinations | Clean Markdown, reading order, headers/footers, tables | Official local inference requires recent NVIDIA GPU, 12GB+ VRAM and ~30GB disk. Not an Apple Silicon launch service. |
-| PaddleOCR 3.1 / PaddleOCR-VL | PP-OCRv5 arrived July 2025; later VL releases add document parsing | Traditional OCR plus layout/table parsing | Benchmark in an isolated environment only. The full VL serving image is large; known reading-order issues must be part of acceptance tests. |
-| DeepSeek-OCR | October 2025 | OCR and visual-text compression research | The installed Ollama wrapper is not a drop-in transcription API. Evaluate only with the model's supported prompt/template and a realistic scan corpus. |
-| Unlimited-OCR | June 2026; official project June 22, 2026 | One-shot long-document parsing, multi-page work | Official inference recipe targets CUDA/NVIDIA/vLLM or SGLang and pins a modern CUDA/PyTorch stack. Do not place it in the App Runner image or declare it launch-ready on this Mac. |
-| Docling | Ongoing actively maintained parser | Commercially friendly layout/table conversion | Best first parser experiment because it is MIT and already has an opt-in seam. Its actual package is not installed here. |
-| Marker / Surya / MinerU | Ongoing 2025–26 updates | Complex PDF structure / OCR | Licensing and dependency weight require legal and operational review before product use; no selection without a corpus benchmark. |
+| **PyMuPDF** | Installed; direct local evaluation succeeds in under 1 ms on embedded text | Exact digital-PDF text with page provenance | Canonical primary path. No OCR/VLM may replace it. |
+| **Surya 2** | Installed in `.local-tools/surya-eval`; native llama.cpp/Metal run recovered both required synthetic-policy tokens | Single 650M document OCR/layout/table model; Apple Silicon backend is officially supported | First local scan-parser candidate. Benchmark on the corpus before wiring into the server. Code Apache-2; weights OpenRAIL-M requires business/license check. |
+| **Docling** | Officially supports macOS arm64, local execution, PDF layout/reading order/tables/OCR; MIT code | Best open, structured conversion candidate and can yield lossless JSON/Markdown | Second local candidate. Install/evaluate in the same isolated tool lane, not the API image. Check each bundled model's licence separately. |
+| **PaddleOCR 3.7 / PP-OCRv6** | Official project supports macOS and CPU; current tiny/small/medium traditional OCR models are designed for edge/server deployment | Good deterministic multilingual OCR fallback; 0.9B PaddleOCR-VL adds structure but is a separate heavier model | Benchmark PP-OCRv6 first locally. Treat PaddleOCR-VL as a benchmark candidate, not a default server dependency. |
+| **MinerU** | Structured Markdown/JSON, scans and multi-column/table support | Serious parser candidate, but operational/model licensing and dependency surface need review | GPU/isolated benchmark lane only until licence and Mac runtime are validated. |
+| **olmOCR 2** | 7B document VLM; official benchmark covers 7,000+ tests/1,400 docs | Strong Markdown and complex-layout candidate | Not local-Mac launch software: official local recipe requires a recent NVIDIA GPU with 12 GB+ VRAM and 30 GB disk. Use only on an approved private GPU later. |
+| **Unlimited-OCR** | Current Baidu project targets one-shot long-horizon parsing | Appropriate research comparison for long multipage schedules | CUDA 12.9/NVIDIA Transformers, CUDA Docker vLLM, or SGLang recipe only. It is not a valid M3 local implementation today. |
+| **DeepSeek-OCR / OCR2** | Installed Ollama wrapper returned empty output; upstream DeepSeek-OCR requires CUDA/vLLM/Transformers-native template | Potential GPU OCR research candidate, not a generic chat endpoint | Do not mislabel the failed generic adapter as a model result. Native evaluation belongs on an approved CUDA worker. |
+| **Qwen3-VL 2B/4B/8B** | Current Apache-2 Qwen series; 2B/4B/8B releases exist | Flexible visual reviewer / schema extraction after OCR | Benchmark a quantized 4B variant as a reviewer, not as first-pass OCR. Existing Qwen2.5-VL 7B timing (77 s/page) rules it out as default. |
+| **Gemma 3 4B** | Installed; 19 s synthetic page result | Bounded post-OCR structured review | Retain as one reviewer baseline only. It is not the OCR architecture. |
+| **Marker** | Works on MPS and can use Surya; GPL-3 code and OpenRAIL-M weights | Technically capable | Exclude from product default pending commercial licence decision. Its optional LLM mode must never default to Gemini for a sensitive policy. |
+
+### What was actually tested locally
+
+In addition to the earlier Ollama timing evaluation, Surya 2 was installed in
+an isolated `.local-tools/surya-eval` environment. Its official 650M GGUF
+weights were downloaded through the authenticated local Hugging Face account,
+then it used the already-installed `llama-server` with Metal acceleration. It
+processed only `tests/test_data/sample_insurance.pdf`; the check stored no
+fixture text and confirmed that `Insurance Policy` and `#12345` were both in
+the resulting JSON. The temporary llama-server was stopped after the run.
+
+This is Tier 2 evidence (targeted local test), not a claim of insurance-field
+accuracy or a production benchmark. The encrypted real policy has deliberately
+not been sent to any model or OCR service.
 
 ## Architecture: model, pipeline, and data layer
 
 ```
-Digital PDF ──> PyMuPDF text quality gate ──> canonical extraction + validation
-                       │
-                       └── empty/low-quality only ──> mobile ML Kit (offline)
-                                                   or server OCR parser benchmark winner
-                                                        │
-                                                        └── field validation + provenance
-                                                             └── RAG index / summary
+Encrypted PDF ──> request-scoped password gate ──> decrypt in memory only
+                                                  │
+Digital PDF ─────────────────────────────────────┴─> PyMuPDF text quality gate
+                                                            │
+                    empty/low-quality scanned pages ───────┴─> selected local OCR parser
+                                                                    │
+                                                                    ├─> source-grounded field validation
+                                                                    ├─> page/block provenance + confidence
+                                                                    └─> RAG index / conditional summary
 ```
 
-- **Model:** choose OCR/VLM only after benchmark evidence; never accept its
-  answer as a policy fact.
+- **Model:** OCR converts pages; a VLM can only propose structured fields.
+  Never accept either output as a policy fact without source/page validation.
 - **Pipeline:** retain per-page source coordinates, page number, model version,
   runtime, duration, failure/retry state, and a content hash. Avoid a second
-  shadow OCR service.
+  shadow OCR service. The API needs one `DocumentProcessor` profile selection,
+  not separate Surya/Paddle/Docling upload routes.
 - **Data/config:** version the fixture manifest, truth labels, insurer
   normalization table, validation rules, prompt version, thresholds, and model
   profile. Customer policy text must not be copied into benchmark reports.
@@ -92,13 +120,16 @@ Digital PDF ──> PyMuPDF text quality gate ──> canonical extraction + val
    deletion, and deployed API gates are complete.
 2. Treat image-only uploads as a clearly labelled beta/recovery flow until the
    next benchmark passes; never silently claim equivalent accuracy.
-3. Run Gemma 3 4B as a **post-extraction structured reviewer** against a
-   30-document, consented or synthetic corpus. Measure exact field accuracy,
-   false positives, provenance/page accuracy, p50/p95 latency, RAM, and
-   refusal/timeout behavior.
-4. Build a separate GPU benchmark lane for OLM OCR, PaddleOCR-VL,
-   DeepSeek-OCR-native, and Unlimited-OCR. It should not delay the privacy-safe
-   launch path or be merged into the production container without results.
+3. Benchmark **Surya 2, Docling, and PP-OCRv6** locally against the same
+   30-document, consented-or-synthetic corpus. Measure exact field accuracy,
+   false positives, provenance/page accuracy, p50/p95 latency, memory, and
+   refusal/timeout behavior. Select one canonical local scan profile.
+4. Run Gemma 3 4B and Qwen3-VL 4B only as post-extraction structured reviewers
+   against that corpus; neither may fill a missing value without evidence.
+5. Build a separate approved-GPU benchmark lane for olmOCR, PaddleOCR-VL,
+   DeepSeek-OCR-native, MinerU, and Unlimited-OCR. It must not delay the
+   privacy-safe local launch path or be merged into the production container
+   without results and a data-residency decision.
 
 ## Evaluation acceptance contract
 
@@ -123,7 +154,24 @@ Indian-policy corpus with expected values and page references:
 - [Google / Hugging Face: Gemma 3](https://huggingface.co/blog/gemma3)
 - [AllenAI: olmOCR repository and benchmark](https://github.com/allenai/olmocr)
 - [PaddleOCR repository](https://github.com/PaddlePaddle/PaddleOCR)
+- [Surya repository and Apple-Silicon backend](https://github.com/VikParuchuri/surya)
+- [Qwen3-VL repository](https://github.com/QwenLM/Qwen3-VL)
 - [DeepSeek-OCR technical report](https://arxiv.org/abs/2510.18234)
 - [Baidu: Unlimited-OCR repository](https://github.com/baidu/Unlimited-OCR)
 - [Baidu: Unlimited-OCR technical report](https://arxiv.org/abs/2606.23050)
 - [Docling repository](https://github.com/docling-project/docling)
+
+## Addendum (2026-07-12) — current model discovery and encrypted inputs
+
+An authenticated Hugging Face credential was validated from the local machine
+without sending a customer document. Current registry discovery confirms newer
+document/OCR candidates including PaddleOCR-VL 1.5/1.6 and Qwen3-VL variants.
+They remain scan-recovery candidates to benchmark against a consented corpus;
+they do not replace PyMuPDF for digital PDFs and cannot decrypt a
+password-protected policy.
+
+The upload pipeline now accepts a request-scoped PDF password. It validates the
+encrypted PDF before object or metadata persistence, does not retain the
+password, and uses it only while PyMuPDF extracts text. This makes a real
+encrypted policy test possible once its owner supplies the password, while
+keeping the benchmark/report contract free of policy text.

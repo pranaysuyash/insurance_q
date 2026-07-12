@@ -1,4 +1,9 @@
-# AWS Migration Complete: Journey from Azure to AWS App Runner
+# Historical AWS Migration Complete: Journey from Azure to AWS App Runner
+
+> **HISTORICAL RECORD.** Preserved for context about the 2025 company-era
+> deployment. It is not the CoverWise solo-launch plan and must not be treated
+> as current operational guidance. See the canonical Railway decision at
+> [`docs/planning/deployment_decision_2026-07-12.md`](../../planning/deployment_decision_2026-07-12.md).
 
 **Migration Date**: June 8-11, 2025  
 **Status**: ✅ **COMPLETE AND SUCCESSFUL**  

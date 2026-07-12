@@ -10,6 +10,7 @@ import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import tempfile
+from src.utils.pdf_access import PdfPasswordError, unlock_pdf
 
 # OCR imports
 try:
@@ -78,6 +79,7 @@ class DocumentProcessingService:
         document_id: Optional[str] = None,
         processing_mode: str = "full",
         owner_id: Optional[str] = None,
+        pdf_password: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Complete document processing pipeline
@@ -123,7 +125,9 @@ class DocumentProcessingService:
             extracted_text = ""
             if processing_mode in ["full", "ocr_only"]:
                 await self._update_status(document_id, "extracting_text", 30)
-                ocr_result = await self._extract_text(file_path, filename)
+                ocr_result = await self._extract_text(
+                    file_path, filename, pdf_password=pdf_password
+                )
                 extracted_text = ocr_result.get("full_text", "")
                 result["stages"]["ocr"] = ocr_result
                 result["extracted_text"] = extracted_text
@@ -196,7 +200,9 @@ class DocumentProcessingService:
         logger.info(f"File saved: {file_path}")
         return file_path
     
-    async def _extract_text(self, file_path: str, filename: str) -> Dict[str, Any]:
+    async def _extract_text(
+        self, file_path: str, filename: str, pdf_password: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Extract text from a document.
 
         Production (slim image, no OCR): uses PyMuPDF direct-text extraction for
@@ -238,6 +244,16 @@ class DocumentProcessingService:
             try:
                 import fitz  # PyMuPDF — always in requirements
                 doc = fitz.open(file_path)
+                try:
+                    unlock_pdf(doc, pdf_password)
+                except PdfPasswordError as error:
+                    doc.close()
+                    return {
+                        "status": "failed",
+                        "error_code": error.code,
+                        "error": error.message,
+                        "full_text": "",
+                    }
                 all_text = []
                 image_only_pages = 0
                 for page in doc:

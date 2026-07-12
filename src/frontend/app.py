@@ -3,7 +3,7 @@ Frontend service for the Insurance Policy Parser & QA App.
 """
 from contextlib import asynccontextmanager
 from datetime import date
-from fastapi import FastAPI, HTTPException, UploadFile, File, Request
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -15,6 +15,7 @@ from pydantic import BaseModel
 import structlog
 import time
 import json
+from src.utils.runtime_access import require_nonproduction
 
 # Configure structured logging
 logger = structlog.get_logger()
@@ -33,6 +34,7 @@ class Query(BaseModel):
 
 SITE_NAME = "CoverWise"
 DEFAULT_LAUNCH_WINDOW = os.getenv("LAUNCH_WINDOW", "late July 2026")
+INTERACTIVE_DEMO_ENABLED = os.getenv("ENVIRONMENT", "development").lower() != "production"
 
 app = FastAPI(
     title="CoverWise | Insurance Policy Frontend",
@@ -101,6 +103,7 @@ async def home(request: Request):
             ),
             "launch_window": DEFAULT_LAUNCH_WINDOW,
             "current_year": date.today().year,
+            "interactive_demo_enabled": INTERACTIVE_DEMO_ENABLED,
         }
     )
 
@@ -157,7 +160,9 @@ async def log_requests(request: Request, call_next):
     return response
 
 @app.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...), _: None = Depends(require_nonproduction)
+):
     """Upload document to OCR service, get processed data, and display relevant parts."""
     if not http_client: # Should be initialized by lifespan
         raise HTTPException(status_code=503, detail="HTTP client not available.")
@@ -266,7 +271,7 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 @app.post("/query")
-async def query_document(query: Query):
+async def query_document(query: Query, _: None = Depends(require_nonproduction)):
     """Send query to RAG service."""
     if not http_client:
         raise HTTPException(status_code=503, detail="HTTP client not available.")
@@ -310,7 +315,7 @@ async def health_check():
 
 # Document list endpoint for mobile app
 @app.get("/documents")
-async def get_documents():
+async def get_documents(_: None = Depends(require_nonproduction)):
     """List available documents for the mobile app."""
     # For now, return sample documents (same as src/app/main.py test endpoint)
     return {

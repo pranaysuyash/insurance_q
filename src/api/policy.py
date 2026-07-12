@@ -1,3 +1,9 @@
+"""Retired compatibility router.
+
+It is intentionally not mounted. Canonical policy document ownership, upload,
+summary, and deletion live under ``/documents``.
+"""
+
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from src.api.user import get_current_user
 from src.models.user import User

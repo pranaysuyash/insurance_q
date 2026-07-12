@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -20,9 +21,11 @@ import 'screens/policy_detail_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/claim_tracking_screen.dart';
 import 'config/app_config.dart';
+import 'providers/policy_providers.dart';
 import 'services/local_storage_service.dart';
 import 'services/app_state_store.dart';
 import 'services/notification_service.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,8 +36,12 @@ void main() async {
   await Hive.openBox<String>(LocalStorageService.documentsBoxName);
   await Hive.openBox(AppStateStore.boxName);
 
-  // Initialize local notifications for renewal reminders
-  await NotificationService.init();
+  // Acquire anonymous auth token if we don't have one yet (non-blocking —
+  // the AuthInterceptor also acquires on first 401).
+  if (AuthService.cachedToken == null) {
+    final tempDio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
+    await AuthService.acquireToken(tempDio);
+  }
 
   // Check if onboarding has been completed
   final prefs = await SharedPreferences.getInstance();
@@ -114,6 +121,7 @@ class MainNavigation extends ConsumerStatefulWidget {
 class _MainNavigationState extends ConsumerState<MainNavigation> {
   int _selectedIndex = 0;
   bool _demoNavigationScheduled = false;
+  bool _notificationsScheduled = false;
 
   void _onItemTapped(int index) {
     setState(() {
@@ -132,6 +140,13 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    // Schedule renewal reminders when summaries are loaded (once per session).
+    final summaries = ref.watch(policySummariesProvider);
+    if (!_notificationsScheduled && summaries.isNotEmpty) {
+      _notificationsScheduled = true;
+      NotificationService.scheduleRenewalReminders(summaries);
+    }
+
     return Scaffold(
       body: _buildPage(_selectedIndex),
       bottomNavigationBar: NavigationBar(

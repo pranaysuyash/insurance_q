@@ -11,6 +11,7 @@ import '../providers/questions_provider.dart';
 import '../services/app_state_store.dart';
 import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/auth_service.dart';
 
 /// App settings. Currently exposes the backend environment display and a
 /// clear-data action. Kept deliberately small: only settings that actually
@@ -83,6 +84,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       // 5. Cancel all scheduled renewal notifications
       await NotificationService.cancelAll();
+
+      // 6. Clear the auth token
+      await AuthService.clearToken();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -6,7 +6,6 @@ import '../services/query_service.dart';
 import '../services/auth_service.dart';
 
 final _dioProvider = Provider<Dio>((ref) {
-  AuthService.configure(AppConfig.baseUrl);
   final dio = Dio(
     BaseOptions(
       baseUrl: AppConfig.baseUrl,
@@ -14,12 +13,7 @@ final _dioProvider = Provider<Dio>((ref) {
       receiveTimeout: Duration(seconds: AppConfig.receiveTimeoutSeconds),
     ),
   );
-  dio.interceptors
-      .add(QueuedInterceptorsWrapper(onRequest: (options, handler) async {
-    final token = await AuthService.accessToken();
-    if (token != null) options.headers['Authorization'] = 'Bearer $token';
-    handler.next(options);
-  }));
+  dio.interceptors.add(AuthInterceptor(dio));
   return dio;
 });
 

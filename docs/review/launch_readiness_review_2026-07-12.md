@@ -23,11 +23,12 @@ durable document ownership and a freshly deployed, integration-tested release.
 ### 1. Preserve the no-login onboarding, but establish a real principal
 
 The product specification intentionally avoids an account wall. That does not
-mean unauthenticated data access. Use Firebase Anonymous Authentication (or a
-single equivalent managed identity provider) on first launch, store the refresh
-credential using platform secure storage, and attach the verified ID token to
-every document, summary, query, and deletion request. Upgrade anonymous users
-to a named account only when they choose to back up or share their policies.
+mean unauthenticated data access. The current implementation uses a server-signed
+anonymous bearer principal on first launch, stored in platform secure storage and
+attached to every policy-bearing mobile request. Before public launch, either
+harden this issuer with key rotation/revocation or replace it with Firebase
+Anonymous Authentication (or an equivalent managed provider). Upgrade anonymous
+users to a named account only when they choose to back up or share their policies.
 
 The backend must reject absent/invalid identity for all policy-bearing routes.
 There must be no caller-provided `session_id` authorization path, no
@@ -131,9 +132,59 @@ metadata/object storage, and a two-identity live integration test.
    identity, storage, deployed-contract, and real-policy workflow gates above
    are evidenced.
 
+## Addendum — route and consent-boundary closure (2026-07-12)
+
+- OpenAPI now declares HTTP bearer security for the profile and policy-bearing
+  route dependencies; targeted tests verify issue/verify, profile access,
+  ownership isolation, owner-filter overwrite, and production diagnostic
+  hiding (`9 passed`).
+- The old web BFF upload, query, and sample-document routes are explicitly
+  non-production. Production marketing now explains that policy documents are
+  accepted only through the authenticated mobile flow, removing a second,
+  unauthenticated ingestion/query pipeline.
+- Mobile notification initialization has been removed from app startup. iOS
+  permission is requested only from the explicit renewal-reminder action.
+
+The iPhone 17 Pro simulator did rebuild/install with the new `CoverWise` app
+identity. It continued displaying a previously queued notification permission
+sheet after reinstall, while `simctl privacy reset notifications` returned
+`Operation not permitted`. Source inspection and `flutter analyze` confirm the
+startup path no longer invokes `NotificationService`; this is Tier 1 static
+evidence, not a replacement for a clean-device Tier 4 consent check. Before
+release, validate the first-launch sequence on a freshly reset simulator or
+physical test device and capture the no-prompt screen before the reminder CTA.
+
+## Addendum — durable document-storage foundation (2026-07-12)
+
+`DOCUMENTS` has been replaced by the canonical document repository boundary:
+SQLite is restart-safe for local development/tests, while production defaults
+to DynamoDB and rejects SQLite. Original source bytes now use a canonical
+object-store boundary: local development storage or mandatory KMS-encrypted S3
+in production. Upload compensates by deleting the source object when metadata
+creation fails; deletion keeps metadata until derived vectors/summaries and the
+source object have been removed.
+
+The legacy `/policy` in-memory router is no longer mounted; `/documents` is the
+single public policy-document ownership path. [The storage contract](/Users/pranay/Projects/medpiper/insurance_app/docs/technical/document_storage_contract_2026-07-12.md) and
+[CloudFormation template](/Users/pranay/Projects/medpiper/insurance_app/infra/aws/document-storage.yaml) define the exact production
+table, encrypted bucket, App Runner role, environment variables, and live
+verification gate. Targeted repository/object/auth tests pass locally; this is
+Tier 2 code proof, not evidence that AWS resources are provisioned.
+
+## Addendum — anonymous-session continuity (2026-07-12)
+
+Anonymous access tokens now carry a unique token ID and the API exposes an
+owner-preserving `/user/refresh` endpoint. The mobile secure-storage client
+refreshes within seven days of expiry through a standalone authenticated
+request, preserving the same anonymous owner and therefore the same documents.
+It retains the existing still-valid token when offline. This does not restore
+documents after a device is lost or secure storage is cleared; that requires an
+optional named-account/backup decision and must be described accurately in the
+product privacy UX.
+
 ## Decision required
 
-Provision or identify the Firebase project/service-account and AWS storage +
-database target to use for the canonical production ownership model. Once
-available, the migration can proceed without changing the user-facing
-no-login-first flow.
+Provision the AWS object-storage + durable database target, and decide whether
+the anonymous issuer remains server-signed (with rotation/revocation) or moves
+to Firebase Anonymous Authentication. Either choice can retain the no-login
+first user experience; neither can use process-local storage in production.

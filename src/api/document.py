@@ -2,9 +2,14 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Q
 from src.api.user import get_current_user
 from src.models.user import User
 from src.models.document import Document
+from src.services.document_repository import DocumentRepository, create_document_repository
+from src.services.document_object_store import DocumentObjectStore, create_document_object_store
+from src.utils.runtime_access import require_nonproduction
+from src.utils.pdf_access import PdfPasswordError, unlock_pdf
 from typing import List, Optional
 from datetime import datetime
-import os, uuid, shutil
+import os
+import uuid
 import logging
 
 # Import the document processing service
@@ -26,9 +31,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-DOCUMENT_STORAGE = "storage/documents"
-DOCUMENTS = []  # In-memory for now
-os.makedirs(DOCUMENT_STORAGE, exist_ok=True)
+document_repository: DocumentRepository = create_document_repository()
+document_object_store: DocumentObjectStore = create_document_object_store()
 
 # Global processing service (will be injected from main app)
 processing_service: Optional[DocumentProcessingService] = None
@@ -39,12 +43,25 @@ def set_processing_service(service: DocumentProcessingService):
     processing_service = service
     logger.info("Document processing service configured for API")
 
+
+def set_document_repository(repository: DocumentRepository) -> None:
+    """Inject a repository for startup composition and isolated tests."""
+    global document_repository
+    document_repository = repository
+
+
+def set_document_object_store(object_store: DocumentObjectStore) -> None:
+    """Inject an object store for startup composition and isolated tests."""
+    global document_object_store
+    document_object_store = object_store
+
 @router.post("/upload", status_code=202)
 async def upload_document(
     request: Request,
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     processing_mode: str = Form("full"),  # "full", "ocr_only", "rag_only"
+    pdf_password: Optional[str] = Form(None),
     metadata: Optional[str] = Form(None),
     user_email: Optional[str] = Form(None),  # Optional lead capture
     user_phone: Optional[str] = Form(None),  # Optional lead capture
@@ -65,8 +82,6 @@ async def upload_document(
     for file in files:
         try:
             doc_id = str(uuid.uuid4())
-            file_name = f"{doc_id}_{file.filename}"
-            
             # Read file content
             file_content = await file.read()
             file_size = len(file_content)
@@ -110,6 +125,35 @@ async def upload_document(
                 logger.warning(f"Invalid file type: {file.filename} ({file_ext})")
                 failed_docs += 1
                 continue
+
+            # Passwords are request-scoped only: validate access before a
+            # document record or background job is created, then never persist
+            # the secret alongside the uploaded policy.
+            if file_ext == ".pdf":
+                try:
+                    import fitz
+
+                    pdf = fitz.open(stream=file_content, filetype="pdf")
+                    try:
+                        unlock_pdf(pdf, pdf_password)
+                    except PdfPasswordError as error:
+                        raise HTTPException(
+                            status_code=422,
+                            detail={"code": error.code, "message": error.message},
+                        )
+                    finally:
+                        pdf.close()
+                except HTTPException:
+                    raise
+                except Exception as error:
+                    logger.info("PDF preflight could not open %s: %s", file.filename, type(error).__name__)
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "code": "pdf_unreadable",
+                            "message": "This PDF could not be opened. Check that it is a valid, readable document.",
+                        },
+                    )
             
             # Log successful usage attempt
             log_usage_attempt(
@@ -122,7 +166,10 @@ async def upload_document(
                 reason="Upload accepted"
             )
             
-            # Create document record (no user_uid required)
+            object_reference = document_object_store.put(
+                doc_id, current_user.uid, file.filename or "document", file_content
+            )
+            # Persist metadata only after the encrypted/local source write succeeds.
             document = Document(
                 id=doc_id,
                 filename=file.filename,
@@ -130,7 +177,7 @@ async def upload_document(
                 upload_date=datetime.utcnow(),
                 status="processing",
                 user_uid=session_id,  # Use session ID instead of user UID
-                file_path=os.path.join(DOCUMENT_STORAGE, file_name),
+                file_path=object_reference,
                 document_type="unknown",  # Will be determined during processing
                 processing_mode=processing_mode
             )
@@ -155,7 +202,13 @@ async def upload_document(
             
             document.metadata = metadata_dict
             
-            DOCUMENTS.append(document)
+            try:
+                document_repository.create(document)
+            except Exception:
+                # Avoid retaining an unreachable customer document if metadata
+                # persistence fails before the async processing task is queued.
+                document_object_store.delete(object_reference)
+                raise
             
             # Start background processing if service is available
             if processing_service:
@@ -166,15 +219,13 @@ async def upload_document(
                     file.filename,
                     processing_mode,
                     current_user.uid,
+                    pdf_password.strip() if pdf_password else None,
                 )
                 logger.info(f"Background processing started for {file.filename} (ID: {doc_id}, Session: {session_id})")
             else:
-                # Fallback: just save the file
-                file_path = os.path.join(DOCUMENT_STORAGE, file_name)
-                with open(file_path, "wb") as f:
-                    f.write(file_content)
                 document.status = "uploaded"
-                logger.warning(f"No processing service available, file saved only: {file.filename}")
+                document_repository.update(document)
+                logger.warning("No processing service available; source persisted without extraction")
             
             uploaded_docs.append({
                 "id": doc_id,
@@ -184,7 +235,6 @@ async def upload_document(
                 "status": "processing" if processing_service else "uploaded",
                 "processing_mode": processing_mode,
                 "processing_id": doc_id,
-                "owner_id": current_user.uid
             })
             
         except HTTPException:
@@ -206,6 +256,7 @@ async def process_document_background(
     filename: str, 
     processing_mode: str,
     owner_id: str,
+    pdf_password: Optional[str] = None,
 ):
     """Background task for document processing"""
     try:
@@ -220,75 +271,74 @@ async def process_document_background(
             document_id=document_id,
             processing_mode=processing_mode,
             owner_id=owner_id,
+            pdf_password=pdf_password,
         )
         
         # Update document status
-        for doc in DOCUMENTS:
-            if doc.id == document_id:
-                if result.get("status") == "completed":
-                    doc.status = "completed"
-                    doc.processing_completed_at = datetime.utcnow()
+        doc = document_repository.get(document_id, owner_id)
+        if doc:
+            if result.get("status") == "completed":
+                doc.status = "completed"
+                doc.processing_completed_at = datetime.utcnow()
                     
-                    # Enhanced document classification using the new classifier
-                    try:
-                        from src.utils.document_classifier import get_document_classifier
-                        
-                        # Get text content from OCR result
-                        text_content = ""
-                        if "stages" in result and "ocr" in result["stages"]:
-                            ocr_result = result["stages"]["ocr"]
-                            text_content = ocr_result.get("full_text", "")
-                        
-                        # Use the classifier to determine document type and metadata
-                        classifier = get_document_classifier(processing_service.rag_pipeline if processing_service else None)
-                        classification = await classifier.classify_document(document_id, text_content)
-                        
-                        # Update document with classification results
-                        doc.document_type = classification.get('document_type', 'Insurance Policy')
-                        doc.insurer = classification.get('insurer', 'Unknown')
-                        
-                        # Store additional metadata
-                        if not doc.metadata:
-                            doc.metadata = {}
-                        doc.metadata.update({
-                            'classification': classification,
-                            'policy_number': classification.get('policy_number'),
-                            'effective_date': classification.get('effective_date'),
-                            'expiration_date': classification.get('expiration_date'),
-                            'classification_confidence': classification.get('confidence', 0.0)
-                        })
-                        
-                        logger.info(f"Document {document_id} classified as {doc.document_type} by {classification.get('insurer', 'Unknown')} with {classification.get('confidence', 0.0):.2f} confidence")
-                        
-                    except Exception as e:
-                        logger.error(f"Document classification failed for {document_id}: {str(e)}")
-                        # Fallback to simple heuristic
-                        if "stages" in result and "ocr" in result["stages"]:
-                            ocr_result = result["stages"]["ocr"]
-                            text = ocr_result.get("full_text", "").lower()
-                            if "health" in text or "medical" in text:
-                                doc.document_type = "Health Insurance"
-                            elif "auto" in text or "vehicle" in text:
-                                doc.document_type = "Auto Insurance"
-                            elif "life" in text:
-                                doc.document_type = "Life Insurance"
-                            else:
-                                doc.document_type = "Insurance Policy"
-                else:
-                    doc.status = "failed"
-                    doc.error_message = result.get("error", "Processing failed")
-                break
+                # Enhanced document classification using the new classifier
+                try:
+                    from src.utils.document_classifier import get_document_classifier
+
+                    text_content = ""
+                    if "stages" in result and "ocr" in result["stages"]:
+                        text_content = result["stages"]["ocr"].get("full_text", "")
+                    classifier = get_document_classifier(processing_service.rag_pipeline)
+                    classification = await classifier.classify_document(document_id, text_content)
+                    doc.document_type = classification.get("document_type", "Insurance Policy")
+                    doc.insurer = classification.get("insurer", "Unknown")
+                    if not doc.metadata:
+                        doc.metadata = {}
+                    doc.metadata.update(
+                        {
+                            "classification": classification,
+                            "policy_number": classification.get("policy_number"),
+                            "effective_date": classification.get("effective_date"),
+                            "expiration_date": classification.get("expiration_date"),
+                            "classification_confidence": classification.get("confidence", 0.0),
+                        }
+                    )
+                    logger.info(
+                        "Document %s classified as %s by %s with %.2f confidence",
+                        document_id,
+                        doc.document_type,
+                        classification.get("insurer", "Unknown"),
+                        classification.get("confidence", 0.0),
+                    )
+                except Exception as e:
+                    logger.error(f"Document classification failed for {document_id}: {str(e)}")
+                    # Fallback to simple heuristic
+                    if "stages" in result and "ocr" in result["stages"]:
+                        ocr_result = result["stages"]["ocr"]
+                        text = ocr_result.get("full_text", "").lower()
+                        if "health" in text or "medical" in text:
+                            doc.document_type = "Health Insurance"
+                        elif "auto" in text or "vehicle" in text:
+                            doc.document_type = "Auto Insurance"
+                        elif "life" in text:
+                            doc.document_type = "Life Insurance"
+                        else:
+                            doc.document_type = "Insurance Policy"
+            else:
+                doc.status = "failed"
+                doc.error_message = result.get("error", "Processing failed")
+            document_repository.update(doc)
         
         logger.info(f"Background processing completed for {filename} (ID: {document_id})")
         
     except Exception as e:
         logger.error(f"Background processing failed for {document_id}: {str(e)}")
         # Update document status to failed
-        for doc in DOCUMENTS:
-            if doc.id == document_id:
-                doc.status = "failed"
-                doc.error_message = str(e)
-                break
+        doc = document_repository.get(document_id, owner_id)
+        if doc:
+            doc.status = "failed"
+            doc.error_message = str(e)
+            document_repository.update(doc)
 
 @router.get("/{document_id}/status")
 async def get_document_processing_status(
@@ -297,12 +347,7 @@ async def get_document_processing_status(
 ):
     """Get processing status only for the owning principal."""
     # Find document by ID
-    user_doc = None
-    for doc in DOCUMENTS:
-        if doc.id == document_id:
-            if doc.user_uid == current_user.uid:
-                user_doc = doc
-                break
+    user_doc = document_repository.get(document_id, current_user.uid)
     
     if not user_doc:
         raise HTTPException(status_code=404, detail="Document not found or access denied")
@@ -402,7 +447,7 @@ async def get_documents(
 ):
     """List all documents uploaded by the current user."""
     # Filter by user
-    user_docs = [doc for doc in DOCUMENTS if doc.user_uid == current_user.uid]
+    user_docs = document_repository.list_for_owner(current_user.uid)
     
     # Apply additional filters
     if status:
@@ -437,54 +482,38 @@ async def get_documents(
 @router.get("/{document_id}", response_model=Document)
 async def get_document(document_id: str, current_user: User = Depends(get_current_user)):
     """Get information about a specific document."""
-    for doc in DOCUMENTS:
-        if doc.id == document_id:
-            if doc.user_uid == current_user.uid:
-                return doc
-            else:
-                raise HTTPException(status_code=403, detail="Document belongs to another user")
-    
-    raise HTTPException(status_code=404, detail="Document not found")
+    document = document_repository.get(document_id, current_user.uid)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return document
 
 @router.delete("/{document_id}")
 async def delete_document(document_id: str, current_user: User = Depends(get_current_user)):
     """Delete a document and associated data."""
-    for i, doc in enumerate(DOCUMENTS):
-        if doc.id == document_id:
-            if doc.user_uid == current_user.uid:
-                # Remove the document file
-                try:
-                    if os.path.exists(doc.file_path):
-                        os.remove(doc.file_path)
-                except Exception as e:
-                    logger.warning(f"Failed to delete file {doc.file_path}: {str(e)}")
-                
-                # TODO: Remove from RAG database if processing service available
-                if processing_service and processing_service.rag_pipeline:
-                    deletion = await processing_service.rag_pipeline.delete_document_data(
-                        document_id, current_user.uid
-                    )
-                    if deletion.get("status") != "success":
-                        raise HTTPException(status_code=503, detail="Unable to delete derived search data; retry deletion")
-
-                if processing_service and processing_service.policy_extraction_service:
-                    processing_service.policy_extraction_service.delete_summary(document_id)
-                
-                # Remove from list
-                deleted_doc = DOCUMENTS.pop(i)
-                
-                return {
-                    "message": "Document deleted successfully",
-                    "id": document_id
-                }
-            else:
-                raise HTTPException(status_code=403, detail="Document belongs to another user")
-    
+    doc = document_repository.get(document_id, current_user.uid)
+    if doc:
+        # Delete derived search data before deleting the metadata record so a
+        # retry retains the owner/document evidence needed to finish cleanup.
+        if processing_service and processing_service.rag_pipeline:
+            deletion = await processing_service.rag_pipeline.delete_document_data(
+                document_id, current_user.uid
+            )
+            if deletion.get("status") != "success":
+                raise HTTPException(status_code=503, detail="Unable to delete derived search data; retry deletion")
+        if processing_service and processing_service.policy_extraction_service:
+            processing_service.policy_extraction_service.delete_summary(document_id)
+        try:
+            document_object_store.delete(doc.file_path)
+        except Exception as error:
+            raise HTTPException(status_code=503, detail="Unable to delete source document; retry deletion") from error
+        if not document_repository.delete(document_id, current_user.uid):
+            raise HTTPException(status_code=409, detail="Document deletion conflicted; retry")
+        return {"message": "Document deleted successfully", "id": document_id}
     raise HTTPException(status_code=404, detail="Document not found")
 
 # Debug endpoint for development
 @router.get("/debug/processing_status")
-async def get_all_processing_status(current_user: User = Depends(get_current_user)):
+async def get_all_processing_status(_: None = Depends(require_nonproduction)):
     """Get all processing statuses (debug endpoint)"""
     if not processing_service:
         return {"error": "Processing service not available"}
@@ -505,7 +534,7 @@ async def capture_lead(
     """Capture lead information after user sees document analysis results."""
     
     # Find documents associated with this session
-    session_documents = [doc for doc in DOCUMENTS if doc.user_uid == current_user.uid]
+    session_documents = document_repository.list_for_owner(current_user.uid)
     
     if not session_documents:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -530,6 +559,7 @@ async def capture_lead(
         if not hasattr(doc, 'metadata') or not doc.metadata:
             doc.metadata = {}
         doc.metadata.update(lead_data)
+        document_repository.update(doc)
     
     logger.info("Lead captured for owner %s", current_user.uid[:12])
     
@@ -551,7 +581,7 @@ async def get_policy_summary(
     mobile app's Emergency Card, Claims Assistant, Renewal Calendar,
     Coverage Gap Scan, and Policy Comparison features.
     """
-    if not any(doc.id == document_id and doc.user_uid == current_user.uid for doc in DOCUMENTS):
+    if not document_repository.get(document_id, current_user.uid):
         raise HTTPException(status_code=404, detail="Document not found")
     if not processing_service:
         raise HTTPException(status_code=503, detail="Processing service not available")
@@ -580,7 +610,7 @@ async def get_all_policy_summaries(current_user: User = Depends(get_current_user
     if not hasattr(processing_service, 'policy_extraction_service') or not processing_service.policy_extraction_service:
         raise HTTPException(status_code=503, detail="Policy extraction service not available")
 
-    owned_ids = {doc.id for doc in DOCUMENTS if doc.user_uid == current_user.uid}
+    owned_ids = {doc.id for doc in document_repository.list_for_owner(current_user.uid)}
     all_summaries = processing_service.policy_extraction_service.get_all_summaries()
     owned_summaries = [summary for doc_id, summary in all_summaries.items() if doc_id in owned_ids]
     return {"status": "success", "summaries": owned_summaries, "count": len(owned_summaries)}

@@ -1,6 +1,6 @@
 # Session Context
 
-- Generated: 2026-07-12T06:22:42Z
+- Generated: 2026-07-12T06:40:40Z
 - Project: `medpiper/insurance_app`
 - Provider: `local`
 - Model: `BAAI/bge-m3`
@@ -57,12 +57,12 @@ _Collection check timed out. Retry shortly._
 ### Common Failure Modes
 - Collection: `projects_workspace_shared`
 - Query: `lessons learned mistakes retrospectives postmortems`
-_Search timed out. Retry when the retrieval store is less busy._
+_Collection check timed out. Retry shortly._
 
 ### System Learning Graph
 - Collection: `projects_workspace_shared`
 - Query: `knowledge graph memory learning feedback loops autoresearch semantic taste graph`
-_Collection check timed out. Retry shortly._
+_Search timed out. Retry when the retrieval store is less busy._
 
 
 ---

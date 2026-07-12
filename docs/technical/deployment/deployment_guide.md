@@ -1,4 +1,10 @@
-# AWS Deployment Guide
+# Historical AWS Deployment Guide
+
+> **SUPERSEDED for the CoverWise solo launch.** This document is preserved for
+> migration history only. The current canonical plan is
+> [`docs/planning/deployment_decision_2026-07-12.md`](../../planning/deployment_decision_2026-07-12.md).
+> Do not run the AWS scripts, use the AWS URL, or treat the cost/status claims
+> below as current.
 
 ## Single Deployment Script
 

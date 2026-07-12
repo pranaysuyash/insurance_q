@@ -273,15 +273,14 @@
                 <div class="section-heading">
                     <div>
                         <div class="eyebrow-small">Try it now</div>
-                        <h2>Use the live policy analysis flow on this page.</h2>
+                        <h2>{% if interactive_demo_enabled %}Use the local policy-analysis preview.{% else %}The mobile policy workspace is preparing for launch.{% endif %}</h2>
                     </div>
                     <p class="section-copy">
-                        Upload a policy document, review what the system extracted, and ask a grounded follow-up
-                        question. This is the canonical app path used by the frontend service.
+                        {% if interactive_demo_enabled %}This local preview is for development only. It is deliberately not the public production document path.{% else %}Public policy uploads stay in the authenticated CoverWise mobile app, where each document is scoped to its owner.{% endif %}
                     </p>
                 </div>
 
-                <div class="demo-grid">
+                {% if interactive_demo_enabled %}<div class="demo-grid">
                     <section class="panel form-panel">
                         <h3>Upload document</h3>
                         <form id="uploadForm" class="demo-form">
@@ -322,7 +321,19 @@
                             </article>
                         </div>
                     </section>
-                </div>
+                </div>{% else %}
+                <div class="demo-grid">
+                    <section class="panel form-panel">
+                        <h3>Private by design</h3>
+                        <p>We do not accept policy documents through this public marketing site. The production flow uses an authenticated mobile session before a document can be uploaded or queried.</p>
+                    </section>
+                    <section class="panel results-panel">
+                        <div class="result-card">
+                            <h3>Launch status</h3>
+                            <p>Join the launch list for access when the secure mobile policy workspace is ready.</p>
+                        </div>
+                    </section>
+                </div>{% endif %}
             </section>
 
             <section id="faq" class="section">
@@ -371,7 +382,7 @@
         </footer>
     </div>
 
-    <script>
+    {% if interactive_demo_enabled %}<script>
         const uploadForm = document.getElementById("uploadForm");
         const queryForm = document.getElementById("queryForm");
         const uploadStatus = document.getElementById("uploadStatus");
@@ -632,6 +643,6 @@
                 queryButton.textContent = originalButton;
             }
         });
-    </script>
+    </script>{% endif %}
 </body>
 </html>

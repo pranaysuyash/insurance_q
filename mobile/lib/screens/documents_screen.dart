@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
 import '../services/contact_service.dart';
+import '../services/web_file_picker.dart';
 import '../widgets/lead_capture_dialog.dart';
 import '../widgets/usage_stats_widget.dart';
 import 'documents_list.dart';
@@ -22,6 +24,8 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   File? _selectedFile;
+  WebPickedFile? _selectedWebFile;
+  final _pdfPasswordController = TextEditingController();
   bool _isUploading = false;
   String? _uploadError;
   Map<String, dynamic>? _ocrResult;
@@ -40,11 +44,18 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _pdfPasswordController.dispose();
+    super.dispose();
+  }
+
   Future<File> _loadBundledDemoPolicyFile() async {
     final byteData = await rootBundle.load('assets/demo/policy.pdf');
     final tempDir = await getTemporaryDirectory();
     final tempFile = File(path.join(tempDir.path, 'policy_demo.pdf'));
-    final bytes = byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
+    final bytes = byteData.buffer
+        .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
     await tempFile.writeAsBytes(bytes, flush: true);
     return tempFile;
   }
@@ -59,11 +70,16 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       try {
         final file = await _loadBundledDemoPolicyFile();
         if (!mounted) return;
-        setState(() { _selectedFile = file; _showUploadDetails = true; });
+        setState(() {
+          _selectedFile = file;
+          _selectedWebFile = null;
+          _showUploadDetails = true;
+        });
         return;
       } catch (e) {
         if (!mounted) return;
-        setState(() => _uploadError = 'Failed to load bundled policy sample: $e');
+        setState(
+            () => _uploadError = 'Failed to load bundled policy sample: $e');
         return;
       }
     }
@@ -74,16 +90,42 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
     );
 
+    if (kIsWeb) {
+      final picked = await WebFilePicker.pickFile();
+      if (picked != null && mounted) {
+        setState(() {
+          _selectedWebFile = picked;
+          _selectedFile = null;
+          _showUploadDetails = true;
+        });
+      }
+      return;
+    }
+
     final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
     if (file != null && mounted) {
-      setState(() { _selectedFile = File(file.path); _showUploadDetails = true; });
+      setState(() {
+        _selectedFile = File(file.path);
+        _selectedWebFile = null;
+        _showUploadDetails = true;
+      });
     }
   }
 
   Future<void> _uploadFile() async {
-    if (_selectedFile == null) return;
+    final selectedFile = _selectedFile;
+    final selectedWebFile = _selectedWebFile;
+    if (selectedFile == null && selectedWebFile == null) return;
 
-    final duplicate = await ref.read(documentServiceProvider).checkForDuplicateDocument(_selectedFile!);
+    final duplicate = selectedFile != null
+        ? await ref
+            .read(documentServiceProvider)
+            .checkForDuplicateDocument(selectedFile)
+        : selectedWebFile != null
+            ? await ref
+                .read(documentServiceProvider)
+                .checkForDuplicateDocumentByName(selectedWebFile.name)
+            : null;
 
     if (duplicate != null && mounted) {
       final shouldProceed = await showDialog<String>(
@@ -96,7 +138,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             children: [
               const Text('A similar document already exists:'),
               const SizedBox(height: 8),
-              Text(duplicate.filename, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(duplicate.filename,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text('Uploaded on: ${duplicate.formattedUploadDate}'),
               const SizedBox(height: 16),
@@ -107,9 +150,15 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, 'cancel'), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(context, 'replace'), child: const Text('Replace')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, 'keep'), child: const Text('Keep Both')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, 'cancel'),
+                child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, 'replace'),
+                child: const Text('Replace')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(context, 'keep'),
+                child: const Text('Keep Both')),
           ],
         ),
       );
@@ -118,9 +167,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
       if (shouldProceed == 'replace' && mounted) {
         setState(() => _isUploading = true);
-        final deleted = await ref.read(documentServiceProvider).deleteDocument(duplicate.id);
+        final deleted = await ref
+            .read(documentServiceProvider)
+            .deleteDocument(duplicate.id);
         if (!deleted && mounted) {
-          setState(() { _isUploading = false; _uploadError = 'Failed to delete existing document'; });
+          setState(() {
+            _isUploading = false;
+            _uploadError = 'Failed to delete existing document';
+          });
           return;
         }
       }
@@ -142,17 +196,35 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     if (leadInfo == null && mounted) return;
 
     if (leadInfo != null && leadInfo['save'] == true) {
-      await ContactService.saveContact(email: leadInfo['email'], phone: leadInfo['phone'], saveForFuture: true);
+      await ContactService.saveContact(
+          email: leadInfo['email'],
+          phone: leadInfo['phone'],
+          saveForFuture: true);
     }
 
-    setState(() { _isUploading = true; _uploadError = null; _ocrResult = null; });
+    setState(() {
+      _isUploading = true;
+      _uploadError = null;
+      _ocrResult = null;
+    });
 
     try {
-      final result = await ref.read(documentServiceProvider).uploadDocumentWithLimitCheck(
-        _selectedFile!,
-        email: leadInfo?['email'],
-        phone: leadInfo?['phone'],
-      );
+      final result = selectedWebFile != null
+          ? await ref.read(documentServiceProvider).uploadWebDocument(
+                filename: selectedWebFile.name,
+                bytes: Uint8List.fromList(selectedWebFile.bytes),
+                email: leadInfo?['email'],
+                phone: leadInfo?['phone'],
+                pdfPassword: _pdfPasswordController.text,
+              )
+          : await ref
+              .read(documentServiceProvider)
+              .uploadDocumentWithLimitCheck(
+                selectedFile!,
+                email: leadInfo?['email'],
+                phone: leadInfo?['phone'],
+                pdfPassword: _pdfPasswordController.text,
+              );
 
       if (mounted) {
         if (result['error'] == 'rate_limit_exceeded') {
@@ -169,12 +241,25 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
         if (result['error'] == 'storage_limit_reached') {
           setState(() {
-            _uploadError = result['message'] ?? 'You have reached the document storage limit.';
+            _uploadError = result['message'] ??
+                'You have reached the document storage limit.';
             _isUploading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_uploadError!), backgroundColor: Colors.orange),
+            SnackBar(
+                content: Text(_uploadError!), backgroundColor: Colors.orange),
           );
+          return;
+        }
+
+        if (result['error'] == 'pdf_password_required' ||
+            result['error'] == 'pdf_password_invalid' ||
+            result['error'] == 'pdf_unreadable') {
+          setState(() {
+            _uploadError = result['message']?.toString() ??
+                'This PDF could not be opened.';
+            _isUploading = false;
+          });
           return;
         }
 
@@ -186,22 +271,35 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         final documentType = result['document_type']?.toString() ?? 'Unknown';
         final isOfflineFlag = result['offline_mode'] == true;
         if (documentId != null && !isOfflineFlag) {
-          ref.read(policySummariesProvider.notifier).fetchFromBackend(documentId, documentType);
+          ref
+              .read(policySummariesProvider.notifier)
+              .fetchFromBackend(documentId, documentType);
         }
 
         final isOfflineModeFlag = isOfflineFlag;
         final isQueuedOnly = result['status'] == 'pending_upload';
+        final selectedName = selectedWebFile?.name ??
+            selectedFile?.path.split('/').last ??
+            'Document';
         final message = isQueuedOnly
-            ? '${_selectedFile?.path.split('/').last ?? 'Document'} saved locally; sync pending'
+            ? '$selectedName saved locally; sync pending'
             : isOfflineModeFlag
-                ? '${_selectedFile?.path.split('/').last ?? 'Document'} saved locally (offline mode)'
-                : '${_selectedFile?.path.split('/').last ?? 'Document'} uploaded successfully!';
+                ? '$selectedName saved locally (offline mode)'
+                : '$selectedName uploaded successfully!';
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: (isOfflineModeFlag || isQueuedOnly) ? Colors.orange : null),
+          SnackBar(
+              content: Text(message),
+              backgroundColor:
+                  (isOfflineModeFlag || isQueuedOnly) ? Colors.orange : null),
         );
 
-        setState(() { _selectedFile = null; _showUploadDetails = false; });
+        setState(() {
+          _selectedFile = null;
+          _selectedWebFile = null;
+          _pdfPasswordController.clear();
+          _showUploadDetails = false;
+        });
       }
     } catch (e) {
       if (mounted) setState(() => _uploadError = e.toString());
@@ -211,7 +309,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 
   void _clearSelection() {
-    setState(() { _selectedFile = null; _ocrResult = null; _uploadError = null; _showUploadDetails = false; });
+    setState(() {
+      _selectedFile = null;
+      _selectedWebFile = null;
+      _pdfPasswordController.clear();
+      _ocrResult = null;
+      _uploadError = null;
+      _showUploadDetails = false;
+    });
   }
 
   Future<void> _refreshDocumentTypes() async {
@@ -219,18 +324,24 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     try {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Refreshing document types...'), duration: Duration(seconds: 2)),
+        const SnackBar(
+            content: Text('Refreshing document types...'),
+            duration: Duration(seconds: 2)),
       );
       await ref.read(documentServiceProvider).refreshAllDocumentTypes();
       ref.invalidate(documentsProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Document types refreshed successfully!'), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text('Document types refreshed successfully!'),
+            backgroundColor: Colors.green),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error refreshing document types: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error refreshing document types: $e'),
+            backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -244,7 +355,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         title: const Text('Manage Documents'),
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshDocumentTypes, tooltip: 'Refresh Document Types'),
+          IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshDocumentTypes,
+              tooltip: 'Refresh Document Types'),
         ],
       ),
       body: Column(
@@ -254,7 +368,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: UsageStatsWidget(),
           ),
-          if (_showUploadDetails || _selectedFile != null)
+          if (_showUploadDetails ||
+              _selectedFile != null ||
+              _selectedWebFile != null)
             Card(
               margin: const EdgeInsets.all(16.0),
               elevation: 4,
@@ -266,28 +382,56 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Upload New Document', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        if (_selectedFile != null)
-                          IconButton(icon: const Icon(Icons.close), onPressed: _clearSelection, tooltip: 'Clear selection'),
+                        const Text('Upload New Document',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        if (_selectedFile != null || _selectedWebFile != null)
+                          IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: _clearSelection,
+                              tooltip: 'Clear selection'),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    if (_selectedFile == null)
+                    if (_selectedFile == null && _selectedWebFile == null)
                       Center(
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.file_upload_outlined),
                           label: const Text('Select Document'),
                           onPressed: _pickFile,
-                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+                          style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12)),
                         ),
                       ),
-                    if (_selectedFile != null) ...[
+                    if (_selectedFile != null || _selectedWebFile != null) ...[
                       Row(
                         children: [
-                          const Icon(Icons.insert_drive_file, color: Colors.grey),
+                          const Icon(Icons.insert_drive_file,
+                              color: Colors.grey),
                           const SizedBox(width: 8),
-                          Expanded(child: Text(_selectedFile!.path.split('/').last, overflow: TextOverflow.ellipsis)),
+                          Expanded(
+                            child: Text(
+                              _selectedWebFile?.name ??
+                                  _selectedFile!.path.split('/').last,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _pdfPasswordController,
+                        obscureText: true,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        decoration: const InputDecoration(
+                          labelText: 'PDF password (if protected)',
+                          helperText:
+                              'Used only to unlock this upload. Never saved.',
+                          prefixIcon: Icon(Icons.lock_outline),
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Center(
@@ -298,20 +442,26 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                                 label: const Text('Upload Selected File'),
                                 onPressed: _uploadFile,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(context).primaryColor,
+                                  backgroundColor:
+                                      Theme.of(context).primaryColor,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 12),
                                 ),
                               ),
                       ),
                     ],
                     if (_uploadError != null) ...[
                       const SizedBox(height: 12),
-                      Text('Error: $_uploadError', style: const TextStyle(color: Colors.red)),
+                      Text('Error: $_uploadError',
+                          style: const TextStyle(color: Colors.red)),
                     ],
                     if (_ocrResult != null) ...[
                       const SizedBox(height: 12),
-                      const Text('Upload & OCR Successful!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                      const Text('Upload & OCR Successful!',
+                          style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold)),
                     ],
                   ],
                 ),
@@ -326,7 +476,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   label: const Text('Upload a Document'),
                   onPressed: _pickFile,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 16),
                     textStyle: const TextStyle(fontSize: 16),
                   ),
                 ),
@@ -338,7 +489,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Your Documents', style: Theme.of(context).textTheme.headlineSmall),
+                Text('Your Documents',
+                    style: Theme.of(context).textTheme.headlineSmall),
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   onPressed: () => ref.invalidate(documentsProvider),

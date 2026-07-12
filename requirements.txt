@@ -38,6 +38,7 @@ pillow==10.1.0   # PIL for image handling
 python-dotenv==1.0.0
 structlog==23.2.0
 requests==2.31.0
+boto3==1.34.162
 
 # Date and time handling
 python-dateutil==2.8.2
@@ -62,4 +63,3 @@ asyncio-throttle==1.0.2
 
 # HTTP client (used by LLM client, tests)
 httpx==0.25.2
-

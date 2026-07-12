@@ -4,6 +4,14 @@ This is the comprehensive documentation for CoverWise, the insurance companion t
 surfaces the details that matter, and answers grounded questions in plain language. The documentation is
 organized in a logical directory structure to improve navigation and accessibility.
 
+## Current source of truth
+
+For the solo launch, read [`docs/planning/coverwise_long_term_platform_decision_2026-07-12.md`](planning/coverwise_long_term_platform_decision_2026-07-12.md) first.
+It is the canonical platform decision: one Cloud Run FastAPI service, one Supabase project,
+Supabase Postgres with `pgvector`, and Supabase Storage. Older AWS, Railway, and Firestore
+proposals remain preserved and explicitly marked historical or superseded; do not use them as
+implementation instructions for new work.
+
 ## Key Technical Documents
 
 - **OCR Implementation**: Detailed explanation of the OCR and document layout extraction process using Hugging Face APIs. Found at `docs/technical/implementation/extraction/ocr_implementation.md`.
