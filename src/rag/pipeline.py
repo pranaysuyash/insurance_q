@@ -429,7 +429,7 @@ class RAGPipeline:
 
         # Contextual Retrieval: prepend chunk-specific context to each block
         # before embedding (Anthropic technique, 35% reduction in retrieval failures)
-        if self.llm:
+        if getattr(self, "llm", None):
             text_blocks = await self._contextualize_chunks(text_blocks, document_metadata or {})
 
         texts = [b["text"] for b in text_blocks]

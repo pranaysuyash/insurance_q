@@ -13,6 +13,9 @@ MODEL_PRICING = {
     "gpt-4o":            {"input": 2.50, "output": 10.00},
     "gpt-5-nano":        {"input": 0.05, "output": 0.40},
     "gpt-5.4-nano":      {"input": 0.20, "output": 0.40},
+    # Groq (LPU-accelerated, near-free dev tier) — verify at groq.com/pricing
+    "llama-3.3-70b-versatile":    {"input": 0.59, "output": 0.79},
+    "llama-3.1-8b-instant":       {"input": 0.05, "output": 0.08},
 }
 
 # Models that support "json_schema" response format (structured outputs)
@@ -81,6 +84,19 @@ class LLMClient:
         self._mlx_client: Optional[AsyncOpenAI] = None
         self._mlx_enabled = settings.mlx_enabled
 
+        # Groq client (cloud, LPU-accelerated, OpenAI-compatible)
+        self._groq_client: Optional[AsyncOpenAI] = None
+        self._groq_enabled = bool(settings.groq_api_key)
+
+    def _get_groq_client(self) -> Optional[AsyncOpenAI]:
+        """Lazy-initialize Groq client (OpenAI-compatible endpoint)."""
+        if self._groq_client is None and self._groq_enabled:
+            self._groq_client = AsyncOpenAI(
+                base_url=settings.groq_base_url,
+                api_key=settings.groq_api_key,
+            )
+        return self._groq_client
+
     def _get_ollama_client(self) -> AsyncOpenAI:
         """Lazy-initialize Ollama client."""
         if self._ollama_client is None and self._ollama_enabled:
@@ -133,6 +149,8 @@ class LLMClient:
 
     def _select_client(self, model: str):
         """Select the appropriate client based on model name."""
+        if self._groq_enabled and model == settings.groq_chat_model:
+            return self._get_groq_client()
         if self._ollama_enabled and (model in (settings.ollama_chat_model, settings.ollama_alt_model) or model.startswith("ollama/")):
             return self._get_ollama_client()
         if self._mlx_enabled and (model == settings.mlx_model or model.startswith("mlx-community/")):
@@ -149,6 +167,9 @@ class LLMClient:
         fallback_models: Optional[list[str]] = None,
     ) -> str:
         models_to_try = [self.model] + (fallback_models or [])
+        # Groq (cloud, near-free) — try before local Ollama for speed
+        if self._groq_enabled and settings.groq_chat_model not in models_to_try:
+            models_to_try.append(settings.groq_chat_model)
         if self._ollama_enabled:
             if settings.ollama_chat_model not in models_to_try:
                 models_to_try.append(settings.ollama_chat_model)

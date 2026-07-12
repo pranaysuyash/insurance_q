@@ -9,8 +9,8 @@ class Settings(BaseSettings):
 
     # Ollama (local LLM/embeddings) - OpenAI-compatible API
     ollama_base_url: str = "http://localhost:11434/v1"
-    ollama_chat_model: str = "gemma3:12b"
-    ollama_alt_model: str = "qwen2.5:7b"
+    ollama_chat_model: str = "qwen2.5:7b"
+    ollama_alt_model: str = "gemma3:12b"
     ollama_embedding_model: str = "nomic-embed-text"
     ollama_api_key: str = "ollama"
 
