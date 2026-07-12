@@ -500,3 +500,9 @@ async def test_processing(_: None = Depends(require_nonproduction)):
         return {"status": "success", "result": result}
     except Exception as e:
         return {"error": str(e)}
+
+
+# Keep the public marketing surface in the same Cloud Run process. API routes
+# above take precedence; the mounted app supplies the public site and assets.
+from src.frontend.app import app as marketing_app
+app.mount("/", marketing_app)

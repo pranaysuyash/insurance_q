@@ -158,18 +158,19 @@ physical test device and capture the no-prompt screen before the reminder CTA.
 
 `DOCUMENTS` has been replaced by the canonical document repository boundary:
 SQLite is restart-safe for local development/tests, while production defaults
-to DynamoDB and rejects SQLite. Original source bytes now use a canonical
-object-store boundary: local development storage or mandatory KMS-encrypted S3
-in production. Upload compensates by deleting the source object when metadata
-creation fails; deletion keeps metadata until derived vectors/summaries and the
-source object have been removed.
+to Supabase Postgres and rejects SQLite. Original source bytes use a private
+Supabase Storage bucket in production; local files remain development-only.
+Upload compensates by deleting the source object when metadata creation fails;
+deletion keeps metadata until derived vectors/summaries and the source object
+have been removed.
 
 The legacy `/policy` in-memory router is no longer mounted; `/documents` is the
-single public policy-document ownership path. [The storage contract](/Users/pranay/Projects/medpiper/insurance_app/docs/technical/document_storage_contract_2026-07-12.md) and
-[CloudFormation template](/Users/pranay/Projects/medpiper/insurance_app/infra/aws/document-storage.yaml) define the exact production
-table, encrypted bucket, App Runner role, environment variables, and live
-verification gate. Targeted repository/object/auth tests pass locally; this is
-Tier 2 code proof, not evidence that AWS resources are provisioned.
+single public policy-document ownership path. The Supabase schema at
+[`infra/supabase/001_coverwise_schema.sql`](../../infra/supabase/001_coverwise_schema.sql)
+defines the production tables, private bucket, owner-scoped vector RPC, and
+environment contract. Production provisioning and live verification remain
+open; this is Tier 2 code proof, not evidence that cloud resources are
+provisioned.
 
 ## Addendum — anonymous-session continuity (2026-07-12)
 
@@ -184,7 +185,7 @@ product privacy UX.
 
 ## Decision required
 
-Provision the AWS object-storage + durable database target, and decide whether
-the anonymous issuer remains server-signed (with rotation/revocation) or moves
-to Firebase Anonymous Authentication. Either choice can retain the no-login
-first user experience; neither can use process-local storage in production.
+Provision the Supabase project/schema and Cloud Run service, then verify the
+server-signed anonymous issuer and production retention/deletion behavior.
+Firebase remains optional and is not part of the launch core; neither path can
+use process-local storage in production.

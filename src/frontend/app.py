@@ -58,8 +58,9 @@ app.mount("/static", StaticFiles(directory="src/frontend/static"), name="static"
 templates = Jinja2Templates(directory="src/frontend/templates")
 
 # Service URLs from environment variables
-OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL", "http://rag_service:8000")  # Now points to main app
-RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag_service:8000")
+INTERNAL_SERVICE_URL = os.getenv("INTERNAL_SERVICE_URL", "http://127.0.0.1:8080")
+OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL", INTERNAL_SERVICE_URL)
+RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", INTERNAL_SERVICE_URL)
 
 # HTTP client (managed by lifespan events)
 http_client: Optional[httpx.AsyncClient] = None

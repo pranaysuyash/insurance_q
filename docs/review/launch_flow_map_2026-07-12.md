@@ -38,15 +38,19 @@ perspective.
                         │ HTTPS
                         ▼
 ┌───────────────────────────────────────────────────────┐
-│              Backend (FastAPI, AWS App Runner)         │
+│              Backend (FastAPI, Cloud Run)              │
 │                                                       │
-│  POST /query    → RAG (OpenAI embed + chat + Qdrant) │
-│  POST /documents/upload → OCR → ingest → Qdrant      │
+│  POST /query    → RAG (OpenAI embed + chat + pgvector)│
+│  POST /documents/upload → OCR → ingest → pgvector     │
 │  GET  /documents/{id}/summary → LLM extraction        │
 │  GET  /health    → real embedding probe               │
 │  GET  /documents/usage-stats → rate limit status      │
 └───────────────────────────────────────────────────────┘
 ```
+
+**Current platform source of truth:** one Cloud Run application service backed by
+Supabase Postgres/pgvector and private Supabase Storage. AWS/Qdrant references in
+older review material are historical evidence, not launch instructions.
 
 ---
 

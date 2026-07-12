@@ -16,25 +16,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first (for better Docker caching)
 COPY requirements.txt .
 
-# Install Python dependencies — uses requirements-local.txt for full OCR + ML
-# For production (slim, no ML models), use requirements.txt instead.
+# Install the production dependency set. Local OCR/ML extras stay outside the
+# Cloud Run image so the single runtime remains smaller and cheaper to start.
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements-local.txt
+    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements.txt
 
 # Copy application code
 COPY src/ src/
 
-# Copy storage directory with documents
-COPY storage/ storage/
-
 # Create necessary directories
-RUN mkdir -p /app/uploads /app/temp
+RUN mkdir -p /app/uploads /app/temp /app/storage/documents
 
 # Set Python path
 ENV PYTHONPATH="/app"
 
-# Expose port (this will be overridden by Azure App Service)
-EXPOSE 8000
+# Cloud Run injects PORT at runtime; 8080 is the local fallback.
+EXPOSE 8080
 
-# Default command (will be overridden by startup command in Azure)
-CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"] 
+CMD ["sh", "-c", "uvicorn src.app.main:app --host 0.0.0.0 --port ${PORT:-8080} --log-level info"]
