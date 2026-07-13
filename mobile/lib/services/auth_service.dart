@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'app_state_store.dart';
 
@@ -13,11 +14,29 @@ class AuthService {
   static const _tokenExpiryKey = 'anonymous_auth_token_expiry';
 
   static Box get _box => Hive.box(AppStateStore.boxName);
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
-  static String? get cachedToken {
-    final token = _box.get(_tokenKey) as String?;
+  /// Reads only from platform secure storage. A one-time Hive migration avoids
+  /// stranding existing anonymous owners while removing bearer tokens from the
+  /// general application-state database.
+  static Future<String?> cachedToken() async {
+    var token = await _secureStorage.read(key: _tokenKey);
+    var expiryStr = await _secureStorage.read(key: _tokenExpiryKey);
+    if (token == null) {
+      final legacyToken = _box.get(_tokenKey) as String?;
+      final legacyExpiry = _box.get(_tokenExpiryKey) as String?;
+      if (legacyToken != null) {
+        await _secureStorage.write(key: _tokenKey, value: legacyToken);
+        if (legacyExpiry != null) {
+          await _secureStorage.write(key: _tokenExpiryKey, value: legacyExpiry);
+        }
+        await _box.delete(_tokenKey);
+        await _box.delete(_tokenExpiryKey);
+        token = legacyToken;
+        expiryStr = legacyExpiry;
+      }
+    }
     if (token == null) return null;
-    final expiryStr = _box.get(_tokenExpiryKey) as String?;
     if (expiryStr != null) {
       try {
         final expiry = DateTime.parse(expiryStr);
@@ -35,9 +54,9 @@ class AuthService {
       if (response.statusCode == 200 && response.data['access_token'] != null) {
         final token = response.data['access_token'] as String;
         final expiresAt = response.data['expires_at'] as String?;
-        await _box.put(_tokenKey, token);
+        await _secureStorage.write(key: _tokenKey, value: token);
         if (expiresAt != null) {
-          await _box.put(_tokenExpiryKey, expiresAt);
+          await _secureStorage.write(key: _tokenExpiryKey, value: expiresAt);
         }
         debugPrint('Anonymous auth token acquired, expires: $expiresAt');
         return token;
@@ -49,6 +68,9 @@ class AuthService {
   }
 
   static Future<void> clearToken() async {
+    await _secureStorage.delete(key: _tokenKey);
+    await _secureStorage.delete(key: _tokenExpiryKey);
+    // Also clear a pre-migration token if a reset happens before first read.
     await _box.delete(_tokenKey);
     await _box.delete(_tokenExpiryKey);
   }
@@ -60,12 +82,12 @@ class AuthInterceptor extends Interceptor {
   AuthInterceptor(this._dio);
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+  Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
     if (options.path.contains('/user/anonymous')) {
       handler.next(options);
       return;
     }
-    final token = AuthService.cachedToken;
+    final token = await AuthService.cachedToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }

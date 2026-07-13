@@ -14,7 +14,11 @@ class DocumentService {
   DocumentService(this._dio);
 
   Future<Map<String, dynamic>> uploadFile(File file,
-      {String? email, String? phone, String? pdfPassword}) async {
+      {String? email,
+      String? phone,
+      String? pdfPassword,
+      String? onDeviceOcrText,
+      required String processingConsentVersion}) async {
     try {
       final sessionId = await SessionService.getSessionId();
 
@@ -22,11 +26,12 @@ class DocumentService {
         final formData = FormData.fromMap({
           'files': await MultipartFile.fromFile(file.path),
           'processing_mode': 'full',
+          'processing_consent': true,
+          'processing_consent_version': processingConsentVersion,
           if (pdfPassword != null && pdfPassword.trim().isNotEmpty)
             'pdf_password': pdfPassword,
-          if (email != null) 'user_email': email,
-          if (phone != null) 'user_phone': phone,
-          'consent': true,
+          if (onDeviceOcrText != null && onDeviceOcrText.trim().isNotEmpty)
+            'on_device_ocr_text': onDeviceOcrText,
         });
 
         final response = await _dio.post(
@@ -93,7 +98,7 @@ class DocumentService {
           );
         }
       } catch (e) {
-        debugPrint('Backend upload failed, falling back to local storage: $e');
+        debugPrint('Document upload request did not complete.');
 
         if (e is DioException && e.response?.statusCode == 429) {
           final errorData = e.response?.data;
@@ -116,6 +121,14 @@ class DocumentService {
                   'This document could not be opened.',
             };
           }
+        }
+
+        if (!_isOfflineTransportFailure(e)) {
+          return {
+            'error': 'upload_failed',
+            'message':
+                'We could not save this policy securely. Please try again before closing the app.',
+          };
         }
 
         final documentType = _inferDocumentType(file.path);
@@ -146,8 +159,11 @@ class DocumentService {
         };
       }
     } catch (e) {
-      debugPrint('Error uploading file: $e');
-      return {'error': e.toString()};
+      debugPrint('Unexpected document upload failure.');
+      return {
+        'error': 'upload_failed',
+        'message': 'We could not save this policy securely. Please try again.',
+      };
     }
   }
 
@@ -205,13 +221,26 @@ class DocumentService {
   }
 
   Future<Map<String, dynamic>> uploadDocument(File file,
-      {String? email, String? phone, String? pdfPassword}) {
+      {String? email,
+      String? phone,
+      String? pdfPassword,
+      String? onDeviceOcrText,
+      required String processingConsentVersion}) {
     return uploadFile(
       file,
       email: email,
       phone: phone,
       pdfPassword: pdfPassword,
+      onDeviceOcrText: onDeviceOcrText,
+      processingConsentVersion: processingConsentVersion,
     );
+  }
+
+  bool _isOfflineTransportFailure(Object error) {
+    if (error is! DioException || error.response != null) return false;
+    return error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout;
   }
 
   Future<Map<String, dynamic>> uploadWebDocument({
@@ -220,6 +249,8 @@ class DocumentService {
     String? email,
     String? phone,
     String? pdfPassword,
+    String? onDeviceOcrText,
+    required String processingConsentVersion,
   }) async {
     try {
       final sessionId = await SessionService.getSessionId();
@@ -228,11 +259,12 @@ class DocumentService {
         final formData = FormData.fromMap({
           'files': MultipartFile.fromBytes(bytes, filename: filename),
           'processing_mode': 'full',
+          'processing_consent': true,
+          'processing_consent_version': processingConsentVersion,
           if (pdfPassword != null && pdfPassword.trim().isNotEmpty)
             'pdf_password': pdfPassword,
-          if (email != null) 'user_email': email,
-          if (phone != null) 'user_phone': phone,
-          'consent': true,
+          if (onDeviceOcrText != null && onDeviceOcrText.trim().isNotEmpty)
+            'on_device_ocr_text': onDeviceOcrText,
         });
 
         final response = await _dio.post(
@@ -299,7 +331,7 @@ class DocumentService {
           );
         }
       } catch (e) {
-        debugPrint('Backend upload failed, falling back to local storage: $e');
+        debugPrint('Web document upload request did not complete.');
 
         if (e is DioException && e.response?.statusCode == 429) {
           final errorData = e.response?.data;
@@ -308,6 +340,14 @@ class DocumentService {
             'message': errorData?['detail'] ??
                 'Upload limit exceeded. Please try again later.',
             'retry_after': errorData?['retry_after'],
+          };
+        }
+
+        if (!_isOfflineTransportFailure(e)) {
+          return {
+            'error': 'upload_failed',
+            'message':
+                'We could not save this policy securely. Please try again before closing the app.',
           };
         }
 
@@ -339,8 +379,11 @@ class DocumentService {
         };
       }
     } catch (e) {
-      debugPrint('Error uploading web file: $e');
-      return {'error': e.toString()};
+      debugPrint('Unexpected web document upload failure.');
+      return {
+        'error': 'upload_failed',
+        'message': 'We could not save this policy securely. Please try again.',
+      };
     }
   }
 
@@ -374,7 +417,7 @@ class DocumentService {
       }
       return updatedDocuments;
     } catch (e) {
-      debugPrint('Error getting documents: $e');
+      debugPrint('Unable to load the local document list.');
       rethrow;
     }
   }
@@ -600,7 +643,12 @@ class DocumentService {
   }
 
   Future<Map<String, dynamic>> uploadDocumentWithLimitCheck(File file,
-      {String? email, String? phone, String? pdfPassword}) async {
+      {String? email,
+      String? phone,
+      String? pdfPassword,
+      bool useOnDeviceOcr = false,
+      OnDeviceOcrScript onDeviceOcrScript = OnDeviceOcrScript.latin,
+      required String processingConsentVersion}) async {
     try {
       final documents = await getDocuments();
       if (documents.length >= 5) {
@@ -612,49 +660,46 @@ class DocumentService {
         };
       }
 
-      // On-device OCR for scanned PDFs: if the PDF has no embedded text,
-      // extract it with ML Kit before uploading. This handles scanned/image-
-      // only policies without needing doctr on the backend (slim production
-      // image). For digital PDFs (the common case), this is a fast no-op.
-      final uploadFile = await _preprocessForOcr(file);
+      // OCR is explicitly chosen by the user for scanned pages. The original
+      // source file is always uploaded; OCR text is a labelled sidecar that
+      // the backend may use only when the source lacks embedded PDF text.
+      final onDeviceOcrText = useOnDeviceOcr
+          ? await _extractOnDeviceOcrText(file, onDeviceOcrScript)
+          : null;
 
       return await uploadDocument(
-        uploadFile,
+        file,
         email: email,
         phone: phone,
         pdfPassword: pdfPassword,
+        onDeviceOcrText: onDeviceOcrText,
+        processingConsentVersion: processingConsentVersion,
       );
     } catch (e) {
       return {'error': e.toString()};
     }
   }
 
-  /// Pre-processes a file for upload. If it's a PDF with no direct text,
-  /// runs on-device ML Kit OCR and returns a text file. Otherwise returns
-  /// the original file unchanged.
-  Future<File> _preprocessForOcr(File file) async {
-    final path = file.path.toLowerCase();
-    if (!path.endsWith('.pdf')) return file;
-
+  /// Produces an optional, in-memory sidecar for a user-selected scanned
+  /// document. It never changes the original file or filename.
+  Future<String?> _extractOnDeviceOcrText(
+    File file,
+    OnDeviceOcrScript script,
+  ) async {
     try {
-      // Check if the PDF has direct text
-      final result = await MlOcrService.extractTextFromFile(file.path);
+      final result = await MlOcrService.extractTextFromFile(
+        file.path,
+        script: script,
+      );
       if (result.usedOcr && result.text.isNotEmpty) {
-        // The PDF was scanned — write the OCR'd text to a temp file and
-        // upload that instead. The backend processes text files fine.
-        final tempDir = await Directory.systemTemp.createTemp('coverwise_ocr');
-        final textFile = File(
-            '${tempDir.path}/${file.uri.pathSegments.last.replaceAll('.pdf', '')}_ocr.txt');
-        await textFile.writeAsString(result.text);
         debugPrint(
-            'On-device OCR extracted ${result.text.length} chars from scanned PDF');
-        return textFile;
+            'On-device OCR extracted ${result.text.length} chars; original source is retained');
+        return result.text;
       }
     } catch (e) {
-      debugPrint('OCR preprocessing skipped: $e');
+      debugPrint('On-device OCR assist unavailable: $e');
     }
-
-    return file;
+    return null;
   }
 
   Future<void> refreshAllDocumentTypes() async {

@@ -17,9 +17,32 @@ and answers grounded questions in plain language.
 The company-era AWS deployment notes below are historical records and are not the
 current launch plan. CoverWise is now being prepared as a solo product. The
 canonical platform architecture is [`docs/planning/coverwise_long_term_platform_decision_2026-07-12.md`](docs/planning/coverwise_long_term_platform_decision_2026-07-12.md),
-which recommends one Railway Hobby project with private services and explicit
-cost/persistence guardrails. See [`docs/archive/deployment/README.md`](docs/archive/deployment/README.md)
-for the preserved historical deployment material.
+which selects one Cloud Run FastAPI service backed by Supabase Postgres,
+pgvector, and private Storage. The live release command is
+[`tools/deploy_cloud_run.sh`](tools/deploy_cloud_run.sh); it is not yet proof of
+a deployed production service. See [`docs/archive/deployment/README.md`](docs/archive/deployment/README.md)
+for preserved historical deployment material.
+
+## Launch status — current as of 2026-07-13
+
+CoverWise is **not yet deployed for customer use**. The current launch path is:
+
+- Flutter mobile client with explicit policy-processing consent and no demo
+  content in release builds.
+- One Cloud Run API service with application-level bearer authorization.
+- Supabase Postgres/pgvector and private Supabase Storage as the sole durable
+  document path.
+- Hosted legal pages, Secret Manager values, Supabase migrations, custom domain,
+  and deployed end-to-end acceptance evidence still required before release.
+
+Policy analysis requires an online secure backend; local pending-upload support
+is only a transport-recovery state, not offline analysis. For current launch
+gates, see
+[`docs/review/launch_readiness_review_2026-07-12.md`](docs/review/launch_readiness_review_2026-07-12.md).
+
+> The remainder of this README is a preserved June 2025 historical snapshot.
+> It contains obsolete AWS, Azure, Qdrant, Redis, deployment, cost, and
+> readiness claims. Do not follow it for the July 2026 launch.
 
 ## Historical company-era status: AWS App Runner
 

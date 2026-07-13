@@ -80,6 +80,7 @@ class DocumentProcessingService:
         processing_mode: str = "full",
         owner_id: Optional[str] = None,
         pdf_password: Optional[str] = None,
+        on_device_ocr_text: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Complete document processing pipeline
@@ -96,7 +97,7 @@ class DocumentProcessingService:
         if not document_id:
             document_id = str(uuid.uuid4())
         
-        logger.info(f"Starting document processing: {filename} (ID: {document_id}, Mode: {processing_mode})")
+        logger.info("document_processing_started document_id=%s mode=%s", document_id, processing_mode)
         
         # Initialize status tracking
         self.processing_status[document_id] = {
@@ -126,7 +127,10 @@ class DocumentProcessingService:
             if processing_mode in ["full", "ocr_only"]:
                 await self._update_status(document_id, "extracting_text", 30)
                 ocr_result = await self._extract_text(
-                    file_path, filename, pdf_password=pdf_password
+                    file_path,
+                    filename,
+                    pdf_password=pdf_password,
+                    on_device_ocr_text=on_device_ocr_text,
                 )
                 extracted_text = ocr_result.get("full_text", "")
                 result["stages"]["ocr"] = ocr_result
@@ -147,8 +151,15 @@ class DocumentProcessingService:
                     else:
                         result["stages"]["policy_extraction"] = {"status": "skipped", "reason": "No summary returned"}
                 except Exception as e:
-                    logger.warning("Policy extraction failed for %s: %s", document_id, e)
-                    result["stages"]["policy_extraction"] = {"status": "failed", "error": str(e)}
+                    logger.warning(
+                        "policy_extraction_failed document_id=%s error_type=%s",
+                        document_id,
+                        type(e).__name__,
+                    )
+                    result["stages"]["policy_extraction"] = {
+                        "status": "failed",
+                        "error": "Policy extraction failed",
+                    }
             
             # Stage 3: RAG Ingestion (if needed and available)
             if processing_mode in ["full", "rag_only"] and self.rag_pipeline:
@@ -174,17 +185,18 @@ class DocumentProcessingService:
             result["status"] = "completed"
             result["completed_at"] = datetime.utcnow().isoformat()
             
-            logger.info(f"Document processing completed: {filename} (ID: {document_id})")
+            logger.info("document_processing_completed document_id=%s", document_id)
             return result
             
         except Exception as e:
-            logger.error(f"Document processing failed: {filename} (ID: {document_id}) - {str(e)}")
-            await self._update_status(document_id, "failed", 0, str(e))
+            logger.error("document_processing_pipeline_failed document_id=%s error_type=%s", document_id, type(e).__name__)
+            safe_error = "Document processing failed"
+            await self._update_status(document_id, "failed", 0, safe_error)
             return {
                 "document_id": document_id,
                 "filename": filename,
                 "status": "failed",
-                "error": str(e),
+                "error": safe_error,
                 "failed_at": datetime.utcnow().isoformat()
             }
     
@@ -197,11 +209,15 @@ class DocumentProcessingService:
         with open(file_path, "wb") as f:
             f.write(file_content)
         
-        logger.info(f"File saved: {file_path}")
+        logger.info("document_processing_temp_file_saved document_id=%s", document_id)
         return file_path
     
     async def _extract_text(
-        self, file_path: str, filename: str, pdf_password: Optional[str] = None
+        self,
+        file_path: str,
+        filename: str,
+        pdf_password: Optional[str] = None,
+        on_device_ocr_text: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Extract text from a document.
 
@@ -213,8 +229,20 @@ class DocumentProcessingService:
         """
         file_extension = os.path.splitext(filename)[1].lower()
 
+        # The original document remains authoritative. A mobile-generated OCR
+        # sidecar is accepted only as a recovery path for scans that do not
+        # contain direct text; it never overrides embedded PDF text.
+        mobile_ocr_text = on_device_ocr_text.strip() if on_device_ocr_text else ""
+
         # --- Image files: need OCR (not available in slim production image) ---
-        if file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.webp']:
+        if file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp']:
+            if mobile_ocr_text:
+                return {
+                    "full_text": mobile_ocr_text,
+                    "status": "completed",
+                    "method": "mobile_mlkit_text_recognition",
+                    "provenance": "client_on_device_ocr_sidecar",
+                }
             try:
                 if self._ocr_pipeline is None:
                     from src.ocr.pipeline import OCRPipeline
@@ -232,7 +260,11 @@ class DocumentProcessingService:
                     "full_text": "",
                 }
             except Exception as e:
-                logger.error(f"Image OCR failed for {filename}: {str(e)}")
+                logger.error(
+                    "image_ocr_failed document_id=%s error_type=%s",
+                    document_id,
+                    type(e).__name__,
+                )
                 return {
                     "status": "failed",
                     "error": str(e),
@@ -280,6 +312,14 @@ class DocumentProcessingService:
                         "method": method,
                     }
 
+                if mobile_ocr_text:
+                    return {
+                        "full_text": mobile_ocr_text,
+                        "status": "completed",
+                        "method": "mobile_mlkit_text_recognition",
+                        "provenance": "client_on_device_ocr_sidecar",
+                    }
+
                 # No direct text at all — this is a scanned/image-only PDF
                 # Try OCR if available (local dev), otherwise clear message
                 if self._ocr_pipeline is not None:
@@ -309,7 +349,11 @@ class DocumentProcessingService:
                     }
 
             except Exception as e:
-                logger.warning(f"PDF direct-text extraction failed for {filename}: {str(e)}")
+                logger.warning(
+                    "pdf_direct_text_extraction_failed document_id=%s error_type=%s",
+                    document_id,
+                    type(e).__name__,
+                )
                 # If PyMuPDF can't open it, try OCR pipeline as last resort
                 # (the file might be a valid image-based PDF that needs OCR)
                 try:
@@ -329,7 +373,11 @@ class DocumentProcessingService:
                         "full_text": "",
                     }
                 except Exception as ocr_err:
-                    logger.error(f"PDF OCR fallback also failed for {filename}: {str(ocr_err)}")
+                    logger.error(
+                        "pdf_ocr_fallback_failed document_id=%s error_type=%s",
+                        document_id,
+                        type(ocr_err).__name__,
+                    )
                     return {
                         "status": "failed",
                         "error": str(e),
@@ -346,7 +394,11 @@ class DocumentProcessingService:
                 "method": "text_fallback",
             }
         except Exception as e:
-            logger.error(f"Text extraction failed for {filename}: {str(e)}")
+            logger.error(
+                "text_extraction_failed document_id=%s error_type=%s",
+                document_id,
+                type(e).__name__,
+            )
             return {
                 "status": "failed",
                 "error": str(e),
@@ -392,7 +444,11 @@ class DocumentProcessingService:
             }
             
         except Exception as e:
-            logger.error(f"RAG ingestion failed for {document_id}: {str(e)}")
+            logger.error(
+                "rag_ingestion_failed document_id=%s error_type=%s",
+                document_id,
+                type(e).__name__,
+            )
             return {
                 "status": "failed",
                 "error": str(e)
@@ -481,7 +537,7 @@ class DocumentProcessingService:
             )
             return result
         except Exception as e:
-            logger.error(f"Document query failed: {str(e)}")
+            logger.error("document_query_failed error_type=%s", type(e).__name__)
             return {
                 "status": "error",
                 "error": str(e)

@@ -30,6 +30,30 @@ def test_refresh_token_preserves_anonymous_owner(monkeypatch):
     assert refreshed_claims["sub"] == claims["sub"]
 
 
+def test_rotated_signing_key_accepts_still_valid_previous_token(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "old-test-signing-key")
+    token, claims = anonymous_auth.issue_anonymous_token()
+
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "new-test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_PREVIOUS_SIGNING_KEYS", "old-test-signing-key")
+
+    assert anonymous_auth.verify_anonymous_token(token)["sub"] == claims["sub"]
+
+
+def test_rotated_signing_key_rejects_token_after_previous_key_is_removed(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "old-test-signing-key")
+    token, _ = anonymous_auth.issue_anonymous_token()
+
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "new-test-signing-key")
+    monkeypatch.delenv("ANONYMOUS_AUTH_PREVIOUS_SIGNING_KEYS", raising=False)
+
+    with pytest.raises(HTTPException) as error:
+        anonymous_auth.verify_anonymous_token(token)
+    assert error.value.status_code == 401
+
+
 def test_invalid_anonymous_token_is_rejected(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key")

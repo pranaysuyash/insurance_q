@@ -70,10 +70,20 @@ class DashboardScreen extends ConsumerWidget {
                             .length,
                       ),
                       const SizedBox(height: 20),
-                      if (policySummaries.isNotEmpty) ...[
-                        _PolicySummaryCards(summaries: policySummaries),
-                        const SizedBox(height: 20),
-                      ],
+                      // First-time user: prominent upload CTA instead of empty sections
+                      if (documents.isEmpty) ...[
+                        _FirstUploadCta(
+                          onUpload: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const DocumentsScreen()),
+                          ),
+                        ),
+                      ] else ...[
+                        if (policySummaries.isNotEmpty) ...[
+                          _PolicySummaryCards(summaries: policySummaries),
+                          const SizedBox(height: 20),
+                        ],
                       _DocumentSummary(documents: documents),
                       const SizedBox(height: 20),
                       _QuickActions(documents: documents),
@@ -87,6 +97,7 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
                       _InsuranceTerminologySection(),
+                      ],
                     ]),
                   ),
                 ),
@@ -94,6 +105,105 @@ class DashboardScreen extends ConsumerWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+/// Prominent, visual CTA shown when the user has no documents.
+/// This IS the onboarding continuation — the first thing a new user sees
+/// after the carousel.
+class _FirstUploadCta extends StatelessWidget {
+  final VoidCallback onUpload;
+
+  const _FirstUploadCta({required this.onUpload});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          // Icon
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.upload_file, size: 48, color: Colors.white),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Upload your first policy',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Pick a PDF of your insurance policy. CoverWise reads it and '
+            'shows you coverage, exclusions, and benefits — in 30 seconds.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.white70, height: 1.5),
+          ),
+          const SizedBox(height: 20),
+          // Benefits chips
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              _ctaChip(Icons.bolt, 'Takes 30 seconds'),
+              _ctaChip(Icons.cloud_off, 'Works offline'),
+              _ctaChip(Icons.lock_outline, 'Private'),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // CTA button
+          FilledButton.icon(
+            icon: const Icon(Icons.cloud_upload),
+            label: const Text('Select Policy PDF',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            onPressed: onUpload,
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF1565C0),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ctaChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+        ],
       ),
     );
   }

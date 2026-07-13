@@ -5,7 +5,11 @@ from src.models.document import Document
 from src.services.document_repository import DocumentRepository, create_document_repository
 from src.services.document_object_store import DocumentObjectStore, create_document_object_store
 from src.utils.runtime_access import require_nonproduction
-from src.utils.pdf_access import PdfPasswordError, unlock_pdf
+from src.utils.upload_validation import (
+    MAX_UPLOAD_BYTES,
+    UploadValidationError,
+    validate_upload_content,
+)
 from typing import List, Optional
 from datetime import datetime
 import os
@@ -37,6 +41,15 @@ document_object_store: DocumentObjectStore = create_document_object_store()
 # Global processing service (will be injected from main app)
 processing_service: Optional[DocumentProcessingService] = None
 
+_CLIENT_DOCUMENT_EXCLUDED_FIELDS = {"file_path", "user_uid", "source_hash", "metadata"}
+
+
+def _client_document(document: Document) -> dict:
+    """Return customer-visible document state without storage/auth internals."""
+    if hasattr(document, "model_dump"):
+        return document.model_dump(exclude=_CLIENT_DOCUMENT_EXCLUDED_FIELDS)
+    return document.dict(exclude=_CLIENT_DOCUMENT_EXCLUDED_FIELDS)
+
 def set_processing_service(service: DocumentProcessingService):
     """Set the global processing service instance"""
     global processing_service
@@ -61,7 +74,10 @@ async def upload_document(
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     processing_mode: str = Form("full"),  # "full", "ocr_only", "rag_only"
+    processing_consent: bool = Form(False),
+    processing_consent_version: Optional[str] = Form(None),
     pdf_password: Optional[str] = Form(None),
+    on_device_ocr_text: Optional[str] = Form(None),
     metadata: Optional[str] = Form(None),
     user_email: Optional[str] = Form(None),  # Optional lead capture
     user_phone: Optional[str] = Form(None),  # Optional lead capture
@@ -69,6 +85,22 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
 ):
     """Upload policy documents owned by the verified anonymous principal."""
+    if not processing_consent or not processing_consent_version:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "processing_consent_required",
+                "message": "Accept the current Privacy Policy to securely process this policy.",
+            },
+        )
+    if (user_email or user_phone) and not consent:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "contact_consent_required",
+                "message": "Consent is required before contact details can be stored with a policy.",
+            },
+        )
     uploaded_docs = []
     failed_docs = 0
     
@@ -76,18 +108,74 @@ async def upload_document(
     ip_address = get_client_ip(request)
     session_id = current_user.uid
     user_agent = request.headers.get('User-Agent', '')
+    # Mobile OCR is an optional, request-scoped recovery artifact. It is never
+    # persisted in document metadata and cannot replace the uploaded source.
+    # Keeping a hard cap prevents a multipart text field from bypassing the
+    # document-size boundary.
+    mobile_ocr_text = (
+        on_device_ocr_text.strip()
+        if isinstance(on_device_ocr_text, str) and on_device_ocr_text.strip()
+        else None
+    )
+    if mobile_ocr_text and len(mobile_ocr_text.encode("utf-8")) > 2 * 1024 * 1024:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "on_device_ocr_too_large",
+                "message": "On-device OCR text is too large. Upload the original document without the OCR assist.",
+            },
+        )
     
-    logger.info(f"Upload request from IP: {ip_address}, Session: {session_id[:8]}...")
+    logger.info("document_upload_received owner=%s", session_id[:12])
     
     for file in files:
         try:
             doc_id = str(uuid.uuid4())
             # Read file content
-            file_content = await file.read()
+            # Read at most one byte beyond the documented limit. This bounds
+            # application-level work before hashing, storage, or OCR.
+            file_content = await file.read(MAX_UPLOAD_BYTES + 1)
             file_size = len(file_content)
+
+            try:
+                validate_upload_content(
+                    file.filename, file_content, pdf_password=pdf_password
+                )
+            except UploadValidationError as error:
+                logger.info("document_upload_rejected reason=%s", error.code)
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": error.code, "message": error.message},
+                ) from error
             
             # Create document hash for anti-abuse checking
             document_hash = create_document_hash(file_content)
+
+            # Idempotency is owner-scoped: retrying the identical source must
+            # not create another object, processing job, vector set, or policy.
+            existing_document = document_repository.find_by_source_hash(
+                current_user.uid, document_hash
+            )
+            if existing_document:
+                logger.info(
+                    "document_upload_deduplicated document_id=%s owner=%s status=%s",
+                    existing_document.id,
+                    current_user.uid[:12],
+                    existing_document.status,
+                )
+                uploaded_docs.append(
+                    {
+                        "id": existing_document.id,
+                        "filename": existing_document.filename,
+                        "size": existing_document.size,
+                        "upload_date": existing_document.upload_date,
+                        "status": existing_document.status,
+                        "processing_mode": existing_document.processing_mode,
+                        "processing_id": existing_document.id,
+                        "idempotent_replay": True,
+                    }
+                )
+                continue
             
             # Check anti-abuse limits BEFORE processing
             rate_limit_allowed, rate_limit_reason = check_all_rate_limits(
@@ -112,49 +200,6 @@ async def upload_document(
                     detail=f"Rate limit exceeded: {rate_limit_reason}"
                 )
             
-            # Validate file size (50MB limit)
-            if file_size > 50 * 1024 * 1024:
-                logger.warning(f"File too large: {file.filename} ({file_size} bytes)")
-                failed_docs += 1
-                continue
-            
-            # Validate file type
-            allowed_extensions = ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp', '.doc', '.docx']
-            file_ext = os.path.splitext(file.filename.lower())[1] if file.filename else ""
-            if file_ext not in allowed_extensions:
-                logger.warning(f"Invalid file type: {file.filename} ({file_ext})")
-                failed_docs += 1
-                continue
-
-            # Passwords are request-scoped only: validate access before a
-            # document record or background job is created, then never persist
-            # the secret alongside the uploaded policy.
-            if file_ext == ".pdf":
-                try:
-                    import fitz
-
-                    pdf = fitz.open(stream=file_content, filetype="pdf")
-                    try:
-                        unlock_pdf(pdf, pdf_password)
-                    except PdfPasswordError as error:
-                        raise HTTPException(
-                            status_code=422,
-                            detail={"code": error.code, "message": error.message},
-                        )
-                    finally:
-                        pdf.close()
-                except HTTPException:
-                    raise
-                except Exception as error:
-                    logger.info("PDF preflight could not open %s: %s", file.filename, type(error).__name__)
-                    raise HTTPException(
-                        status_code=422,
-                        detail={
-                            "code": "pdf_unreadable",
-                            "message": "This PDF could not be opened. Check that it is a valid, readable document.",
-                        },
-                    )
-            
             # Log successful usage attempt
             log_usage_attempt(
                 ip_address=ip_address,
@@ -175,9 +220,10 @@ async def upload_document(
                 filename=file.filename,
                 size=file_size,
                 upload_date=datetime.utcnow(),
-                status="processing",
+                status="received",
                 user_uid=session_id,  # Use session ID instead of user UID
                 file_path=object_reference,
+                source_hash=document_hash,
                 document_type="unknown",  # Will be determined during processing
                 processing_mode=processing_mode
             )
@@ -188,7 +234,10 @@ async def upload_document(
                 "document_hash": document_hash,
                 "ip_address": ip_address,
                 "user_agent": user_agent[:200] if user_agent else None,  # Truncate for storage
-                "upload_timestamp": datetime.utcnow().isoformat()
+                "upload_timestamp": datetime.utcnow().isoformat(),
+                "processing_consent": True,
+                "processing_consent_version": processing_consent_version[:128],
+                "processing_consent_at": datetime.utcnow().isoformat(),
             }
             
             # Add lead capture data if provided
@@ -220,19 +269,20 @@ async def upload_document(
                     processing_mode,
                     current_user.uid,
                     pdf_password.strip() if pdf_password else None,
+                    mobile_ocr_text,
                 )
-                logger.info(f"Background processing started for {file.filename} (ID: {doc_id}, Session: {session_id})")
+                logger.info("document_processing_queued document_id=%s owner=%s", doc_id, session_id[:12])
             else:
                 document.status = "uploaded"
                 document_repository.update(document)
-                logger.warning("No processing service available; source persisted without extraction")
+                logger.warning("document_source_persisted_without_processing development_only=true")
             
             uploaded_docs.append({
                 "id": doc_id,
                 "filename": file.filename,
                 "size": file_size,
                 "upload_date": document.upload_date,
-                "status": "processing" if processing_service else "uploaded",
+                "status": "received" if processing_service else "uploaded",
                 "processing_mode": processing_mode,
                 "processing_id": doc_id,
             })
@@ -240,7 +290,7 @@ async def upload_document(
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Failed to upload {file.filename}: {e}")
+            logger.error("document_upload_failed error_type=%s", type(e).__name__)
             failed_docs += 1
     
     return {
@@ -257,11 +307,15 @@ async def process_document_background(
     processing_mode: str,
     owner_id: str,
     pdf_password: Optional[str] = None,
+    on_device_ocr_text: Optional[str] = None,
 ):
-    """Background task for document processing"""
+    """Process a document only after atomically leasing its durable state."""
     try:
         if not processing_service:
             logger.error(f"Processing service not available for {document_id}")
+            return
+        if not document_repository.claim_processing(document_id, owner_id, lease_seconds=900):
+            logger.info("Skipping document %s because another worker owns its lease", document_id)
             return
         
         # Process the document
@@ -272,6 +326,7 @@ async def process_document_background(
             processing_mode=processing_mode,
             owner_id=owner_id,
             pdf_password=pdf_password,
+            on_device_ocr_text=on_device_ocr_text,
         )
         
         # Update document status
@@ -280,6 +335,7 @@ async def process_document_background(
             if result.get("status") == "completed":
                 doc.status = "completed"
                 doc.processing_completed_at = datetime.utcnow()
+                doc.processing_lease_expires_at = None
                     
                 # Enhanced document classification using the new classifier
                 try:
@@ -311,7 +367,11 @@ async def process_document_background(
                         classification.get("confidence", 0.0),
                     )
                 except Exception as e:
-                    logger.error(f"Document classification failed for {document_id}: {str(e)}")
+                    logger.error(
+                        "document_classification_failed document_id=%s error_type=%s",
+                        document_id,
+                        type(e).__name__,
+                    )
                     # Fallback to simple heuristic
                     if "stages" in result and "ocr" in result["stages"]:
                         ocr_result = result["stages"]["ocr"]
@@ -326,19 +386,47 @@ async def process_document_background(
                             doc.document_type = "Insurance Policy"
             else:
                 doc.status = "failed"
-                doc.error_message = result.get("error", "Processing failed")
+                doc.error_message = "Document processing did not complete. Please retry the upload."
+                doc.processing_lease_expires_at = None
             document_repository.update(doc)
         
-        logger.info(f"Background processing completed for {filename} (ID: {document_id})")
+        logger.info("document_processing_finished document_id=%s", document_id)
         
     except Exception as e:
-        logger.error(f"Background processing failed for {document_id}: {str(e)}")
+        logger.error("document_processing_failed document_id=%s error_type=%s", document_id, type(e).__name__)
         # Update document status to failed
         doc = document_repository.get(document_id, owner_id)
         if doc:
             doc.status = "failed"
-            doc.error_message = str(e)
+            doc.error_message = "Document processing did not complete. Please retry the upload."
+            doc.processing_lease_expires_at = None
             document_repository.update(doc)
+
+
+async def recover_interrupted_document_processing() -> int:
+    """Resume received/stale documents after a serving-instance restart.
+
+    The durable repository lease prevents two Cloud Run instances from taking
+    the same recovery item. Source bytes are fetched from the canonical object
+    store rather than an instance filesystem.
+    """
+    if not processing_service:
+        return 0
+    recovered = 0
+    for document in document_repository.list_recoverable_processing():
+        try:
+            content = document_object_store.get(document.file_path)
+            await process_document_background(
+                document.id,
+                content,
+                document.filename,
+                document.processing_mode or "full",
+                document.user_uid,
+            )
+            recovered += 1
+        except Exception as error:
+            logger.error("Unable to recover document %s: %s", document.id, type(error).__name__)
+    return recovered
 
 @router.get("/{document_id}/status")
 async def get_document_processing_status(
@@ -433,8 +521,8 @@ async def query_documents(
         result = await processing_service.query_documents(query, filters)
         return result
     except Exception as e:
-        logger.error(f"Document query failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+        logger.error("document_query_failed owner=%s error_type=%s", current_user.uid[:12], type(e).__name__)
+        raise HTTPException(status_code=500, detail="Query processing failed; please try again") from e
 
 @router.get("", response_model=dict)
 async def get_documents(
@@ -472,20 +560,20 @@ async def get_documents(
     paginated_docs = user_docs[start_idx:end_idx]
     
     return {
-        "documents": paginated_docs,
+        "documents": [_client_document(document) for document in paginated_docs],
         "total": total,
         "page": page,
         "limit": limit,
         "total_pages": total_pages
     }
 
-@router.get("/{document_id}", response_model=Document)
+@router.get("/{document_id}", response_model=dict)
 async def get_document(document_id: str, current_user: User = Depends(get_current_user)):
     """Get information about a specific document."""
     document = document_repository.get(document_id, current_user.uid)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-    return document
+    return _client_document(document)
 
 @router.delete("/{document_id}")
 async def delete_document(document_id: str, current_user: User = Depends(get_current_user)):

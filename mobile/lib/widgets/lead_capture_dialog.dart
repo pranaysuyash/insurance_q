@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 
 class LeadCaptureDialog extends StatefulWidget {
@@ -22,6 +23,8 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _saveForFuture = false;
+  bool _processingConsent = false;
+  String? _consentError;
 
   @override
   void initState() {
@@ -82,7 +85,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
           children: [
             if (!widget.isRequired)
               const Text(
-                'Optionally provide your contact information to save your results and receive updates.',
+                'CoverWise needs your permission to securely store and analyze this policy. Contact details are optional and stay on this device unless you later choose to share them.',
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               )
             else
@@ -116,12 +119,37 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
             ),
             const SizedBox(height: 16),
             CheckboxListTile(
+              title: const Text('I agree to secure policy processing'),
+              subtitle: TextButton(
+                onPressed: AppConfig.hasPrivacyPolicy
+                    ? () => launchUrl(
+                          Uri.parse(AppConfig.privacyPolicyUrl),
+                          mode: LaunchMode.externalApplication,
+                        )
+                    : null,
+                child: const Text('Review the current Privacy Policy'),
+              ),
+              value: _processingConsent,
+              onChanged: (value) => setState(() {
+                _processingConsent = value ?? false;
+                _consentError = null;
+              }),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            ),
+            if (_consentError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_consentError!,
+                    style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ),
+            CheckboxListTile(
               title: const Text(
-                'Save for future uploads',
+                'Save on this device for future uploads',
                 style: TextStyle(fontSize: 14),
               ),
               subtitle: const Text(
-                'We\'ll remember your contact info for next time',
+                'Your contact details are not sent with this policy upload',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               value: _saveForFuture,
@@ -140,10 +168,17 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
         if (!widget.isRequired)
           TextButton(
             onPressed: () {
+              if (!_processingConsent) {
+                setState(() => _consentError =
+                    'Accept the Privacy Policy to process this policy.');
+                return;
+              }
               Navigator.of(context).pop({
                 'email': null,
                 'phone': null,
                 'save': false,
+                'processing_consent': true,
+                'processing_consent_version': AppConfig.privacyPolicyVersion,
               });
             },
             child: const Text('Skip'),
@@ -157,6 +192,11 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
+              if (!_processingConsent) {
+                setState(() => _consentError =
+                    'Accept the Privacy Policy to process this policy.');
+                return;
+              }
               Navigator.of(context).pop({
                 'email': _emailController.text.trim().isEmpty
                     ? null
@@ -165,6 +205,8 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
                     ? null
                     : _phoneController.text.trim(),
                 'save': _saveForFuture,
+                'processing_consent': true,
+                'processing_consent_version': AppConfig.privacyPolicyVersion,
               });
             }
           },

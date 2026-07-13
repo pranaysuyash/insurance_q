@@ -13,6 +13,9 @@ class AppStateStore {
   static const String manualFamilyMembersKey = 'manual_family_members';
   static const String answerFeedbackKey = 'answer_feedback';
   static const String claimRecordsKey = 'claim_records';
+  static const String phoneNumberKey = 'user_phone_number';
+  static const String phonePromptCountKey = 'phone_prompt_count';
+  static const String analyticsEventsKey = 'analytics_events';
 
   AppStateStore._();
 }

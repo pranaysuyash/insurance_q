@@ -12,6 +12,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalStorageService {
   static const String legacyDocumentsKey = 'local_documents_list';
   static const String documentsBoxName = 'documents_box';
+  /// The only record injected by the explicit development demo mode. Remove it
+  /// on a production-capable build so beta/demo upgrades cannot present sample
+  /// policy data as a customer's real coverage.
+  static const String bundledDemoDocumentId =
+      '3022ffcb-86c5-42ae-ae9f-2d6e00025631';
   static const Uuid _uuid = Uuid();
 
   Box<String> get _documentsBox => Hive.box<String>(documentsBoxName);
@@ -90,6 +95,10 @@ class LocalStorageService {
 
   // Get all documents from local storage
   Future<List<InsuranceDocument>> getDocuments() async {
+    if (!AppConfig.bootstrapPolicyDemo &&
+        _documentsBox.containsKey(bundledDemoDocumentId)) {
+      await _documentsBox.delete(bundledDemoDocumentId);
+    }
     final entries = _documentsBox.values.toList();
 
     if (entries.isEmpty) {
@@ -111,8 +120,8 @@ class LocalStorageService {
 
     if (entries.isEmpty && AppConfig.bootstrapPolicyDemo) {
       final demoDocument = InsuranceDocument(
-        id: '3022ffcb-86c5-42ae-ae9f-2d6e00025631',
-        remoteId: '3022ffcb-86c5-42ae-ae9f-2d6e00025631',
+        id: bundledDemoDocumentId,
+        remoteId: bundledDemoDocumentId,
         filename: 'policy.pdf',
         uploadedOn: DateTime.parse('2026-07-08T13:10:22.277452'),
         documentType: 'Health Insurance',

@@ -3,10 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from src.api.user import router as user_router, get_current_user
+from src.api.analytics import router as analytics_router
 from src.models.user import User
-from src.api.family import router as family_router
-from src.api.document import router as document_router, set_processing_service
+from src.api.document import (
+    router as document_router,
+    recover_interrupted_document_processing,
+    set_processing_service,
+)
 from src.utils.runtime_access import require_nonproduction
+from src.utils.runtime_config import allowed_cors_origins, production_configuration_errors
+from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
 
 # Import RAG components and enhanced document processing
 from typing import Dict, Any, List, Optional, Union
@@ -26,13 +32,9 @@ app = FastAPI(title="Insurance Policy Parser & QA API", version="2.0.0")
 # allow_origins=["*"] with allow_credentials=True is a browser-rejected
 # combination and a security anti-pattern in production.
 _cors_env = os.environ.get("ENVIRONMENT", "development")
-if _cors_env == "production":
-    _allowed_origins = [
-        o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",")
-        if o.strip()
-    ] or ["https://aa2485vt7t.ap-south-1.awsapprunner.com"]
-else:
-    _allowed_origins = ["*"]
+_allowed_origins = allowed_cors_origins(
+    _cors_env, os.environ.get("ALLOWED_ORIGINS", "")
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -72,15 +74,21 @@ class QueryResponse(BaseModel):
 async def lifespan(app: FastAPI):
     global rag_pipeline, document_processing_service
 
+    is_production = os.environ.get("ENVIRONMENT", "development").lower() == "production"
+    configuration_errors = production_configuration_errors(os.environ)
+    if configuration_errors:
+        raise RuntimeError("Invalid production configuration: " + "; ".join(configuration_errors))
+
     # Initialize anti-abuse system
     try:
         from src.utils.database_migration import create_anti_abuse_tables
         create_anti_abuse_tables()
         logger.info("✅ Anti-abuse system initialized successfully")
     except Exception as e:
-        logger.error(f"⚠️ Failed to initialize anti-abuse system: {e}")
-        print(f"⚠️ Anti-abuse system init failed: {e}", file=sys.stderr)
-        print("Continuing without anti-abuse protection...", file=sys.stderr)
+        logger.error("anti_abuse_initialization_failed error_type=%s", type(e).__name__)
+        if is_production:
+            raise RuntimeError("Production anti-abuse initialization failed") from e
+        print("⚠️ Anti-abuse system init failed; continuing only in development", file=sys.stderr)
     
     # Anonymous bearer identity is the launch auth mode. Firebase remains an
     # optional historical integration and is not initialized in the core path.
@@ -91,9 +99,10 @@ async def lifespan(app: FastAPI):
         rag_pipeline = RAGPipeline()
         logger.info("✅ RAG pipeline initialized successfully")
     except Exception as e:
-        logger.error(f"⚠️ Failed to initialize RAG pipeline: {e}")
-        print(f"⚠️ RAG pipeline init failed: {e}", file=sys.stderr)
-        print("Continuing without RAG functionality...", file=sys.stderr)
+        logger.error("rag_initialization_failed error_type=%s", type(e).__name__)
+        if is_production:
+            raise RuntimeError("Production RAG initialization failed") from e
+        print("⚠️ RAG pipeline init failed; continuing only in development", file=sys.stderr)
     
     # Initialize enhanced document processing service
     try:
@@ -109,16 +118,20 @@ async def lifespan(app: FastAPI):
         app.state.rag_pipeline = rag_pipeline
         
     except Exception as e:
-        logger.error(f"⚠️ Failed to initialize document processing service: {e}")
-        print(f"⚠️ Document processing service init failed: {e}", file=sys.stderr)
-        print("Continuing without enhanced document processing...", file=sys.stderr)
+        logger.error("document_processing_initialization_failed error_type=%s", type(e).__name__)
+        if is_production:
+            raise RuntimeError("Production document processing initialization failed") from e
+        print("⚠️ Document processing init failed; continuing only in development", file=sys.stderr)
     
-    # Legacy local-file recovery is development-only. Production source and
-    # processing state live in the configured object store/repository, so an
-    # instance must never scan its ephemeral filesystem at startup.
-    if document_processing_service and os.environ.get("ENVIRONMENT", "development").lower() != "production":
+    # Durable recovery is safe in every environment: documents are claimed
+    # through the repository before work begins, so parallel Cloud Run
+    # instances cannot process the same lease concurrently.
+    if document_processing_service:
         loop = asyncio.get_event_loop()
-        loop.create_task(_background_doc_processing())
+        loop.create_task(_recover_durable_document_processing())
+        # Legacy disk scanning is strictly local-development compatibility.
+        if os.environ.get("ENVIRONMENT", "development").lower() != "production":
+            loop.create_task(_background_doc_processing())
 
     try:
         yield
@@ -127,6 +140,18 @@ async def lifespan(app: FastAPI):
 
 
 app.router.lifespan_context = lifespan
+
+
+async def _recover_durable_document_processing() -> None:
+    """Run startup recovery with an auditable outcome, never silently."""
+    try:
+        recovered = await recover_interrupted_document_processing()
+        logger.info("document_processing_recovery_completed recovered=%s", recovered)
+    except Exception as error:
+        logger.exception(
+            "document_processing_recovery_failed error_type=%s",
+            type(error).__name__,
+        )
 
 
 async def _background_doc_processing():
@@ -224,8 +249,27 @@ async def process_existing_documents():
         logger.error(f"❌ Error during startup document processing: {str(e)}")
 
 app.include_router(user_router)
-app.include_router(family_router)
 app.include_router(document_router)
+app.include_router(analytics_router)
+
+@app.get("/healthz")
+async def liveness_check():
+    """Cheap process liveness probe for Cloud Run—never calls external APIs."""
+    return {"status": "live", "version": "2.0.0"}
+
+
+@app.get("/readyz")
+async def readiness_check():
+    """Admit traffic only after the integrated processing path is initialized."""
+    ready = rag_pipeline is not None and document_processing_service is not None
+    return JSONResponse(
+        status_code=200 if ready else 503,
+        content={
+            "status": "ready" if ready else "not_ready",
+            "rag": "available" if rag_pipeline else "unavailable",
+            "document_processing": "available" if document_processing_service else "unavailable",
+        },
+    )
 
 @app.get("/health")
 async def health_check():
@@ -288,8 +332,12 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
     Now uses the integrated document processing service with actual RAG.
     """
     try:
-        logger.info(f"Received query: {request.query}")
-        logger.info(f"Filters: {request.filters}")
+        logger.info(
+            "document_query_received owner=%s query_length=%s has_document_filter=%s",
+            current_user.uid[:12],
+            len(request.query),
+            bool(request.filters and (request.filters.get("document_id") or request.filters.get("document_ids"))),
+        )
         
         if not document_processing_service:
             return QueryResponse(
@@ -384,11 +432,11 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
         )
         
     except Exception as e:
-        logger.error(f"Error processing query: {e}", exc_info=True)
+        logger.error("document_query_failed error_type=%s", type(e).__name__)
         return QueryResponse(
             answer="I encountered an unexpected error while processing your question. Please try again later.",
             sources=[],
-            error=str(e)
+            error="Document query failed"
         )
 
 @app.post("/process-and-ingest")
@@ -404,13 +452,16 @@ async def process_and_ingest(
         raise HTTPException(status_code=503, detail="Document processing service not available")
 
     try:
-        content = await file.read()
+        content = await file.read(MAX_UPLOAD_BYTES + 1)
         filename = file.filename or "document"
-        file_ext = os.path.splitext(filename.lower())[1]
 
-        allowed = {'.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp', '.doc', '.docx'}
-        if file_ext not in allowed:
-            raise HTTPException(status_code=400, detail=f"Unsupported format: {file_ext}")
+        try:
+            validate_upload_content(filename, content)
+        except UploadValidationError as error:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": error.code, "message": error.message},
+            ) from error
 
         result = await document_processing_service.process_document_full(
             file_content=content,

@@ -441,3 +441,14 @@ The reusable, text-safe evaluator is
 expected-token checks by default. The next accepted model must meet the corpus
 contract in the technical evaluation record before becoming part of the
 canonical OCR pipeline.
+
+## Addendum — source acceptance before model selection (2026-07-13)
+
+Model quality cannot compensate for unsafe or unparseable source input. The
+launch pipeline is therefore constrained to signature-verified PDF and image
+formats with explicit byte/page/pixel budgets. Office-document extraction is a
+separate exploration item, not an extension-list change: evaluate only
+sandboxed parsers with malware-scanning posture, resource limits, schema-aware
+extraction metrics, and policy corpus evidence before it can join the canonical
+pipeline. See `src/utils/upload_validation.py` and the document-storage
+contract for the active boundary.

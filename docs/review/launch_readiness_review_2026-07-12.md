@@ -183,6 +183,235 @@ documents after a device is lost or secure storage is cleared; that requires an
 optional named-account/backup decision and must be described accurately in the
 product privacy UX.
 
+## Addendum — motto_v3 architecture review (2026-07-12)
+
+**Pass 1 — immediate correctness.** The production-storage factory contract now
+names Supabase credentials before optional SDK imports, so a missing deployment
+secret produces a deterministic safe startup failure. Targeted repository,
+object-store, auth, and ownership tests pass locally (Tier 2).
+
+**Pass 2 — canonical architecture.** Cloud Run + Supabase Postgres, Storage,
+and pgvector is the single launch path. The historical AWS/App Runner template
+is retained only as an explicitly superseded reference. It cannot become a
+parallel production source of truth without a recorded platform-decision
+change.
+
+**Pass 3 — supervision and failure recovery.** The serving process still
+executes document work, but it now claims a durable 15-minute lease from the
+repository. Startup recovers only `received` or expired-lease documents from
+the canonical object store; concurrent instances cannot claim the same active
+lease. The versioned Supabase migration records this state machine. This is
+Tier 2 local evidence. Before launch, prove the same behavior in Cloud Run with
+restart, duplicate, timeout, and partial-failure evidence; move to Cloud Run
+Jobs/Tasks if measured document work exceeds the bounded request/lease model.
+
+## Addendum — privacy-safe observability (2026-07-12)
+
+Canonical upload, processing, and query logs now record bounded operational
+metadata (document ID, owner prefix, size, mode, stage, and safe error type),
+not raw filenames, questions, exception strings, or policy text. User-visible
+processing/query failures use safe generic messages. A regression test injects
+a provider exception containing a private policy question and proves that the
+question is absent from both the response error and captured application logs.
+This is Tier 2 code evidence; Cloud Run log-sink retention/access controls still
+need configuration and inspection before launch.
+
+## Addendum — idempotent source handling (2026-07-12)
+
+Documents now carry an owner-scoped SHA-256 source hash, backed by a production
+unique index. Before any object-store write or background work, an identical
+owner upload resolves to its existing document and reports an idempotent replay.
+This prevents duplicate source objects, duplicate vector chunks, repeated model
+cost, and conflicting policy state from ordinary retry behavior. A focused
+endpoint-level test verifies that two same-byte uploads leave exactly one owner
+document. Tier 3 cloud proof remains required because the production unique
+constraint and recovery path must be exercised after the Supabase migrations
+are applied.
+
+## Addendum — honest offline upload behavior (2026-07-12)
+
+The Flutter client now saves a pending local copy only for genuine transport
+unavailability (connection or receive timeout without an HTTP response). A
+server rejection, validation error, authentication error, or 5xx failure is
+shown as a secure-save failure instead of being mislabeled as offline success.
+This protects users from believing a sensitive policy was safely queued when
+the server did not accept it. Flutter analysis is clean and the full mobile
+test suite passes (Tier 2); manual airplane-mode and server-500 UI proof remain
+part of the release test matrix.
+
+## Addendum — production browser and database privilege boundaries (2026-07-13)
+
+Production CORS now requires an explicit `ALLOWED_ORIGINS` allowlist and rejects
+both a missing value and `*`; it no longer falls back to the retired App Runner
+host. The Supabase processing-claim RPC uses `SECURITY DEFINER` for an atomic
+lease, so both schema migrations revoke execution from public/anonymous/authenticated
+roles and grant it only to `service_role`. Focused configuration tests pass.
+Provisioning must verify the applied grants and final custom-domain origins in
+the real Supabase/Cloud Run projects before release.
+
+## Addendum — executable production preflight (2026-07-13)
+
+`tools/validate_production_config.py` now checks the canonical Cloud Run +
+Supabase contract without printing secrets, and the same validator runs at API
+lifespan startup. It requires the selected persistence/vector adapters, OpenAI
+key, Supabase server credentials, strong anonymous signing key, final HTTPS
+public origin/CORS allowlist, and non-debug production logging. The current
+unprovisioned environment was deliberately verified to fail closed. This turns
+deployment readiness into an executable gate; it does not provision cloud
+resources or replace Tier 3 deployed-flow testing.
+
+## Addendum — mobile release configuration and privacy truth (2026-07-13)
+
+The stale App Runner URL is no longer embedded in the mobile binary. A release
+build now requires HTTPS `API_BASE_URL`, `PRIVACY_POLICY_URL`,
+`TERMS_OF_SERVICE_URL`, and a non-disposable `SUPPORT_EMAIL` through Dart
+defines; a missing release contract stops startup instead of silently using a
+retired endpoint. The in-app privacy surface now describes the selected private
+Supabase Storage/Postgres/pgvector path and supported synced-policy deletion,
+not AWS/Qdrant or a known deletion limitation. Flutter analysis and tests pass.
+Actual hosted legal pages and the real Cloud Run URL still need operator/legal
+approval before a store build can be produced.
+
+## Addendum — truthful document workflow UI (2026-07-13)
+
+The document screen now treats a local duplicate as the same saved policy,
+matching server-side source-hash idempotency instead of offering an impossible
+“keep both” path. Secure-save failures stay visible rather than being rendered
+as upload success. A received/processing policy explicitly says it is being
+read, defers summary retrieval, and disables Q&A until it is ready. Onboarding
+also no longer claims that cloud-backed analysis works offline. Flutter analysis
+and tests pass; visual Tier 4 verification still requires the deployed API.
+
+## Addendum — bounded, processable document ingestion (2026-07-13)
+
+The canonical `/documents/upload` API and retained non-production ingestion
+surfaces now share one content-validation boundary. They accept only PDF, PNG,
+JPG, TIFF, and WebP when the file signature and parser agree with the filename;
+they reject disguised content before hashing, anti-abuse accounting, storage,
+or OCR. The boundary caps source bytes at 50 MB, PDFs at 100 pages, and images
+at 40 megapixels. It also corrects a `.tif` branch gap in extraction. `.doc`
+and `.docx` are no longer advertised as supported: the prior binary fallback
+was not a safe or truthful parsing contract.
+
+Focused tests cover valid images, signature mismatch, unsupported Office files,
+over-budget PDFs, encrypted-PDF handling, and API rejection before hashing.
+They pass locally (Tier 2). Tier 3 deployment proof still needs a Cloud Run
+request-size policy check and redacted tests for malformed/multi-page documents
+against the actual reverse proxy and Supabase-backed workflow.
+
+### Review passes — 2026-07-13
+
+- **Pass 1 — immediate correctness:** the API validates source bytes before
+  hashing, anti-abuse accounting, object storage, metadata creation, or model
+  processing. The accepted file list now matches a real extractor path.
+- **Pass 2 — architecture:** all active ingestion surfaces share
+  `src/utils/upload_validation.py`; no parallel extension lists remain. The
+  image check avoids mutating process-global Pillow configuration, which keeps
+  concurrent requests isolated.
+- **Pass 3 — supervision:** 40 focused backend tests and Python compilation
+  pass; scoped `git diff --check` passes. This is Tier 2, not deployed proof.
+  Password-protected PDFs are rejected for launch because request-scoped
+  passwords cannot survive an instance restart without a reviewed credential
+  design.
+
+## Addendum — explicit policy-processing consent (2026-07-13)
+
+Before an upload can reach hashing, storage, or processing, the API now
+requires `processing_consent=true` and a versioned Privacy Policy identifier.
+The Flutter upload dialog presents an explicit required checkbox and a link to
+the configured hosted Privacy Policy; the release build rejects an unspecified
+policy version. The consent receipt is retained with the document metadata.
+Optional contact information is now device-only in the mobile upload flow and
+is not silently sent with policy content. Targeted backend tests plus Flutter
+analysis and all 16 mobile tests pass locally (Tier 2). The final hosted policy
+text/version and legal approval still require operator ownership before release.
+
+## Addendum — canonical Cloud Run deployment command (2026-07-13)
+
+`tools/deploy_cloud_run.sh` is the sole launch deployment entry point. It builds
+the repository Dockerfile with Cloud Run source deployment, uses a non-secret
+runtime environment file, references OpenAI/Supabase/auth values from Secret
+Manager, sets bounded memory/concurrency/instance limits, and allows public
+invocation only because native mobile clients cannot use Cloud Run IAM; policy
+routes still require the application bearer token. Historical Azure and AWS
+scripts remain archival only. This is Tier 1
+deployment automation evidence; it has not run because the production GCP and
+Supabase credentials/domain are not available in this workspace.
+
+## Addendum — mobile bearer credential storage (2026-07-13)
+
+Anonymous API bearer tokens and expiry metadata now use platform secure storage
+(Android Keystore/iOS Keychain) rather than the general Hive app-state store.
+One-time migration preserves an existing anonymous owner identity and removes
+the legacy Hive values; a local-data reset clears both locations. Flutter
+analysis and all 16 mobile tests pass (Tier 2). Tier 4 device verification is
+still required for secure-storage migration on supported Android and iOS
+versions before store release.
+
+## Addendum — document-response data minimization (2026-07-13)
+
+Customer-facing document list/detail responses no longer include internal object
+paths, owner IDs, source hashes, or metadata. Those values remain server-side
+for ownership, idempotency, processing, and deletion only. Focused owner and
+response-shape tests cover the boundary (Tier 2); deployed API contract checks
+remain part of the Cloud Run acceptance run.
+
+## Addendum — production startup integrity (2026-07-13)
+
+Production startup now fails closed if anti-abuse, RAG, or document-processing
+initialization fails. Development can still run reduced functionality for local
+diagnosis, but a Cloud Run production revision cannot become ready and accept
+policy uploads with a missing core processing path. Deployed startup/revision
+failure evidence remains required (Tier 3).
+
+## Addendum — no demo-policy release fallback (2026-07-13)
+
+Demo policy injection and local demo Q&A remain available only for explicitly
+enabled development demonstrations. A release build now rejects
+`BOOTSTRAP_POLICY_DEMO=true`, and the release script pins it to false. This
+prevents sample identities, fabricated answers, or demo sources from reaching
+a customer build when a real backend is unavailable.
+
+## Addendum — local runtime smoke evidence (2026-07-13)
+
+The actual FastAPI process was started locally with the development runtime
+contract. It bound after approximately 47 seconds of initialization; `/healthz`
+and `/readyz` then returned 200 with RAG/document processing available. A
+freshly issued anonymous bearer token accessed `/user/profile` and its own empty
+`/documents` list; the unauthenticated document request returned 401. This is
+Tier 4 local runtime evidence. It does not substitute for a Cloud Run cold-start
+budget, production secret, Supabase, CORS, upload, deletion, and two-owner
+acceptance run.
+
+## Addendum — demo-upgrade data cleanup (2026-07-13)
+
+Android runtime inspection found a retained bundled demo policy on an emulator
+with prior app state. The local document store now removes only the known demo
+record whenever demo mode is disabled, preventing a beta/demo upgrade from
+presenting sample coverage as a customer's policy. The focused storage test
+passes locally; a fresh release-APK install/upgrade check remains part of Tier 4
+release validation.
+
+## Addendum — reusable launch verifier exercised locally (2026-07-13)
+
+`tools/verify_deployed_launch.py` was run against the actual local FastAPI
+process. It passed liveness, readiness, unauthenticated document rejection,
+two independently issued anonymous identities, both profiles, both owner-scoped
+document lists, and distinct-owner verification. This is Tier 4 local runtime
+evidence. The same command with the final HTTPS API URL and public origin is a
+required Cloud Run acceptance artifact before release.
+
+## Addendum — anti-abuse persistence blocker (2026-07-13)
+
+The current anti-abuse implementation is not valid for the canonical Cloud Run
+launch: it initializes a local SQLite database and uses optional Redis or
+process-memory counters. Neither is durable or shared across Cloud Run
+instances, and local smoke execution mutates the tracked legacy
+`insurance_app.db` artifact. Do not enable customer uploads in production until
+the rate-limit/usage ledger is moved to an atomic Supabase/Postgres contract (or
+an explicitly selected managed rate-limit service), with proxy-safe client-IP
+handling, multi-instance tests, retention policy, and operator visibility.
+
 ## Decision required
 
 Provision the Supabase project/schema and Cloud Run service, then verify the

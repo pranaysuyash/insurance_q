@@ -11,6 +11,7 @@ import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
+import '../services/analytics_service.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/loading_widget.dart';
 import '../widgets/shared/offline_banner.dart';
@@ -139,6 +140,14 @@ class QaScreenState extends ConsumerState<QaScreen>
     ref.read(isLoadingProvider.notifier).state = true;
     ref.read(currentAnswerProvider.notifier).state = null;
 
+    AnalyticsService.track('question_submitted', {
+      'question_length_bucket': question.length < 30
+          ? 'short'
+          : question.length < 80
+              ? 'medium'
+              : 'long',
+    });
+
     try {
       String formattedQuestion = question;
       if (question == "What is my policy number?") {
@@ -186,6 +195,19 @@ class QaScreenState extends ConsumerState<QaScreen>
       }
 
       ref.read(currentAnswerProvider.notifier).state = answer;
+
+      AnalyticsService.track('answer_rendered', {
+        'confidence_bucket': (answer.confidence ?? 0) < 0.3
+            ? 'low'
+            : (answer.confidence ?? 0) < 0.7
+                ? 'medium'
+                : 'high',
+        'answer_source_count_bucket': answer.sources.isEmpty
+            ? 'none'
+            : answer.sources.length <= 2
+                ? 'few'
+                : 'many',
+      });
 
       if (answer.text.isNotEmpty) {
         ref.read(qaHistoryProvider.notifier).addItem(question, answer);
@@ -570,6 +592,9 @@ class _AnswerCardState extends State<_AnswerCard> {
       value.toString(),
     );
     setState(() => _feedback = value);
+    AnalyticsService.track('answer_feedback_submitted', {
+      'sentiment': value == 1 ? 'positive' : 'negative',
+    });
   }
 
   @override

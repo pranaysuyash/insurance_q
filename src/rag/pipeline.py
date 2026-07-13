@@ -547,6 +547,96 @@ class RAGPipeline:
 
         return ""
 
+    def _classify_query(self, query: str) -> str:
+        """Adaptive RAG: classify query to route to the appropriate retrieval path."""
+        query_lower = query.lower().strip()
+
+        # Exact lookup: policy numbers, IDs, specific names — FTS only, no embedding
+        if re.search(r'policy number|policy no|policy id|policy ref|find.*\b[A-Z0-9/\-]{5,}\b', query_lower):
+            return "exact_lookup"
+
+        # Multi-step: comparison, cross-document analysis — needs multiple queries
+        if any(w in query_lower for w in ['compare', 'versus', 'difference between', 'gap', 'across all', 'all policies', 'which policies']):
+            return "multi_step"
+
+        # Broad: summaries, overviews — wider retrieval
+        if any(w in query_lower for w in ['summar', 'overview', 'what does the', 'what is the policy', 'list all']):
+            return "broad"
+
+        # Default: single-step semantic retrieval
+        return "single_step"
+
+    async def _generate_query_variants(self, user_query: str) -> List[str]:
+        """RAG Fusion: generate alternative phrasings for broader retrieval coverage."""
+        if not self.llm:
+            return [user_query]
+
+        try:
+            result = await self.llm.generate(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You rephrase insurance questions to improve search retrieval. "
+                            "Generate 2 alternative phrasings of the question. "
+                            "One per line. No numbering. No preamble."
+                        ),
+                    },
+                    {"role": "user", "content": user_query},
+                ],
+                temperature=0.3,
+                max_tokens=150,
+            )
+
+            if result:
+                variants = [v.strip() for v in result.strip().split('\n') if v.strip() and len(v.strip()) > 10]
+                if variants:
+                    logger.info("RAG Fusion generated %d variants", len(variants))
+                    return [user_query] + variants[:2]
+        except Exception as e:
+            logger.warning("RAG Fusion query variant generation failed: %s", e)
+
+        return [user_query]
+
+    def _evaluate_retrieval_quality(self, user_query: str, results: List[Any]) -> bool:
+        """Retrieval Evaluator: check if retrieved results are good enough to answer.
+
+        Prevents hallucination by returning 'not found' when retrieval quality is too low.
+        """
+        if not results:
+            return False
+
+        top_score = float(results[0].score or 0.0)
+
+        # RRF scores are small (sum of 1/(k+rank) values, k=20)
+        # A score > 0.03 means at least one result appeared in top-3 of one retrieval path
+        if top_score < 0.01:
+            return False
+
+        # Check lexical overlap of top result with the query
+        top_payload = results[0].payload or {}
+        top_text = top_payload.get("text_content", "")
+        overlap = self._lexical_overlap(self._tokenize(user_query), top_text)
+
+        # If both score and overlap are very low, retrieval likely failed
+        if top_score < 0.02 and overlap < 0.05:
+            return False
+
+        return True
+
+    def _split_into_sentences(self, text: str) -> List[Dict[str, Any]]:
+        """Split text into sentence-level chunks with position metadata for sentence window retrieval."""
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        return [
+            {
+                "text": s.strip(),
+                "id": str(uuid.uuid4()),
+                "sentence_index": i,
+                "chunk_type": "sentence",
+            }
+            for i, s in enumerate(sentences) if s.strip() and len(s.strip()) > 20
+        ]
+
     async def _contextualize_chunks(
         self, text_blocks: List[Dict[str, Any]], document_metadata: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
@@ -666,41 +756,78 @@ class RAGPipeline:
             logger.info("Returning cached RAG response for query")
             return cached_response
 
+        # Adaptive RAG: classify query and adjust retrieval strategy
+        query_type = self._classify_query(user_query)
+        logger.info("Query classified as: %s", query_type)
+
+        # RAG Fusion: generate query variants for broader coverage
+        query_variants = await self._generate_query_variants(user_query)
+        logger.info("RAG Fusion: %d query variants", len(query_variants))
+
         # HyDE: Generate a hypothetical answer to embed instead of the raw query
-        # This closes the vocabulary gap between short queries and long documents
-        # (nDCG@10: 61.3 vs 44.5 baseline)
         hyde_query = await self._generate_hyde_query(user_query)
         embed_query = hyde_query if hyde_query else user_query
 
-        try:
-            emb = await self._generate_embeddings_with_fallback([embed_query])
-            query_vector = emb[0]
-        except Exception as e:
-            logger.error("Query embedding failed: %s", e)
-            return {"status": "error", "error": f"Query embedding failed: {e}"}
+        # For exact_lookup queries, skip embedding and use FTS only (faster)
+        if query_type == "exact_lookup":
+            local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
+            results = local_results
+            dense_results = []
+        else:
+            try:
+                emb = await self._generate_embeddings_with_fallback([embed_query])
+                query_vector = emb[0]
+            except Exception as e:
+                logger.error("Query embedding failed: %s", e)
+                return {"status": "error", "error": f"Query embedding failed: {e}"}
 
-        dense_results = []
-        dense_error = None
-        try:
-            if getattr(self, "vector_backend", "qdrant") == "supabase":
-                dense_results = await self.vector_store.search(
-                    query_vector, max(top_k * 3, top_k), filters
-                )
-            else:
-                qdrant_filter = self._build_qdrant_filter(filters)
-                dense_results = self.qdrant_client.search(
-                    collection_name=self.collection_name,
-                    query_vector=query_vector,
-                    limit=max(top_k * 3, top_k),
-                    with_payload=True,
-                    query_filter=qdrant_filter,
-                )
-        except Exception as e:
-            dense_error = e
-            logger.error("Vector search failed: %s", e)
+            dense_results = []
+            dense_error = None
+            try:
+                if getattr(self, "vector_backend", "qdrant") == "supabase":
+                    dense_results = await self.vector_store.search(
+                        query_vector, max(top_k * 3, top_k), filters
+                    )
+                else:
+                    qdrant_filter = self._build_qdrant_filter(filters)
+                    dense_results = self.qdrant_client.search(
+                        collection_name=self.collection_name,
+                        query_vector=query_vector,
+                        limit=max(top_k * 3, top_k),
+                        with_payload=True,
+                        query_filter=qdrant_filter,
+                    )
+            except Exception as e:
+                dense_error = e
+                logger.error("Vector search failed: %s", e)
 
-        local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
-        results = self._merge_hybrid_results(dense_results, local_results)
+            local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
+
+            # RAG Fusion: also search for each query variant and merge all results
+            if len(query_variants) > 1:
+                for variant in query_variants[1:]:  # Skip original (already searched)
+                    try:
+                        variant_emb = await self._generate_embeddings_with_fallback([variant])
+                        variant_vector = variant_emb[0]
+                        if getattr(self, "vector_backend", "qdrant") == "supabase":
+                            variant_dense = await self.vector_store.search(
+                                variant_vector, max(top_k * 2, top_k), filters
+                            )
+                        else:
+                            qdrant_filter = self._build_qdrant_filter(filters)
+                            variant_dense = self.qdrant_client.search(
+                                collection_name=self.collection_name,
+                                query_vector=variant_vector,
+                                limit=max(top_k * 2, top_k),
+                                with_payload=True,
+                                query_filter=qdrant_filter,
+                            )
+                        # Merge variant results with existing dense results via RRF
+                        dense_results = self._merge_hybrid_results(dense_results, variant_dense)
+                    except Exception as e:
+                        logger.warning("RAG Fusion variant search failed: %s", e)
+
+            results = self._merge_hybrid_results(dense_results, local_results)
 
         if not results:
             if dense_error is not None and not local_results:
@@ -718,7 +845,7 @@ class RAGPipeline:
                     "citations": [],
                     "missing_information": ["No relevant context was retrieved."],
                     "follow_up_questions": [],
-                    "retrieval_strategy": "dense_plus_local_fts",
+                    "retrieval_strategy": "adaptive_rag_fusion_hyde",
                 },
             }
             self._store_cached_query_result(cache_key, response)
@@ -726,6 +853,28 @@ class RAGPipeline:
 
         ranked_results = self._rank_results(user_query, results)
         ranked_results = ranked_results[:top_k]
+
+        # Retrieval Evaluator: quality gate — if retrieval is too weak, don't hallucinate
+        if not self._evaluate_retrieval_quality(user_query, ranked_results):
+            logger.info("Retrieval quality too low, returning honest 'not found'")
+            response = {
+                "status": "success",
+                "result": {
+                    "answer": "I could not find relevant information in your documents to answer this question. Please try rephrasing or upload the relevant policy document.",
+                    "sources": [],
+                    "query": user_query,
+                    "embedding_model_used": self.active_embedding_model,
+                    "llm_used": False,
+                    "confidence": 0.0,
+                    "retrieval_confidence": 0.0,
+                    "citations": [],
+                    "missing_information": ["No relevant context was retrieved with sufficient confidence."],
+                    "follow_up_questions": [],
+                    "retrieval_strategy": "adaptive_rag_fusion_hyde",
+                },
+            }
+            self._store_cached_query_result(cache_key, response)
+            return response
 
         contexts = []
         sources = []

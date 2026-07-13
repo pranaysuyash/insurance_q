@@ -73,6 +73,9 @@ async def test_upload_rejects_locked_pdf_before_creating_document(tmp_path: Path
     object_store_calls = []
 
     class Repository:
+        def find_by_source_hash(self, owner_id, source_hash):
+            return None
+
         def create(self, document):
             repository_calls.append(document)
 
@@ -101,10 +104,78 @@ async def test_upload_rejects_locked_pdf_before_creating_document(tmp_path: Path
             background_tasks=BackgroundTasks(),
             files=[upload],
             pdf_password=None,
+            processing_consent=True,
+            processing_consent_version="test-policy-v1",
             current_user=user,
         )
 
     assert error.value.status_code == 422
-    assert error.value.detail["code"] == "pdf_password_required"
+    assert error.value.detail["code"] == "encrypted_pdf_not_supported"
     assert repository_calls == []
     assert object_store_calls == []
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_disguised_file_before_hashing_or_storage(monkeypatch):
+    monkeypatch.setattr(document_api, "processing_service", None)
+    hash_called = False
+
+    def unexpected_hash(_content):
+        nonlocal hash_called
+        hash_called = True
+        return "not-used"
+
+    monkeypatch.setattr(document_api, "create_document_hash", unexpected_hash)
+    request = Request(
+        {"type": "http", "method": "POST", "headers": [], "client": ("127.0.0.1", 1)}
+    )
+    upload = UploadFile(filename="policy.png", file=BytesIO(b"not an image"))
+    user = User(
+        uid="anon:validation-test",
+        identity_type="anonymous",
+        email=None,
+        phone=None,
+        display_name=None,
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await document_api.upload_document(
+            request=request,
+            background_tasks=BackgroundTasks(),
+            files=[upload],
+            pdf_password=None,
+            processing_consent=True,
+            processing_consent_version="test-policy-v1",
+            current_user=user,
+        )
+
+    assert error.value.status_code == 422
+    assert error.value.detail["code"] == "file_signature_mismatch"
+    assert hash_called is False
+
+
+@pytest.mark.asyncio
+async def test_upload_requires_versioned_processing_consent():
+    request = Request(
+        {"type": "http", "method": "POST", "headers": [], "client": ("127.0.0.1", 1)}
+    )
+    user = User(
+        uid="anon:consent-test",
+        identity_type="anonymous",
+        email=None,
+        phone=None,
+        display_name=None,
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await document_api.upload_document(
+            request=request,
+            background_tasks=BackgroundTasks(),
+            files=[],
+            processing_consent=False,
+            processing_consent_version=None,
+            current_user=user,
+        )
+
+    assert error.value.status_code == 422
+    assert error.value.detail["code"] == "processing_consent_required"

@@ -20,6 +20,9 @@ class DocumentObjectStore:
     def delete(self, object_reference: str) -> None:
         raise NotImplementedError
 
+    def get(self, object_reference: str) -> bytes:
+        raise NotImplementedError
+
 
 def _safe_filename(filename: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", filename)[:180] or "document"
@@ -39,6 +42,9 @@ class LocalDocumentObjectStore(DocumentObjectStore):
         path = Path(object_reference)
         if path.exists():
             path.unlink()
+
+    def get(self, object_reference: str) -> bytes:
+        return Path(object_reference).read_bytes()
 
 
 class S3DocumentObjectStore(DocumentObjectStore):
@@ -75,19 +81,26 @@ class S3DocumentObjectStore(DocumentObjectStore):
             raise ValueError("Object reference does not belong to configured document bucket")
         self._client.delete_object(Bucket=self._bucket, Key=object_reference.removeprefix(prefix))
 
+    def get(self, object_reference: str) -> bytes:
+        prefix = f"s3://{self._bucket}/"
+        if not object_reference.startswith(prefix):
+            raise ValueError("Object reference does not belong to configured document bucket")
+        response = self._client.get_object(Bucket=self._bucket, Key=object_reference.removeprefix(prefix))
+        return response["Body"].read()
+
 
 class SupabaseDocumentObjectStore(DocumentObjectStore):
     """Durable source documents in a private Supabase Storage bucket."""
 
     def __init__(self, url: str, service_role_key: str, bucket: str):
-        try:
-            from supabase import create_client
-        except ImportError as error:  # pragma: no cover - deployment dependency
-            raise RuntimeError("supabase is required for Supabase document storage") from error
         if not url or not service_role_key or not bucket:
             raise RuntimeError(
                 "SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_STORAGE_BUCKET are required"
             )
+        try:
+            from supabase import create_client
+        except ImportError as error:  # pragma: no cover - deployment dependency
+            raise RuntimeError("supabase is required for Supabase document storage") from error
         self._client = create_client(url, service_role_key)
         self._bucket = bucket
 
@@ -113,6 +126,12 @@ class SupabaseDocumentObjectStore(DocumentObjectStore):
         if bucket != self._bucket:
             raise ValueError("Object reference belongs to a different Supabase bucket")
         self._client.storage.from_(self._bucket).remove([path])
+
+    def get(self, object_reference: str) -> bytes:
+        prefix = f"supabase://{self._bucket}/"
+        if not object_reference.startswith(prefix):
+            raise ValueError("Object reference belongs to a different Supabase bucket")
+        return self._client.storage.from_(self._bucket).download(object_reference.removeprefix(prefix))
 
 
 def create_document_object_store() -> DocumentObjectStore:

@@ -6,9 +6,6 @@ import '../config/app_config.dart';
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
-  static const _privacyUrl = 'https://coverwise.app/privacy';
-  static const _tosUrl = 'https://coverwise.app/terms';
-
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
@@ -35,7 +32,10 @@ class AboutScreen extends StatelessWidget {
           Text(
             'Version ${AppConfig.appVersion}',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Colors.grey),
           ),
           const SizedBox(height: 24),
           Text(
@@ -47,7 +47,10 @@ class AboutScreen extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           Text('Disclaimer',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text(
             '${AppConfig.appName} provides information based on your documents to '
@@ -56,25 +59,30 @@ class AboutScreen extends StatelessWidget {
             'contain errors. Always verify coverage details against your policy '
             'document and with your insurer. Coverage decisions are determined '
             'by your policy and insurer, not by this app.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Colors.grey),
           ),
           const SizedBox(height: 24),
-          // Legal links
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton.icon(
-                icon: const Icon(Icons.privacy_tip_outlined, size: 18),
-                label: const Text('Privacy Policy'),
-                onPressed: () => _openUrl(_privacyUrl),
-              ),
-              TextButton.icon(
-                icon: const Icon(Icons.gavel_outlined, size: 18),
-                label: const Text('Terms of Service'),
-                onPressed: () => _openUrl(_tosUrl),
-              ),
-            ],
-          ),
+          if (AppConfig.hasPrivacyPolicy || AppConfig.hasTermsOfService)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                if (AppConfig.hasPrivacyPolicy)
+                  TextButton.icon(
+                    icon: const Icon(Icons.privacy_tip_outlined, size: 18),
+                    label: const Text('Privacy Policy'),
+                    onPressed: () => _openUrl(AppConfig.privacyPolicyUrl),
+                  ),
+                if (AppConfig.hasTermsOfService)
+                  TextButton.icon(
+                    icon: const Icon(Icons.gavel_outlined, size: 18),
+                    label: const Text('Terms of Service'),
+                    onPressed: () => _openUrl(AppConfig.termsOfServiceUrl),
+                  ),
+              ],
+            ),
         ],
       ),
     );

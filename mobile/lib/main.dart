@@ -26,9 +26,11 @@ import 'services/local_storage_service.dart';
 import 'services/app_state_store.dart';
 import 'services/notification_service.dart';
 import 'services/auth_service.dart';
+import 'services/analytics_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppConfig.validateReleaseConfiguration();
   if (AppConfig.isProduction) {
     debugPrint = (String? message, {int? wrapWidth}) {};
   }
@@ -38,10 +40,13 @@ void main() async {
 
   // Acquire anonymous auth token if we don't have one yet (non-blocking —
   // the AuthInterceptor also acquires on first 401).
-  if (AuthService.cachedToken == null) {
+  if (await AuthService.cachedToken() == null) {
     final tempDio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
     await AuthService.acquireToken(tempDio);
   }
+
+  // Initialize analytics (local-first, batch-syncs to backend)
+  AnalyticsService.init();
 
   // Check if onboarding has been completed
   final prefs = await SharedPreferences.getInstance();
@@ -80,6 +85,14 @@ class _InsuranceAppState extends State<InsuranceApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      themeMode: ThemeMode.system,
       home: _showOnboarding
           ? OnboardingScreen(onComplete: () {
               setState(() => _showOnboarding = false);

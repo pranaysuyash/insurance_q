@@ -175,3 +175,30 @@ encrypted PDF before object or metadata persistence, does not retain the
 password, and uses it only while PyMuPDF extracts text. This makes a real
 encrypted policy test possible once its owner supplies the password, while
 keeping the benchmark/report contract free of policy text.
+
+## Addendum (2026-07-12) — mobile-first OCR boundary
+
+The deployment target is the Android/iOS application, not the developer's
+Apple-Silicon laptop. The mobile product baseline is therefore **Google ML Kit
+on Android and iOS through native platform SDKs**, not Surya, Unlimited-OCR,
+or a desktop-hosted VLM.
+
+The app now exposes an explicit `Read scanned pages on this device` control
+for native uploads. When selected, it creates an in-memory ML Kit text
+sidecar and uploads it **alongside the unchanged original PDF or image**. The
+server keeps direct PDF text authoritative. It uses the mobile sidecar only
+when the original contains no embedded text, labels the extraction method and
+provenance, and never stores OCR text in upload metadata. The password path
+remains server-side: encrypted PDFs are not rendered on device before the
+user's request-scoped password is validated.
+
+This prevents the old incorrect behavior where every PDF was OCR-rendered and
+the original source was silently replaced with a `.txt` upload. It also makes
+the product limitation explicit: mobile text recognition is an OCR recovery
+feature, not a table/layout parser or an insurance decision model. Advanced
+document VLMs (Surya, PaddleOCR-VL, olmOCR, Unlimited-OCR) remain optional
+server/GPU benchmark candidates and must not be implied to run inside a
+standard Android or iOS app binary. The native control currently offers
+English/Latin and Hindi/Devanagari recognizers; the user selects the document
+script so the app does not silently apply an English-only model to a Hindi
+policy.

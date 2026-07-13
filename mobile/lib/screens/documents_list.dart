@@ -24,9 +24,13 @@ class DocumentsList extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Error loading documents: $e', style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+            Text('Error loading documents: $e',
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: () => ref.invalidate(documentsProvider), child: const Text('Retry')),
+            ElevatedButton(
+                onPressed: () => ref.invalidate(documentsProvider),
+                child: const Text('Retry')),
           ],
         ),
       ),
@@ -38,9 +42,11 @@ class DocumentsList extends ConsumerWidget {
               children: [
                 Icon(Icons.folder_open, size: 64, color: Colors.grey),
                 SizedBox(height: 16),
-                Text('No documents yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                Text('No documents yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey)),
                 SizedBox(height: 8),
-                Text('Upload a document to get started', style: TextStyle(color: Colors.grey)),
+                Text('Upload a document to get started',
+                    style: TextStyle(color: Colors.grey)),
               ],
             ),
           );
@@ -54,10 +60,12 @@ class DocumentsList extends ConsumerWidget {
                 padding: const EdgeInsets.all(8.0),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                    const Icon(Icons.info_outline,
+                        size: 16, color: Colors.blue),
                     const SizedBox(width: 8),
                     Text('${documents.length}/5 documents (free storage limit)',
-                      style: const TextStyle(fontSize: 12, color: Colors.blue)),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.blue)),
                   ],
                 ),
               ),
@@ -66,12 +74,21 @@ class DocumentsList extends ConsumerWidget {
                   itemCount: documents.length,
                   itemBuilder: (context, index) {
                     final doc = documents[index];
+                    final processingState = doc.processingState;
+                    final isReady = processingState == 'completed' ||
+                        processingState == 'ready';
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       child: ExpansionTile(
-                        leading: Icon(iconForDocumentType(doc.documentType), color: colorForDocumentType(doc.documentType)),
-                        title: Text(doc.filename, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('Uploaded: ${doc.formattedUploadDate}'),
+                        leading: Icon(iconForDocumentType(doc.documentType),
+                            color: colorForDocumentType(doc.documentType)),
+                        title: Text(doc.filename,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                          'Uploaded: ${doc.formattedUploadDate} • ${_processingLabel(processingState)}',
+                        ),
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(16.0),
@@ -79,32 +96,47 @@ class DocumentsList extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _metadataRow('Local ID', doc.id),
-                                if (doc.remoteId != null) _metadataRow('Backend ID', doc.remoteId!),
-                                _metadataRow('Type', doc.documentType ?? 'Unknown'),
-                                _metadataRow('Upload Date', doc.formattedUploadDate),
-                                _metadataRow('Analysis Date', doc.formattedAnalyzedDate),
-                                if (doc.size != null) _metadataRow('Size', doc.formattedFileSize),
+                                if (doc.remoteId != null)
+                                  _metadataRow('Backend ID', doc.remoteId!),
+                                _metadataRow(
+                                    'Type', doc.documentType ?? 'Unknown'),
+                                _metadataRow(
+                                    'Upload Date', doc.formattedUploadDate),
+                                _metadataRow(
+                                    'Analysis Date', doc.formattedAnalyzedDate),
+                                if (doc.size != null)
+                                  _metadataRow('Size', doc.formattedFileSize),
                                 const SizedBox(height: 16),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     TextButton.icon(
                                       icon: const Icon(Icons.question_answer),
-                                      label: const Text('Ask Questions'),
-                                      onPressed: () {
-                                        if (onDocumentSelectedForQA != null) {
-                                          onDocumentSelectedForQA!(doc.id);
-                                        } else {
-                                          Navigator.pushNamed(context, '/qa', arguments: doc.id);
-                                        }
-                                      },
+                                      label: Text(isReady
+                                          ? 'Ask Questions'
+                                          : 'Reading policy'),
+                                      onPressed: isReady
+                                          ? () {
+                                              if (onDocumentSelectedForQA !=
+                                                  null) {
+                                                onDocumentSelectedForQA!(
+                                                    doc.id);
+                                              } else {
+                                                Navigator.pushNamed(
+                                                    context, '/qa',
+                                                    arguments: doc.id);
+                                              }
+                                            }
+                                          : null,
                                     ),
                                     const SizedBox(width: 8),
                                     TextButton.icon(
                                       icon: const Icon(Icons.delete),
                                       label: const Text('Delete'),
-                                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                      onPressed: () => _deleteDocument(context, ref, doc),
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red),
+                                      onPressed: () =>
+                                          _deleteDocument(context, ref, doc),
                                     ),
                                   ],
                                 ),
@@ -124,22 +156,29 @@ class DocumentsList extends ConsumerWidget {
     );
   }
 
-  Future<void> _deleteDocument(BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+  Future<void> _deleteDocument(
+      BuildContext context, WidgetRef ref, InsuranceDocument document) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Deletion'),
-        content: Text('Are you sure you want to delete "${document.filename}"?'),
+        content:
+            Text('Are you sure you want to delete "${document.filename}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete')),
         ],
       ),
     );
 
     if (confirmed == true) {
       try {
-        final success = await ref.read(documentServiceProvider).deleteDocument(document.id);
+        final success =
+            await ref.read(documentServiceProvider).deleteDocument(document.id);
         if (success) {
           // Cascade: remove derived data and invalidate all dependents
           // so the UI stays consistent (dashboard, QA, summaries, family).
@@ -181,11 +220,31 @@ class DocumentsList extends ConsumerWidget {
         children: [
           SizedBox(
             width: 120,
-            child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            child: Text('$label:',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           Expanded(child: Text(value)),
         ],
       ),
     );
+  }
+
+  String _processingLabel(String? state) {
+    switch (state) {
+      case 'received':
+      case 'processing':
+        return 'Reading policy';
+      case 'pending':
+      case 'pending_upload':
+        return 'Waiting to sync';
+      case 'failed':
+        return 'Needs attention';
+      case 'completed':
+      case 'ready':
+        return 'Ready for questions';
+      default:
+        return 'Saved';
+    }
   }
 }

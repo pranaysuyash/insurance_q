@@ -4,6 +4,16 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:pdfx/pdfx.dart';
 import 'package:path_provider/path_provider.dart';
 
+enum OnDeviceOcrScript {
+  latin('English / Latin', TextRecognitionScript.latin),
+  devanagari('Hindi / Devanagari', TextRecognitionScript.devanagiri);
+
+  const OnDeviceOcrScript(this.label, this.mlKitScript);
+
+  final String label;
+  final TextRecognitionScript mlKitScript;
+}
+
 /// On-device OCR for scanned/image-only PDFs using Google ML Kit.
 ///
 /// When a user uploads a PDF that has no embedded text (a scanned document),
@@ -13,21 +23,24 @@ import 'package:path_provider/path_provider.dart';
 /// The extracted text is then sent to the backend for RAG ingestion, same as
 /// a digital PDF.
 class MlOcrService {
-  static final _textRecognizer =
-      TextRecognizer(script: TextRecognitionScript.latin);
-
   /// Extracts text from a PDF. Renders each page to an image and runs ML Kit
   /// OCR on it. For digital PDFs, the OCR will still extract the text (just
   /// slower than direct text extraction — but reliable and consistent).
   ///
   /// Returns the full text and whether OCR was used.
   static Future<({String text, bool usedOcr})> extractTextFromFile(
-    String filePath,
-  ) async {
+    String filePath, {
+    OnDeviceOcrScript script = OnDeviceOcrScript.latin,
+  }) async {
+    final textRecognizer = TextRecognizer(script: script.mlKitScript);
     if (!filePath.toLowerCase().endsWith('.pdf')) {
       // For image files, run OCR directly
-      final text = await _recognizeFile(filePath);
-      return (text: text, usedOcr: true);
+      try {
+        final text = await _recognizeFile(filePath, textRecognizer);
+        return (text: text, usedOcr: true);
+      } finally {
+        await textRecognizer.close();
+      }
     }
 
     PdfDocument? doc;
@@ -48,7 +61,7 @@ class MlOcrService {
           final imgFile = File('${tempDir.path}/pdf_page_$i.png');
           await imgFile.writeAsBytes(img.bytes);
 
-          final text = await _recognizeFile(imgFile.path);
+          final text = await _recognizeFile(imgFile.path, textRecognizer);
           if (text.isNotEmpty) {
             buffer.writeln(text);
           }
@@ -66,22 +79,22 @@ class MlOcrService {
       return (text: '', usedOcr: false);
     } finally {
       await doc?.close();
+      await textRecognizer.close();
     }
   }
 
   /// Runs ML Kit text recognition on a file (image path).
-  static Future<String> _recognizeFile(String filePath) async {
+  static Future<String> _recognizeFile(
+    String filePath,
+    TextRecognizer textRecognizer,
+  ) async {
     try {
       final inputImage = InputImage.fromFilePath(filePath);
-      final result = await _textRecognizer.processImage(inputImage);
+      final result = await textRecognizer.processImage(inputImage);
       return result.text;
     } catch (e) {
       debugPrint('ML Kit OCR error: $e');
       return '';
     }
-  }
-
-  static Future<void> dispose() async {
-    await _textRecognizer.close();
   }
 }

@@ -9,33 +9,38 @@ class SessionService {
   
   /// Get or create a session ID
   static Future<String> getSessionId() async {
+    return getSessionIdSync();
+  }
+
+  /// Synchronous version for analytics init (reads from cache or Hive).
+  static String getSessionIdSync() {
     if (_currentSessionId != null) {
       return _currentSessionId!;
     }
 
     final box = Hive.box(AppStateStore.boxName);
-    
+
     // Check if we have an existing session
     final existingSessionId = box.get(AppStateStore.sessionIdKey) as String?;
     final sessionCreated = box.get(AppStateStore.sessionCreatedKey) as int?;
-    
+
     // Session expires after 24 hours
     const sessionDurationMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     final now = DateTime.now().millisecondsSinceEpoch;
-    
-    if (existingSessionId != null && 
-        sessionCreated != null && 
+
+    if (existingSessionId != null &&
+        sessionCreated != null &&
         (now - sessionCreated) < sessionDurationMs) {
       // Use existing session
       _currentSessionId = existingSessionId;
       return existingSessionId;
     }
-    
+
     // Create new session
     final newSessionId = _uuid.v4();
-    await box.put(AppStateStore.sessionIdKey, newSessionId);
-    await box.put(AppStateStore.sessionCreatedKey, now);
-    
+    box.put(AppStateStore.sessionIdKey, newSessionId);
+    box.put(AppStateStore.sessionCreatedKey, now);
+
     _currentSessionId = newSessionId;
     return newSessionId;
   }

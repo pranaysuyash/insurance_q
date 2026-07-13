@@ -13,6 +13,7 @@ import json
 import os
 import sqlite3
 import threading
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -26,6 +27,9 @@ class DocumentRepository:
     def get(self, document_id: str, owner_id: str) -> Optional[Document]:
         raise NotImplementedError
 
+    def find_by_source_hash(self, owner_id: str, source_hash: str) -> Optional[Document]:
+        raise NotImplementedError
+
     def list_for_owner(self, owner_id: str) -> list[Document]:
         raise NotImplementedError
 
@@ -33,6 +37,13 @@ class DocumentRepository:
         raise NotImplementedError
 
     def delete(self, document_id: str, owner_id: str) -> bool:
+        raise NotImplementedError
+
+    def list_recoverable_processing(self) -> list[Document]:
+        raise NotImplementedError
+
+    def claim_processing(self, document_id: str, owner_id: str, lease_seconds: int) -> bool:
+        """Atomically lease a received or stale-processing document."""
         raise NotImplementedError
 
 
@@ -82,6 +93,14 @@ class SQLiteDocumentRepository(DocumentRepository):
             ).fetchone()
         return self._deserialize(row["payload"]) if row else None
 
+    def find_by_source_hash(self, owner_id: str, source_hash: str) -> Optional[Document]:
+        # Local payload storage favors fidelity over query optimization. The
+        # production adapter uses an indexed column for this lookup.
+        for document in self.list_for_owner(owner_id):
+            if document.source_hash == source_hash:
+                return document
+        return None
+
     def list_for_owner(self, owner_id: str) -> list[Document]:
         with self._lock:
             rows = self._connection.execute(
@@ -105,6 +124,51 @@ class SQLiteDocumentRepository(DocumentRepository):
                 (document_id, owner_id),
             )
         return cursor.rowcount == 1
+
+    def list_recoverable_processing(self) -> list[Document]:
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT payload FROM documents"
+            ).fetchall()
+        now = datetime.now(timezone.utc)
+        documents = [self._deserialize(row["payload"]) for row in rows]
+        return [
+            document
+            for document in documents
+            if document.status == "received"
+            or (
+                document.status == "processing"
+                and document.processing_lease_expires_at is not None
+                and document.processing_lease_expires_at <= now
+            )
+        ]
+
+    def claim_processing(self, document_id: str, owner_id: str, lease_seconds: int) -> bool:
+        now = datetime.now(timezone.utc)
+        with self._lock, self._connection:
+            row = self._connection.execute(
+                "SELECT payload FROM documents WHERE id = ? AND owner_id = ?",
+                (document_id, owner_id),
+            ).fetchone()
+            if not row:
+                return False
+            document = self._deserialize(row["payload"])
+            stale = (
+                document.status == "processing"
+                and document.processing_lease_expires_at is not None
+                and document.processing_lease_expires_at <= now
+            )
+            if document.status != "received" and not stale:
+                return False
+            document.status = "processing"
+            document.processing_attempts += 1
+            document.processing_started_at = now
+            document.processing_lease_expires_at = now + timedelta(seconds=lease_seconds)
+            self._connection.execute(
+                "UPDATE documents SET payload = ? WHERE id = ? AND owner_id = ?",
+                (self._serialize(document), document_id, owner_id),
+            )
+        return True
 
 
 class DynamoDBDocumentRepository(DocumentRepository):
@@ -145,6 +209,9 @@ class DynamoDBDocumentRepository(DocumentRepository):
             return None
         return self._document(item)
 
+    def find_by_source_hash(self, owner_id: str, source_hash: str) -> Optional[Document]:
+        raise RuntimeError("DynamoDB source-hash lookup is unsupported; use the canonical Supabase backend")
+
     def list_for_owner(self, owner_id: str) -> list[Document]:
         response = self._table.query(
             IndexName="owner_id-index",
@@ -176,17 +243,25 @@ class DynamoDBDocumentRepository(DocumentRepository):
         )
         return bool(response.get("Attributes"))
 
+    def list_recoverable_processing(self) -> list[Document]:
+        # DynamoDB is a compatibility adapter, not the canonical launch store.
+        # Avoid a table scan hidden behind the production API.
+        raise RuntimeError("DynamoDB recovery is unsupported; use the canonical Supabase backend")
+
+    def claim_processing(self, document_id: str, owner_id: str, lease_seconds: int) -> bool:
+        raise RuntimeError("DynamoDB claims are unsupported; use the canonical Supabase backend")
+
 
 class SupabaseDocumentRepository(DocumentRepository):
     """Owner-scoped document metadata stored in Supabase Postgres."""
 
     def __init__(self, url: str, service_role_key: str, table_name: str = "documents"):
+        if not url or not service_role_key:
+            raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
         try:
             from supabase import create_client
         except ImportError as error:  # pragma: no cover - deployment dependency
             raise RuntimeError("supabase is required for Supabase document storage") from error
-        if not url or not service_role_key:
-            raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
         self._client = create_client(url, service_role_key)
         self._table_name = table_name
 
@@ -198,6 +273,14 @@ class SupabaseDocumentRepository(DocumentRepository):
             "payload": document.model_dump(mode="json"),
             "status": document.status,
             "object_reference": document.file_path,
+            "source_hash": document.source_hash,
+            "processing_attempts": document.processing_attempts,
+            "processing_started_at": document.processing_started_at.isoformat()
+            if document.processing_started_at
+            else None,
+            "processing_lease_expires_at": document.processing_lease_expires_at.isoformat()
+            if document.processing_lease_expires_at
+            else None,
         }
 
     @staticmethod
@@ -215,6 +298,17 @@ class SupabaseDocumentRepository(DocumentRepository):
             .select("payload")
             .eq("id", document_id)
             .eq("owner_id", owner_id)
+            .limit(1)
+            .execute()
+        )
+        return self._document(response.data[0]) if response.data else None
+
+    def find_by_source_hash(self, owner_id: str, source_hash: str) -> Optional[Document]:
+        response = (
+            self._client.table(self._table_name)
+            .select("payload")
+            .eq("owner_id", owner_id)
+            .eq("source_hash", source_hash)
             .limit(1)
             .execute()
         )
@@ -249,6 +343,36 @@ class SupabaseDocumentRepository(DocumentRepository):
             .eq("owner_id", owner_id)
             .execute()
         )
+        return bool(response.data)
+
+    def list_recoverable_processing(self) -> list[Document]:
+        response = (
+            self._client.table(self._table_name)
+            .select("payload")
+            .in_("status", ["received", "processing"])
+            .execute()
+        )
+        now = datetime.now(timezone.utc)
+        documents = [self._document(row) for row in (response.data or [])]
+        return [
+            document
+            for document in documents
+            if document.status == "received"
+            or (
+                document.processing_lease_expires_at is not None
+                and document.processing_lease_expires_at <= now
+            )
+        ]
+
+    def claim_processing(self, document_id: str, owner_id: str, lease_seconds: int) -> bool:
+        response = self._client.rpc(
+            "claim_document_processing",
+            {
+                "p_document_id": document_id,
+                "p_owner_id": owner_id,
+                "p_lease_seconds": lease_seconds,
+            },
+        ).execute()
         return bool(response.data)
 
 

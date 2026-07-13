@@ -26,6 +26,7 @@ import sys # Make sure sys is imported at the top if not already
 
 # Correct import for Docker and local
 from src.ocr.pipeline import OCRPipeline # Refactored pipeline
+from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -128,24 +129,18 @@ async def process_document_and_trigger_ingestion(file: UploadFile = File(...)):
         logger.error("Process attempt failed: OCR Pipeline is not available.")
         raise HTTPException(status_code=503, detail="OCR Pipeline is not available. Service might be misconfigured.")
 
-    # Basic file type validation
-    allowed_extensions = ('.pdf', '.doc', '.docx', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp')
-    file_ext = ""
-    if file.filename:
-        file_ext = os.path.splitext(file.filename.lower())[1]
-    
-    if not file.filename or file_ext not in allowed_extensions:
-        supported_formats_str = ', '.join(allowed_extensions)
-        detail_msg = f"Unsupported file format. Supported: {supported_formats_str}"
-        raise HTTPException(status_code=400, detail=detail_msg)
-    
-    file_type_for_pipeline = file_ext.strip('.')
-    document_id = file.filename # Using filename as document_id, ensure it's unique or generate one
-    
-    logger.info(f"Processing document: {document_id}, type: {file_type_for_pipeline}")
-
     try:
-        content = await file.read()
+        content = await file.read(MAX_UPLOAD_BYTES + 1)
+        try:
+            file_ext = validate_upload_content(file.filename, content)
+        except UploadValidationError as error:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": error.code, "message": error.message},
+            ) from error
+        file_type_for_pipeline = file_ext.strip('.')
+        document_id = file.filename # Using filename as document_id, ensure it's unique or generate one
+        logger.info(f"Processing document: {document_id}, type: {file_type_for_pipeline}")
         
         # Define layout questions for the OCR pipeline (can be customized)
         # Example: Could be loaded from a config file or passed via request in a more advanced setup
@@ -360,4 +355,4 @@ async def debug_clear_redis_cache():
 #         port=int(os.getenv("PORT", 8000)), # Default OCR port
 #         log_level=os.getenv("LOG_LEVEL", "info").lower(),
 #         reload=True 
-#     ) 
+#     )

@@ -4,15 +4,20 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:hive/hive.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import '../config/app_config.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
+import '../services/analytics_service.dart';
+import '../services/app_state_store.dart';
 import '../services/contact_service.dart';
+import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
 import '../widgets/lead_capture_dialog.dart';
+import '../widgets/phone_capture_sheet.dart';
 import '../widgets/usage_stats_widget.dart';
 import 'documents_list.dart';
 
@@ -25,8 +30,10 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   File? _selectedFile;
   WebPickedFile? _selectedWebFile;
-  final _pdfPasswordController = TextEditingController();
   bool _isUploading = false;
+  bool _isReadingOnDevice = false;
+  bool _useOnDeviceOcr = false;
+  OnDeviceOcrScript _onDeviceOcrScript = OnDeviceOcrScript.latin;
   String? _uploadError;
   Map<String, dynamic>? _ocrResult;
   bool _showUploadDetails = false;
@@ -46,7 +53,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
   @override
   void dispose() {
-    _pdfPasswordController.dispose();
     super.dispose();
   }
 
@@ -73,6 +79,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         setState(() {
           _selectedFile = file;
           _selectedWebFile = null;
+          _useOnDeviceOcr = false;
           _showUploadDetails = true;
         });
         return;
@@ -96,6 +103,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         setState(() {
           _selectedWebFile = picked;
           _selectedFile = null;
+          _useOnDeviceOcr = false;
           _showUploadDetails = true;
         });
       }
@@ -107,6 +115,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       setState(() {
         _selectedFile = File(file.path);
         _selectedWebFile = null;
+        final selectedPath = file.path.toLowerCase();
+        _useOnDeviceOcr = selectedPath.endsWith('.png') ||
+            selectedPath.endsWith('.jpg') ||
+            selectedPath.endsWith('.jpeg');
         _showUploadDetails = true;
       });
     }
@@ -131,12 +143,13 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       final shouldProceed = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Duplicate Document'),
+          title: const Text('This policy is already saved'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('A similar document already exists:'),
+              const Text(
+                  'An identical or matching policy is already on this device:'),
               const SizedBox(height: 8),
               Text(duplicate.filename,
                   style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -144,7 +157,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               Text('Uploaded on: ${duplicate.formattedUploadDate}'),
               const SizedBox(height: 16),
               const Text(
-                'Uploading this document will count against your storage limit. Do you want to replace the existing document or keep both?',
+                'CoverWise avoids creating duplicate policy records. You can use the saved policy or replace it after deleting the old copy.',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
@@ -153,59 +166,64 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             TextButton(
                 onPressed: () => Navigator.pop(context, 'cancel'),
                 child: const Text('Cancel')),
-            TextButton(
-                onPressed: () => Navigator.pop(context, 'replace'),
-                child: const Text('Replace')),
             ElevatedButton(
-                onPressed: () => Navigator.pop(context, 'keep'),
-                child: const Text('Keep Both')),
+                onPressed: () => Navigator.pop(context, 'use_existing'),
+                child: const Text('Use Saved Policy')),
           ],
         ),
       );
 
-      if (shouldProceed == 'cancel' || shouldProceed == null) return;
-
-      if (shouldProceed == 'replace' && mounted) {
-        setState(() => _isUploading = true);
-        final deleted = await ref
-            .read(documentServiceProvider)
-            .deleteDocument(duplicate.id);
-        if (!deleted && mounted) {
-          setState(() {
-            _isUploading = false;
-            _uploadError = 'Failed to delete existing document';
-          });
-          return;
-        }
+      if (shouldProceed == null || shouldProceed == 'cancel') return;
+      if (shouldProceed == 'use_existing') {
+        ref.invalidate(documentsProvider);
+        return;
       }
     }
 
     if (!mounted) return;
 
-    final savedContact = await ContactService.getSavedContact();
-    if (!mounted) return;
-    final leadInfo = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => LeadCaptureDialog(
-        initialEmail: savedContact['email'],
-        initialPhone: savedContact['phone'],
-        isRequired: false,
-      ),
-    );
+    // Consent: ask once, store permanently. On subsequent uploads, skip the dialog.
+    final box = Hive.box(AppStateStore.boxName);
+    final storedConsent = box.get('processing_consent_version') as String?;
 
-    if (leadInfo == null && mounted) return;
+    String consentVersion;
+    if (storedConsent != null) {
+      consentVersion = storedConsent;
+    } else {
+      // First upload - show consent + optional contact capture
+      final savedContact = await ContactService.getSavedContact();
+      if (!mounted) return;
+      final leadInfo = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) => LeadCaptureDialog(
+          initialEmail: savedContact['email'],
+          initialPhone: savedContact['phone'],
+          isRequired: false,
+        ),
+      );
 
-    if (leadInfo != null && leadInfo['save'] == true) {
-      await ContactService.saveContact(
-          email: leadInfo['email'],
-          phone: leadInfo['phone'],
-          saveForFuture: true);
+      if (leadInfo == null && mounted) return;
+
+      consentVersion = leadInfo!['processing_consent_version'] as String;
+      await box.put('processing_consent_version', consentVersion);
+
+      if (leadInfo['save'] == true) {
+        await ContactService.saveContact(
+            email: leadInfo['email'],
+            phone: leadInfo['phone'],
+            saveForFuture: true);
+      }
     }
 
     setState(() {
       _isUploading = true;
+      _isReadingOnDevice = !kIsWeb && _useOnDeviceOcr;
       _uploadError = null;
       _ocrResult = null;
+    });
+
+    AnalyticsService.track('first_upload_started', {
+      'file_type': selectedFile?.path.split('.').last ?? 'unknown',
     });
 
     try {
@@ -213,17 +231,16 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           ? await ref.read(documentServiceProvider).uploadWebDocument(
                 filename: selectedWebFile.name,
                 bytes: Uint8List.fromList(selectedWebFile.bytes),
-                email: leadInfo?['email'],
-                phone: leadInfo?['phone'],
-                pdfPassword: _pdfPasswordController.text,
+                onDeviceOcrText: null,
+                processingConsentVersion: consentVersion,
               )
           : await ref
               .read(documentServiceProvider)
               .uploadDocumentWithLimitCheck(
                 selectedFile!,
-                email: leadInfo?['email'],
-                phone: leadInfo?['phone'],
-                pdfPassword: _pdfPasswordController.text,
+                useOnDeviceOcr: _useOnDeviceOcr,
+                onDeviceOcrScript: _onDeviceOcrScript,
+                processingConsentVersion: consentVersion,
               );
 
       if (mounted) {
@@ -263,48 +280,107 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           return;
         }
 
+        if (result['error'] != null) {
+          setState(() {
+            _uploadError = result['message']?.toString() ??
+                'We could not save this policy securely. Please try again.';
+          });
+          return;
+        }
+
         setState(() => _ocrResult = result);
         ref.invalidate(documentsProvider);
 
-        // Fetch policy summary from backend (single API call)
+        AnalyticsService.track('document_processing_succeeded', {
+          'file_type': selectedFile?.path.split('.').last ?? 'unknown',
+          'status': result['status']?.toString() ?? 'unknown',
+        });
+
+        // A received policy is durable but not yet ready for a summary/Q&A.
         final documentId = result['document_id']?.toString();
         final documentType = result['document_type']?.toString() ?? 'Unknown';
         final isOfflineFlag = result['offline_mode'] == true;
-        if (documentId != null && !isOfflineFlag) {
+        final serverStatus = result['status']?.toString() ?? '';
+        final isProcessing =
+            serverStatus == 'received' || serverStatus == 'processing';
+
+        if (documentId != null &&
+            !isOfflineFlag &&
+            serverStatus == 'completed') {
           ref
               .read(policySummariesProvider.notifier)
               .fetchFromBackend(documentId, documentType);
         }
 
-        final isOfflineModeFlag = isOfflineFlag;
-        final isQueuedOnly = result['status'] == 'pending_upload';
+        final isQueuedOnly = serverStatus == 'pending_upload';
         final selectedName = selectedWebFile?.name ??
             selectedFile?.path.split('/').last ??
             'Document';
-        final message = isQueuedOnly
-            ? '$selectedName saved locally; sync pending'
-            : isOfflineModeFlag
-                ? '$selectedName saved locally (offline mode)'
-                : '$selectedName uploaded successfully!';
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(message),
-              backgroundColor:
-                  (isOfflineModeFlag || isQueuedOnly) ? Colors.orange : null),
-        );
 
         setState(() {
           _selectedFile = null;
           _selectedWebFile = null;
-          _pdfPasswordController.clear();
           _showUploadDetails = false;
         });
+
+        if (!mounted) return;
+
+        // Navigate to the policy detail screen if processing completed -
+        // this IS the first value moment. The user sees their summary immediately.
+        if (documentId != null && !isOfflineFlag && serverStatus == 'completed') {
+          AnalyticsService.track('first_value_delivered', {
+            'document_id': documentId.substring(0, 8),
+          });
+          // Push to policy detail - the "aha" moment
+          Navigator.pushNamed(context, '/policy-detail', arguments: documentId);
+          // After the user sees their policy, offer phone backup (progressive)
+          PhoneCaptureSheet.maybeShow(context);
+        } else if (isProcessing) {
+          // Processing in background - show a clear status, not just a snackbar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$selectedName is securely saved. We\'re reading it now - check back in a moment.'),
+              backgroundColor: Colors.blue,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'View',
+                textColor: Colors.white,
+                onPressed: () {
+                  if (documentId != null) {
+                    Navigator.pushNamed(context, '/policy-detail', arguments: documentId);
+                  }
+                },
+              ),
+            ),
+          );
+          // Trigger phone capture for processing uploads too
+          PhoneCaptureSheet.maybeShow(context);
+        } else {
+          // Offline/queued - honest message
+          final message = isQueuedOnly
+              ? '$selectedName saved locally; will sync when online'
+              : '$selectedName saved locally (offline mode)';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          PhoneCaptureSheet.maybeShow(context);
+        }
       }
     } catch (e) {
-      if (mounted) setState(() => _uploadError = e.toString());
+      AnalyticsService.track('document_processing_failed', {
+        'error_class': e.runtimeType.toString(),
+      });
+      if (mounted) {
+        setState(() => _uploadError =
+            'We could not save this policy securely. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
+      if (mounted) setState(() => _isReadingOnDevice = false);
     }
   }
 
@@ -312,7 +388,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     setState(() {
       _selectedFile = null;
       _selectedWebFile = null;
-      _pdfPasswordController.clear();
+      _useOnDeviceOcr = false;
       _ocrResult = null;
       _uploadError = null;
       _showUploadDetails = false;
@@ -420,23 +496,61 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: _pdfPasswordController,
-                        obscureText: true,
-                        enableSuggestions: false,
-                        autocorrect: false,
-                        decoration: const InputDecoration(
-                          labelText: 'PDF password (if protected)',
-                          helperText:
-                              'Used only to unlock this upload. Never saved.',
-                          prefixIcon: Icon(Icons.lock_outline),
-                          border: OutlineInputBorder(),
+                      if (!kIsWeb) ...[
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          value: _useOnDeviceOcr,
+                          onChanged: _isUploading
+                              ? null
+                              : (value) =>
+                                  setState(() => _useOnDeviceOcr = value),
+                          title:
+                              const Text('Read scanned pages on this device'),
+                          subtitle: const Text(
+                            'Uses on-device text recognition. Your original file is still uploaded and remains the source of truth.',
+                          ),
+                          secondary:
+                              const Icon(Icons.document_scanner_outlined),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                        if (_useOnDeviceOcr)
+                          DropdownButtonFormField<OnDeviceOcrScript>(
+                            value: _onDeviceOcrScript,
+                            decoration: const InputDecoration(
+                              labelText: 'Document language',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: OnDeviceOcrScript.values
+                                .map(
+                                  (script) => DropdownMenuItem(
+                                    value: script,
+                                    child: Text(script.label),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: _isUploading
+                                ? null
+                                : (script) {
+                                    if (script != null) {
+                                      setState(
+                                        () => _onDeviceOcrScript = script,
+                                      );
+                                    }
+                                  },
+                          ),
+                        const SizedBox(height: 8),
+                      ],
                       Center(
                         child: _isUploading
-                            ? const CircularProgressIndicator()
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  if (_isReadingOnDevice) ...[
+                                    const SizedBox(height: 10),
+                                    const Text('Reading pages on this device…'),
+                                  ],
+                                ],
+                              )
                             : ElevatedButton.icon(
                                 icon: const Icon(Icons.cloud_upload),
                                 label: const Text('Upload Selected File'),

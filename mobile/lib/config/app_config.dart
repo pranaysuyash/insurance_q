@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
   // Environment configuration
   static const String environment =
@@ -7,25 +9,29 @@ class AppConfig {
     defaultValue: false,
   );
 
-  // Backend URL configuration - STABLE URL (never changes)
-  static const String _productionBaseUrl =
-      'https://aa2485vt7t.ap-south-1.awsapprunner.com'; // STABLE production URL
-  static const String _stagingBaseUrl =
-      'https://aa2485vt7t.ap-south-1.awsapprunner.com'; // Same for now
-  static const String _developmentBaseUrl =
-      'http://localhost:8000'; // Local development
+  // Release addresses are injected at build time. Never embed an old hosting
+  // provider URL in a store binary—the deployed API is a release contract.
+  static const String _configuredBaseUrl =
+      String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  static const String privacyPolicyUrl =
+      String.fromEnvironment('PRIVACY_POLICY_URL', defaultValue: '');
+  static const String termsOfServiceUrl =
+      String.fromEnvironment('TERMS_OF_SERVICE_URL', defaultValue: '');
+  static const String supportEmail =
+      String.fromEnvironment('SUPPORT_EMAIL', defaultValue: '');
+  static const String privacyPolicyVersion =
+      String.fromEnvironment(
+          'PRIVACY_POLICY_VERSION', defaultValue: 'development-unversioned');
 
   // Get the appropriate base URL based on environment
   static String get baseUrl {
-    switch (environment) {
-      case 'development':
-        return _developmentBaseUrl;
-      case 'staging':
-        return _stagingBaseUrl;
-      case 'production':
-      default:
-        return _productionBaseUrl;
+    if (_configuredBaseUrl.isNotEmpty) {
+      return _configuredBaseUrl.replaceFirst(RegExp(r'/+$'), '');
     }
+    // Debug/test builds can target a local service without accidentally giving
+    // release builds an invented endpoint.
+    if (!kReleaseMode) return 'http://localhost:8000';
+    throw StateError('API_BASE_URL is required in a production release build');
   }
 
   // API endpoints
@@ -89,10 +95,35 @@ class AppConfig {
   static bool get isDevelopment => environment == 'development';
   static bool get isStaging => environment == 'staging';
 
-  // Method to update production URL (for stable deployment)
-  static String getStableUrl() {
-    // This will be updated when we deploy the stable service
-    return 'https://STABLE_URL_TO_BE_SET.ap-south-1.awsapprunner.com';
+  static bool get hasPrivacyPolicy => privacyPolicyUrl.startsWith('https://');
+  static bool get hasTermsOfService => termsOfServiceUrl.startsWith('https://');
+  static bool get hasSupportEmail => isValidEmail(supportEmail);
+
+  static void validateReleaseConfiguration() {
+    if (!kReleaseMode || !isProduction) return;
+    final errors = <String>[];
+    if (!_configuredBaseUrl.startsWith('https://')) {
+      errors.add('API_BASE_URL must be an HTTPS URL');
+    }
+    if (!hasPrivacyPolicy) {
+      errors.add('PRIVACY_POLICY_URL must be an HTTPS URL');
+    }
+    if (!hasTermsOfService) {
+      errors.add('TERMS_OF_SERVICE_URL must be an HTTPS URL');
+    }
+    if (!hasSupportEmail) {
+      errors.add('SUPPORT_EMAIL must be a valid non-disposable email');
+    }
+    if (privacyPolicyVersion == 'development-unversioned') {
+      errors.add('PRIVACY_POLICY_VERSION is required');
+    }
+    if (bootstrapPolicyDemo) {
+      errors.add('BOOTSTRAP_POLICY_DEMO cannot be enabled in a release build');
+    }
+    if (errors.isNotEmpty) {
+      throw StateError(
+          'Invalid CoverWise release configuration: ${errors.join('; ')}');
+    }
   }
 
   // Validation helpers

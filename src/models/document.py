@@ -7,12 +7,18 @@ class Document(BaseModel):
     filename: str
     size: int
     upload_date: datetime
-    status: str = "processing"  # "processing", "completed", "failed", "uploaded"
+    # received -> processing -> completed/failed. A lease allows a restart-safe
+    # worker to reclaim interrupted processing without running two copies.
+    status: str = "received"
     document_type: Optional[str] = None
     insurer: Optional[str] = None
     processing_completed_at: Optional[datetime] = None
+    processing_started_at: Optional[datetime] = None
+    processing_lease_expires_at: Optional[datetime] = None
+    processing_attempts: int = 0
     user_uid: str
     file_path: str
+    source_hash: Optional[str] = None
     processing_mode: Optional[str] = "full"  # "full", "ocr_only", "rag_only"
     error_message: Optional[str] = None
     extracted_text_length: Optional[int] = None

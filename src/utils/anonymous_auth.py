@@ -35,6 +35,18 @@ def _signing_key() -> str:
     return "coverwise-development-only-signing-key-change-me"
 
 
+def _verification_keys() -> tuple[str, ...]:
+    """Active key plus a bounded previous-key ring for zero-downtime rotation."""
+    active = _signing_key()
+    previous = tuple(
+        key.strip()
+        for key in os.getenv("ANONYMOUS_AUTH_PREVIOUS_SIGNING_KEYS", "").split(",")
+        if key.strip()
+    )
+    # Never try a key twice; limit work on hostile tokens/configuration.
+    return tuple(dict.fromkeys((active, *previous)))[:3]
+
+
 def issue_anonymous_token(subject: str | None = None) -> tuple[str, dict[str, Any]]:
     """Issue a bearer token, preserving an existing anonymous subject on refresh."""
     now = datetime.now(timezone.utc)
@@ -52,16 +64,24 @@ def issue_anonymous_token(subject: str | None = None) -> tuple[str, dict[str, An
 
 
 def verify_anonymous_token(token: str) -> dict[str, Any]:
-    try:
-        claims = jwt.decode(
-            token,
-            _signing_key(),
-            algorithms=[ALGORITHM],
-            issuer=ISSUER,
-            audience=AUDIENCE,
-        )
-    except JWTError as error:
-        raise HTTPException(status_code=401, detail="Invalid or expired access token") from error
+    claims: dict[str, Any] | None = None
+    last_error: JWTError | None = None
+    for key in _verification_keys():
+        try:
+            claims = jwt.decode(
+                token,
+                key,
+                algorithms=[ALGORITHM],
+                issuer=ISSUER,
+                audience=AUDIENCE,
+            )
+            break
+        except JWTError as error:
+            last_error = error
+    if claims is None:
+        raise HTTPException(
+            status_code=401, detail="Invalid or expired access token"
+        ) from last_error
     if claims.get("identity_type") != "anonymous" or not str(claims.get("sub", "")).startswith("anon:"):
         raise HTTPException(status_code=401, detail="Invalid anonymous identity")
     return claims

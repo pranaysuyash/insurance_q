@@ -16,6 +16,7 @@ import structlog
 import time
 import json
 from src.utils.runtime_access import require_nonproduction
+from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
 
 # Configure structured logging
 logger = structlog.get_logger()
@@ -172,18 +173,17 @@ async def upload_document(
         filename = file.filename
         logger.info("document_upload_started", filename=filename)
         
-        # Validate file extension
-        file_ext = os.path.splitext(filename.lower())[1] if filename else ""
-        allowed_extensions = ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp', '.doc', '.docx']
-        if file_ext not in allowed_extensions:
-            logger.warning("invalid_file_format", filename=filename, extension=file_ext)
+        content = await file.read(MAX_UPLOAD_BYTES + 1)
+        try:
+            validate_upload_content(filename, content)
+        except UploadValidationError as error:
             raise HTTPException(
-                status_code=400, 
-                detail=f"Unsupported file format: {file_ext}. Supported formats: PDF, PNG, JPG, TIFF, DOC, DOCX"
-            )
+                status_code=422,
+                detail={"code": error.code, "message": error.message},
+            ) from error
         
         # Call main app's /process-and-ingest (replaces standalone OCR service)
-        files_for_ocr = {"file": (filename, file.file, file.content_type)}
+        files_for_ocr = {"file": (filename, content, file.content_type)}
         ocr_process_url = f"{OCR_SERVICE_URL.rstrip('/')}/process-and-ingest"
         logger.debug(f"Calling process endpoint: {ocr_process_url}")
         

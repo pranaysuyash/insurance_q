@@ -12,6 +12,7 @@ import '../services/app_state_store.dart';
 import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/phone_capture_sheet.dart';
 
 /// App settings. Currently exposes the backend environment display and a
 /// clear-data action. Kept deliberately small: only settings that actually
@@ -102,10 +103,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final box = Hive.box(AppStateStore.boxName);
+    final phone = box.get(AppStateStore.phoneNumberKey) as String?;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          // Identity section
+          ListTile(
+            leading: Icon(
+              phone != null ? Icons.verified_user_outlined : Icons.phone_android,
+              color: phone != null ? Colors.green : Colors.grey,
+            ),
+            title: Text(phone != null ? 'Account linked' : 'Link your phone'),
+            subtitle: Text(phone != null
+                ? 'Connected as $phone'
+                : 'Back up your policies and access from any device'),
+            trailing: phone != null
+                ? TextButton(
+                    onPressed: () async {
+                      await box.delete(AppStateStore.phoneNumberKey);
+                      setState(() {});
+                    },
+                    child: const Text('Remove'),
+                  )
+                : TextButton(
+                    onPressed: () async {
+                      // Re-trigger the phone capture sheet
+                      await box.put(AppStateStore.phonePromptCountKey, 0);
+                      if (!mounted) return;
+                      // ignore: use_build_context_synchronously
+                      PhoneCaptureSheet.maybeShow(context);
+                      setState(() {});
+                    },
+                    child: const Text('Add'),
+                  ),
+          ),
+          const Divider(),
           ListTile(
             leading: const Icon(Icons.dns_outlined),
             title: const Text('Backend endpoint'),

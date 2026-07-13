@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
+import '../services/analytics_service.dart';
 
 /// Help & Support: a real, self-contained FAQ + contact screen. Uses only
 /// information we can actually stand behind (no invented phone numbers or SLAs),
@@ -46,6 +47,7 @@ class HelpSupportScreen extends StatelessWidget {
 
   Future<void> _launchEmail() async {
     final uri = Uri.parse('mailto:support@coverwise.app?subject=CoverWise%20Support');
+    AnalyticsService.track('support_intent', {'source_surface': 'help_screen'});
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }

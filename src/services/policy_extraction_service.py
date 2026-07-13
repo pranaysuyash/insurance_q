@@ -164,6 +164,9 @@ class PolicyExtractionService:
             result["document_id"] = document_id
             result["extracted_at"] = datetime.now(timezone.utc).isoformat()
 
+            # Post-processing validation: validate and normalize extracted fields
+            result = self._validate_summary(result)
+
             # Persist
             self._store_summary(document_id, result)
 
@@ -211,3 +214,66 @@ class PolicyExtractionService:
             except Exception as e:
                 logger.warning("Failed to scan summaries from Redis: %s", e)
         return summaries
+
+    def _validate_summary(self, summary: Dict[str, Any]) -> Dict[str, Any]:
+        """Post-processing validation: validate and normalize extracted fields.
+
+        Catches common LLM extraction errors before storing:
+        - Invalid policy numbers (too short, special chars)
+        - Non-ISO dates (parse with dateutil if available)
+        - Negative or non-numeric amounts
+        - Empty lists that should be defaults
+        """
+        import re as regex
+
+        # Validate policy number — alphanumeric with slashes/dashes, 5-25 chars
+        pn = summary.get("policy_number")
+        if pn:
+            pn = str(pn).strip()
+            if not regex.match(r'^[A-Za-z0-9/\-]{5,25}$', pn):
+                logger.warning("Invalid policy number rejected: %s", pn[:20])
+                summary["policy_number"] = None
+            else:
+                summary["policy_number"] = pn
+
+        # Validate dates — try to parse to ISO format
+        for date_field in ["effective_date", "expiration_date"]:
+            val = summary.get(date_field)
+            if val:
+                val = str(val).strip()
+                # Check if already ISO
+                if regex.match(r'^\d{4}-\d{2}-\d{2}', val):
+                    continue
+                # Try parsing with dateutil
+                try:
+                    from dateutil import parser as date_parser
+                    parsed = date_parser.parse(val)
+                    summary[date_field] = parsed.strftime("%Y-%m-%d")
+                except Exception:
+                    logger.warning("Invalid %s rejected: %s", date_field, val[:30])
+                    summary[date_field] = None
+
+        # Validate amounts — must be positive numeric
+        for amt_field in ["coverage_amount", "premium_amount", "deductible"]:
+            val = summary.get(amt_field)
+            if val is not None:
+                try:
+                    num_val = float(val)
+                    if num_val < 0 or num_val > 100000000:  # Sanity check: max 100 Cr
+                        logger.warning("Invalid %s rejected: %s", amt_field, val)
+                        summary[amt_field] = None
+                    else:
+                        summary[amt_field] = num_val
+                except (ValueError, TypeError):
+                    logger.warning("Non-numeric %s rejected: %s", amt_field, val)
+                    summary[amt_field] = None
+
+        # Ensure lists are lists
+        for list_field in ["key_benefits", "exclusions", "waiting_periods", "coverage_items"]:
+            val = summary.get(list_field)
+            if val is None:
+                summary[list_field] = []
+            elif not isinstance(val, list):
+                summary[list_field] = [str(val)]
+
+        return summary

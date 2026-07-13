@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: CoverWise encrypted document storage, owner-scoped metadata, and App Runner instance permissions.
+Description: "SUPERSEDED reference only: CoverWise AWS/App Runner storage alternative. Do not deploy for the canonical Cloud Run + Supabase launch path."
 
 Resources:
   DocumentKey:
