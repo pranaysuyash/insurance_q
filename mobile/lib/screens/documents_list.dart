@@ -8,6 +8,7 @@ import '../providers/family_providers.dart';
 import '../providers/questions_provider.dart';
 import '../services/app_state_repository.dart';
 import '../utils/document_icons.dart';
+import 'document_preview_screen.dart';
 
 class DocumentsList extends ConsumerWidget {
   final Function(String)? onDocumentSelectedForQA;
@@ -110,6 +111,25 @@ class DocumentsList extends ConsumerWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
+                                    if (doc.localFilePath != null)
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.visibility),
+                                        label: const Text('Preview'),
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  DocumentPreviewScreen(
+                                                filePath: doc.localFilePath!,
+                                                filename: doc.filename,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    if (doc.localFilePath != null)
+                                      const SizedBox(width: 8),
                                     TextButton.icon(
                                       icon: const Icon(Icons.question_answer),
                                       label: Text(isReady

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:app_links/app_links.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,16 +72,58 @@ class InsuranceApp extends StatefulWidget {
 
 class _InsuranceAppState extends State<InsuranceApp> {
   late bool _showOnboarding;
+  final _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
+  final _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
     _showOnboarding = widget.showOnboarding;
+    _initDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initDeepLinks() {
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      if (!mounted) return;
+      _handleDeepLink(uri);
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    final nav = _navigatorKey.currentState;
+    if (nav == null) return;
+    final path = uri.path;
+
+    switch (path) {
+      case '/emergency':
+        nav.pushNamed('/emergency');
+      case '/claims':
+        nav.pushNamed('/claims');
+      case '/renewals':
+        nav.pushNamed('/renewals');
+      case '/coverage-gaps':
+        nav.pushNamed('/coverage-gaps');
+      case '/compare':
+        nav.pushNamed('/compare');
+      case '/qa':
+        final docId = uri.queryParameters['documentId'];
+        nav.pushNamed('/qa', arguments: docId);
+      default:
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: AppConfig.appName,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
