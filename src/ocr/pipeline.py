@@ -142,6 +142,105 @@ class OCRPipeline:
             logger.error(f"Docling processing failed: {e}", exc_info=True)
             return None
 
+    async def _process_pdf_with_mineru(self, pdf_path: str) -> Optional[Dict[str, Any]]:
+        """Process a PDF using MinerU 2.5 for high-accuracy extraction.
+
+        MinerU is a 1.2B VLM that achieves SOTA on OmniDocBench (90.67),
+        outperforming Gemini 2.5 Pro. Best for complex insurance documents
+        with tables, multi-column layouts, and formulas.
+
+        Requires: pip install magic-pdf[full] and MINERU_ENABLED=true
+        License: AGPL-3.0 (PyMuPDF dependency — check commercial use)
+        """
+        if not settings.mineru_enabled:
+            return None
+
+        try:
+            from magic_pdf.pipe.UNIPipe import UNIPipe
+            from magic_pdf.rw.DiskReaderWriter import DiskReaderWriter
+            import magic_pdf.model as model_config
+            model_config.__use_inside_model = True
+        except ImportError:
+            logger.warning("MinerU (magic-pdf) not installed. Install with: pip install magic-pdf[full]")
+            return None
+
+        try:
+            logger.info("Processing PDF with MinerU 2.5...")
+            image_writer = DiskReaderWriter("/tmp/mineru_images")
+            pipe = UNIPipe(pdf_path, {"_pdf_type": "", "model_list": []}, image_writer)
+            pipe.pipe_classify()
+            pipe.pipe_parse()
+            content_list = pipe.pipe_mk_uni_format(pdf_path)
+
+            full_text = ""
+            tables = []
+            for item in content_list:
+                if item.get("type") == "text":
+                    full_text += item.get("text", "") + "\n"
+                elif item.get("type") == "table":
+                    tables.append({
+                        "headers": item.get("headers", []),
+                        "rows": item.get("rows", []),
+                        "html": item.get("html", ""),
+                        "page": item.get("page_idx", 0),
+                    })
+                    full_text += item.get("text", "") + "\n"
+
+            logger.info("MinerU extracted %d chars, %d tables", len(full_text), len(tables))
+            return {
+                "full_text": full_text,
+                "method": "mineru",
+                "tables": tables,
+                "layout_elements": [],
+            }
+        except Exception as e:
+            logger.error("MinerU processing failed: %s", e)
+            return None
+
+    async def _extract_entities(self, text: str) -> List[Dict[str, Any]]:
+        """Extract named entities from text for multi-view indexing.
+
+        Extracts: policy numbers, dates, amounts, phone numbers, email addresses.
+        These are stored as separate 'entity' chunk type for exact-match retrieval.
+        """
+        import re as regex
+
+        entities = []
+
+        # Policy numbers — alphanumeric with slashes/dashes, 5-25 chars
+        for match in regex.finditer(r'\b([A-Z]{2,6}[/\-]?[A-Z0-9]{3,15}[/\-]?[A-Z0-9]{0,10})\b', text):
+            val = match.group(1)
+            if len(val) >= 5 and regex.match(r'^[A-Z0-9/\-]+$', val):
+                entities.append({"entity_type": "policy_number", "value": val, "source_text": match.group(0)})
+
+        # Dates — DD-MM-YYYY, DD/MM/YYYY, DD Mon YYYY
+        for match in regex.finditer(r'\b(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\b', text):
+            entities.append({"entity_type": "date", "value": match.group(1), "source_text": match.group(0)})
+        for match in regex.finditer(r'\b(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4})\b', text, regex.IGNORECASE):
+            entities.append({"entity_type": "date", "value": match.group(1), "source_text": match.group(0)})
+
+        # Amounts — ₹XX,XXX or Rs. XXXXX
+        for match in regex.finditer(r'[₹Rs\.]+\s*([0-9,]+(?:\.[0-9]+)?)', text):
+            amount_str = match.group(1).replace(",", "")
+            try:
+                amount = float(amount_str)
+                entities.append({"entity_type": "amount", "value": amount, "source_text": match.group(0)})
+            except ValueError:
+                pass
+
+        # Phone numbers
+        for match in regex.finditer(r'\b(\+?[\d\s\-()]{10,15})\b', text):
+            val = match.group(1).strip()
+            digits = regex.sub(r'[^\d]', '', val)
+            if 10 <= len(digits) <= 13:
+                entities.append({"entity_type": "phone", "value": val, "source_text": match.group(0)})
+
+        # Email
+        for match in regex.finditer(r'\b([\w.+-]+@[\w-]+\.[\w.-]+)\b', text):
+            entities.append({"entity_type": "email", "value": match.group(1), "source_text": match.group(0)})
+
+        return entities
+
     async def _process_pdf(self, file_content: bytes) -> List[Dict[str, Any]]:
         """
         Process a PDF file to extract text and/or images.

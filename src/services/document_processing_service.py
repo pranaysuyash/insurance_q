@@ -408,7 +408,7 @@ class DocumentProcessingService:
     async def _ingest_into_rag(
         self, document_id: str, text: str, filename: str, *, owner_id: Optional[str]
     ) -> Dict[str, Any]:
-        """Ingest document into RAG pipeline"""
+        """Ingest document into RAG pipeline with multi-view indexing."""
         try:
             if not text or len(text.strip()) < 10:
                 return {
@@ -428,17 +428,22 @@ class DocumentProcessingService:
             
             # Split text into chunks for better RAG performance
             text_blocks = self._split_text_into_blocks(text)
+
+            # Multi-view indexing: extract entities and add as separate chunk type
+            entity_blocks = await self._extract_entity_blocks(text, document_id)
+            all_blocks = text_blocks + entity_blocks
             
             # Ingest into RAG pipeline
             ingest_result = await self.rag_pipeline.ingest_document_data(
                 document_id=document_id,
-                text_blocks=text_blocks,
+                text_blocks=all_blocks,
                 document_metadata=metadata
             )
             
             return {
                 "status": "completed",
                 "text_blocks_count": len(text_blocks),
+                "entity_blocks_count": len(entity_blocks),
                 "total_text_length": len(text),
                 "rag_result": ingest_result
             }
@@ -454,6 +459,34 @@ class DocumentProcessingService:
                 "error": str(e)
             }
     
+    async def _extract_entity_blocks(self, text: str, document_id: str) -> List[Dict[str, Any]]:
+        """Extract entities from text and create entity-type chunks for multi-view indexing.
+
+        Entity chunks enable exact-match retrieval for policy numbers, dates,
+        amounts, phone numbers, and emails — bypassing semantic search entirely.
+        """
+        try:
+            if self._ocr_pipeline is None:
+                from src.ocr.pipeline import OCRPipeline
+                self._ocr_pipeline = OCRPipeline()
+            entities = await self._ocr_pipeline._extract_entities(text)
+        except Exception as e:
+            logger.warning("Entity extraction failed: %s", e)
+            return []
+
+        blocks = []
+        for entity in entities:
+            blocks.append({
+                "text": f"{entity['entity_type']}: {entity['value']}",
+                "id": str(uuid.uuid4()),
+                "chunk_type": "entity",
+                "entity_type": entity["entity_type"],
+                "entity_value": str(entity["value"]),
+            })
+
+        logger.info("Extracted %d entity blocks for %s", len(blocks), document_id)
+        return blocks
+
     def _split_text_into_blocks(self, text: str, max_block_size: int = 1000) -> List[Dict[str, Any]]:
         """Split text into manageable blocks for RAG ingestion using structure-aware boundaries."""
         if len(text) <= max_block_size:

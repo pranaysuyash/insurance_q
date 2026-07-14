@@ -41,6 +41,9 @@ class Settings(BaseSettings):
 
     docling_enabled: bool = False
 
+    # MinerU 2.5 — SOTA 1.2B VLM parser for complex PDFs (optional, AGPL-3.0)
+    mineru_enabled: bool = False
+
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(
