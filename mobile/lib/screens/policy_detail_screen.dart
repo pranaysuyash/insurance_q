@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
+import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
 import '../utils/policy_type.dart';
+import 'document_preview_screen.dart';
 
 /// The core value screen: turns a 40-page policy PDF into one page the user
 /// can actually understand.
@@ -64,9 +67,19 @@ class PolicyDetailScreen extends ConsumerWidget {
         title: Text(canonicalTypeName(policyType)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.visibility_outlined),
+            tooltip: 'View source document',
+            onPressed: () => _openDocumentPreview(context, ref),
+          ),
+          IconButton(
             icon: const Icon(Icons.question_answer),
             tooltip: 'Ask a Question',
             onPressed: () => Navigator.pushNamed(context, '/qa', arguments: documentId),
+          ),
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: 'Share Policy Summary',
+            onPressed: () => _shareSummary(summary),
           ),
         ],
       ),
@@ -131,6 +144,51 @@ class PolicyDetailScreen extends ConsumerWidget {
 
   String _formatDate(DateTime dt) =>
       '${dt.day}/${dt.month}/${dt.year}';
+
+  void _openDocumentPreview(BuildContext context, WidgetRef ref) {
+    final documents = ref.read(documentsProvider).valueOrNull;
+    if (documents == null || documents.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No documents available.')),
+      );
+      return;
+    }
+
+    final doc = documents.where(
+      (d) => d.id == documentId || d.remoteId == documentId,
+    ).firstOrNull;
+
+    if (doc == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Document not found on this device.')),
+      );
+      return;
+    }
+
+    if (doc.localFilePath == null || doc.localFilePath!.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Source document is only available on the device where it was uploaded.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DocumentPreviewScreen(
+          filePath: doc.localFilePath!,
+          filename: doc.filename,
+          documentId: doc.id,
+        ),
+      ),
+    );
+  }
 }
 
 class _HeaderCard extends StatelessWidget {
@@ -482,6 +540,12 @@ class _QuickActions extends StatelessWidget {
               arguments: summary.documentId),
         ),
         const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.share),
+          label: const Text('Share Policy Summary'),
+          onPressed: () => _shareSummary(summary),
+        ),
+        const SizedBox(height: 8),
         Row(
           children: [
             if (summary.insurerHelpline != null)
@@ -514,4 +578,44 @@ class _QuickActions extends StatelessWidget {
       await launchUrl(uri);
     }
   }
+}
+
+/// Builds the shareable text for a policy summary.
+/// Extracted as a pure function for testability.
+String buildShareSummaryText(PolicySummary summary) {
+  final buffer = StringBuffer();
+  buffer.writeln('📋 ${summary.documentType}');
+  if (summary.insurer != null) buffer.writeln('🏢 ${summary.insurer}');
+  if (summary.policyNumber != null) buffer.writeln('🔢 Policy: ${summary.policyNumber}');
+  buffer.writeln('');
+  if (summary.coverageAmount != null) buffer.writeln('🛡️ Coverage: ${summary.formattedCoverageAmount}');
+  if (summary.premiumAmount != null) buffer.writeln('💰 Premium: ${summary.formattedPremium}');
+  if (summary.deductible != null) buffer.writeln('📉 Deductible: ₹${summary.deductible!.toStringAsFixed(0)}');
+  buffer.writeln('');
+  if (summary.startDate != null) buffer.writeln('📅 From: ${summary.formattedStartDate}');
+  if (summary.endDate != null) buffer.writeln('📅 Until: ${summary.formattedExpiryDate}');
+  if (summary.isActive || summary.isExpiringSoon) {
+    buffer.writeln('⏰ ${summary.daysUntilExpiry} days remaining');
+  }
+  if (summary.keyBenefits.isNotEmpty) {
+    buffer.writeln('');
+    buffer.writeln('✅ Benefits:');
+    for (final b in summary.keyBenefits) {
+      buffer.writeln('  • $b');
+    }
+  }
+  if (summary.exclusions.isNotEmpty) {
+    buffer.writeln('');
+    buffer.writeln('❌ Exclusions:');
+    for (final e in summary.exclusions) {
+      buffer.writeln('  • $e');
+    }
+  }
+  buffer.writeln('');
+  buffer.writeln('Shared via CoverWise — Your Insurance Companion');
+  return buffer.toString();
+}
+
+void _shareSummary(PolicySummary summary) {
+  SharePlus.instance.share(ShareParams(text: buildShareSummaryText(summary)));
 }

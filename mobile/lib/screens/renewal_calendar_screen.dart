@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
 import '../widgets/shared/empty_state_widget.dart';
@@ -181,36 +182,201 @@ class _RenewalCard extends StatelessWidget {
         : summary.isExpired
             ? 'EXPIRED'
             : '$days days';
+    final showRenewCta = summary.isExpired || summary.isExpiringSoon;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.1),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(summary.documentType,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(
-            '${summary.insurer ?? "Unknown"} • Expires: ${summary.formattedExpiryDate}'),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              trailingLabel,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.1),
+              child: Icon(icon, color: color),
             ),
-            if (summary.policyNumber != null)
-              Text(summary.policyNumber!,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          ],
+            title: Text(summary.documentType,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+                '${summary.insurer ?? "Unknown"} • Expires: ${summary.formattedExpiryDate}'),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  trailingLabel,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                if (summary.policyNumber != null)
+                  Text(summary.policyNumber!,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              ],
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+          if (showRenewCta)
+            _RenewNowButton(summary: summary, color: color),
+        ],
+      ),
+    );
+  }
+}
+
+class _RenewNowButton extends StatelessWidget {
+  final PolicySummary summary;
+  final Color color;
+  const _RenewNowButton({required this.summary, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasContact =
+        summary.insurerHelpline != null || summary.insurerEmail != null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: hasContact
+              ? () => _showRenewalContactSheet(context)
+              : () => _showNoContactInfo(context),
+          icon: Icon(
+            summary.isExpired ? Icons.replay : Icons.autorenew,
+            size: 18,
+          ),
+          label: Text(summary.isExpired ? 'Renew Now' : 'Start Renewal'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: color,
+            side: BorderSide(color: color.withValues(alpha: 0.4)),
+          ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  void _showRenewalContactSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Renew ${summary.documentType}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Contact ${summary.insurer ?? "your insurer"} to start the renewal process.',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              if (summary.insurerHelpline != null) ...[
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.green.withValues(alpha: 0.1),
+                    child: const Icon(Icons.phone, color: Colors.green),
+                  ),
+                  title: const Text('Call Helpline'),
+                  subtitle: Text(summary.insurerHelpline!),
+                  onTap: () => _callHelpline(ctx),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (summary.insurerEmail != null) ...[
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                    child: const Icon(Icons.email, color: Colors.blue),
+                  ),
+                  title: const Text('Send Email'),
+                  subtitle: Text(summary.insurerEmail!),
+                  onTap: () => _sendEmail(ctx),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _callHelpline(BuildContext context) async {
+    Navigator.of(context).pop();
+    final cleaned = summary.insurerHelpline!.replaceAll(RegExp(r'[^0-9+]'), '');
+    final uri = Uri.parse('tel:$cleaned');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open phone dialer')),
+      );
+    }
+  }
+
+  void _sendEmail(BuildContext context) async {
+    Navigator.of(context).pop();
+    final uri = Uri(
+      scheme: 'mailto',
+      path: summary.insurerEmail,
+      queryParameters: {
+        'subject': 'Policy Renewal - ${summary.policyNumber ?? summary.documentType}',
+      },
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open email client')),
+      );
+    }
+  }
+
+  void _showNoContactInfo(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Contact info not found for ${summary.insurer ?? "this insurer"}. Check your policy document or call the insurer directly.',
+        ),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'View Policy',
+          onPressed: () {
+            Navigator.of(context).pushNamed(
+              '/policy-detail',
+              arguments: summary.documentId,
+            );
+          },
+        ),
       ),
     );
   }

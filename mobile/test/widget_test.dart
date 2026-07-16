@@ -46,9 +46,12 @@ void main() {
 
   testWidgets('Insurance app smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
+    // Wrap in MaterialApp to provide Directionality required by Material widgets.
     await tester.pumpWidget(
-      const ProviderScope(
-        child: InsuranceApp(),
+      MaterialApp(
+        home: ProviderScope(
+          child: InsuranceApp(),
+        ),
       ),
     );
 

@@ -81,8 +81,9 @@ async def lifespan(app: FastAPI):
 
     # Initialize anti-abuse system
     try:
-        from src.utils.database_migration import create_anti_abuse_tables
+        from src.utils.database_migration import create_anti_abuse_tables, add_analytics_indexes
         create_anti_abuse_tables()
+        add_analytics_indexes()
         logger.info("✅ Anti-abuse system initialized successfully")
     except Exception as e:
         logger.error("anti_abuse_initialization_failed error_type=%s", type(e).__name__)

@@ -84,6 +84,102 @@ final claimGuideProvider = Provider.family<ClaimGuide?, (String, String?)>((ref,
   return ref.watch(policyExtractionServiceProvider).getClaimGuide(incidentType, summary);
 });
 
+/// Search query state for cross-document search
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
+/// Filter by policy type
+final searchTypeFilterProvider = StateProvider<String?>((ref) => null);
+
+/// Filter by status (active, expiring, expired, all)
+final searchStatusFilterProvider = StateProvider<String>((ref) => 'all');
+
+/// Derived: filtered and ranked search results across all documents
+final searchResultsProvider = Provider<List<PolicySummary>>((ref) {
+  final query = ref.watch(searchQueryProvider).toLowerCase().trim();
+  final typeFilter = ref.watch(searchTypeFilterProvider);
+  final statusFilter = ref.watch(searchStatusFilterProvider);
+  final summaries = ref.watch(policySummariesProvider);
+
+  if (summaries.isEmpty) return [];
+
+  var results = summaries.where((s) {
+    // Status filter
+    switch (statusFilter) {
+      case 'active':
+        if (!s.isActive || s.isExpiringSoon) return false;
+        break;
+      case 'expiring':
+        if (!s.isExpiringSoon) return false;
+        break;
+      case 'expired':
+        if (!s.isExpired) return false;
+        break;
+      // 'all' — no filter
+    }
+
+    // Type filter
+    if (typeFilter != null && typeFilter.isNotEmpty) {
+      if (!s.documentType.toLowerCase().contains(typeFilter.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Text query — search across all relevant fields
+    if (query.isNotEmpty) {
+      return _matchesQuery(s, query);
+    }
+
+    return true;
+  }).toList();
+
+  // Rank results: exact matches first, then partial matches
+  if (query.isNotEmpty) {
+    results.sort((a, b) => _relevanceScore(b, query).compareTo(_relevanceScore(a, query)));
+  }
+
+  return results;
+});
+
+bool _matchesQuery(PolicySummary s, String query) {
+  final fields = [
+    s.documentType,
+    s.insurer ?? '',
+    s.policyNumber ?? '',
+    s.keyBenefits.join(' '),
+    s.exclusions.join(' '),
+    s.coverageItems.map((c) => c.name).join(' '),
+  ];
+  return fields.any((f) => f.toLowerCase().contains(query));
+}
+
+int _relevanceScore(PolicySummary s, String query) {
+  int score = 0;
+  // Exact insurer match = highest priority
+  if (s.insurer?.toLowerCase().contains(query) == true) score += 100;
+  // Exact document type match
+  if (s.documentType.toLowerCase().contains(query)) score += 80;
+  // Policy number match
+  if (s.policyNumber?.toLowerCase().contains(query) == true) score += 60;
+  // Benefits match
+  if (s.keyBenefits.any((b) => b.toLowerCase().contains(query))) score += 40;
+  // Exclusions match
+  if (s.exclusions.any((e) => e.toLowerCase().contains(query))) score += 30;
+  // Coverage items match
+  if (s.coverageItems.any((c) => c.name.toLowerCase().contains(query))) score += 20;
+  // Boost active policies
+  if (s.isActive) score += 5;
+  return score;
+}
+
+/// Unique document types for filter chips
+final uniqueDocumentTypesProvider = Provider<List<String>>((ref) {
+  final summaries = ref.watch(policySummariesProvider);
+  return summaries.map((s) => s.documentType).toSet().toList()..sort();
+});
+
+/// Theme mode — incrementing this counter triggers a rebuild of MaterialApp.
+final themeModeProvider = StateProvider<int>((ref) => 0);
+
 // Demo data for bootstrap mode
 List<PolicySummary> get demoPolicySummaries => [
   PolicySummary(

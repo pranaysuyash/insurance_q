@@ -17,5 +17,18 @@ class AppStateStore {
   static const String phonePromptCountKey = 'phone_prompt_count';
   static const String analyticsEventsKey = 'analytics_events';
 
+  // Notification preferences
+  static const String notificationEnabledKey = 'notification_enabled';
+  static const String reminderDaysKey = 'reminder_days'; // List<int>
+  static const String quietHoursStartKey = 'quiet_hours_start'; // int (hour 0-23)
+  static const String quietHoursEndKey = 'quiet_hours_end'; // int (hour 0-23)
+  static const String disabledPoliciesKey = 'disabled_policies'; // List<String> of documentIds
+
+  // Coverage gap resolution tracking
+  static const String resolvedGapsKey = 'resolved_gaps'; // Map<String, Map> of gapId -> resolution info
+
+  // Theme preference
+  static const String themeModeKey = 'theme_mode'; // 'light', 'dark', or 'system'
+
   AppStateStore._();
 }

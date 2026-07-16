@@ -9,10 +9,12 @@ import '../providers/policy_providers.dart';
 import '../providers/family_providers.dart';
 import '../providers/questions_provider.dart';
 import '../services/app_state_store.dart';
+import '../services/app_state_repository.dart';
 import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/phone_capture_sheet.dart';
+import 'notification_preferences_screen.dart';
 
 /// App settings. Currently exposes the backend environment display and a
 /// clear-data action. Kept deliberately small: only settings that actually
@@ -31,6 +33,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _resolvedBaseUrl = AppConfig.baseUrl;
+  }
+
+  String _themeModeLabel(String mode) {
+    switch (mode) {
+      case 'light':
+        return 'Light';
+      case 'dark':
+        return 'Dark';
+      default:
+        return 'System default';
+    }
+  }
+
+  void _showThemePicker() async {
+    final current = AppStateRepository.getThemeMode();
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Appearance'),
+        children: [
+          _themeOption(ctx, 'system', 'System default', Icons.brightness_auto, current),
+          _themeOption(ctx, 'light', 'Light', Icons.light_mode, current),
+          _themeOption(ctx, 'dark', 'Dark', Icons.dark_mode, current),
+        ],
+      ),
+    );
+    if (selected != null && selected != current) {
+      await AppStateRepository.setThemeMode(selected);
+      // Trigger MaterialApp rebuild by incrementing the theme provider.
+      ref.read(themeModeProvider.notifier).state++;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Widget _themeOption(BuildContext ctx, String value, String label, IconData icon, String current) {
+    return SimpleDialogOption(
+      onPressed: () => Navigator.pop(ctx, value),
+      child: Row(
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label)),
+          if (value == current) const Icon(Icons.check, color: Colors.blue),
+        ],
+      ),
+    );
   }
 
   Future<void> _confirmClearData() async {
@@ -150,6 +198,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.tag),
             title: const Text('App version'),
             subtitle: Text('${AppConfig.appName} ${AppConfig.appVersion}'),
+          ),
+          const Divider(),
+          // Theme toggle
+          ListTile(
+            leading: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? Icons.dark_mode
+                  : Icons.light_mode,
+            ),
+            title: const Text('Appearance'),
+            subtitle: Text(_themeModeLabel(AppStateRepository.getThemeMode())),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showThemePicker,
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Notification Preferences'),
+            subtitle: const Text('Manage renewal reminders and quiet hours'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const NotificationPreferencesScreen(),
+                ),
+              );
+            },
           ),
           const Divider(),
           ListTile(

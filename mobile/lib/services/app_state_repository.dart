@@ -180,4 +180,58 @@ class AppStateRepository {
     records.removeWhere((r) => r.id == id);
     await saveClaimRecords(records);
   }
+
+  // ---------------------------------------------------------------------------
+  // Coverage gap resolution tracking
+  //
+  // Users can mark coverage gaps as "addressed" with optional notes and a
+  // timestamp. This persists locally so the resolution status survives restarts.
+  // The gap ID is a stable hash of (category + description + severity).
+  // ---------------------------------------------------------------------------
+
+  static Map<String, Map<String, dynamic>> getResolvedGaps() {
+    final raw = _box.get(AppStateStore.resolvedGapsKey);
+    if (raw is! Map) return {};
+    try {
+      return raw.map((k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  static Future<void> markGapResolved(String gapId, {String? notes}) async {
+    final gaps = getResolvedGaps();
+    gaps[gapId] = {
+      'resolvedAt': DateTime.now().toIso8601String(),
+      'notes': notes,
+    };
+    await _box.put(AppStateStore.resolvedGapsKey, gaps);
+  }
+
+  static Future<void> unresolveGap(String gapId) async {
+    final gaps = getResolvedGaps();
+    gaps.remove(gapId);
+    await _box.put(AppStateStore.resolvedGapsKey, gaps);
+  }
+
+  static bool isGapResolved(String gapId) {
+    return getResolvedGaps().containsKey(gapId);
+  }
+
+  static String? getGapResolutionNotes(String gapId) {
+    final info = getResolvedGaps()[gapId];
+    return info?['notes'] as String?;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Theme preference
+  // ---------------------------------------------------------------------------
+
+  static String getThemeMode() {
+    return _box.get(AppStateStore.themeModeKey, defaultValue: 'system') as String;
+  }
+
+  static Future<void> setThemeMode(String mode) async {
+    await _box.put(AppStateStore.themeModeKey, mode);
+  }
 }

@@ -585,6 +585,22 @@ class _AnswerCardState extends State<_AnswerCard> {
     }
   }
 
+  Future<void> _askFollowUp(String question) async {
+    // Find the parent QaScreenState and trigger the question
+    final qaState = context.findAncestorStateOfType<QaScreenState>();
+    if (qaState == null) return;
+    // Set loading state immediately so the UI shows a spinner
+    qaState.ref.read(isLoadingProvider.notifier).state = true;
+    try {
+      await qaState._askQuestion(question);
+    } catch (e) {
+      // Ensure loading state is reset even if _askQuestion throws
+      if (qaState.mounted) {
+        qaState.ref.read(isLoadingProvider.notifier).state = false;
+      }
+    }
+  }
+
   Future<void> _saveFeedback(int value) async {
     final box = Hive.box(AppStateStore.boxName);
     await box.put(
@@ -608,9 +624,16 @@ class _AnswerCardState extends State<_AnswerCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Q: ${answer.question}',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            // Question + confidence badge row
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Q: ${answer.question}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+                if (answer.confidence != null) ConfidenceBadge(confidence: answer.confidence!),
+              ],
+            ),
             const Divider(),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 300),
@@ -623,8 +646,7 @@ class _AnswerCardState extends State<_AnswerCard> {
                     if (answer.sources.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       const Text('Sources:',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14)),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       ...answer.sources.map((source) => Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Container(
@@ -638,14 +660,23 @@ class _AnswerCardState extends State<_AnswerCard> {
                                 children: [
                                   if (source.pageNumber != null)
                                     Text('Page ${source.pageNumber}',
-                                        style: TextStyle(
-                                            color: Colors.blue.shade700,
-                                            fontWeight: FontWeight.bold)),
+                                        style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold)),
                                   Text(source.text),
                                 ],
                               ),
                             ),
                           )),
+                    ],
+                    // Follow-up questions as tappable chips
+                    if (answer.followUpQuestions.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text('You might also ask:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 8),
+                      FollowUpChips(
+                        questions: answer.followUpQuestions,
+                        onAskQuestion: _askFollowUp,
+                      ),
                     ],
                   ],
                 ),
@@ -656,51 +687,111 @@ class _AnswerCardState extends State<_AnswerCard> {
               children: [
                 IconButton(
                   tooltip: 'Helpful answer',
-                  icon: Icon(
-                    _feedback == 1 ? Icons.thumb_up : Icons.thumb_up_outlined,
-                  ),
-                  color: _feedback == 1
-                      ? Theme.of(context).colorScheme.primary
-                      : null,
+                  icon: Icon(_feedback == 1 ? Icons.thumb_up : Icons.thumb_up_outlined),
+                  color: _feedback == 1 ? Theme.of(context).colorScheme.primary : null,
                   onPressed: () => _saveFeedback(1),
                 ),
                 IconButton(
                   tooltip: 'Unhelpful answer',
-                  icon: Icon(
-                    _feedback == -1
-                        ? Icons.thumb_down
-                        : Icons.thumb_down_outlined,
-                  ),
-                  color: _feedback == -1
-                      ? Theme.of(context).colorScheme.error
-                      : null,
+                  icon: Icon(_feedback == -1 ? Icons.thumb_down : Icons.thumb_down_outlined),
+                  color: _feedback == -1 ? Theme.of(context).colorScheme.error : null,
                   onPressed: () => _saveFeedback(-1),
                 ),
                 IconButton(
                   icon: const Icon(Icons.copy),
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(
-                        text: 'Q: ${answer.question}\nA: ${answer.text}'));
+                    Clipboard.setData(ClipboardData(text: 'Q: ${answer.question}\nA: ${answer.text}'));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Answer copied to clipboard'),
-                          duration: Duration(seconds: 2)),
+                      const SnackBar(content: Text('Answer copied to clipboard'), duration: Duration(seconds: 2)),
                     );
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.share),
                   onPressed: () {
-                    SharePlus.instance.share(
-                      ShareParams(
-                          text: 'Q: ${answer.question}\nA: ${answer.text}'),
-                    );
+                    SharePlus.instance.share(ShareParams(text: 'Q: ${answer.question}\nA: ${answer.text}'));
                   },
                 ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+}
+
+/// Follow-up question chips that disable and show a spinner while loading.
+class FollowUpChips extends ConsumerWidget {
+  final List<String> questions;
+  final void Function(String) onAskQuestion;
+
+  const FollowUpChips({required this.questions, required this.onAskQuestion});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLoading = ref.watch(isLoadingProvider);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: questions.map((q) => ActionChip(
+        avatar: isLoading
+            ? const SizedBox(
+                width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.arrow_forward, size: 16),
+        label: Text(q, style: const TextStyle(fontSize: 13)),
+        onPressed: isLoading ? null : () => onAskQuestion(q),
+      )).toList(),
+    );
+  }
+}
+
+/// Confidence badge shown next to Q&A answers.
+///
+/// Displays a color-coded chip indicating the backend's confidence level.
+/// No badge is shown if confidence is null (backend didn't return it).
+class ConfidenceBadge extends StatelessWidget {
+  final double confidence;
+  const ConfidenceBadge({super.key, required this.confidence});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = confidence >= 0.7
+        ? ('High', Colors.green)
+        : confidence >= 0.4
+            ? ('Medium', Colors.orange)
+            : ('Low', Colors.red);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            confidence >= 0.7
+                ? Icons.check_circle_outline
+                : confidence >= 0.4
+                    ? Icons.info_outline
+                    : Icons.warning_amber_outlined,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$label confidence',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

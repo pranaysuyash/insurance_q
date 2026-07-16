@@ -12,6 +12,12 @@ class MoreScreen extends StatelessWidget {
       body: ListView(
         children: [
           ListTile(
+            leading: const Icon(Icons.search, color: Colors.indigo),
+            title: const Text('Search Policies'),
+            subtitle: const Text('Find anything across all your policies'),
+            onTap: () => Navigator.pushNamed(context, '/search'),
+          ),
+          ListTile(
             leading: const Icon(Icons.emergency, color: Colors.red),
             title: const Text('Emergency Card'),
             subtitle: const Text('Policy numbers, helplines, coverage — quick access'),

@@ -14,6 +14,7 @@ import 'add_family_member_dialog.dart';
 import '../providers/document_providers.dart';
 import 'qa_screen.dart';
 import 'documents_screen.dart';
+import 'emergency_screen.dart';
 
 final recentQuestionsProvider = Provider<List<String>>((ref) {
   return AppStateRepository.getRecentQuestions();
@@ -84,6 +85,10 @@ class DashboardScreen extends ConsumerWidget {
                           _PolicySummaryCards(summaries: policySummaries),
                           const SizedBox(height: 20),
                         ],
+                      _SearchShortcutButton(
+                        onTap: () => Navigator.pushNamed(context, '/search'),
+                      ),
+                      const SizedBox(height: 20),
                       _DocumentSummary(documents: documents),
                       const SizedBox(height: 20),
                       _QuickActions(documents: documents),
@@ -646,6 +651,13 @@ class _QuickActions extends StatelessWidget {
             )),
           ],
         ),
+        const SizedBox(height: 12),
+        // Emergency shortcut — one tap from dashboard instead of More → Emergency
+        if (documents.isNotEmpty)
+          _EmergencyShortcutButton(
+            onTap: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const EmergencyScreen())),
+          ),
       ],
     );
   }
@@ -687,6 +699,82 @@ class _ActionButton extends StatelessWidget {
               style: TextStyle(
                   color: color.withValues(alpha: 0.8),
                   fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Search shortcut button — one tap from dashboard to cross-document search.
+class _SearchShortcutButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SearchShortcutButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.indigo.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search, color: Colors.indigo, size: 22),
+            SizedBox(width: 10),
+            Text(
+              'Search Across All Policies',
+              style: TextStyle(
+                color: Colors.indigo,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Prominent emergency shortcut button — one tap from dashboard.
+class _EmergencyShortcutButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EmergencyShortcutButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.emergency, color: Colors.red, size: 22),
+            SizedBox(width: 10),
+            Text(
+              'Emergency Card',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
             ),
           ],
         ),

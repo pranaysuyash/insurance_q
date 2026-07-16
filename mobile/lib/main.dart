@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -22,56 +23,78 @@ import 'screens/about_screen.dart';
 import 'screens/policy_detail_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/claim_tracking_screen.dart';
+import 'screens/splash_screen.dart';
+import 'screens/search_screen.dart';
 import 'config/app_config.dart';
 import 'providers/policy_providers.dart';
 import 'services/local_storage_service.dart';
 import 'services/app_state_store.dart';
+import 'services/app_state_repository.dart';
 import 'services/notification_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
+import 'widgets/shared/global_error_boundary.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  AppConfig.validateReleaseConfiguration();
-  if (AppConfig.isProduction) {
-    debugPrint = (String? message, {int? wrapWidth}) {};
-  }
-  await Hive.initFlutter();
-  await Hive.openBox<String>(LocalStorageService.documentsBoxName);
-  await Hive.openBox(AppStateStore.boxName);
+  // Catch errors in the root zone
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Acquire anonymous auth token if we don't have one yet (non-blocking —
-  // the AuthInterceptor also acquires on first 401).
-  if (await AuthService.cachedToken() == null) {
-    final tempDio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
-    await AuthService.acquireToken(tempDio);
-  }
+    // Global error handlers are set up by GlobalErrorBoundary.initState()
+    // when the widget tree mounts. No need to duplicate them here.
 
-  // Initialize analytics (local-first, batch-syncs to backend)
-  AnalyticsService.init();
+    AppConfig.validateReleaseConfiguration();
+    if (AppConfig.isProduction) {
+      debugPrint = (String? message, {int? wrapWidth}) {};
+    }
+    await Hive.initFlutter();
+    await Hive.openBox<String>(LocalStorageService.documentsBoxName);
+    await Hive.openBox(AppStateStore.boxName);
 
-  // Check if onboarding has been completed
-  final prefs = await SharedPreferences.getInstance();
-  final hasOnboarded = prefs.getBool('onboarding_complete') ?? false;
+    // Acquire anonymous auth token if we don't have one yet (non-blocking —
+    // the AuthInterceptor also acquires on first 401).
+    if (await AuthService.cachedToken() == null) {
+      final tempDio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
+      await AuthService.acquireToken(tempDio);
+    }
 
-  runApp(
-    ProviderScope(
-      child: InsuranceApp(showOnboarding: !hasOnboarded),
-    ),
-  );
+    // Initialize analytics (local-first, batch-syncs to backend)
+    AnalyticsService.init();
+
+    // Check if onboarding has been completed
+    final prefs = await SharedPreferences.getInstance();
+    final hasOnboarded = prefs.getBool('onboarding_complete') ?? false;
+
+    runApp(
+      GlobalErrorBoundary(
+        child: ProviderScope(
+          child: InsuranceApp(showOnboarding: !hasOnboarded),
+        ),
+      ),
+    );
+  }, (error, stackTrace) {
+    // Catch zone errors that escape the framework
+    if (kDebugMode) {
+      debugPrint('=== ZONE ERROR ===');
+      debugPrint('Error: $error');
+      debugPrint('Stack: $stackTrace');
+      debugPrint('==================');
+    }
+  });
 }
 
-class InsuranceApp extends StatefulWidget {
+class InsuranceApp extends ConsumerStatefulWidget {
   final bool showOnboarding;
 
   const InsuranceApp({super.key, this.showOnboarding = false});
 
   @override
-  State<InsuranceApp> createState() => _InsuranceAppState();
+  ConsumerState<InsuranceApp> createState() => _InsuranceAppState();
 }
 
-class _InsuranceAppState extends State<InsuranceApp> {
+class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   late bool _showOnboarding;
+  bool _showSplash = true;
   final _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
   final _navigatorKey = GlobalKey<NavigatorState>();
@@ -120,8 +143,30 @@ class _InsuranceAppState extends State<InsuranceApp> {
     }
   }
 
+  ThemeMode _getThemeMode() {
+    switch (AppStateRepository.getThemeMode()) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_showSplash) {
+      return SplashScreen(
+        onComplete: () {
+          if (mounted) setState(() => _showSplash = false);
+        },
+      );
+    }
+
+    // Watch theme changes — rebuilds MaterialApp when user toggles theme.
+    final _ = ref.watch(themeModeProvider);
+
     return MaterialApp(
       navigatorKey: _navigatorKey,
       title: AppConfig.appName,
@@ -136,7 +181,7 @@ class _InsuranceAppState extends State<InsuranceApp> {
         ),
         useMaterial3: true,
       ),
-      themeMode: ThemeMode.system,
+      themeMode: _getThemeMode(),
       home: _showOnboarding
           ? OnboardingScreen(onComplete: () {
               setState(() => _showOnboarding = false);
@@ -162,6 +207,7 @@ class _InsuranceAppState extends State<InsuranceApp> {
           return PolicyDetailScreen(documentId: documentId);
         },
         '/claim-tracker': (context) => const ClaimTrackingScreen(),
+        '/search': (context) => const SearchScreen(),
       },
       debugShowCheckedModeBanner: false,
     );

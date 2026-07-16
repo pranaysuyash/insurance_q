@@ -20,6 +20,7 @@ import '../widgets/lead_capture_dialog.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/usage_stats_widget.dart';
 import 'documents_list.dart';
+import 'processing_status_screen.dart';
 
 class DocumentsScreen extends ConsumerStatefulWidget {
   const DocumentsScreen({super.key});
@@ -335,25 +336,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           Navigator.pushNamed(context, '/policy-detail', arguments: documentId);
           // After the user sees their policy, offer phone backup (progressive)
           PhoneCaptureSheet.maybeShow(context);
-        } else if (isProcessing) {
-          // Processing in background - show a clear status, not just a snackbar
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$selectedName is securely saved. We\'re reading it now - check back in a moment.'),
-              backgroundColor: Colors.blue,
-              duration: const Duration(seconds: 4),
-              action: SnackBarAction(
-                label: 'View',
-                textColor: Colors.white,
-                onPressed: () {
-                  if (documentId != null) {
-                    Navigator.pushNamed(context, '/policy-detail', arguments: documentId);
-                  }
-                },
+        } else if (isProcessing && documentId != null) {
+          // Navigate to the processing status screen with stage indicators
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProcessingStatusScreen(
+                documentId: documentId,
+                filename: selectedName,
               ),
             ),
           );
-          // Trigger phone capture for processing uploads too
           PhoneCaptureSheet.maybeShow(context);
         } else {
           // Offline/queued - honest message

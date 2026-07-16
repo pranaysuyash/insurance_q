@@ -326,6 +326,41 @@ def get_usage_analytics(days: int = 7, db_path: str = "insurance_app.db") -> dic
         logger.error(f"Failed to get usage analytics: {e}")
         return {}
 
+def add_analytics_indexes(db_path: str = "insurance_app.db") -> bool:
+    """Add composite indexes to analytics_events table for query performance.
+    
+    Safe to run on existing databases — uses IF NOT EXISTS.
+    Idempotent: can be called multiple times without side effects.
+    
+    Indexes added:
+    - idx_analytics_error_window: (event_name, received_at) — supports /analytics/errors
+    - idx_analytics_summary: (received_at, event_name, user_uid) — supports /analytics/summary
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_analytics_error_window
+            ON analytics_events(event_name, received_at)
+        """)
+        
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_analytics_summary
+            ON analytics_events(received_at, event_name, user_uid)
+        """)
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info("Analytics composite indexes added successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to add analytics indexes: {e}")
+        return False
+
+
 if __name__ == "__main__":
     # Run migration
     success = create_anti_abuse_tables()
@@ -333,3 +368,10 @@ if __name__ == "__main__":
         print("✅ Anti-abuse database tables created successfully")
     else:
         print("❌ Failed to create anti-abuse database tables") 
+    
+    # Add analytics indexes
+    success = add_analytics_indexes()
+    if success:
+        print("✅ Analytics indexes added successfully")
+    else:
+        print("❌ Failed to add analytics indexes")
