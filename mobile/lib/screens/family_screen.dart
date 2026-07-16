@@ -4,6 +4,9 @@ import '../models/document_model.dart';
 import '../providers/family_providers.dart';
 import '../providers/document_providers.dart';
 import '../widgets/shared/empty_state_widget.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/error_widget.dart';
+import '../theme/coverwise_theme.dart';
 import 'add_family_member_dialog.dart';
 
 class FamilyScreen extends StatelessWidget {
@@ -12,7 +15,7 @@ class FamilyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Family Members')),
+      appBar: AppBar(title: const Text('Family')),
       body: const FamilyMembersContent(),
     );
   }
@@ -41,7 +44,11 @@ class FamilyMembersContent extends ConsumerWidget {
 
     return documentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => AppErrorView(
+        message: 'Your policy library could not be loaded.',
+        icon: Icons.family_restroom_rounded,
+        onRetry: () => ref.invalidate(documentsProvider),
+      ),
       data: (documents) {
         if (documents.isEmpty) {
           return EmptyStateWidget(
@@ -51,11 +58,14 @@ class FamilyMembersContent extends ConsumerWidget {
                 'Upload insurance documents to auto-detect family members, or '
                 'add one manually.',
             actionLabel: 'Add Family Member',
+            actionIcon: Icons.person_add_alt_1_rounded,
+            color: const Color(0xFF16866B),
             onAction: () => _addMember(context, ref),
           );
         }
 
-        return _FamilyList(documents: documents, onAdd: () => _addMember(context, ref));
+        return _FamilyList(
+            documents: documents, onAdd: () => _addMember(context, ref));
       },
     );
   }
@@ -72,14 +82,10 @@ class _FamilyList extends ConsumerWidget {
 
     return familyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => EmptyStateWidget(
-        icon: Icons.family_restroom,
-        title: 'No family members found',
-        subtitle:
-            'Upload insurance documents to auto-detect family members, or '
-            'add one manually.',
-        actionLabel: 'Add Family Member',
-        onAction: onAdd,
+      error: (e, _) => AppErrorView(
+        message: 'Covered family members could not be read from your policies.',
+        icon: Icons.family_restroom_rounded,
+        onRetry: () => ref.invalidate(mergedFamilyMembersProvider(documents)),
       ),
       data: (policyHolders) {
         if (policyHolders.isEmpty) {
@@ -90,6 +96,8 @@ class _FamilyList extends ConsumerWidget {
                 'Upload insurance documents to auto-detect family members, or '
                 'add one manually.',
             actionLabel: 'Add Family Member',
+            actionIcon: Icons.person_add_alt_1_rounded,
+            color: const Color(0xFF16866B),
             onAction: onAdd,
           );
         }
@@ -98,18 +106,19 @@ class _FamilyList extends ConsumerWidget {
           onRefresh: () async =>
               ref.invalidate(mergedFamilyMembersProvider(documents)),
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.only(bottom: 24),
             children: [
-              const Text(
-                'Family Members & Insured',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              CoverWisePageHeader(
+                title: 'People covered',
+                subtitle:
+                    'A clear view of the people found in your policies, plus anyone you add yourself.',
+                trailing: CoverWiseIconBadge(
+                  icon: Icons.family_restroom_rounded,
+                  color: CoverWiseColors.blueDeep,
+                  size: 48,
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Auto-detected from your policies, plus anyone you add manually.',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 16),
+              const CoverWiseSectionLabel('Family and insured members'),
               ...policyHolders.values.map((holder) => _FamilyMemberCard(
                     holder: holder,
                     onDelete: holder.isManual
@@ -141,11 +150,16 @@ class _FamilyList extends ConsumerWidget {
                           }
                         : null,
                   )),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Add Family Member'),
-                onPressed: onAdd,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.person_add_alt_1_rounded),
+                    label: const Text('Add family member'),
+                    onPressed: onAdd,
+                  ),
+                ),
               ),
             ],
           ),
@@ -162,8 +176,11 @@ class _FamilyMemberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    final theme = Theme.of(context);
+    final isPrimary = holder.relationship == 'Primary Insured';
+
+    return CoverWiseSurface(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -171,31 +188,36 @@ class _FamilyMemberCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: Colors.blue.shade100,
-                  child: Icon(
-                    holder.relationship == 'Primary Insured'
-                        ? Icons.person
-                        : Icons.people_alt,
-                    color: Colors.blue,
-                  ),
+                CoverWiseIconBadge(
+                  icon: isPrimary
+                      ? Icons.person_rounded
+                      : Icons.person_outline_rounded,
+                  color: isPrimary
+                      ? CoverWiseColors.blueDeep
+                      : theme.colorScheme.tertiary,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(holder.name,
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                      Row(
+                      Text(
+                        holder.name,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 5),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Flexible(
-                            child: Text(holder.relationship,
-                                style:
-                                    TextStyle(color: Colors.grey.shade700)),
+                          Text(
+                            holder.relationship,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                          const SizedBox(width: 8),
                           _SourceBadge(isManual: holder.isManual),
                         ],
                       ),
@@ -204,8 +226,8 @@ class _FamilyMemberCard extends StatelessWidget {
                 ),
                 if (onDelete != null)
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    tooltip: 'Remove',
+                    icon: const Icon(Icons.person_remove_outlined),
+                    tooltip: 'Remove ${holder.name}',
                     onPressed: onDelete,
                   ),
               ],
@@ -214,10 +236,13 @@ class _FamilyMemberCard extends StatelessWidget {
               const Divider(height: 24),
               Row(
                 children: [
-                  const Icon(Icons.cake, color: Colors.grey),
+                  Icon(Icons.cake_outlined,
+                      color: theme.colorScheme.onSurfaceVariant),
                   const SizedBox(width: 8),
-                  Text('Date of Birth: ${holder.dob}',
-                      style: const TextStyle(fontSize: 14)),
+                  Text(
+                    'Date of birth: ${holder.dob}',
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ],
               ),
             ],
@@ -234,18 +259,22 @@ class _SourceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color =
+        isManual ? theme.colorScheme.tertiary : CoverWiseColors.blueDeep;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isManual ? Colors.teal.shade50 : Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(4),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
         isManual ? 'Manual' : 'From document',
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: isManual ? Colors.teal.shade700 : Colors.blue.shade700,
+          color: color,
         ),
       ),
     );

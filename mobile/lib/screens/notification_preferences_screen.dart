@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../providers/policy_providers.dart';
 import '../services/notification_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
 
 /// Screen for managing notification preferences.
 ///
@@ -73,20 +75,22 @@ class _NotificationPreferencesScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notification Preferences'),
+        title: const Text('Renewal reminders'),
         actions: [
           TextButton(
             onPressed: _saving
                 ? null
                 : () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(context);
                     setState(() => _saving = true);
                     try {
                       await _savePreferences();
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messenger.showSnackBar(
                         const SnackBar(content: Text('Preferences saved')),
                       );
-                      Navigator.pop(context);
+                      navigator.pop();
                     } finally {
                       if (mounted) setState(() => _saving = false);
                     }
@@ -96,177 +100,210 @@ class _NotificationPreferencesScreenState
         ],
       ),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
-          // Master toggle
-          SwitchListTile(
-            title: const Text('Renewal Reminders'),
-            subtitle: Text(
-              _enabled ? 'Notifications are ON' : 'Notifications are OFF',
-              style: TextStyle(color: _enabled ? Colors.green : Colors.grey),
-            ),
-            value: _enabled,
-            onChanged: (value) {
-              setState(() => _enabled = value);
-            },
-            secondary: Icon(
-              _enabled ? Icons.notifications_active : Icons.notifications_off,
-              color: _enabled ? Colors.green : Colors.grey,
-            ),
+          const CoverWisePageHeader(
+            title: 'Stay ahead of renewals',
+            subtitle:
+                'Choose when this device should remind you. Notifications are reminders, not insurer renewal notices.',
           ),
-          const Divider(),
-
-          // Reminder days section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              'Remind me before expiry',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+          // Master toggle
+          CoverWiseSurface(
+            child: SwitchListTile(
+              title: const Text(
+                'Renewal reminders',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                _enabled ? 'Enabled on this device' : 'Disabled',
+                style: TextStyle(
+                  color: _enabled
+                      ? const Color(0xFF16825D)
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              value: _enabled,
+              onChanged: (value) {
+                setState(() => _enabled = value);
+              },
+              secondary: CoverWiseIconBadge(
+                icon: _enabled
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+                color: _enabled
+                    ? const Color(0xFF16825D)
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
+
+          // Reminder days section
+          const CoverWiseSectionLabel('Remind me before expiry'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'Choose how many days before your policy expires to receive a reminder.',
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          ..._availableDays.map((days) => CheckboxListTile(
-                title: Text('$days days before'),
-                value: _reminderDays.contains(days),
-                onChanged: _enabled
-                    ? (checked) {
-                        setState(() {
-                          if (checked == true) {
-                            _reminderDays.add(days);
-                            _reminderDays.sort((a, b) => b.compareTo(a));
-                          } else if (_reminderDays.length > 1) {
-                            // Prevent deselecting the last reminder day
-                            _reminderDays.remove(days);
+          CoverWiseSurface(
+            child: Column(
+              children: [
+                for (var i = 0; i < _availableDays.length; i++) ...[
+                  CheckboxListTile(
+                    title: Text('${_availableDays[i]} days before'),
+                    value: _reminderDays.contains(_availableDays[i]),
+                    onChanged: _enabled
+                        ? (checked) {
+                            final days = _availableDays[i];
+                            setState(() {
+                              if (checked == true) {
+                                _reminderDays.add(days);
+                                _reminderDays.sort((a, b) => b.compareTo(a));
+                              } else if (_reminderDays.length > 1) {
+                                _reminderDays.remove(days);
+                              }
+                            });
                           }
-                        });
-                      }
-                    : null,
-                secondary: Icon(
-                  days >= 14 ? Icons.event : Icons.event_busy,
-                  color: _reminderDays.contains(days) ? Colors.blue : Colors.grey,
-                ),
-              )),
+                        : null,
+                    secondary: Icon(
+                      _availableDays[i] >= 14
+                          ? Icons.calendar_month_outlined
+                          : Icons.schedule_outlined,
+                      color: _reminderDays.contains(_availableDays[i])
+                          ? CoverWiseColors.blueDeep
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (i < _availableDays.length - 1) const Divider(),
+                ],
+              ],
+            ),
+          ),
           if (_reminderDays.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                '⚠️ No reminders selected. You won\'t receive any renewal alerts.',
-                style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
+                'No reminder times are selected.',
+                style: const TextStyle(color: Color(0xFFD97706), fontSize: 13),
               ),
             ),
-          const Divider(),
-
           // Quiet hours section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              'Quiet Hours',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          const CoverWiseSectionLabel('Quiet hours'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'No notifications during these hours. Reminders will be delivered when quiet hours end.',
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(Icons.bedtime_outlined),
-            title: const Text('Start time'),
-            trailing: Text(
-              _formatHour(_quietHoursStart),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            onTap: _enabled
-                ? () async {
-                    final picked = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay(hour: _quietHoursStart, minute: 0),
-                    );
-                    if (picked != null) {
-                      setState(() => _quietHoursStart = picked.hour);
-                    }
-                  }
-                : null,
+          CoverWiseSurface(
+            child: Column(children: [
+              ListTile(
+                leading: const CoverWiseIconBadge(
+                    icon: Icons.bedtime_outlined,
+                    color: Color(0xFF7C5AC7),
+                    size: 40),
+                title: const Text('Start time'),
+                trailing: Text(
+                  _formatHour(_quietHoursStart),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: _enabled
+                    ? () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime:
+                              TimeOfDay(hour: _quietHoursStart, minute: 0),
+                        );
+                        if (picked != null) {
+                          setState(() => _quietHoursStart = picked.hour);
+                        }
+                      }
+                    : null,
+              ),
+              const Divider(),
+              ListTile(
+                leading: const CoverWiseIconBadge(
+                    icon: Icons.wb_sunny_outlined,
+                    color: Color(0xFFD97706),
+                    size: 40),
+                title: const Text('End time'),
+                trailing: Text(
+                  _formatHour(_quietHoursEnd),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: _enabled
+                    ? () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime:
+                              TimeOfDay(hour: _quietHoursEnd, minute: 0),
+                        );
+                        if (picked != null) {
+                          setState(() => _quietHoursEnd = picked.hour);
+                        }
+                      }
+                    : null,
+              ),
+            ]),
           ),
-          ListTile(
-            leading: const Icon(Icons.wb_sunny_outlined),
-            title: const Text('End time'),
-            trailing: Text(
-              _formatHour(_quietHoursEnd),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            onTap: _enabled
-                ? () async {
-                    final picked = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay(hour: _quietHoursEnd, minute: 0),
-                    );
-                    if (picked != null) {
-                      setState(() => _quietHoursEnd = picked.hour);
-                    }
-                  }
-                : null,
-          ),
-          const Divider(),
 
           // Per-policy toggles
           if (summaries.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                'Per-Policy Reminders',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            const CoverWiseSectionLabel('Per-policy reminders'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Toggle reminders for individual policies.',
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             const SizedBox(height: 8),
-            ...summaries.map((summary) {
+            CoverWiseSurface(
+                child: Column(
+                    children: summaries.indexed.map((entry) {
+              final (index, summary) = entry;
               final isDisabled = _disabledPolicies.contains(summary.documentId);
-              return SwitchListTile(
-                title: Text(summary.documentType),
-                subtitle: Text(
-                  summary.insurer ?? 'Unknown insurer',
-                  style: TextStyle(color: Colors.grey.shade600),
+              return Column(children: [
+                SwitchListTile(
+                  title: Text(summary.documentType),
+                  subtitle: Text(
+                    summary.insurer ?? 'Unknown insurer',
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  value: !isDisabled,
+                  onChanged: _enabled
+                      ? (enabled) {
+                          setState(() {
+                            if (enabled) {
+                              _disabledPolicies.remove(summary.documentId);
+                            } else {
+                              _disabledPolicies.add(summary.documentId);
+                            }
+                          });
+                        }
+                      : null,
+                  secondary: Icon(
+                    isDisabled
+                        ? Icons.notifications_off_outlined
+                        : Icons.notifications_active_outlined,
+                    color: isDisabled
+                        ? theme.colorScheme.onSurfaceVariant
+                        : const Color(0xFF16825D),
+                  ),
                 ),
-                value: !isDisabled,
-                onChanged: _enabled
-                    ? (enabled) {
-                        setState(() {
-                          if (enabled) {
-                            _disabledPolicies.remove(summary.documentId);
-                          } else {
-                            _disabledPolicies.add(summary.documentId);
-                          }
-                        });
-                      }
-                    : null,
-                secondary: Icon(
-                  isDisabled ? Icons.notifications_off : Icons.notifications_active,
-                  color: isDisabled ? Colors.grey : Colors.green,
-                ),
-              );
-            }),
+                if (index < summaries.length - 1) const Divider()
+              ]);
+            }).toList())),
           ],
           const SizedBox(height: 32),
         ],

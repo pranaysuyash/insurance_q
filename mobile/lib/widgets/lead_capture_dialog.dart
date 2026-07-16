@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
+import 'shared/coverwise_components.dart';
 
 class LeadCaptureDialog extends StatefulWidget {
   final String? initialEmail;
@@ -66,15 +67,19 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      scrollable: true,
       title: Row(
         children: [
-          Icon(
-            Icons.contact_mail,
-            color: Theme.of(context).primaryColor,
+          CoverWiseIconBadge(
+            icon: Icons.privacy_tip_outlined,
+            color: scheme.primary,
+            size: 42,
           ),
-          const SizedBox(width: 8),
-          const Text('Contact Information'),
+          const SizedBox(width: 12),
+          const Expanded(child: Text('Policy processing permission')),
         ],
       ),
       content: Form(
@@ -86,12 +91,12 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
             if (!widget.isRequired)
               const Text(
                 'CoverWise needs your permission to securely store and analyze this policy. Contact details are optional and stay on this device unless you later choose to share them.',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(fontSize: 14),
               )
             else
               const Text(
                 'Please provide your contact information to continue.',
-                style: TextStyle(fontSize: 14, color: Colors.orange),
+                style: TextStyle(fontSize: 14),
               ),
             const SizedBox(height: 16),
             TextFormField(
@@ -99,7 +104,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               decoration: const InputDecoration(
                 labelText: 'Email Address',
                 hintText: 'your.email@example.com',
-                prefixIcon: Icon(Icons.email),
+                prefixIcon: Icon(Icons.alternate_email_rounded),
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
@@ -111,7 +116,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               decoration: const InputDecoration(
                 labelText: 'Phone Number (Optional)',
                 hintText: '+1 (555) 123-4567',
-                prefixIcon: Icon(Icons.phone),
+                prefixIcon: Icon(Icons.phone_outlined),
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
@@ -141,7 +146,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(_consentError!,
-                    style: const TextStyle(color: Colors.red, fontSize: 12)),
+                    style: TextStyle(color: scheme.error, fontSize: 12)),
               ),
             CheckboxListTile(
               title: const Text(
@@ -150,7 +155,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               ),
               subtitle: const Text(
                 'Your contact details are not sent with this policy upload',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12),
               ),
               value: _saveForFuture,
               onChanged: (value) {
@@ -189,7 +194,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
           },
           child: const Text('Cancel'),
         ),
-        ElevatedButton(
+        FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
               if (!_processingConsent) {
@@ -229,12 +234,14 @@ class RateLimitDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
       title: Row(
         children: [
-          Icon(
-            Icons.timer_off,
-            color: Colors.orange,
+          CoverWiseIconBadge(
+            icon: Icons.timer_off_outlined,
+            color: scheme.tertiary,
+            size: 42,
           ),
           const SizedBox(width: 8),
           const Text('Upload Limit Reached'),
@@ -250,13 +257,15 @@ class RateLimitDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
+                color: scheme.tertiaryContainer,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                border:
+                    Border.all(color: scheme.tertiary.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info, color: Colors.orange, size: 20),
+                  Icon(Icons.info_outline_rounded,
+                      color: scheme.onTertiaryContainer, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -271,12 +280,12 @@ class RateLimitDialog extends StatelessWidget {
           const SizedBox(height: 16),
           const Text(
             'To prevent abuse, we limit the number of uploads per day. This helps us provide better service to everyone.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12),
           ),
         ],
       ),
       actions: [
-        ElevatedButton(
+        FilledButton(
           onPressed: () {
             Navigator.of(context).pop();
           },

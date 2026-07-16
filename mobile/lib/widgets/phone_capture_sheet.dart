@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import '../services/analytics_service.dart';
 import '../services/app_state_store.dart';
+import 'shared/coverwise_components.dart';
+import '../theme/coverwise_motion.dart';
 
 /// Progressive phone-number capture, shown as a bottom sheet AFTER the user
 /// has uploaded their first policy and received value.
@@ -35,11 +37,14 @@ class PhoneCaptureSheet extends StatefulWidget {
 
     if (!context.mounted) return;
 
-    AnalyticsService.track('phone_capture_shown', {'prompt_number': promptCount + 1});
+    AnalyticsService.track(
+        'phone_capture_shown', {'prompt_number': promptCount + 1});
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -70,7 +75,8 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
     final phone = '+91${_controller.text.replaceAll(RegExp(r'[^0-9]'), '')}';
     final box = Hive.box(AppStateStore.boxName);
     await box.put(AppStateStore.phoneNumberKey, phone);
-    AnalyticsService.track('phone_capture_completed', {'method': 'manual_entry'});
+    AnalyticsService.track(
+        'phone_capture_completed', {'method': 'manual_entry'});
     if (!mounted) return;
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -88,93 +94,100 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final theme = Theme.of(context);
+    return AnimatedPadding(
+      duration: CoverWiseMotion.duration(context, CoverWiseMotion.quick),
+      curve: CoverWiseMotion.enterCurve,
       padding: EdgeInsets.fromLTRB(
-        24, 24, 24,
-        24 + MediaQuery.of(context).viewInsets.bottom,
+        24,
+        8,
+        24,
+        24 + MediaQuery.viewInsetsOf(context).bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Icon
+            Align(
+              alignment: Alignment.center,
+              child: CoverWiseIconBadge(
+                icon: Icons.phonelink_lock_outlined,
+                color: theme.colorScheme.primary,
+                size: 68,
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          // Icon
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1565C0).withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+            const SizedBox(height: 16),
+            // Title
+            const Text(
+              'Never lose your policies',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            child: const Icon(Icons.phone_android,
-                size: 36, color: Color(0xFF1565C0)),
-          ),
-          const SizedBox(height: 16),
-          // Title
-          const Text(
-            'Never lose your policies',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          // Body
-          Text(
-            'Your policy is saved on this device. Add your number to access '
-            'it from any device and back it up automatically.',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          // Phone input
-          TextField(
-            controller: _controller,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [LengthLimitingTextInputFormatter(10), FilteringTextInputFormatter.digitsOnly],
-            onChanged: _validate,
-            decoration: InputDecoration(
-              prefixText: '+91 ',
-              labelText: 'Mobile number',
-              hintText: '98765 43210',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              prefixIcon: const Icon(Icons.phone_outlined),
+            const SizedBox(height: 8),
+            // Body
+            Text(
+              'Your policy is saved on this device. Add your number to access '
+              'it from any device and back it up automatically.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 16),
-          // Save button
-          FilledButton(
-            onPressed: _isValid ? _save : null,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 24),
+            // Phone input
+            TextField(
+              controller: _controller,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.telephoneNumberNational],
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(10),
+                FilteringTextInputFormatter.digitsOnly
+              ],
+              onChanged: _validate,
+              decoration: InputDecoration(
+                prefixText: '+91 ',
+                labelText: 'Mobile number',
+                hintText: '98765 43210',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.phone_outlined),
+              ),
             ),
-            child: const Text('Link Number', style: TextStyle(fontSize: 16)),
-          ),
-          const SizedBox(height: 8),
-          // Maybe Later
-          TextButton(
-            onPressed: _dismiss,
-            child: Text(
-              'Maybe later',
-              style: TextStyle(color: Colors.grey.shade600),
+            const SizedBox(height: 16),
+            // Save button
+            FilledButton(
+              onPressed: _isValid ? _save : null,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Link Number', style: TextStyle(fontSize: 16)),
             ),
-          ),
-          const SizedBox(height: 8),
-          // Privacy note
-          Text(
-            'We\'ll use this number only to identify your account. No spam, no sharing.',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 8),
+            // Maybe Later
+            TextButton(
+              onPressed: _dismiss,
+              child: Text(
+                'Maybe later',
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Privacy note
+            Text(
+              'We\'ll use this number only to identify your account. No spam, no sharing.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

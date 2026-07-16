@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import '../widgets/shared/error_widget.dart';
+import '../widgets/shared/loading_widget.dart';
 
 /// Full-featured document preview screen.
 ///
@@ -104,7 +106,8 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
               child: Center(
                 child: Text(
                   '$_currentPage / $_totalPages',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w500),
                 ),
               ),
             ),
@@ -123,15 +126,16 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingWidget(message: 'Loading document preview…')
           : _error != null
               ? _buildErrorState()
               : _isImage
                   ? _buildImageView()
                   : _buildPdfView(),
-      bottomNavigationBar: !_isLoading && _error == null && _isPdf && _totalPages > 1
-          ? _buildPageNavigator()
-          : null,
+      bottomNavigationBar:
+          !_isLoading && _error == null && _isPdf && _totalPages > 1
+              ? _buildPageNavigator()
+              : null,
     );
   }
 
@@ -144,20 +148,13 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
       },
       builders: PdfViewBuilders<DefaultBuilderOptions>(
         options: const DefaultBuilderOptions(),
-        documentLoaderBuilder: (_) => const Center(child: CircularProgressIndicator()),
-        pageLoaderBuilder: (_) => const Center(child: CircularProgressIndicator()),
-        errorBuilder: (_, error) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-                const SizedBox(height: 12),
-                Text('Page render error', style: TextStyle(color: Colors.red.shade600)),
-              ],
-            ),
-          ),
+        documentLoaderBuilder: (_) =>
+            const LoadingWidget(message: 'Opening policy document…'),
+        pageLoaderBuilder: (_) =>
+            const LoadingWidget(message: 'Rendering policy page…'),
+        errorBuilder: (_, error) => const AppErrorView(
+          message: 'This page could not be rendered.',
+          icon: Icons.broken_image_outlined,
         ),
       ),
     );
@@ -172,15 +169,9 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
         child: Image.file(
           file,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.broken_image, size: 48, color: Colors.red.shade300),
-                const SizedBox(height: 12),
-                Text('Could not load image', style: TextStyle(color: Colors.red.shade600)),
-              ],
-            ),
+          errorBuilder: (_, __, ___) => const AppErrorView(
+            message: 'This policy image could not be loaded.',
+            icon: Icons.broken_image_outlined,
           ),
         ),
       ),
@@ -188,34 +179,10 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.folder_off, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Document not available',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade500),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'This can happen if the document was uploaded from another device '
-              'or if the local copy was cleared.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-            ),
-          ],
-        ),
-      ),
+    return AppErrorView(
+      message:
+          'Document not available\n\n$_error\n\nThe file may have been added on another device or removed from local storage.',
+      icon: Icons.folder_off_outlined,
     );
   }
 
@@ -240,21 +207,30 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
             IconButton(
               icon: const Icon(Icons.chevron_left),
               tooltip: 'Previous page',
-              onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
+              onPressed:
+                  _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
             ),
-            GestureDetector(
-              onTap: _showPageJumpDialog,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$_currentPage / $_totalPages',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+            Semantics(
+              button: true,
+              label:
+                  'Page $_currentPage of $_totalPages. Tap to jump to a page.',
+              excludeSemantics: true,
+              child: InkWell(
+                onTap: _showPageJumpDialog,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$_currentPage / $_totalPages',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
                   ),
                 ),
               ),
@@ -262,12 +238,16 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
             IconButton(
               icon: const Icon(Icons.chevron_right),
               tooltip: 'Next page',
-              onPressed: _currentPage < _totalPages ? () => _goToPage(_currentPage + 1) : null,
+              onPressed: _currentPage < _totalPages
+                  ? () => _goToPage(_currentPage + 1)
+                  : null,
             ),
             IconButton(
               icon: const Icon(Icons.last_page),
               tooltip: 'Last page',
-              onPressed: _currentPage < _totalPages ? () => _goToPage(_totalPages) : null,
+              onPressed: _currentPage < _totalPages
+                  ? () => _goToPage(_totalPages)
+                  : null,
             ),
           ],
         ),
@@ -299,7 +279,6 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               hintText: 'Page number (1-$_totalPages)',
-              border: const OutlineInputBorder(),
               errorText: errorText,
             ),
             autofocus: true,

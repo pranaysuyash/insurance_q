@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/document_model.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
 
 /// Dialog for manually adding a family member/insured person.
 ///
@@ -71,18 +73,31 @@ class _AddFamilyMemberDialogState extends State<AddFamilyMemberDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add Family Member'),
+      icon: const CoverWiseIconBadge(
+        icon: Icons.person_add_alt_1_rounded,
+        color: CoverWiseColors.blueDeep,
+        size: 48,
+      ),
+      title: const Text('Add family member'),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                'Add someone who is not listed in an uploaded policy. This creates a local family entry only.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+              ),
+              const SizedBox(height: 18),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
                   labelText: 'Full name',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person_outline_rounded),
                 ),
                 textCapitalization: TextCapitalization.words,
                 inputFormatters: [
@@ -100,7 +115,7 @@ class _AddFamilyMemberDialogState extends State<AddFamilyMemberDialog> {
                 value: _relationship,
                 decoration: const InputDecoration(
                   labelText: 'Relationship',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.family_restroom_rounded),
                 ),
                 items: _relationships
                     .map((r) => DropdownMenuItem(value: r, child: Text(r)))
@@ -117,8 +132,8 @@ class _AddFamilyMemberDialogState extends State<AddFamilyMemberDialog> {
                 readOnly: true,
                 decoration: const InputDecoration(
                   labelText: 'Date of birth (optional)',
-                  border: OutlineInputBorder(),
-                  suffixIcon: Icon(Icons.calendar_today, size: 20),
+                  prefixIcon: Icon(Icons.cake_outlined),
+                  suffixIcon: Icon(Icons.calendar_today_outlined, size: 20),
                 ),
                 onTap: _pickDate,
               ),
@@ -133,7 +148,7 @@ class _AddFamilyMemberDialogState extends State<AddFamilyMemberDialog> {
         ),
         FilledButton(
           onPressed: _submit,
-          child: const Text('Add'),
+          child: const Text('Add member'),
         ),
       ],
     );

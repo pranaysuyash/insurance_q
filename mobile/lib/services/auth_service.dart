@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'app_state_store.dart';
+import '../config/app_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Anonymous bearer-token authentication for the CoverWise API.
 ///
@@ -15,6 +17,65 @@ class AuthService {
 
   static Box get _box => Hive.box(AppStateStore.boxName);
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static bool _accountClientReady = false;
+
+  static Future<void> initializeAccountClient() async {
+    if (!AppConfig.hasSupabaseAuthConfig || _accountClientReady) return;
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      publishableKey: AppConfig.supabasePublishableKey,
+    );
+    _accountClientReady = true;
+  }
+
+  static bool get hasAccountSession =>
+      AppConfig.hasSupabaseAuthConfig &&
+      _accountClientReady &&
+      Supabase.instance.client.auth.currentSession != null;
+
+  static Future<String?> accessToken() async {
+    if (hasAccountSession) {
+      return Supabase.instance.client.auth.currentSession?.accessToken;
+    }
+    return cachedToken();
+  }
+
+  static Future<AuthResponse> signIn(String email, String password) async {
+    final response = await Supabase.instance.client.auth.signInWithPassword(
+      email: email.trim(),
+      password: password,
+    );
+    return response;
+  }
+
+  static Future<AuthResponse> signUp(
+      String email, String password, String displayName) async {
+    return Supabase.instance.client.auth.signUp(
+      email: email.trim(),
+      password: password,
+      data: {'display_name': displayName.trim()},
+    );
+  }
+
+  static Future<String?> anonymousToken() async {
+    return _secureStorage.read(key: _tokenKey);
+  }
+
+  static Future<void> claimAnonymousData() async {
+    final legacyToken = await anonymousToken();
+    if (legacyToken == null || !hasAccountSession) return;
+    final dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
+    dio.interceptors.add(AuthInterceptor(dio));
+    await dio
+        .post('/user/claim-anonymous', data: {'anonymous_token': legacyToken});
+    await clearToken();
+  }
+
+  static Future<void> signOut() async {
+    if (_accountClientReady) {
+      await Supabase.instance.client.auth.signOut();
+    }
+  }
 
   /// Reads only from platform secure storage. A one-time Hive migration avoids
   /// stranding existing anonymous owners while removing bearer tokens from the
@@ -82,12 +143,13 @@ class AuthInterceptor extends Interceptor {
   AuthInterceptor(this._dio);
 
   @override
-  Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  Future<void> onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) async {
     if (options.path.contains('/user/anonymous')) {
       handler.next(options);
       return;
     }
-    final token = await AuthService.cachedToken();
+    final token = await AuthService.accessToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -98,7 +160,17 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
       debugPrint('Got 401, attempting token refresh...');
-      final newToken = await AuthService.acquireToken(_dio);
+      String? newToken;
+      if (AuthService.hasAccountSession) {
+        try {
+          final response = await Supabase.instance.client.auth.refreshSession();
+          newToken = response.session?.accessToken;
+        } catch (_) {
+          newToken = null;
+        }
+      } else {
+        newToken = await AuthService.acquireToken(_dio);
+      }
       if (newToken != null) {
         final clonedRequest = err.requestOptions
           ..headers['Authorization'] = 'Bearer $newToken';

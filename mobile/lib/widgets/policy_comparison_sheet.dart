@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/document_model.dart';
+import '../theme/coverwise_theme.dart';
+import '../utils/document_icons.dart';
+import 'shared/coverwise_components.dart';
 
 class PolicyComparisonSheet extends StatelessWidget {
   final List<InsuranceDocument> documents;
@@ -11,57 +14,113 @@ class PolicyComparisonSheet extends StatelessWidget {
     final policies = documents.take(2).toList();
 
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Policy Comparison',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                const CoverWiseIconBadge(
+                  icon: Icons.compare_arrows_rounded,
+                  color: CoverWiseColors.blueDeep,
+                  size: 44,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Compare policies',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -.4,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             Text(
               policies.length < 2
                   ? 'You currently have one policy in the library. Add another policy to compare coverage, dates, and document details side by side.'
                   : 'Compare the two most recent policies in your library.',
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
             ),
             const SizedBox(height: 16),
             if (policies.isEmpty)
-              const Card(
+              Card(
                 child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text('No policies available to compare yet.'),
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    children: [
+                      const CoverWiseIconBadge(
+                        icon: Icons.file_copy_outlined,
+                        color: CoverWiseColors.blueDeep,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'No policies available to compare yet.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               )
             else ...[
               if (policies.length == 1)
                 _buildComparisonCard(
+                  context: context,
                   title: 'Current Policy',
                   document: policies.first,
                   accent: Colors.orange,
                 )
               else
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildComparisonCard(
-                        title: 'Policy A',
-                        document: policies[0],
-                        accent: Colors.orange,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildComparisonCard(
-                        title: 'Policy B',
-                        document: policies[1],
-                        accent: Colors.teal,
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stackCards = constraints.maxWidth < 560 ||
+                        MediaQuery.textScalerOf(context).scale(1) > 1.2;
+                    final first = _buildComparisonCard(
+                      context: context,
+                      title: 'Policy A',
+                      document: policies[0],
+                      accent: Colors.orange,
+                    );
+                    final second = _buildComparisonCard(
+                      context: context,
+                      title: 'Policy B',
+                      document: policies[1],
+                      accent: Colors.teal,
+                    );
+                    if (stackCards) {
+                      return Column(
+                        children: [first, const SizedBox(height: 12), second],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: first),
+                        const SizedBox(width: 12),
+                        Expanded(child: second),
+                      ],
+                    );
+                  },
                 ),
               const SizedBox(height: 12),
               if (policies.length < 2)
@@ -69,15 +128,31 @@ class PolicyComparisonSheet extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Colors.orange.withValues(alpha: 0.25),
                     ),
                   ),
-                  child: const Text(
-                    'Comparison mode is ready, but there is only one policy uploaded right now. Upload a second policy to compare both in one view.',
-                    style: TextStyle(fontSize: 13),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.add_to_photos_outlined,
+                        color: Colors.orange,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Comparison mode is ready. Upload a second policy to compare both in one view.',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    height: 1.4,
+                                  ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -88,39 +163,51 @@ class PolicyComparisonSheet extends StatelessWidget {
   }
 
   Widget _buildComparisonCard({
+    required BuildContext context,
     required String title,
     required InsuranceDocument document,
     required Color accent,
   }) {
     return Card(
-      elevation: 1,
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: accent,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+            Row(
+              children: [
+                CoverWiseIconBadge(
+                  icon: iconForDocumentType(document.documentType),
+                  color: accent,
+                  size: 38,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: accent,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
               document.filename,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
             const SizedBox(height: 12),
-            _detail('Type', document.documentType ?? 'Unknown'),
-            _detail('Uploaded', document.formattedUploadDate),
-            _detail('Analyzed', document.formattedAnalyzedDate),
-            _detail('Size', document.formattedFileSize),
+            _detail(context, 'Type', document.documentType ?? 'Unknown'),
+            _detail(context, 'Uploaded', document.formattedUploadDate),
+            _detail(context, 'Analyzed', document.formattedAnalyzedDate),
+            _detail(context, 'Size', document.formattedFileSize),
             _detail(
+              context,
               'Status',
               document.policyHolders?.isNotEmpty == true
                   ? 'Coverage details available'
@@ -132,7 +219,7 @@ class PolicyComparisonSheet extends StatelessWidget {
     );
   }
 
-  Widget _detail(String label, String value) {
+  Widget _detail(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -141,15 +228,20 @@ class PolicyComparisonSheet extends StatelessWidget {
           SizedBox(
             width: 78,
             child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(color: Colors.black87)),
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
         ],
       ),

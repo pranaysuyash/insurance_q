@@ -5,7 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
 import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
+import '../theme/coverwise_theme.dart';
 import '../utils/policy_type.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/empty_state_widget.dart';
 import 'document_preview_screen.dart';
 
 /// The core value screen: turns a 40-page policy PDF into one page the user
@@ -22,39 +25,23 @@ class PolicyDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaries = ref.watch(policySummariesProvider);
-    final summary = summaries.where((s) => s.documentId == documentId).firstOrNull;
+    final summary =
+        summaries.where((s) => s.documentId == documentId).firstOrNull;
 
     if (summary == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Policy Details')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.search_off, size: 56, color: Colors.grey),
-                const SizedBox(height: 16),
-                const Text(
-                  'Policy summary not available',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'The summary for this policy could not be loaded. '
-                  'This can happen if extraction is still in progress or '
-                  'has not been run yet.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  icon: const Icon(Icons.question_answer),
-                  label: const Text('Ask a Question Instead'),
-                  onPressed: () => Navigator.pushNamed(context, '/qa', arguments: documentId),
-                ),
-              ],
-            ),
+        body: EmptyStateWidget(
+          icon: Icons.manage_search_rounded,
+          title: 'Policy summary not available',
+          subtitle:
+              'Extraction may still be in progress. You can ask about the source document while the summary is prepared.',
+          actionLabel: 'Ask about this policy',
+          actionIcon: Icons.chat_bubble_outline_rounded,
+          onAction: () => Navigator.pushNamed(
+            context,
+            '/qa',
+            arguments: documentId,
           ),
         ),
       );
@@ -64,86 +51,110 @@ class PolicyDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(canonicalTypeName(policyType)),
+        title: const Text('Policy details'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.visibility_outlined),
+            icon: const Icon(Icons.description_outlined),
             tooltip: 'View source document',
             onPressed: () => _openDocumentPreview(context, ref),
           ),
           IconButton(
-            icon: const Icon(Icons.question_answer),
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
             tooltip: 'Ask a Question',
-            onPressed: () => Navigator.pushNamed(context, '/qa', arguments: documentId),
+            onPressed: () =>
+                Navigator.pushNamed(context, '/qa', arguments: documentId),
           ),
           IconButton(
-            icon: const Icon(Icons.share),
+            icon: const Icon(Icons.ios_share_rounded),
             tooltip: 'Share Policy Summary',
             onPressed: () => _shareSummary(summary),
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
+          CoverWisePageHeader(
+            title: canonicalTypeName(policyType),
+            subtitle: summary.insurer == null
+                ? 'Your policy, translated into the details that matter.'
+                : '${summary.insurer} • Your policy at a glance',
+          ),
           _HeaderCard(summary: summary, policyType: policyType),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _MoneyRow(summary: summary),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _DatesCard(summary: summary),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
           if (summary.keyBenefits.isNotEmpty) ...[
+            const CoverWiseSectionLabel('What this policy covers'),
             _SectionList(
-              title: 'What\'s Covered',
-              icon: Icons.check_circle,
+              title: 'Included benefits',
+              icon: Icons.verified_outlined,
               iconColor: Colors.green,
               items: summary.keyBenefits,
-              itemIcon: Icons.check,
+              itemIcon: Icons.check_rounded,
               itemColor: Colors.green,
             ),
-            const SizedBox(height: 16),
           ],
           if (summary.exclusions.isNotEmpty) ...[
+            const CoverWiseSectionLabel('Important exclusions'),
             _SectionList(
-              title: 'What\'s Not Covered',
-              icon: Icons.cancel,
+              title: 'Not included',
+              icon: Icons.block_outlined,
               iconColor: Colors.red,
               items: summary.exclusions,
-              itemIcon: Icons.close,
+              itemIcon: Icons.close_rounded,
               itemColor: Colors.red,
             ),
-            const SizedBox(height: 16),
           ],
           if (summary.waitingPeriods.isNotEmpty) ...[
+            const CoverWiseSectionLabel('Timing conditions'),
             _SectionList(
               title: 'Waiting Periods',
-              icon: Icons.schedule,
+              icon: Icons.hourglass_top_rounded,
               iconColor: Colors.orange,
               items: summary.waitingPeriods,
               itemIcon: Icons.access_time,
               itemColor: Colors.orange,
             ),
-            const SizedBox(height: 16),
           ],
           if (summary.coverageItems.isNotEmpty) ...[
+            const CoverWiseSectionLabel('Coverage details'),
             _CoverageItemsCard(items: summary.coverageItems),
-            const SizedBox(height: 16),
           ],
+          const CoverWiseSectionLabel('Next steps'),
           _QuickActions(summary: summary, context: context),
-          const SizedBox(height: 32),
-          Text(
-            'Extracted on ${_formatDate(summary.extractedAt)} from your uploaded policy document. '
-            'Always verify important details against the source document and your insurer.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
-            textAlign: TextAlign.center,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Extracted on ${_formatDate(summary.extractedAt)} from your uploaded policy document. '
+                    'Always verify important details against the source document and your insurer.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          height: 1.45,
+                        ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.day}/${dt.month}/${dt.year}';
+  String _formatDate(DateTime dt) => '${dt.day}/${dt.month}/${dt.year}';
 
   void _openDocumentPreview(BuildContext context, WidgetRef ref) {
     final documents = ref.read(documentsProvider).valueOrNull;
@@ -155,9 +166,11 @@ class PolicyDetailScreen extends ConsumerWidget {
       return;
     }
 
-    final doc = documents.where(
-      (d) => d.id == documentId || d.remoteId == documentId,
-    ).firstOrNull;
+    final doc = documents
+        .where(
+          (d) => d.id == documentId || d.remoteId == documentId,
+        )
+        .firstOrNull;
 
     if (doc == null) {
       if (!context.mounted) return;
@@ -171,7 +184,8 @@ class PolicyDetailScreen extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Source document is only available on the device where it was uploaded.'),
+          content: Text(
+              'Source document is only available on the device where it was uploaded.'),
           duration: Duration(seconds: 3),
         ),
       );
@@ -200,38 +214,71 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: colorForPolicyType(policyType).withValues(alpha: 0.1),
-              child: Icon(iconForPolicyType(policyType),
-                  size: 28, color: colorForPolicyType(policyType)),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    canonicalTypeName(policyType),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CoverWiseIconBadge(
+                  icon: iconForPolicyType(policyType),
+                  color: colorForPolicyType(
+                    policyType,
+                    brightness: Theme.of(context).brightness,
                   ),
-                  if (summary.insurer != null)
-                    Text(summary.insurer!,
-                        style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
-                  if (summary.policyNumber != null) ...[
-                    const SizedBox(height: 4),
-                    Text('Policy: ${summary.policyNumber}',
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-                  ],
-                ],
-              ),
+                  size: 56,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        canonicalTypeName(policyType),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      if (summary.insurer != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          summary.insurer!,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _StatusBadge(summary: summary),
+              ],
             ),
-            _StatusBadge(summary: summary),
+            if (summary.policyNumber != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Policy number  ${summary.policyNumber}',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -261,16 +308,17 @@ class _StatusBadge extends StatelessWidget {
       color = Colors.grey;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+    return CoverWiseStatusChip(
+      icon: summary.isExpired
+          ? Icons.error_rounded
+          : summary.isExpiringSoon
+              ? Icons.schedule_rounded
+              : summary.isActive
+                  ? Icons.check_circle_rounded
+                  : Icons.help_outline_rounded,
+      label: label,
+      color: color,
+      compact: true,
     );
   }
 }
@@ -307,29 +355,75 @@ class _MoneyRow extends StatelessWidget {
 
     if (items.isEmpty) return const SizedBox.shrink();
 
-    return Row(
-      children: items
-          .map((item) => Expanded(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      children: [
-                        Icon(item.icon, color: item.color, size: 24),
-                        const SizedBox(height: 6),
-                        Text(item.value,
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 2),
-                        Text(item.label,
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey.shade600)),
-                      ],
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = items.length == 1
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 8) / items.length;
+            return Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              alignment: WrapAlignment.center,
+              children: items
+                  .map(
+                    (item) => Semantics(
+                      label: '${item.label}: ${item.value}',
+                      excludeSemantics: true,
+                      child: SizedBox(
+                        width: itemWidth
+                            .clamp(104.0, constraints.maxWidth)
+                            .toDouble(),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 12,
+                          ),
+                          child: Column(
+                            children: [
+                              CoverWiseIconBadge(
+                                icon: item.icon,
+                                color: item.color,
+                                size: 38,
+                              ),
+                              const SizedBox(height: 8),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  item.value,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                item.label,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ))
-          .toList(),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -357,23 +451,31 @@ class _DatesCard extends StatelessWidget {
     }
 
     return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Row(
           children: [
-            const Icon(Icons.event, color: Colors.grey),
-            const SizedBox(width: 12),
+            CoverWiseIconBadge(
+              icon: Icons.calendar_month_outlined,
+              color: CoverWiseColors.blueDeep,
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (summary.startDate != null)
-                    Text('From: ${summary.formattedStartDate}',
-                        style: const TextStyle(fontSize: 14)),
+                    Text(
+                      'Starts ${summary.formattedStartDate}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   if (summary.endDate != null) ...[
                     const SizedBox(height: 4),
-                    Text('Until: ${summary.formattedExpiryDate}',
-                        style: const TextStyle(fontSize: 14)),
+                    Text(
+                      'Ends ${summary.formattedExpiryDate}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ],
                   if (summary.isActive || summary.isExpiringSoon) ...[
                     const SizedBox(height: 4),
@@ -418,18 +520,28 @@ class _SectionList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, color: iconColor, size: 22),
-                const SizedBox(width: 8),
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                CoverWiseIconBadge(
+                  icon: icon,
+                  color: iconColor,
+                  size: 40,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -438,10 +550,25 @@ class _SectionList extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(itemIcon, size: 18, color: itemColor),
-                      const SizedBox(width: 8),
+                      Container(
+                        width: 24,
+                        height: 24,
+                        margin: const EdgeInsets.only(top: 1),
+                        decoration: BoxDecoration(
+                          color: itemColor.withValues(alpha: .1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(itemIcon, size: 15, color: itemColor),
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: Text(item, style: const TextStyle(fontSize: 14)),
+                        child: Text(
+                          item,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(height: 1.4),
+                        ),
                       ),
                     ],
                   ),
@@ -460,18 +587,26 @@ class _CoverageItemsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.list_alt, color: Colors.indigo, size: 22),
-                const SizedBox(width: 8),
-                const Text('Coverage Details',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const CoverWiseIconBadge(
+                  icon: Icons.fact_check_outlined,
+                  color: CoverWiseColors.blueDeep,
+                  size: 40,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Item-by-item view',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -490,25 +625,50 @@ class _CoverageItemsCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(item.name,
-                                style: const TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w500)),
+                            Text(
+                              item.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
                             if (item.limitText != null)
-                              Text(item.limitText!,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600)),
+                              Text(
+                                item.limitText!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
                             if (item.limit != null && item.limitText == null)
-                              Text('Limit: ₹${item.limit!.toStringAsFixed(0)}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600)),
+                              Text(
+                                'Limit: ₹${item.limit!.toStringAsFixed(0)}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
                             if (item.notes != null)
-                              Text(item.notes!,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade500,
-                                      fontStyle: FontStyle.italic)),
+                              Text(
+                                item.notes!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                              ),
                           ],
                         ),
                       ),
@@ -530,45 +690,77 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FilledButton.icon(
-          icon: const Icon(Icons.question_answer),
-          label: const Text('Ask a Question About This Policy'),
-          onPressed: () => Navigator.pushNamed(context, '/qa',
-              arguments: summary.documentId),
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.share),
-          label: const Text('Share Policy Summary'),
-          onPressed: () => _shareSummary(summary),
-        ),
-        const SizedBox(height: 8),
-        Row(
+    return CoverWiseSurface(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (summary.insurerHelpline != null)
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.phone),
-                  label: const Text('Call Insurer'),
-                  onPressed: () => _launchUrl('tel:${summary.insurerHelpline!.replaceAll(RegExp(r'[^0-9+]'), '')}'),
-                ),
+            FilledButton.icon(
+              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              label: const Text('Ask about this policy'),
+              onPressed: () => Navigator.pushNamed(
+                context,
+                '/qa',
+                arguments: summary.documentId,
               ),
-            if (summary.insurerHelpline != null && summary.insurerEmail != null)
-              const SizedBox(width: 8),
-            if (summary.insurerEmail != null)
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.email),
-                  label: const Text('Email'),
-                  onPressed: () => _launchUrl('mailto:${summary.insurerEmail}'),
-                ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.ios_share_rounded),
+              label: const Text('Share policy summary'),
+              onPressed: () => _shareSummary(summary),
+            ),
+            if (summary.insurerHelpline != null ||
+                summary.insurerEmail != null) ...[
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stackActions = constraints.maxWidth < 310;
+                  final actions = <Widget>[
+                    if (summary.insurerHelpline != null)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.phone_outlined),
+                        label: const Text('Call insurer'),
+                        onPressed: () => _launchUrl(
+                          'tel:${summary.insurerHelpline!.replaceAll(RegExp(r'[^0-9+]'), '')}',
+                        ),
+                      ),
+                    if (summary.insurerEmail != null)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.email_outlined),
+                        label: const Text('Email insurer'),
+                        onPressed: () =>
+                            _launchUrl('mailto:${summary.insurerEmail}'),
+                      ),
+                  ];
+                  if (stackActions) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: actions
+                          .expand((action) => [
+                                action,
+                                if (action != actions.last)
+                                  const SizedBox(height: 8),
+                              ])
+                          .toList(),
+                    );
+                  }
+                  return Row(
+                    children: actions
+                        .expand((action) => [
+                              Expanded(child: action),
+                              if (action != actions.last)
+                                const SizedBox(width: 8),
+                            ])
+                        .toList(),
+                  );
+                },
               ),
+            ],
           ],
         ),
-      ],
+      ),
     );
   }
 
@@ -586,14 +778,26 @@ String buildShareSummaryText(PolicySummary summary) {
   final buffer = StringBuffer();
   buffer.writeln('📋 ${summary.documentType}');
   if (summary.insurer != null) buffer.writeln('🏢 ${summary.insurer}');
-  if (summary.policyNumber != null) buffer.writeln('🔢 Policy: ${summary.policyNumber}');
+  if (summary.policyNumber != null) {
+    buffer.writeln('🔢 Policy: ${summary.policyNumber}');
+  }
   buffer.writeln('');
-  if (summary.coverageAmount != null) buffer.writeln('🛡️ Coverage: ${summary.formattedCoverageAmount}');
-  if (summary.premiumAmount != null) buffer.writeln('💰 Premium: ${summary.formattedPremium}');
-  if (summary.deductible != null) buffer.writeln('📉 Deductible: ₹${summary.deductible!.toStringAsFixed(0)}');
+  if (summary.coverageAmount != null) {
+    buffer.writeln('🛡️ Coverage: ${summary.formattedCoverageAmount}');
+  }
+  if (summary.premiumAmount != null) {
+    buffer.writeln('💰 Premium: ${summary.formattedPremium}');
+  }
+  if (summary.deductible != null) {
+    buffer.writeln('📉 Deductible: ₹${summary.deductible!.toStringAsFixed(0)}');
+  }
   buffer.writeln('');
-  if (summary.startDate != null) buffer.writeln('📅 From: ${summary.formattedStartDate}');
-  if (summary.endDate != null) buffer.writeln('📅 Until: ${summary.formattedExpiryDate}');
+  if (summary.startDate != null) {
+    buffer.writeln('📅 From: ${summary.formattedStartDate}');
+  }
+  if (summary.endDate != null) {
+    buffer.writeln('📅 Until: ${summary.formattedExpiryDate}');
+  }
   if (summary.isActive || summary.isExpiringSoon) {
     buffer.writeln('⏰ ${summary.daysUntilExpiry} days remaining');
   }

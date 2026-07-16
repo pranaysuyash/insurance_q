@@ -12,6 +12,10 @@ import '../widgets/terminology_dialog.dart';
 import '../widgets/policy_comparison_sheet.dart';
 import '../widgets/health_score_card.dart';
 import '../widgets/shared/policy_type_icon.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/error_widget.dart';
+import '../widgets/shared/coverwise_scene.dart';
+import '../theme/coverwise_motion.dart';
 import '../services/preventive_health_service.dart';
 import 'add_family_member_dialog.dart';
 import '../providers/document_providers.dart';
@@ -39,10 +43,11 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CoverWise'),
+        title: const Text('Home'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh policy overview',
             onPressed: () {
               ref.invalidate(documentsProvider);
               ref.invalidate(policySummariesProvider);
@@ -56,15 +61,52 @@ class DashboardScreen extends ConsumerWidget {
           ref.invalidate(policySummariesProvider);
         },
         child: documentsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          loading: () => Center(
+            child: Semantics(
+              label: 'Loading policy overview',
+              child: const CircularProgressIndicator(),
+            ),
+          ),
+          error: (e, _) => AppErrorView(
+            message: 'We could not load your policy overview.',
+            onRetry: () {
+              ref.invalidate(documentsProvider);
+              ref.invalidate(policySummariesProvider);
+            },
+          ),
           data: (documents) {
+            if (documents.isEmpty) {
+              return CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    sliver: SliverToBoxAdapter(
+                      child: _FirstUploadCta(
+                        onUpload: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DocumentsScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+
             return CustomScrollView(
               slivers: [
                 SliverPadding(
                   padding: const EdgeInsets.all(16.0),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
+                      const CoverWisePageHeader(
+                        title: 'Your cover, at a glance',
+                        subtitle:
+                            'See what is protected, what needs attention, and what to do next.',
+                      ),
                       _WelcomeCard(
                         docCount: documents.length,
                         activePolicies:
@@ -79,20 +121,10 @@ class DashboardScreen extends ConsumerWidget {
                         healthScore: ref.watch(healthScoreProvider),
                       ),
                       const SizedBox(height: 20),
-                      // First-time user: prominent upload CTA instead of empty sections
-                      if (documents.isEmpty) ...[
-                        _FirstUploadCta(
-                          onUpload: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const DocumentsScreen()),
-                          ),
-                        ),
-                      ] else ...[
-                        if (policySummaries.isNotEmpty) ...[
-                          _PolicySummaryCards(summaries: policySummaries),
-                          const SizedBox(height: 20),
-                        ],
+                      if (policySummaries.isNotEmpty) ...[
+                        _PolicySummaryCards(summaries: policySummaries),
+                        const SizedBox(height: 20),
+                      ],
                       _SearchShortcutButton(
                         onTap: () => Navigator.pushNamed(context, '/search'),
                       ),
@@ -101,9 +133,8 @@ class DashboardScreen extends ConsumerWidget {
                       const SizedBox(height: 20),
                       _QuickActions(documents: documents),
                       const SizedBox(height: 20),
-                      if (documents.isNotEmpty)
-                        _FamilySection(documents: documents),
-                      if (documents.isNotEmpty) const SizedBox(height: 20),
+                      _FamilySection(documents: documents),
+                      const SizedBox(height: 20),
                       _RecentActivities(
                         documents: documents,
                         recentQuestions: recentQuestions,
@@ -113,7 +144,6 @@ class DashboardScreen extends ConsumerWidget {
                         _PreventiveTipsSection(summaries: policySummaries),
                       const SizedBox(height: 20),
                       _InsuranceTerminologySection(),
-                      ],
                     ]),
                   ),
                 ),
@@ -136,90 +166,65 @@ class _FirstUploadCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+    final theme = Theme.of(context);
+    return CoverWiseSurface(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        child: Column(
+          children: [
+            const CoverWiseScene(
+              scene: CoverWiseSceneKind.firstPolicy,
+              maxHeight: 170,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Turn your first policy into clear answers',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choose a PDF or policy image. CoverWise organizes the file and '
+              'shows the cover, exclusions and dates for you to review.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Semantics(
+              label:
+                  'Your original policy remains the source of truth for important decisions.',
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.verified_user_outlined, size: 18),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Your original policy remains the source of truth.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                icon: const Icon(Icons.note_add_outlined),
+                label: const Text('Choose policy file'),
+                onPressed: onUpload,
+              ),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          // Icon
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.upload_file, size: 48, color: Colors.white),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Upload your first policy',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Pick a PDF of your insurance policy. CoverWise reads it and '
-            'shows you coverage, exclusions, and benefits — in 30 seconds.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.white70, height: 1.5),
-          ),
-          const SizedBox(height: 20),
-          // Benefits chips
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              _ctaChip(Icons.bolt, 'Takes 30 seconds'),
-              _ctaChip(Icons.cloud_off, 'Works offline'),
-              _ctaChip(Icons.lock_outline, 'Private'),
-            ],
-          ),
-          const SizedBox(height: 24),
-          // CTA button
-          FilledButton.icon(
-            icon: const Icon(Icons.cloud_upload),
-            label: const Text('Select Policy PDF',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            onPressed: onUpload,
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF1565C0),
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _ctaChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
-        ],
       ),
     );
   }
@@ -238,33 +243,38 @@ class _WelcomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    final theme = Theme.of(context);
+    return CoverWiseSurface(
+      margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Your policy hub',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              '$docCount document${docCount == 1 ? "" : "s"} • $activePolicies active policy${activePolicies == 1 ? "" : "ies"}',
-              style: const TextStyle(fontSize: 16),
+              '$docCount document${docCount == 1 ? "" : "s"} • $activePolicies active ${activePolicies == 1 ? "policy" : "policies"}',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             if (expiringCount > 0) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.warning, color: Colors.orange, size: 18),
+                  Icon(Icons.schedule_outlined,
+                      color: theme.colorScheme.tertiary, size: 18),
                   const SizedBox(width: 4),
                   Text(
-                    '$expiringCount policy${expiringCount == 1 ? "" : "ies"} expiring soon',
+                    '$expiringCount ${expiringCount == 1 ? "policy" : "policies"} expiring soon',
                     style: TextStyle(
-                        color: Colors.orange.shade700,
+                        color: theme.colorScheme.tertiary,
                         fontWeight: FontWeight.w500),
                   ),
                 ],
@@ -272,9 +282,9 @@ class _WelcomeCard extends StatelessWidget {
             ],
             if (docCount == 0) ...[
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Add a policy PDF to see coverage, exclusions and renewal dates in one place.',
-                style: TextStyle(color: Colors.blue),
+                style: TextStyle(color: theme.colorScheme.primary),
               ),
             ],
           ],
@@ -399,16 +409,15 @@ class _StatusBadge extends StatelessWidget {
             ? ('${summary.daysUntilExpiry}d LEFT', Colors.orange)
             : ('ACTIVE', Colors.green);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.bold, fontSize: 11)),
+    return CoverWiseStatusChip(
+      icon: summary.isExpired
+          ? Icons.error_rounded
+          : summary.isExpiringSoon
+              ? Icons.schedule_rounded
+              : Icons.check_circle_rounded,
+      label: label,
+      color: color,
+      compact: true,
     );
   }
 }
@@ -491,7 +500,11 @@ class _CoverageTypeExplorerState extends State<_CoverageTypeExplorer> {
       counts[type] = counts[type]! + 1;
     }
     final selectedCount = counts[_selectedType]!;
-    final selectedColor = colorForPolicyType(_selectedType);
+    final brightness = Theme.of(context).brightness;
+    final selectedColor = colorForPolicyType(
+      _selectedType,
+      brightness: brightness,
+    );
 
     return Column(
       children: [
@@ -510,30 +523,32 @@ class _CoverageTypeExplorerState extends State<_CoverageTypeExplorer> {
                     button: true,
                     selected: isSelected,
                     label:
-                        '${canonicalTypeName(type)}, $count policy${count == 1 ? '' : 'ies'}',
+                        '${canonicalTypeName(type)}, $count ${count == 1 ? 'policy' : 'policies'}',
                     child: InkWell(
                       borderRadius: BorderRadius.circular(20),
                       onTap: () => setState(() => _selectedType = type),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
+                        duration: CoverWiseMotion.duration(
+                          context,
+                          CoverWiseMotion.standard,
+                        ),
+                        curve: CoverWiseMotion.enterCurve,
                         padding: const EdgeInsets.symmetric(
                             vertical: 12, horizontal: 6),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? colorForPolicyType(type).withValues(alpha: 0.08)
+                              ? colorForPolicyType(
+                                  type,
+                                  brightness: brightness,
+                                ).withValues(alpha: 0.08)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Column(
                           children: [
-                            AnimatedScale(
-                              duration: const Duration(milliseconds: 220),
-                              scale: isSelected ? 1.07 : 1,
-                              child: PolicyTypeIcon(
-                                type: type,
-                                selected: isSelected,
-                              ),
+                            PolicyTypeIcon(
+                              type: type,
+                              selected: isSelected,
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -543,7 +558,10 @@ class _CoverageTypeExplorerState extends State<_CoverageTypeExplorer> {
                                 fontWeight: isSelected
                                     ? FontWeight.w700
                                     : FontWeight.w600,
-                                color: colorForPolicyType(type),
+                                color: colorForPolicyType(
+                                  type,
+                                  brightness: brightness,
+                                ),
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -553,8 +571,10 @@ class _CoverageTypeExplorerState extends State<_CoverageTypeExplorer> {
                                   .textTheme
                                   .labelSmall
                                   ?.copyWith(
-                                    color: colorForPolicyType(type)
-                                        .withValues(alpha: 0.82),
+                                    color: colorForPolicyType(
+                                      type,
+                                      brightness: brightness,
+                                    ).withValues(alpha: 0.82),
                                   ),
                             ),
                           ],
@@ -569,7 +589,12 @@ class _CoverageTypeExplorerState extends State<_CoverageTypeExplorer> {
         ),
         const SizedBox(height: 12),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
+          duration: CoverWiseMotion.duration(
+            context,
+            CoverWiseMotion.quick,
+          ),
+          switchInCurve: CoverWiseMotion.enterCurve,
+          switchOutCurve: CoverWiseMotion.exitCurve,
           child: Container(
             key: ValueKey(_selectedType),
             width: double.infinity,
@@ -628,7 +653,7 @@ class _QuickActions extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
                 child: _ActionButton(
-              icon: Icons.question_answer,
+              icon: Icons.chat_bubble_outline_rounded,
               label: 'Ask a Question',
               color: Colors.purple,
               onTap: () => Navigator.push(
@@ -666,8 +691,8 @@ class _QuickActions extends StatelessWidget {
         // Emergency shortcut — one tap from dashboard instead of More → Emergency
         if (documents.isNotEmpty)
           _EmergencyShortcutButton(
-            onTap: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const EmergencyScreen())),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const EmergencyScreen())),
           ),
       ],
     );
@@ -689,29 +714,39 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: color.withValues(alpha: 0.8),
-                  fontWeight: FontWeight.bold),
-            ),
-          ],
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 104),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.28)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CoverWiseIconBadge(icon: icon, color: color, size: 42),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -725,31 +760,37 @@ class _SearchShortcutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.indigo.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search, color: Colors.indigo, size: 22),
-            SizedBox(width: 10),
-            Text(
-              'Search Across All Policies',
-              style: TextStyle(
-                color: Colors.indigo,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: 'Search across all policies',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_rounded,
+                  color: scheme.onPrimaryContainer, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Search Across All Policies',
+                style: TextStyle(
+                  color: scheme.onPrimaryContainer,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -763,31 +804,37 @@ class _EmergencyShortcutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.red.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.emergency, color: Colors.red, size: 22),
-            SizedBox(width: 10),
-            Text(
-              'Emergency Card',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: 'Open emergency card',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+          decoration: BoxDecoration(
+            color: scheme.errorContainer,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.emergency_outlined,
+                  color: scheme.onErrorContainer, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Emergency Card',
+                style: TextStyle(
+                  color: scheme.onErrorContainer,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -958,7 +1005,7 @@ class _RecentActivities extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.w500)),
           ),
           ...recentQuestions.take(3).map((question) => _ActivityItem(
-                icon: Icons.question_answer,
+                icon: Icons.chat_bubble_outline_rounded,
                 title: question,
                 subtitle: 'Asked recently',
                 color: Colors.purple,
@@ -1056,9 +1103,10 @@ class _PreventiveTipsSectionState extends State<_PreventiveTipsSection> {
         ..._tips.take(3).map((tip) => Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.teal.withValues(alpha: 0.1),
-                  child: Icon(tip.icon, color: Colors.teal),
+                leading: CoverWiseIconBadge(
+                  icon: tip.icon,
+                  color: Colors.teal,
+                  size: 40,
                 ),
                 title: Text(tip.title,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -1066,6 +1114,7 @@ class _PreventiveTipsSectionState extends State<_PreventiveTipsSection> {
                     style: const TextStyle(fontSize: 13), maxLines: 2),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, size: 18),
+                  tooltip: 'Dismiss ${tip.title}',
                   onPressed: () async {
                     await PreventiveHealthService.markTipShown(tip.id);
                     setState(() => _tips.remove(tip));

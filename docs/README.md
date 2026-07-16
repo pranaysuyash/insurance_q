@@ -12,6 +12,14 @@ Supabase Postgres with `pgvector`, and Supabase Storage. Older AWS, Railway, and
 proposals remain preserved and explicitly marked historical or superseded; do not use them as
 implementation instructions for new work.
 
+For the commercial and responsible-data direction, read [`docs/planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md`](planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md). It records the subscription-first monetization thesis, rejection of behavioral ads in trusted workflows, regulated-distribution boundary, and opt-in model-contribution architecture. The corresponding idea and research branches live in [`docs/review/exploration_map.md`](review/exploration_map.md).
+
+For account ownership and authentication, read [`docs/planning/coverwise_auth_architecture_2026-07-16.md`](planning/coverwise_auth_architecture_2026-07-16.md). It documents the Supabase Auth decision, anonymous-session compatibility, owner transfer, configuration contract, and production verification gate.
+
+The current long-term platform baseline is [`docs/planning/coverwise_supabase_canonical_plan_2026-07-16.md`](planning/coverwise_supabase_canonical_plan_2026-07-16.md). It is the source of truth for Postgres/pgvector retrieval, policy data, provenance, future training readiness, and production cutover planning.
+
+The corresponding implementation audit is [`docs/review/coverwise_supabase_gap_register_2026-07-16.md`](review/coverwise_supabase_gap_register_2026-07-16.md). It lists the remaining P0/P1/P2 gaps and their closure criteria.
+
 ## Key Technical Documents
 
 - **OCR Implementation**: Detailed explanation of the OCR and document layout extraction process using Hugging Face APIs. Found at `docs/technical/implementation/extraction/ocr_implementation.md`.

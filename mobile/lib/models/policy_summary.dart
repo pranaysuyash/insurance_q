@@ -241,15 +241,8 @@ class CoverageGap {
   });
 
   /// Stable ID for tracking resolution status across sessions.
-  /// Uses djb2 hash — must match the standalone gapId() function.
-  String get gapId {
-    final raw = '$category|$description|$severity';
-    var hash = 0;
-    for (var i = 0; i < raw.length; i++) {
-      hash = ((hash << 5) - hash + raw.codeUnitAt(i)) & 0xFFFFFFFF;
-    }
-    return 'gap_${hash.toRadixString(16)}';
-  }
+  /// Uses djb2 hash — shared with the standalone gapId() function.
+  String get gapId => _computeGapId(category, description, severity);
 
   Map<String, dynamic> toJson() => {
         'category': category,
@@ -264,6 +257,20 @@ class CoverageGap {
         severity: json['severity'] ?? 'info',
         recommendation: json['recommendation'],
       );
+}
+
+/// Standalone gapId function — computes a stable hash-based ID for a CoverageGap.
+/// Delegates to the shared _computeGapId helper (same as CoverageGap.gapId getter).
+String gapId(CoverageGap gap) => _computeGapId(gap.category, gap.description, gap.severity);
+
+/// Private shared implementation for gapId computation.
+String _computeGapId(String category, String description, String severity) {
+  final raw = '$category|$description|$severity';
+  var hash = 0;
+  for (var i = 0; i < raw.length; i++) {
+    hash = ((hash << 5) - hash + raw.codeUnitAt(i)) & 0xFFFFFFFF;
+  }
+  return 'gap_${hash.toRadixString(16)}';
 }
 
 class ClaimStep {

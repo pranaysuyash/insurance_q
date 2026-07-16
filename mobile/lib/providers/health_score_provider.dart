@@ -44,7 +44,8 @@ final healthScoreProvider = Provider<InsuranceHealthScore>((ref) {
   final summaries = ref.watch(policySummariesProvider);
   final gaps = ref.watch(coverageGapsProvider);
   final resolvedGapIds = AppStateRepository.getResolvedGaps().keys;
-  final resolvedCount = gaps.where((g) => resolvedGapIds.contains(g.gapId)).length;
+  final resolvedCount =
+      gaps.where((g) => resolvedGapIds.contains(g.gapId)).length;
   final totalGaps = gaps.length;
 
   // Factor 1: Policy coverage (25 pts)
@@ -62,7 +63,8 @@ final healthScoreProvider = Provider<InsuranceHealthScore>((ref) {
   final types = summaries.map((s) => s.documentType.toLowerCase()).toSet();
   final idealTypes = {'health', 'motor', 'life'}; // Minimum for a family
   final coveredIdeal = idealTypes.intersection(types).length;
-  final breadthScore = (coveredIdeal / idealTypes.length * 25).round().clamp(0, 25);
+  final breadthScore =
+      (coveredIdeal / idealTypes.length * 25).round().clamp(0, 25);
 
   // Factor 4: Expiry health — no expired policies (25 pts)
   final expiredCount = summaries.where((s) => s.isExpired).length;
@@ -103,7 +105,7 @@ final healthScoreProvider = Provider<InsuranceHealthScore>((ref) {
       maxPoints: 25,
       detail: types.isEmpty
           ? 'No policy types'
-          : '${coveredIdeal} of 3 essential types covered (${types.join(", ")})',
+          : '$coveredIdeal of 3 essential types covered (${types.join(", ")})',
       isPositive: coveredIdeal >= 3,
     ),
     HealthScoreFactor(

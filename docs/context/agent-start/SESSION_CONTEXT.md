@@ -1,6 +1,6 @@
 # Session Context
 
-- Generated: 2026-07-16T03:32:24Z
+- Generated: 2026-07-16T13:04:42Z
 - Project: `medpiper/insurance_app`
 - Provider: `local`
 - Model: `BAAI/bge-m3`
@@ -17,7 +17,30 @@
 
 ## Project-Focused Retrieval
 
-> NOTE: Project collection is temporarily locked by another index/search process; using shared workspace context for this run.
+### Architecture Decisions
+- Collection: `projects_proj_medpiper_insurance_app`
+- Query: `architecture decisions for medpiper/insurance_app`
+_Fast mode (--skip-index): retrieval skipped to keep startup non-blocking. Run `/Users/pranay/Projects/agent-start --project medpiper/insurance_app` for full retrieval, or set `AGENT_START_SKIP_INDEX_RETRIEVE=1` if you want retrieval with skip-index._
+
+### Project Management Workflow
+- Collection: `projects_proj_medpiper_insurance_app`
+- Query: `project management workflow for medpiper/insurance_app`
+_Fast mode (--skip-index): retrieval skipped to keep startup non-blocking. Run `/Users/pranay/Projects/agent-start --project medpiper/insurance_app` for full retrieval, or set `AGENT_START_SKIP_INDEX_RETRIEVE=1` if you want retrieval with skip-index._
+
+### Known Issues and Worklogs
+- Collection: `projects_proj_medpiper_insurance_app`
+- Query: `known issues and worklog for medpiper/insurance_app`
+_Fast mode (--skip-index): retrieval skipped to keep startup non-blocking. Run `/Users/pranay/Projects/agent-start --project medpiper/insurance_app` for full retrieval, or set `AGENT_START_SKIP_INDEX_RETRIEVE=1` if you want retrieval with skip-index._
+
+### Prompts and Guidelines
+- Collection: `projects_proj_medpiper_insurance_app`
+- Query: `prompts and guidelines for medpiper/insurance_app`
+_Fast mode (--skip-index): retrieval skipped to keep startup non-blocking. Run `/Users/pranay/Projects/agent-start --project medpiper/insurance_app` for full retrieval, or set `AGENT_START_SKIP_INDEX_RETRIEVE=1` if you want retrieval with skip-index._
+
+### System Learning Graph
+- Collection: `projects_proj_medpiper_insurance_app`
+- Query: `knowledge graph memory learning feedback loops autoresearch semantic taste graph for medpiper/insurance_app`
+_Fast mode (--skip-index): retrieval skipped to keep startup non-blocking. Run `/Users/pranay/Projects/agent-start --project medpiper/insurance_app` for full retrieval, or set `AGENT_START_SKIP_INDEX_RETRIEVE=1` if you want retrieval with skip-index._
 
 ## Shared Cross-Project Retrieval
 

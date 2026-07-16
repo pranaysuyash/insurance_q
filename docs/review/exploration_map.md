@@ -1,5 +1,142 @@
 # System Exploration Map
 
+## Permanent product boundary (owner decision, 2026-07-16)
+
+CoverWise is a solo, non-regulated personal-information product. It helps users understand and organize policies they already have. It will never sell, solicit, procure, rank, recommend, or renew insurance; represent claims; earn commissions; sell leads; or become insurer/broker infrastructure.
+
+```text
+IN SCOPE
+  user-owned policy -> extract -> cite -> explain -> organize -> remind
+  user-entered health -> store -> chart -> remind -> export
+
+OUT OF SCOPE
+  recommend -> rank -> quote -> sell -> paid referral -> renew
+  diagnose -> predict disease -> prescribe -> triage -> clinical risk score
+  share sensitive signals with insurer/employer/advertiser/data buyer
+```
+
+### Existing surfaces requiring alignment
+
+| Surface | Conflict | Direction |
+|---|---|---|
+| `mobile/lib/screens/coverage_gap_screen.dart` | Recommendations imply needed coverage | Reduce to factual "not found in uploaded documents" or remove |
+| `mobile/lib/screens/what_if_calculator_screen.dart` | Premium estimates imply pricing guidance | Remove from product surface |
+| `mobile/lib/screens/renewal_calendar_screen.dart` | "Start renewal" resembles an action funnel | Use neutral reminder/contact language |
+| `mobile/lib/services/preventive_health_service.dart` | Treatment-planning language becomes medical guidance | Limit to policy-stated benefit reminders and clinician-directed actions |
+| `mobile/lib/screens/onboarding_screen.dart` | "Coverage gaps and claim guidance" overstates the role | Reframe as policy details, dates, contacts, and personal records |
+| Paid expert/claim services | Advice/representation ambiguity | Rejected |
+| Broker/insurer B2B and commission branches | Conflicts with solo consumer neutrality | Rejected |
+
+Health tracking remains exploration, not an approved broad feature. The preferred lane is optional, local-first records, neutral charts, reminders, and export. Diagnosis, treatment, prediction, medical-device claims, insurer use, advertising use, and default training use are prohibited.
+
+### Approved comparative judgment lane
+
+The product may make evidence-based judgments about policies the user already owns. This is not the same as giving an overall insurance recommendation.
+
+Allowed: "Policy B is ₹4,000 cheaper," "Policy A has the shorter listed waiting period," "Policy B lists an additional exclusion," and "we could not verify equivalence because the deductible is missing."
+
+Not allowed: "Policy B is better for you," "switch to Policy B," "Policy A is overpriced," "this is the best plan," or "you are under-insured."
+
+The comparison pipeline must normalize price frequency, taxes, and riders, calculate percentages with an explicit denominator, cite source clauses, expose missing fields, and render only dimension-specific conclusions.
+
+## Exploration update: monetization, ads, and responsible data (2026-07-16)
+
+**Canonical research:** [`docs/planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md`](../planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md)
+
+### Strategic branch map
+
+```text
+CoverWise: trusted policy intelligence
+|
++-- Consumer revenue
+|   +-- Free: one useful policy-understanding outcome
+|   +-- Plus: household policies, reminders, comparison, higher Q&A
+|   +-- Family: sharing, emergency access, annual review
+|   `-- Fixed-fee review and claim-packet services
+|
++-- Platform revenue
+|   +-- Regulated broker/insurer workspace
+|   +-- Employer-benefits policy intelligence
+|   `-- Tenant-isolated extraction and Q&A API
+|
++-- Regulated distribution (later)
+|   +-- Technology partnership with regulated entity
+|   `-- Appropriate registration after demand proof
+|
++-- Advertising
+|   +-- Behavioral/ad-network monetization: rejected in core product
+|   `-- Fixed contextual sponsor: public education only, if ever
+|
+`-- Model improvement
+    +-- Public wordings and expert cases
+    +-- Controlled synthetic documents
+    +-- Opt-in corrected structured fields
+    `-- Raw redacted samples: gated future research, never default
+```
+
+### Opinionated direction
+
+- **Monetize the ongoing job, not sensitive data.** Recurring value is household management, renewal readiness, sourced Q&A, comparison, and claim preparation.
+- **Do not become an ad-supported policy viewer.** Ad SDKs create disproportionate privacy, disclosure, trust, and incident surface.
+- **No commission path exists.** CoverWise must work for policies bought anywhere and will not participate in distribution.
+- **Separate operational and learning data.** Upload permission covers the requested service, not shared-model training.
+- **Earn the right to request contributions.** Begin with previewable field corrections. Consider redacted samples only if benchmarks prove material need.
+
+### New architecture nodes
+
+| Node | Purpose | Current state | Gate |
+|---|---|---|---|
+| Entitlements service | Canonical plan and usage decisions | Missing | Before paywall |
+| Billing adapter | Provider-neutral subscription/reconciliation | Missing | Sandbox and idempotency |
+| Commercial disclosure registry | Partner role, compensation, approval | Missing | Before sponsor/referral |
+| Purpose/consent ledger | Notice, consent, withdrawal, propagation | Partial UI consent | Before contribution |
+| Dataset registry | Provenance, allowed use, expiry, lineage | Missing | Before shared training |
+| Contribution quarantine | Isolate opted-in artifacts | Missing | Before customer corpus |
+| Privacy release gate | Detection, transformation, review, risk | Missing | Before research release |
+| Cost attribution | OCR/LLM/storage cost by safe bucket | Partial LLM tracking | Before pricing |
+
+### Current gaps surfaced by the exploration
+
+- Analytics safety is caller-enforced rather than schema-enforced: the backend currently accepts arbitrary event properties.
+- Full questions are used in local Hive feedback keys even though the transmitted feedback event contains only sentiment.
+- Processing consent is not a reusable purpose/consent ledger.
+- Retention and production deletion behavior remain incomplete in the privacy draft.
+- No entitlements, billing, commercial disclosure, dataset registry, quarantine, or privacy-release system exists yet.
+
+### Architecture review note (2026-07-16)
+
+Reference: [`docs/review/coverwise_architecture_review_2026-07-16.md`](coverwise_architecture_review_2026-07-16.md)
+
+The current repo shape is strongest when the canonical path stays singular:
+
+- one FastAPI backend as the product runtime;
+- one storage/auth/data boundary aligned to the newer platform decision docs;
+- one consumer product boundary with the non-regulated scope above;
+- compatibility surfaces only when they have a documented retirement trigger.
+
+The review found the most important follow-through areas are retiring legacy service paths, collapsing frontend compatibility fallbacks once contracts stabilize, and neutralizing mobile surfaces that still imply recommendation or renewal behavior.
+
+### Research queue
+
+1. Interview 12-20 households after a real policy summary; test Plus value and annual willingness to pay.
+2. Build bottom-up unit economics from actual OCR, LLM, storage, support, payment, and tax costs.
+3. Review app copy and behavior to remove solicitation, advice, premium prediction, and transactional renewal implications.
+4. Compare Indian subscription payment providers and app-store billing rules against the final distribution plan.
+5. Interview consumer users about neutral policy organization and optional private health-record needs.
+6. Benchmark public+synthetic+expert data against permissioned corrected fields before proposing raw contributions.
+7. Design deletion propagation across object, metadata, vector, cache, analytics, quarantine, dataset, and model lineage.
+8. Threat-model membership inference, memorization, poisoning, reviewer access, and experiment-tracker leakage.
+9. Decide whether permanently banning raw customer documents from shared training should become a public trust promise.
+
+### Explicitly parked
+
+- Behavioral ad SDKs in the authenticated product.
+- Leads inferred from uploaded contents.
+- Training consent bundled into the privacy policy.
+- Cross-customer benchmarks before minimum-cohort and privacy standards.
+- Personalized pricing based on premium, claim urgency, health, or financial capacity.
+- A second billing, consent, analytics, or training path outside the canonical backend.
+
 ## Architecture Overview
 
 ```

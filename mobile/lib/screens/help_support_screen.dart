@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 import '../services/analytics_service.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
 
 /// Help & Support: a real, self-contained FAQ + contact screen. Uses only
 /// information we can actually stand behind (no invented phone numbers or SLAs),
@@ -46,7 +48,8 @@ class HelpSupportScreen extends StatelessWidget {
   ];
 
   Future<void> _launchEmail() async {
-    final uri = Uri.parse('mailto:support@coverwise.app?subject=CoverWise%20Support');
+    final uri =
+        Uri.parse('mailto:support@coverwise.app?subject=CoverWise%20Support');
     AnalyticsService.track('support_intent', {'source_surface': 'help_screen'});
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
@@ -56,31 +59,71 @@ class HelpSupportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Help & Support')),
+      appBar: AppBar(title: const Text('Help and support')),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 28),
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('Frequently asked questions',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const CoverWisePageHeader(
+            title: 'How can we help?',
+            subtitle:
+                'Find answers about documents, policy questions, offline access, and data removal.',
           ),
-          ..._faqs.map((f) => ExpansionTile(
-                leading: const Icon(Icons.help_outline),
-                title: Text(f.title),
-                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                children: [Text(f.body)],
-              )),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.mail_outline),
-            title: const Text('Contact support'),
-            subtitle: const Text('Email the CoverWise team'),
-            onTap: _launchEmail,
+          const CoverWiseSectionLabel('Frequently asked questions'),
+          CoverWiseSurface(
+            child: Column(
+              children: [
+                for (var i = 0; i < _faqs.length; i++) ...[
+                  ExpansionTile(
+                    leading: const CoverWiseIconBadge(
+                      icon: Icons.help_outline_rounded,
+                      color: CoverWiseColors.blueDeep,
+                      size: 40,
+                    ),
+                    title: Text(
+                      _faqs[i].title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                    expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _faqs[i].body,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              height: 1.45,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
+                  if (i < _faqs.length - 1) const Divider(),
+                ],
+              ],
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('App version'),
-            subtitle: Text('${AppConfig.appName} ${AppConfig.appVersion}'),
+          const CoverWiseSectionLabel('Still need help?'),
+          CoverWiseSurface(
+            child: Column(
+              children: [
+                CoverWiseActionRow(
+                  icon: Icons.mail_outline_rounded,
+                  color: CoverWiseColors.blueDeep,
+                  title: 'Contact support',
+                  subtitle: 'Email the CoverWise team',
+                  onTap: _launchEmail,
+                ),
+                const Divider(),
+                CoverWiseActionRow(
+                  icon: Icons.info_outline_rounded,
+                  color: Theme.of(context).colorScheme.tertiary,
+                  title: 'App version',
+                  subtitle: '${AppConfig.appName} ${AppConfig.appVersion}',
+                  onTap: null,
+                  trailing: const SizedBox.shrink(),
+                ),
+              ],
+            ),
           ),
         ],
       ),

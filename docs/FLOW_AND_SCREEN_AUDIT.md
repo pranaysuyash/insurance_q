@@ -63,6 +63,8 @@ This audit maps every user flow end-to-end: what triggers it, what the user sees
 | 27 | **PolicyComparisonSheet** | `policy_comparison_sheet.dart` | ✅ | 7/10 | Modal bottom sheet variant |
 | 28 | **NotificationPreferencesScreen** | `notification_preferences_screen.dart` | ✅ | 8/10 | **NEW:** Master toggle, custom reminder days, quiet hours, per-policy switches, _saving guard with try/finally |
 | 29 | **SearchScreen** | `search_screen.dart` | ✅ | 9/10 | **NEW (M2):** Cross-document search with auto-focused search bar, type/status filter chips, highlighted text matches, ranked results by relevance, and empty states. Accessible from Dashboard and More. |
+| 30 | **WhatIfCalculatorScreen** | `what_if_calculator_screen.dart` | ✅ | 8/10 | **NEW (B8):** Coverage/deductible sliders, maternity/daycare/hospitalization toggles, estimation formulas with disclaimer. **Testability:** Estimation logic extracted to `what_if_calculator.dart` helper class — 30 unit tests cover premium estimation, coverage estimation, deductible estimation, currency formatting, and edge cases. |
+| 31 | **_DocumentReplaceScreen** | `documents_list.dart` | ✅ | 7/10 | **NEW (M6):** File picker, confirmation dialog, replaceDocument() in DocumentService, provider invalidation. Private widget in documents_list.dart. |
 
 ### 2B. Screens/Flows That SHOULD Exist But DON'T
 
@@ -84,12 +86,16 @@ This audit maps every user flow end-to-end: what triggers it, what the user sees
 
 | # | Screen/Feature | File | Status | Rating | Notes |
 |---|---|---|---|---|---|
-| 30 | **InsuranceCardScreen** | `insurance_card_screen.dart` | ✅ | 8/10 | Digital proof of insurance with gradient cards, policy info, call/share buttons |
-| 31 | **ProfileScreen** | `profile_screen.dart` | ✅ | 8/10 | Identity, token, version, appearance, storage, privacy, scope disclaimer |
-| 32 | **InsuranceLiteracyScreen** | `insurance_literacy_screen.dart` | ✅ | 8/10 | 12-term glossary + 6-question quiz with scoring |
-| 33 | **PreventiveHealthService** | `preventive_health_service.dart` | ✅ | 8/10 | Smart tips based on policy types with 7-day dedup |
-| 34 | **Health Tips Dashboard** | `dashboard_screen.dart` | ✅ | 8/10 | _PreventiveTipsSection with dismiss all and per-tip dismiss |
-| 35 | **Scope Disclaimer** | `onboarding_screen.dart` | ✅ | 9/10 | 4th onboarding page explaining info broker scope |
+| 32 | **InsuranceCardScreen** | `insurance_card_screen.dart` | ✅ | 8/10 | Digital proof of insurance with gradient cards, policy info, call/share buttons |
+| 33 | **ProfileScreen** | `profile_screen.dart` | ✅ | 8/10 | Identity, token, version, appearance, storage, privacy, scope disclaimer |
+| 34 | **InsuranceLiteracyScreen** | `insurance_literacy_screen.dart` | ✅ | 8/10 | 12-term glossary + 6-question quiz with scoring |
+| 35 | **PreventiveHealthService** | `preventive_health_service.dart` | ✅ | 8/10 | Smart tips based on policy types with 7-day dedup |
+| 36 | **Health Tips Dashboard** | `dashboard_screen.dart` | ✅ | 8/10 | _PreventiveTipsSection with dismiss all and per-tip dismiss |
+| 37 | **Scope Disclaimer** | `onboarding_screen.dart` | ✅ | 9/10 | 4th onboarding page explaining info broker scope |
+| 38 | **WhatIfCalculator helper** | `what_if_calculator.dart` | ✅ | 9/10 | Extracted estimation logic for testability. Pure computation — no Flutter dependencies. 30 unit tests. |
+| 39 | **gapId standalone function** | `policy_summary.dart` | ✅ | 9/10 | Standalone gapId() + _computeGapId() private helper for DRY gap ID computation. Fixes pre-existing test compilation error. |
+| 40 | **WhatIfCalculatorScreen** | `what_if_calculator_screen.dart` | ✅ | 8/10 | **NEW (B8):** Coverage/deductible sliders, maternity/daycare/hospitalization toggles, estimation formulas with disclaimer. Uses WhatIfCalculator helper. |
+| 41 | **_DocumentReplaceScreen** | `documents_list.dart` | ✅ | 7/10 | **NEW (M6):** File picker, confirmation dialog, replaceDocument() in DocumentService, provider invalidation. Private widget in documents_list.dart. |
 
 ---
 
@@ -468,4 +474,4 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | 2026-07-16 | Marked M6 (Document Re-upload) as RESOLVED — _DocumentReplaceScreen with file picker, confirmation, replaceDocument(), provider invalidation | Buffy |
 | 2026-07-16 | Marked B5 (Cross-document Q&A) as RESOLVED — _DocumentSelector with All Documents ChoiceChip, null documentId for cross-doc queries | Buffy |
 | 2026-07-16 | Marked B8 (What-If Calculator) as RESOLVED — WhatIfCalculatorScreen with coverage/deductible sliders, coverage toggles, estimation formulas, disclaimer | Buffy |
-| 2026-07-16 | Added WhatIfCalculatorScreen (item #36) and _DocumentReplaceScreen to inventory | Buffy |
+| 2026-07-16 | Added WhatIfCalculatorScreen (#40), _DocumentReplaceScreen (#41) to section 2C; WhatIfCalculator helper (#38), gapId function (#39) to section 2C | Buffy |

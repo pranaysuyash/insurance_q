@@ -15,6 +15,9 @@ import '../services/analytics_service.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/loading_widget.dart';
 import '../widgets/shared/offline_banner.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../theme/coverwise_theme.dart';
+import '../theme/coverwise_motion.dart';
 import 'document_selection_dialog.dart';
 
 class QaScreen extends ConsumerStatefulWidget {
@@ -75,7 +78,11 @@ class QaScreenState extends ConsumerState<QaScreen>
         demoGeneration != _demoSequenceGeneration) {
       return;
     }
-    _tabController.animateTo(1);
+    _tabController.animateTo(
+      1,
+      duration: CoverWiseMotion.duration(context, CoverWiseMotion.standard),
+      curve: CoverWiseMotion.enterCurve,
+    );
 
     const demoQuestions = [
       'What is my policy number?',
@@ -268,12 +275,12 @@ class QaScreenState extends ConsumerState<QaScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Insurance Q&A'),
+        title: const Text('Ask CoverWise'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Standard Questions'),
-            Tab(text: 'Custom Question'),
+            Tab(text: 'Suggested'),
+            Tab(text: 'Your question'),
             Tab(text: 'History'),
           ],
         ),
@@ -341,21 +348,23 @@ class _DocumentSelector extends StatelessWidget {
     final documents = documentsAsync.valueOrNull ?? [];
     final isAllDocuments = selectedDocumentId == null;
 
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Card(
-        elevation: 2,
+    return CoverWiseSurface(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: Semantics(
+        container: true,
+        label: 'Question source',
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Ask Questions About',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold),
+              Text(
+                'ASK ABOUT',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: CoverWiseColors.blueDeep,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
               ),
               const SizedBox(height: 8),
               Row(
@@ -363,15 +372,19 @@ class _DocumentSelector extends StatelessWidget {
                   Expanded(
                     child: ChoiceChip(
                       label: Text(
-                        isAllDocuments ? 'All Documents (${documents.length})' : 'Single Document',
-                        style: const TextStyle(fontSize: 13),
+                        isAllDocuments
+                            ? 'All Documents (${documents.length})'
+                            : 'Single Document',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       selected: isAllDocuments,
                       onSelected: (selected) {
                         if (selected) onSelectAllDocuments();
                       },
                       avatar: Icon(
-                        isAllDocuments ? Icons.dynamic_feed : Icons.description,
+                        isAllDocuments
+                            ? Icons.library_books_rounded
+                            : Icons.description_rounded,
                         size: 18,
                       ),
                     ),
@@ -388,7 +401,7 @@ class _DocumentSelector extends StatelessWidget {
                               uploadedOn: DateTime.now()),
                         );
                         return TextButton.icon(
-                          icon: const Icon(Icons.folder_open, size: 16),
+                          icon: const Icon(Icons.folder_open_rounded, size: 18),
                           label: Text(
                             selectedDoc.filename,
                             overflow: TextOverflow.ellipsis,
@@ -406,7 +419,7 @@ class _DocumentSelector extends StatelessWidget {
                   padding: EdgeInsets.only(top: 8.0),
                   child: Text(
                     'Search across all your uploaded policies',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12),
                   ),
                 ),
               if (documentsAsync.isLoading)
@@ -461,25 +474,29 @@ class _StandardQuestionsTab extends StatelessWidget {
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
           child: Padding(
             padding: const EdgeInsets.all(12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(category.name,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        )),
                 const SizedBox(height: 8),
                 ...categoryQuestions.map((q) => ListTile(
                       title: Text(q.text, style: const TextStyle(fontSize: 15)),
+                      leading: const CoverWiseIconBadge(
+                        icon: Icons.chat_bubble_outline_rounded,
+                        color: CoverWiseColors.blue,
+                        size: 38,
+                      ),
                       trailing: isLoading && currentAnswer?.query == q.text
                           ? const SizedBox(
                               width: 24,
                               height: 24,
                               child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.question_answer_outlined,
-                              color: Colors.blue),
+                          : const Icon(Icons.arrow_forward_rounded),
                       onTap: isLoading ? null : () => onAskQuestion(q.text),
                       contentPadding: EdgeInsets.zero,
                     )),
@@ -512,16 +529,21 @@ class _CustomQuestionTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Ask your own question about the selected document.',
-              style: TextStyle(fontSize: 16)),
+          Text(
+            'Ask about cover, exclusions, dates or wording in your policy.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: controller,
             decoration: InputDecoration(
               hintText: 'e.g., What is the effective date?',
-              border: const OutlineInputBorder(),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.clear),
+                tooltip: 'Clear question',
+                icon: const Icon(Icons.close_rounded),
                 onPressed: () => controller.clear(),
               ),
             ),
@@ -533,14 +555,12 @@ class _CustomQuestionTab extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.send),
-            label: const Text('Ask Question'),
+          FilledButton.icon(
+            icon: const Icon(Icons.arrow_upward_rounded),
+            label: const Text('Ask CoverWise'),
             onPressed: isLoading || controller.text.trim().isEmpty
                 ? null
                 : () => onAskQuestion(controller.text.trim()),
-            style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12)),
           ),
           const SizedBox(height: 24),
           if (isLoading) const LoadingWidget(),
@@ -565,6 +585,7 @@ class _HistoryTab extends StatelessWidget {
       return const EmptyStateWidget(
         icon: Icons.history,
         title: 'No question history yet',
+        color: Color(0xFF6A4BA8),
       );
     }
 
@@ -572,16 +593,32 @@ class _HistoryTab extends StatelessWidget {
       itemCount: qaHistory.length,
       itemBuilder: (context, index) {
         final item = qaHistory[index];
-        return ListTile(
-          title: Text(item.question),
-          subtitle: Text(
-            '${item.answer.text.substring(0, item.answer.text.length > 50 ? 50 : item.answer.text.length)}...',
+        return Card(
+          margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          child: ListTile(
+            leading: const CoverWiseIconBadge(
+              icon: Icons.history_rounded,
+              color: CoverWiseColors.blue,
+              size: 40,
+            ),
+            title: Text(item.question,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text(
+              '${item.answer.text.substring(0, item.answer.text.length > 50 ? 50 : item.answer.text.length)}...',
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${item.timestamp.hour}:${item.timestamp.minute.toString().padLeft(2, '0')}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+            onTap: () => onSelectAnswer(item.answer),
           ),
-          trailing: Text(
-            '${item.timestamp.hour}:${item.timestamp.minute}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          onTap: () => onSelectAnswer(item.answer),
         );
       },
     );
@@ -598,6 +635,8 @@ class _AnswerCard extends StatefulWidget {
 
 class _AnswerCardState extends State<_AnswerCard> {
   int? _feedback; // 1 = helpful, -1 = not helpful, null = not yet
+  bool _copied = false;
+  int _copyAcknowledgement = 0;
 
   @override
   void initState() {
@@ -642,113 +681,157 @@ class _AnswerCardState extends State<_AnswerCard> {
     });
   }
 
+  Future<void> _copyAnswer(QaAnswer answer) async {
+    await Clipboard.setData(ClipboardData(
+      text: 'Q: ${answer.question}\nA: ${answer.text}',
+    ));
+    if (!mounted) return;
+
+    final acknowledgement = ++_copyAcknowledgement;
+    setState(() => _copied = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Answer copied to clipboard'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 1600));
+    if (mounted && acknowledgement == _copyAcknowledgement) {
+      setState(() => _copied = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final answer = widget.answer;
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Question + confidence badge row
-            Row(
-              children: [
-                Expanded(
-                  child: Text('Q: ${answer.question}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-                if (answer.confidence != null) ConfidenceBadge(confidence: answer.confidence!),
-              ],
-            ),
-            const Divider(),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 300),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('A: ${answer.text}',
-                        style: const TextStyle(fontSize: 16)),
-                    if (answer.sources.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      const Text('Sources:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      ...answer.sources.map((source) => Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Container(
-                              padding: const EdgeInsets.all(8.0),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(4),
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: 'Answer ready for ${answer.question}',
+      child: CoverWiseSurface(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Question + confidence badge row
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Q: ${answer.question}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                  if (answer.confidence != null)
+                    ConfidenceBadge(confidence: answer.confidence!),
+                ],
+              ),
+              const Divider(),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('A: ${answer.text}',
+                          style: const TextStyle(fontSize: 16)),
+                      if (answer.sources.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text('Sources:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        ...answer.sources.map((source) => Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: CoverWiseInfoPanel(
+                                icon: Icons.menu_book_outlined,
+                                title: source.pageNumber == null
+                                    ? 'Policy source'
+                                    : 'Page ${source.pageNumber}',
+                                body: source.text,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (source.pageNumber != null)
-                                    Text('Page ${source.pageNumber}',
-                                        style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold)),
-                                  Text(source.text),
-                                ],
-                              ),
-                            ),
-                          )),
+                            )),
+                      ],
+                      // Follow-up questions as tappable chips
+                      if (answer.followUpQuestions.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text('You might also ask:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 8),
+                        FollowUpChips(
+                          questions: answer.followUpQuestions,
+                          onAskQuestion: _askFollowUp,
+                        ),
+                      ],
                     ],
-                    // Follow-up questions as tappable chips
-                    if (answer.followUpQuestions.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      const Text('You might also ask:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(height: 8),
-                      FollowUpChips(
-                        questions: answer.followUpQuestions,
-                        onAskQuestion: _askFollowUp,
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  tooltip: 'Helpful answer',
-                  icon: Icon(_feedback == 1 ? Icons.thumb_up : Icons.thumb_up_outlined),
-                  color: _feedback == 1 ? Theme.of(context).colorScheme.primary : null,
-                  onPressed: () => _saveFeedback(1),
-                ),
-                IconButton(
-                  tooltip: 'Unhelpful answer',
-                  icon: Icon(_feedback == -1 ? Icons.thumb_down : Icons.thumb_down_outlined),
-                  color: _feedback == -1 ? Theme.of(context).colorScheme.error : null,
-                  onPressed: () => _saveFeedback(-1),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: 'Q: ${answer.question}\nA: ${answer.text}'));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Answer copied to clipboard'), duration: Duration(seconds: 2)),
-                    );
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.share),
-                  onPressed: () {
-                    SharePlus.instance.share(ShareParams(text: 'Q: ${answer.question}\nA: ${answer.text}'));
-                  },
-                ),
-              ],
-            ),
-          ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    tooltip: 'Helpful answer',
+                    icon: CoverWiseStateTransition(
+                      durationToken: CoverWiseMotion.quick,
+                      child: Icon(
+                        _feedback == 1
+                            ? Icons.thumb_up
+                            : Icons.thumb_up_outlined,
+                        key: ValueKey(_feedback == 1),
+                      ),
+                    ),
+                    color: _feedback == 1
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                    onPressed: () => _saveFeedback(1),
+                  ),
+                  IconButton(
+                    tooltip: 'Unhelpful answer',
+                    icon: CoverWiseStateTransition(
+                      durationToken: CoverWiseMotion.quick,
+                      child: Icon(
+                        _feedback == -1
+                            ? Icons.thumb_down
+                            : Icons.thumb_down_outlined,
+                        key: ValueKey(_feedback == -1),
+                      ),
+                    ),
+                    color: _feedback == -1
+                        ? Theme.of(context).colorScheme.error
+                        : null,
+                    onPressed: () => _saveFeedback(-1),
+                  ),
+                  IconButton(
+                    tooltip: _copied ? 'Answer copied' : 'Copy answer',
+                    icon: CoverWiseStateTransition(
+                      durationToken: CoverWiseMotion.quick,
+                      child: Icon(
+                        _copied ? Icons.check_rounded : Icons.copy_outlined,
+                        key: ValueKey(_copied),
+                      ),
+                    ),
+                    onPressed: () => _copyAnswer(answer),
+                  ),
+                  IconButton(
+                    tooltip: 'Share answer',
+                    icon: const Icon(Icons.share),
+                    onPressed: () {
+                      SharePlus.instance.share(ShareParams(
+                          text: 'Q: ${answer.question}\nA: ${answer.text}'));
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-
 }
 
 /// Follow-up question chips that disable and show a spinner while loading.
@@ -756,7 +839,11 @@ class FollowUpChips extends ConsumerWidget {
   final List<String> questions;
   final void Function(String) onAskQuestion;
 
-  const FollowUpChips({required this.questions, required this.onAskQuestion});
+  const FollowUpChips({
+    super.key,
+    required this.questions,
+    required this.onAskQuestion,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -764,14 +851,18 @@ class FollowUpChips extends ConsumerWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: questions.map((q) => ActionChip(
-        avatar: isLoading
-            ? const SizedBox(
-                width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.arrow_forward, size: 16),
-        label: Text(q, style: const TextStyle(fontSize: 13)),
-        onPressed: isLoading ? null : () => onAskQuestion(q),
-      )).toList(),
+      children: questions
+          .map((q) => ActionChip(
+                avatar: isLoading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.arrow_forward, size: 16),
+                label: Text(q, style: const TextStyle(fontSize: 13)),
+                onPressed: isLoading ? null : () => onAskQuestion(q),
+              ))
+          .toList(),
     );
   }
 }
@@ -792,36 +883,15 @@ class ConfidenceBadge extends StatelessWidget {
             ? ('Medium', Colors.orange)
             : ('Low', Colors.red);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            confidence >= 0.7
-                ? Icons.check_circle_outline
-                : confidence >= 0.4
-                    ? Icons.info_outline
-                    : Icons.warning_amber_outlined,
-            size: 14,
-            color: color,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            '$label confidence',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
+    return CoverWiseStatusChip(
+      icon: confidence >= 0.7
+          ? Icons.check_circle_outline_rounded
+          : confidence >= 0.4
+              ? Icons.info_outline_rounded
+              : Icons.warning_amber_rounded,
+      label: '$label confidence',
+      color: color,
+      compact: true,
     );
   }
 }

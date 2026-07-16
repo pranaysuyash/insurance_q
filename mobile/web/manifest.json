@@ -1,11 +1,11 @@
 {
-    "name": "mobile",
-    "short_name": "mobile",
+    "name": "CoverWise — Understand Your Insurance",
+    "short_name": "CoverWise",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#071B33",
+    "theme_color": "#145BC7",
+    "description": "Understand policy documents, ask grounded questions, and keep coverage details organized.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

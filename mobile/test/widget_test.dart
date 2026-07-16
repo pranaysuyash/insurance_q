@@ -7,6 +7,7 @@ import 'dart:io';
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 
@@ -55,9 +56,17 @@ void main() {
       ),
     );
 
+    // SplashScreen uses a 1500ms Timer + 800ms AnimationController.
+    // Advance the fake clock past the splash minimum duration so onComplete fires.
+    // Note: we use pump() instead of pumpAndSettle() because the splash's
+    // CircularProgressIndicator and NavigationBar are infinite animations
+    // that never settle.
+    await tester.pump(const Duration(seconds: 3));
+
     // Verify that our app loads with the navigation bar
-    expect(find.text('Home'), findsOneWidget);
+    // Home appears in both the page header and navigation destination.
+    expect(find.text('Home'), findsWidgets);
     expect(find.text('Documents'), findsOneWidget);
-    expect(find.text('QA'), findsOneWidget);
+    expect(find.text('Ask'), findsOneWidget);
   });
 }

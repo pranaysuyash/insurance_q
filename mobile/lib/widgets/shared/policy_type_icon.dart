@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/policy_type.dart';
+import '../../theme/coverwise_motion.dart';
 
 /// A compact, recognisable visual for a type of cover.
 ///
@@ -21,13 +22,16 @@ class PolicyTypeIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = colorForPolicyType(type);
-    final primaryIcon = _primaryIcon(type);
+    final color = colorForPolicyType(
+      type,
+      brightness: Theme.of(context).brightness,
+    );
+    final primaryIcon = iconForPolicyType(type);
     final background = color.withValues(alpha: selected ? 0.20 : 0.12);
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+      duration: CoverWiseMotion.duration(context, CoverWiseMotion.standard),
+      curve: CoverWiseMotion.enterCurve,
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -63,22 +67,5 @@ class PolicyTypeIcon extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  IconData _primaryIcon(PolicyType type) {
-    switch (type) {
-      case PolicyType.health:
-        return Icons.monitor_heart_rounded;
-      case PolicyType.auto:
-        return Icons.directions_car_filled_rounded;
-      case PolicyType.life:
-        return Icons.person_rounded;
-      case PolicyType.home:
-        return Icons.home_rounded;
-      case PolicyType.travel:
-        return Icons.flight_rounded;
-      case PolicyType.other:
-        return Icons.inventory_2_rounded;
-    }
   }
 }

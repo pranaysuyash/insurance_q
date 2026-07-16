@@ -40,6 +40,8 @@ void main() {
         ),
       ];
 
+      expect(summaries, hasLength(3));
+
       // All active, 3 types covered, no gaps → high score
       final policyScore = 25; // All active
       final gapScore = 25; // No gaps
@@ -96,14 +98,12 @@ void main() {
         ),
       ];
 
-      final types = summaries
-          .map((s) => s.documentType.toLowerCase())
-          .toSet();
+      final types = summaries.map((s) => s.documentType.toLowerCase()).toSet();
       // The provider checks if types.contains('health'), 'motor', 'life'
       // via .contains() on the full string, not exact match
       final idealTypes = {'health', 'motor', 'life'};
-      final coveredIdeal = idealTypes.where((t) =>
-          types.any((dt) => dt.contains(t))).length;
+      final coveredIdeal =
+          idealTypes.where((t) => types.any((dt) => dt.contains(t))).length;
 
       expect(types.length, 2);
       expect(coveredIdeal, 2);

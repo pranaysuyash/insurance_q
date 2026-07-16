@@ -15,6 +15,11 @@ editor before deploying Cloud Run with the Supabase backends.
 - `ALLOWED_ORIGINS`: comma-separated final HTTPS browser origins; required in
   production and must never contain `*`.
 
+Account auth uses Supabase Auth. The mobile release receives only the project
+URL and publishable/anonymous key through build-time configuration; the API
+receives `SUPABASE_SERVICE_ROLE_KEY` only on the server and verifies account
+access tokens through Supabase Auth. Never ship the service-role key in mobile.
+
 ## Runtime selection
 
 Set `ENVIRONMENT=production`, `DOCUMENT_REPOSITORY_BACKEND=supabase`, and

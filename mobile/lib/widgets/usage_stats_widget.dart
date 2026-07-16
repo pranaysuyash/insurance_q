@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/service_providers.dart';
+import '../theme/coverwise_theme.dart';
+import 'shared/coverwise_components.dart';
 
 final usageStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   return ref.read(queryServiceProvider).getUsageStats();
@@ -14,14 +16,23 @@ class UsageStatsWidget extends ConsumerWidget {
     final statsAsync = ref.watch(usageStatsProvider);
 
     return statsAsync.when(
-      loading: () => const Card(
+      loading: () => Card(
         child: Padding(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-              SizedBox(width: 12),
-              Text('Loading usage stats...'),
+              const CoverWiseIconBadge(
+                icon: Icons.cloud_upload_outlined,
+                color: CoverWiseColors.blueDeep,
+                size: 40,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('Checking upload allowance…')),
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ],
           ),
         ),
@@ -31,11 +42,22 @@ class UsageStatsWidget extends ConsumerWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
+              CoverWiseIconBadge(
+                icon: Icons.cloud_off_outlined,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                size: 40,
+              ),
               const SizedBox(width: 12),
-              Expanded(child: Text('Unable to load usage stats', style: TextStyle(color: Colors.grey[600]))),
+              Expanded(
+                child: Text(
+                  'Upload allowance unavailable',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
               IconButton(
-                icon: const Icon(Icons.refresh, size: 20),
+                icon: const Icon(Icons.refresh_rounded, size: 20),
                 onPressed: () => ref.invalidate(usageStatsProvider),
                 tooltip: 'Retry',
               ),
@@ -43,7 +65,10 @@ class UsageStatsWidget extends ConsumerWidget {
           ),
         ),
       ),
-      data: (stats) => _UsageStatsContent(stats: stats, onRefresh: () => ref.invalidate(usageStatsProvider)),
+      data: (stats) => _UsageStatsContent(
+        stats: stats,
+        onRefresh: () => ref.invalidate(usageStatsProvider),
+      ),
     );
   }
 }
@@ -63,7 +88,12 @@ class _UsageStatsContent extends StatelessWidget {
 
     final sessionRemaining = sessionLimit - sessionUploads;
     final ipRemaining = ipLimit - ipUploads;
-    final effectiveRemaining = sessionRemaining < ipRemaining ? sessionRemaining : ipRemaining;
+    final effectiveRemaining =
+        sessionRemaining < ipRemaining ? sessionRemaining : ipRemaining;
+    final displayRemaining = effectiveRemaining < 0 ? 0 : effectiveRemaining;
+    final progress = sessionLimit > 0
+        ? (sessionUploads / sessionLimit).clamp(0.0, 1.0).toDouble()
+        : 1.0;
 
     Color getStatusColor() {
       if (effectiveRemaining <= 0) return Colors.red;
@@ -78,77 +108,140 @@ class _UsageStatsContent extends StatelessWidget {
     }
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(getStatusIcon(), color: getStatusColor(), size: 20),
-                const SizedBox(width: 8),
-                Text('Upload Quota', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                const Spacer(),
-                IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: onRefresh, tooltip: 'Refresh'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Remaining Today', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
-                      Text('$effectiveRemaining uploads',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(color: getStatusColor(), fontWeight: FontWeight.bold)),
-                    ],
+      child: Semantics(
+        container: true,
+        label:
+            'Upload allowance. $displayRemaining uploads remaining today. $sessionUploads of $sessionLimit used this session.',
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CoverWiseIconBadge(
+                    icon: getStatusIcon(),
+                    color: getStatusColor(),
+                    size: 40,
                   ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Session Usage', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
-                      Text('$sessionUploads / $sessionLimit', style: Theme.of(context).textTheme.titleMedium),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: sessionUploads / sessionLimit,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(getStatusColor()),
-            ),
-            if (effectiveRemaining <= 2) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: getStatusColor().withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: getStatusColor().withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(effectiveRemaining <= 0 ? Icons.info : Icons.warning, color: getStatusColor(), size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        effectiveRemaining <= 0
-                            ? 'Upload limit reached. Try again tomorrow.'
-                            : 'You\'re approaching your daily upload limit.',
-                        style: TextStyle(fontSize: 12, color: getStatusColor()),
-                      ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Upload allowance',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    onPressed: onRefresh,
+                    tooltip: 'Refresh upload allowance',
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 28,
+                runSpacing: 12,
+                children: [
+                  _UsageMetric(
+                    label: 'Remaining today',
+                    value: '$displayRemaining uploads',
+                    valueColor: getStatusColor(),
+                  ),
+                  _UsageMetric(
+                    label: 'Used this session',
+                    value: '$sessionUploads of $sessionLimit',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(8),
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation<Color>(getStatusColor()),
+              ),
+              if (effectiveRemaining <= 2) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: getStatusColor().withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: getStatusColor().withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        effectiveRemaining <= 0
+                            ? Icons.info_outline_rounded
+                            : Icons.warning_amber_rounded,
+                        color: getStatusColor(),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          effectiveRemaining <= 0
+                              ? 'Upload limit reached. Try again tomorrow.'
+                              : 'You\'re approaching your daily upload limit.',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: getStatusColor(),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _UsageMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _UsageMetric({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: valueColor,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
       ),
     );
   }

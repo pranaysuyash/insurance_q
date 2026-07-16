@@ -1,113 +1,103 @@
 import 'package:flutter/material.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
+  static const _groups = [
+    _MoreGroup('Find and carry', [
+      _MoreItem(Icons.search_rounded, CoverWiseColors.blue, 'Search policies',
+          'Find details across every policy', '/search'),
+      _MoreItem(Icons.emergency_outlined, Color(0xFFE64A4A), 'Emergency card',
+          'Policy numbers and helplines at a glance', '/emergency'),
+      _MoreItem(Icons.wallet_outlined, Color(0xFF5B67D6), 'Insurance cards',
+          'Keep digital proof of cover close', '/insurance-cards'),
+    ]),
+    _MoreGroup('Plan your cover', [
+      _MoreItem(Icons.event_available_outlined, Color(0xFF0B8F7D),
+          'Renewal calendar', 'Track expiry dates and reminders', '/renewals'),
+      _MoreItem(Icons.shield_outlined, Color(0xFF7C5CE7), 'Coverage gaps',
+          'Review areas that may need attention', '/coverage-gaps'),
+      _MoreItem(Icons.compare_arrows_rounded, Color(0xFF2686A3),
+          'Compare policies', 'See policy details side by side', '/compare'),
+      _MoreItem(Icons.tune_rounded, Color(0xFFB66A16), 'What-if calculator',
+          'Explore possible cover changes', '/what-if'),
+    ]),
+    _MoreGroup('Claims and learning', [
+      _MoreItem(Icons.route_outlined, Color(0xFFE07A28), 'Claims info guide',
+          'Understand the usual steps after an incident', '/claims'),
+      _MoreItem(Icons.fact_check_outlined, Color(0xFFC85B3A), 'My claims log',
+          'Keep a personal record of filed claims', '/claim-tracker'),
+      _MoreItem(Icons.menu_book_outlined, Color(0xFF079A86), 'Insurance basics',
+          'Learn useful terms without the jargon', '/literacy'),
+    ]),
+    _MoreGroup('Account and support', [
+      _MoreItem(Icons.person_outline_rounded, Color(0xFF53657A), 'Profile',
+          'Account information and identity', '/profile'),
+      _MoreItem(Icons.settings_outlined, Color(0xFF53657A), 'Settings',
+          'Appearance, reminders and local data', '/settings'),
+      _MoreItem(Icons.help_outline_rounded, Color(0xFF53657A), 'Help & support',
+          'FAQs and ways to get help', '/help'),
+      _MoreItem(Icons.lock_outline_rounded, Color(0xFF53657A),
+          'Privacy & security', 'How CoverWise handles your data', '/privacy'),
+      _MoreItem(Icons.info_outline_rounded, Color(0xFF53657A), 'About',
+          'Version, product role and legal information', '/about'),
+    ]),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('More Options'),
-      ),
+      appBar: AppBar(title: const Text('More')),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 28),
         children: [
-          ListTile(
-            leading: const Icon(Icons.search, color: Colors.indigo),
-            title: const Text('Search Policies'),
-            subtitle: const Text('Find anything across all your policies'),
-            onTap: () => Navigator.pushNamed(context, '/search'),
+          const CoverWisePageHeader(
+            title: 'Everything else, clearly organised.',
+            subtitle:
+                'Tools for understanding, planning and carrying your cover.',
           ),
-          ListTile(
-            leading: const Icon(Icons.emergency, color: Colors.red),
-            title: const Text('Emergency Card'),
-            subtitle: const Text('Policy numbers, helplines, coverage — quick access'),
-            onTap: () => Navigator.pushNamed(context, '/emergency'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.credit_card, color: Colors.blue),
-            title: const Text('Insurance Cards'),
-            subtitle: const Text('Digital proof of insurance for each policy'),
-            onTap: () => Navigator.pushNamed(context, '/insurance-cards'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.event, color: Colors.blue),
-            title: const Text('Renewal Calendar'),
-            subtitle: const Text('Track policy expiry dates with reminders'),
-            onTap: () => Navigator.pushNamed(context, '/renewals'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.shield, color: Colors.purple),
-            title: const Text('Coverage Gaps'),
-            subtitle: const Text('Find missing coverage across your policies'),
-            onTap: () => Navigator.pushNamed(context, '/coverage-gaps'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.compare_arrows, color: Colors.teal),
-            title: const Text('Compare Policies'),
-            subtitle: const Text('Side-by-side comparison of your policies'),
-            onTap: () => Navigator.pushNamed(context, '/compare'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.calculate, color: Colors.indigo),
-            title: const Text('What-If Calculator'),
-            subtitle: const Text('Explore how changes affect coverage and premiums'),
-            onTap: () => Navigator.pushNamed(context, '/what-if'),
-          ),
-          const Divider(height: 1),
-          // Claims Info Guide (reframed from Claims Assistant — info only, not operational)
-          ListTile(
-            leading: const Icon(Icons.info_outline, color: Colors.orange),
-            title: const Text('Claims Info Guide'),
-            subtitle: const Text('Learn what to do if something happens — step-by-step info'),
-            onTap: () => Navigator.pushNamed(context, '/claims'),
-          ),
-          // My Claims Log (reframed from Claim Tracker — info log only)
-          ListTile(
-            leading: const Icon(Icons.list_alt, color: Colors.deepOrange),
-            title: const Text('My Claims Log'),
-            subtitle: const Text("Keep a personal record of claims you've filed"),
-            onTap: () => Navigator.pushNamed(context, '/claim-tracker'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.school, color: Colors.teal),
-            title: const Text('Insurance Basics'),
-            subtitle: const Text('Learn key terms and concepts'),
-            onTap: () => Navigator.pushNamed(context, '/literacy'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Profile'),
-            subtitle: const Text('Account info and identity'),
-            onTap: () => Navigator.pushNamed(context, '/profile'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Settings'),
-            subtitle: const Text('App preferences and account settings'),
-            onTap: () => Navigator.pushNamed(context, '/settings'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Help & Support'),
-            subtitle: const Text('FAQs and contact information'),
-            onTap: () => Navigator.pushNamed(context, '/help'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.security),
-            title: const Text('Privacy & Security'),
-            subtitle: const Text('Manage your data and privacy settings'),
-            onTap: () => Navigator.pushNamed(context, '/privacy'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('About'),
-            subtitle: const Text('App version and legal information'),
-            onTap: () => Navigator.pushNamed(context, '/about'),
-          ),
+          for (final group in _groups) ...[
+            CoverWiseSectionLabel(group.title),
+            CoverWiseSurface(
+              child: Column(
+                children: [
+                  for (var index = 0; index < group.items.length; index++) ...[
+                    CoverWiseActionRow(
+                      icon: group.items[index].icon,
+                      color: group.items[index].color,
+                      title: group.items[index].title,
+                      subtitle: group.items[index].subtitle,
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        group.items[index].route,
+                      ),
+                    ),
+                    if (index != group.items.length - 1)
+                      const Divider(height: 1, indent: 74),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+class _MoreGroup {
+  final String title;
+  final List<_MoreItem> items;
+  const _MoreGroup(this.title, this.items);
+}
+
+class _MoreItem {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final String route;
+  const _MoreItem(this.icon, this.color, this.title, this.subtitle, this.route);
 }

@@ -5,7 +5,10 @@ import '../models/claim_record.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
 import '../services/app_state_repository.dart';
+import '../theme/coverwise_theme.dart';
 import '../utils/policy_type.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/empty_state_widget.dart';
 
 /// Claim tracking: a personal log of insurance claims the user has filed.
 ///
@@ -84,46 +87,41 @@ class _ClaimTrackingScreenState extends ConsumerState<ClaimTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Claim Tracker')),
+      appBar: AppBar(title: const Text('Claim log')),
       floatingActionButton: FloatingActionButton(
         onPressed: _addClaim,
-        child: const Icon(Icons.add),
+        tooltip: 'Log a claim',
+        child: const Icon(Icons.add_rounded),
       ),
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
           : _claims.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.assignment_outlined,
-                            size: 56, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text('No claims tracked yet',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Log an insurance claim to track its status, '
-                          'reference number, and notes — all stored on your device.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
+              ? EmptyStateWidget(
+                  icon: Icons.fact_check_outlined,
+                  title: 'No claims logged yet',
+                  subtitle:
+                      'Keep a private, on-device record of claims you filed with an insurer. CoverWise does not submit claims or receive insurer updates.',
+                  actionLabel: 'Log a claim',
+                  actionIcon: Icons.edit_note_rounded,
+                  color: const Color(0xFFD97706),
+                  onAction: _addClaim,
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _claims.length,
-                  itemBuilder: (context, index) =>
-                      _ClaimCard(
-                        claim: _claims[index],
-                        onStatusChanged: _updateStatus,
-                        onDelete: _deleteClaim,
-                      ),
+              : ListView(
+                  padding: const EdgeInsets.only(bottom: 96),
+                  children: [
+                    const CoverWisePageHeader(
+                      title: 'Your claim notes',
+                      subtitle:
+                          'A personal record stored on this device. Update statuses yourself after checking with the insurer.',
+                    ),
+                    const CoverWiseSectionLabel('Logged claims'),
+                    ..._claims.map(
+                      (claim) => _ClaimCard(
+                          claim: claim,
+                          onStatusChanged: _updateStatus,
+                          onDelete: _deleteClaim),
+                    ),
+                  ],
                 ),
     );
   }
@@ -143,24 +141,35 @@ class _ClaimCard extends StatelessWidget {
   Color _statusColor(ClaimStatus status) {
     switch (status) {
       case ClaimStatus.filed:
-        return Colors.blue;
+        return CoverWiseColors.blueDeep;
       case ClaimStatus.inReview:
-        return Colors.orange;
+        return const Color(0xFFD97706);
       case ClaimStatus.approved:
-        return Colors.green;
+        return const Color(0xFF16825D);
       case ClaimStatus.rejected:
-        return Colors.red;
+        return const Color(0xFFCC3B54);
       case ClaimStatus.paid:
-        return Colors.teal;
+        return const Color(0xFF087F75);
     }
   }
+
+  IconData _statusIcon(ClaimStatus status) => switch (status) {
+        ClaimStatus.filed => Icons.upload_file_rounded,
+        ClaimStatus.inReview => Icons.manage_search_rounded,
+        ClaimStatus.approved => Icons.check_circle_rounded,
+        ClaimStatus.rejected => Icons.cancel_rounded,
+        ClaimStatus.paid => Icons.payments_rounded,
+      };
 
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor(claim.status);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    final theme = Theme.of(context);
+    final policyType = classifyPolicyType(claim.policyType);
+
+    return CoverWiseSurface(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -168,32 +177,39 @@ class _ClaimCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(iconForPolicyType(classifyPolicyType(claim.policyType)),
-                    size: 20, color: colorForPolicyType(classifyPolicyType(claim.policyType))),
-                const SizedBox(width: 8),
+                CoverWiseIconBadge(
+                  icon: iconForPolicyType(policyType),
+                  color: colorForPolicyType(
+                    policyType,
+                    brightness: theme.brightness,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(claim.incidentType,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: Text(
+                    claim.incidentType,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
                 ),
                 PopupMenuButton<ClaimStatus>(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(claim.status.label,
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: statusColor)),
-                        const Icon(Icons.arrow_drop_down, size: 16),
-                      ],
-                    ),
+                  tooltip: 'Update claim status',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CoverWiseStatusChip(
+                        icon: _statusIcon(claim.status),
+                        label: claim.status.label,
+                        color: statusColor,
+                        compact: true,
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.arrow_drop_down_rounded,
+                        size: 18,
+                        color: statusColor,
+                      ),
+                    ],
                   ),
                   onSelected: (s) => onStatusChanged(claim, s),
                   itemBuilder: (_) => ClaimStatus.values
@@ -206,16 +222,18 @@ class _ClaimCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(claim.description, style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 8),
+            Text(claim.description, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 12,
               runSpacing: 4,
               children: [
-                _chip(Icons.business, claim.insurer),
-                _chip(Icons.event, '${claim.filedDate.day}/${claim.filedDate.month}/${claim.filedDate.year}'),
+                _chip(context, Icons.business_outlined, claim.insurer),
+                _chip(context, Icons.calendar_today_outlined,
+                    '${claim.filedDate.day}/${claim.filedDate.month}/${claim.filedDate.year}'),
                 if (claim.referenceNumber != null)
-                  _chip(Icons.tag, 'Ref: ${claim.referenceNumber}'),
+                  _chip(context, Icons.tag_rounded,
+                      'Ref: ${claim.referenceNumber}'),
               ],
             ),
             if (claim.notes != null && claim.notes!.isNotEmpty) ...[
@@ -223,17 +241,22 @@ class _ClaimCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(claim.notes!,
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                child: Text(
+                  claim.notes!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
             Align(
               alignment: Alignment.centerRight,
               child: IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20),
+                tooltip: 'Delete ${claim.incidentType} claim record',
                 onPressed: () => onDelete(claim),
               ),
             ),
@@ -243,13 +266,16 @@ class _ClaimCard extends StatelessWidget {
     );
   }
 
-  Widget _chip(IconData icon, String text) {
+  Widget _chip(BuildContext context, IconData icon, String text) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: Colors.grey),
+        Icon(icon, size: 15, color: color),
         const SizedBox(width: 4),
-        Text(text, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(text,
+            style:
+                Theme.of(context).textTheme.bodySmall?.copyWith(color: color)),
       ],
     );
   }
@@ -306,8 +332,9 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
       incidentType: _incidentType,
       description: _descController.text.trim(),
       filedDate: DateTime.now(),
-      referenceNumber:
-          _refController.text.trim().isEmpty ? null : _refController.text.trim(),
+      referenceNumber: _refController.text.trim().isEmpty
+          ? null
+          : _refController.text.trim(),
       notes: _notesController.text.trim().isEmpty
           ? null
           : _notesController.text.trim(),
@@ -319,7 +346,12 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Log a Claim'),
+      icon: const CoverWiseIconBadge(
+        icon: Icons.fact_check_outlined,
+        color: CoverWiseColors.blueDeep,
+        size: 48,
+      ),
+      title: const Text('Log a claim'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -328,7 +360,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
               value: _incidentType,
               decoration: const InputDecoration(
                 labelText: 'Incident type',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.warning_amber_rounded),
               ),
               items: _incidents
                   .map((i) => DropdownMenuItem(value: i, child: Text(i)))
@@ -341,7 +373,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
                 value: _selectedDocId,
                 decoration: const InputDecoration(
                   labelText: 'Related policy (optional)',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.policy_outlined),
                 ),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('None')),
@@ -358,16 +390,17 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
               controller: _descController,
               decoration: const InputDecoration(
                 labelText: 'What happened?',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.notes_rounded),
               ),
               maxLines: 2,
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _refController,
               decoration: const InputDecoration(
                 labelText: 'Reference number (optional)',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.tag_rounded),
               ),
             ),
             const SizedBox(height: 12),
@@ -375,7 +408,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
               controller: _notesController,
               decoration: const InputDecoration(
                 labelText: 'Notes (optional)',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.edit_note_rounded),
               ),
               maxLines: 2,
             ),
@@ -389,7 +422,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
         ),
         FilledButton(
           onPressed: _descController.text.trim().isEmpty ? null : _submit,
-          child: const Text('Log Claim'),
+          child: const Text('Save to claim log'),
         ),
       ],
     );

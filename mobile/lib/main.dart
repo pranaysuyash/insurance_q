@@ -29,6 +29,7 @@ import 'screens/profile_screen.dart';
 import 'screens/insurance_card_screen.dart';
 import 'screens/insurance_literacy_screen.dart';
 import 'screens/what_if_calculator_screen.dart';
+import 'screens/account_screen.dart';
 import 'config/app_config.dart';
 import 'providers/policy_providers.dart';
 import 'services/local_storage_service.dart';
@@ -38,6 +39,8 @@ import 'services/notification_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
 import 'widgets/shared/global_error_boundary.dart';
+import 'theme/coverwise_theme.dart';
+import 'theme/coverwise_motion.dart';
 
 void main() async {
   // Catch errors in the root zone
@@ -55,12 +58,13 @@ void main() async {
     await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     await Hive.openBox(AppStateStore.boxName);
 
+    if (AppConfig.hasSupabaseAuthConfig) {
+      await AuthService.initializeAccountClient();
+    }
+
     // Acquire anonymous auth token if we don't have one yet (non-blocking —
     // the AuthInterceptor also acquires on first 401).
-    if (await AuthService.cachedToken() == null) {
-      final tempDio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
-      await AuthService.acquireToken(tempDio);
-    }
+    unawaited(_warmAnonymousSession());
 
     // Initialize analytics (local-first, batch-syncs to backend)
     AnalyticsService.init();
@@ -85,6 +89,12 @@ void main() async {
       debugPrint('==================');
     }
   });
+}
+
+Future<void> _warmAnonymousSession() async {
+  if (await AuthService.accessToken() != null) return;
+  final tempDio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
+  await AuthService.acquireToken(tempDio);
 }
 
 class InsuranceApp extends ConsumerStatefulWidget {
@@ -160,37 +170,35 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
 
   @override
   Widget build(BuildContext context) {
-    if (_showSplash) {
-      return SplashScreen(
-        onComplete: () {
-          if (mounted) setState(() => _showSplash = false);
-        },
-      );
-    }
-
     // Watch theme changes — rebuilds MaterialApp when user toggles theme.
     final _ = ref.watch(themeModeProvider);
 
     return MaterialApp(
       navigatorKey: _navigatorKey,
       title: AppConfig.appName,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: CoverWiseTheme.light(),
+      darkTheme: CoverWiseTheme.dark(),
       themeMode: _getThemeMode(),
-      home: _showOnboarding
-          ? OnboardingScreen(onComplete: () {
-              setState(() => _showOnboarding = false);
-            })
-          : const MainNavigation(),
+      home: AnimatedSwitcher(
+        duration: CoverWiseMotion.duration(context, CoverWiseMotion.onboarding),
+        switchInCurve: CoverWiseMotion.enterCurve,
+        switchOutCurve: CoverWiseMotion.exitCurve,
+        child: _showSplash
+            ? SplashScreen(
+                key: const ValueKey('splash'),
+                onComplete: () {
+                  if (mounted) setState(() => _showSplash = false);
+                },
+              )
+            : _showOnboarding
+                ? OnboardingScreen(
+                    key: const ValueKey('onboarding'),
+                    onComplete: () {
+                      setState(() => _showOnboarding = false);
+                    },
+                  )
+                : const MainNavigation(key: ValueKey('main')),
+      ),
       routes: {
         '/qa': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as String?;
@@ -216,6 +224,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/insurance-cards': (context) => const InsuranceCardScreen(),
         '/literacy': (context) => const InsuranceLiteracyScreen(),
         '/what-if': (context) => const WhatIfCalculatorScreen(),
+        '/account': (context) => const AccountScreen(),
       },
       debugShowCheckedModeBanner: false,
     );
@@ -264,12 +273,31 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(
-              icon: Icon(Icons.description), label: 'Documents'),
-          NavigationDestination(icon: Icon(Icons.question_answer), label: 'QA'),
-          NavigationDestination(icon: Icon(Icons.group), label: 'Family'),
-          NavigationDestination(icon: Icon(Icons.menu), label: 'More'),
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.description_outlined),
+            selectedIcon: Icon(Icons.description_rounded),
+            label: 'Documents',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline_rounded),
+            selectedIcon: Icon(Icons.chat_bubble_rounded),
+            label: 'Ask',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.group_outlined),
+            selectedIcon: Icon(Icons.group_rounded),
+            label: 'Family',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view_rounded),
+            label: 'More',
+          ),
         ],
       ),
     );

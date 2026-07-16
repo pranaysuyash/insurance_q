@@ -7,3 +7,7 @@ class User(BaseModel):
     email: Optional[EmailStr]
     phone: Optional[str]
     display_name: Optional[str]
+
+    @property
+    def is_account(self) -> bool:
+        return self.identity_type == "account"

@@ -5,6 +5,9 @@ import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
 import '../config/app_config.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Profile / Account Screen — shows device identity, token status, and account health.
 ///
@@ -42,182 +45,162 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final box = Hive.box(AppStateStore.boxName);
     final phone = box.get(AppStateStore.phoneNumberKey) as String?;
     final themeMode = AppStateRepository.getThemeMode();
+    final accountUser = AuthService.hasAccountSession
+        ? Supabase.instance.client.auth.currentUser
+        : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
-          // Avatar + identity
-          Center(
-            child: CircleAvatar(
-              radius: 48,
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: Icon(
-                Icons.person,
-                size: 48,
-                color: Theme.of(context).colorScheme.primary,
+          CoverWisePageHeader(
+            title: phone ?? 'Your CoverWise profile',
+            subtitle: phone != null
+                ? 'Linked and ready across your devices.'
+                : 'Your policy workspace currently stays on this device.',
+            trailing: CoverWiseIconBadge(
+              icon: phone != null
+                  ? Icons.verified_user_rounded
+                  : Icons.person_outline_rounded,
+              color: phone != null
+                  ? const Color(0xFF0F9D84)
+                  : CoverWiseColors.blue,
+              size: 54,
+            ),
+          ),
+          const CoverWiseSectionLabel('Account'),
+          if (accountUser == null)
+            CoverWiseSurface(
+              child: ListTile(
+                leading: const Icon(Icons.cloud_sync_rounded),
+                title: const Text('Create a secure account'),
+                subtitle: const Text('Restore this policy workspace across devices'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () async {
+                  final changed = await Navigator.pushNamed(context, '/account');
+                  if (changed == true && mounted) setState(() {});
+                },
+              ),
+            )
+          else
+            CoverWiseSurface(
+              child: ListTile(
+                leading: const Icon(Icons.verified_user_rounded),
+                title: Text(accountUser.email ?? 'Signed-in account'),
+                subtitle: const Text('Workspace is linked to your account'),
+                trailing: TextButton(onPressed: () async { await AuthService.signOut(); if (mounted) setState(() {}); }, child: const Text('Sign out')),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              phone ?? 'Anonymous User',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Center(
-            child: Text(
-              phone != null ? 'Verified' : 'Not linked to a phone number',
-              style: TextStyle(
-                color: phone != null ? Colors.green : Colors.grey,
-                fontSize: 14,
+          CoverWiseSurface(
+            child: Column(children: [
+              CoverWiseActionRow(
+                icon: Icons.phone_iphone_rounded,
+                color: const Color(0xFF0F9D84),
+                title: 'Phone number',
+                subtitle: phone ?? 'Not linked',
+                trailing: phone != null
+                    ? TextButton(
+                        onPressed: () async {
+                          await box.delete(AppStateStore.phoneNumberKey);
+                          setState(() {});
+                        },
+                        child: const Text('Remove'),
+                      )
+                    : const SizedBox.shrink(),
+                onTap: null,
               ),
-            ),
+              const Divider(indent: 74),
+              CoverWiseActionRow(
+                icon: Icons.key_rounded,
+                color: const Color(0xFF7557D3),
+                title: 'Secure session',
+                subtitle: _loadingToken
+                    ? 'Checking session…'
+                    : (_token != null
+                        ? 'Active on this device'
+                        : 'Not available'),
+                trailing: _token != null
+                    ? IconButton(
+                        tooltip: 'Copy session token',
+                        icon: const Icon(Icons.copy_rounded),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: _token!));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Session token copied')),
+                          );
+                        },
+                      )
+                    : const SizedBox.shrink(),
+                onTap: null,
+              ),
+            ]),
           ),
-          const SizedBox(height: 32),
-
-          // Account section
-          _SectionHeader('Account'),
-          _InfoTile(
-            icon: Icons.phone,
-            title: 'Phone Number',
-            subtitle: phone ?? 'Not linked',
-            trailing: phone != null
-                ? TextButton(
-                    onPressed: () async {
-                      await box.delete(AppStateStore.phoneNumberKey);
-                      setState(() {});
-                    },
-                    child: const Text('Remove'),
-                  )
-                : null,
+          const CoverWiseSectionLabel('App'),
+          CoverWiseSurface(
+            child: Column(children: [
+              CoverWiseActionRow(
+                icon: Icons.info_outline_rounded,
+                color: CoverWiseColors.blue,
+                title: 'Version',
+                subtitle: '${AppConfig.appName} ${AppConfig.appVersion}',
+                trailing: const SizedBox.shrink(),
+                onTap: null,
+              ),
+              const Divider(indent: 74),
+              CoverWiseActionRow(
+                icon: Icons.brightness_auto_rounded,
+                color: const Color(0xFFE58726),
+                title: 'Appearance',
+                subtitle: themeMode == 'light'
+                    ? 'Light'
+                    : themeMode == 'dark'
+                        ? 'Dark'
+                        : 'System default',
+                trailing: const SizedBox.shrink(),
+                onTap: null,
+              ),
+            ]),
           ),
-          _InfoTile(
-            icon: Icons.vpn_key,
-            title: 'Auth Token',
-            subtitle: _loadingToken
-                ? 'Loading...'
-                : (_token != null ? '${_token!.substring(0, _token!.length.clamp(0, 20))}...' : 'Not available'),
-            trailing: _token != null
-                ? IconButton(
-                    icon: const Icon(Icons.copy, size: 18),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: _token!));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Token copied to clipboard')),
-                      );
-                    },
-                  )
-                : null,
+          const CoverWiseSectionLabel('Privacy'),
+          CoverWiseSurface(
+            child: Column(children: [
+              const CoverWiseActionRow(
+                icon: Icons.phonelink_lock_rounded,
+                color: Color(0xFF0F9D84),
+                title: 'Device-first storage',
+                subtitle:
+                    'Your policy workspace and personal details stay local.',
+                trailing: SizedBox.shrink(),
+                onTap: null,
+              ),
+              const Divider(indent: 74),
+              CoverWiseActionRow(
+                icon: Icons.delete_outline_rounded,
+                color: const Color(0xFFC43D4B),
+                title: 'Reset account data',
+                subtitle: 'Clear local data and revoke this device session',
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Use Settings → Clear local data to reset'),
+                  ),
+                ),
+              ),
+            ]),
           ),
-
-          const SizedBox(height: 16),
-
-          // App section
-          _SectionHeader('App'),
-          _InfoTile(
-            icon: Icons.info_outline,
-            title: 'Version',
-            subtitle: '${AppConfig.appName} ${AppConfig.appVersion}',
-          ),
-          _InfoTile(
-            icon: Icons.brightness_auto,
-            title: 'Appearance',
-            subtitle: themeMode == 'light' ? 'Light' : themeMode == 'dark' ? 'Dark' : 'System default',
-          ),
-          _InfoTile(
-            icon: Icons.storage,
-            title: 'Local Storage',
-            subtitle: 'Hive box: ${AppStateStore.boxName}',
-          ),
-
-          const SizedBox(height: 16),
-
-          // Privacy section
-          _SectionHeader('Privacy'),
-          _InfoTile(
-            icon: Icons.lock_outline,
-            title: 'Data Storage',
-            subtitle: 'All data is stored locally on your device. No PII is sent to the server.',
-          ),
-          _InfoTile(
-            icon: Icons.cloud_off,
-            title: 'Anonymous Identity',
-            subtitle: 'Your identity is a temporary token, not linked to any personal information.',
-          ),
-          _InfoTile(
-            icon: Icons.delete_outline,
-            title: 'Delete Account',
-            subtitle: 'Clear all local data and revoke your token',
-            trailing: Icon(Icons.chevron_right, color: Colors.red.shade700),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Use Settings → Clear local data to reset')),
-              );
-            },
-          ),
-
-          const SizedBox(height: 32),
-          Center(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
             child: Text(
-              'CoverWise is an information broker.\nWe help you understand your policies — we don\'t sell insurance.',
+              'CoverWise helps you understand your policies. It does not sell insurance.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader(this.title);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.trailing,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, size: 22),
-        title: Text(title, style: const TextStyle(fontSize: 15)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 13)),
-        trailing: trailing,
-        onTap: onTap,
       ),
     );
   }

@@ -1,5 +1,65 @@
 # CoverWise — Model Training Plan
 
+## Addendum (2026-07-16): customer-data boundary and contribution governance
+
+This addendum supersedes any interpretation that ordinary product use permits customer documents, extracted text, questions, answers, support messages, or feedback comments to enter shared training.
+
+Canonical direction: [`docs/planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md`](planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md).
+
+### Default rule
+
+- Operational customer data is processed to deliver the requested service.
+- It is not eligible for shared training, cross-customer evaluation, dataset licensing, or provider training by default.
+- A privacy-policy clause alone is not a contribution mechanism.
+- Contribution must be separately opt-in, purpose-specific, evidenced, revocable, and unnecessary for core use.
+
+### Preferred source order
+
+1. Public insurer/regulator materials with provenance and permitted-use review.
+2. Expert-authored schemas, questions, annotations, and adversarial cases.
+3. Controlled synthetic policies validated for realism, coverage, and bias.
+4. User-confirmed, redacted structured field corrections.
+5. Separately consented and privacy-reviewed derivatives only for measured gaps earlier sources cannot close.
+
+### Required architecture before customer-derived training
+
+- purpose and consent ledger;
+- contribution quarantine separated from operational stores;
+- dataset registry and dataset cards;
+- deterministic and model-based identifier detection;
+- metadata, attachment, image, barcode, and hidden-layer stripping;
+- task-specific generalization and synthetic replacement;
+- independent leakage scan and restricted human review;
+- residual re-identification assessment;
+- revocation/deletion propagation and model lineage;
+- memorization, canary extraction, membership-inference, poisoning, and bias tests;
+- explicit dataset/model release approval and expiry.
+
+### Prohibited sources
+
+- non-consenting documents or Q&A;
+- production logs, traces, errors, or experiment artifacts containing content;
+- support text silently converted to examples;
+- government, policy, member, claim, account, payment, contact, signature, or precise address identifiers;
+- linked health/claim narratives and rare household combinations;
+- child/dependent data without a validated lawful and ethical pathway;
+- uncertain ownership, consent, provenance, or deletion status.
+
+### Provider contract gate
+
+Before sending operational data to a hosted model, record retention, provider-training use, zero-retention controls, processing location, subprocessors, deletion, and incident handling. Do not assume a consumer-product policy governs an API or enterprise service.
+
+### Dataset release criteria
+
+- every artifact has purpose and provenance metadata;
+- no artifact exists merely because it was available in production;
+- the corpus passed the privacy release gate;
+- training and evaluation are separated;
+- gain over public/synthetic baseline is measured;
+- withdrawal/deletion has an operational path;
+- model leakage and memorization tests pass;
+- privacy notice, consent UI, Data Safety, and runtime agree.
+
 **Date:** 2026-07-16
 **Evidence Tier:** Tier 1 (web research + static code inspection)
 **Author:** Buffy (AI Agent)
@@ -99,10 +159,10 @@ When you provide the initial diff documents, here's how we'll use them:
 
 ### 2.2 Phase 2: Scaling with More Documents
 
-As more documents are ingested, we'll build training data through:
+As eligible research sources are acquired, training data may be built through the following governed paths. Ordinary document ingestion does not make a document eligible:
 
-1. **User Feedback Loop** — Thumbs up/down on Q&A answers → labeled (query, answer) pairs
-2. **Confidence-Based Sampling** — Low-confidence answers get human review → new training data
+1. **Opt-in Feedback Loop** — A thumbs signal is aggregate quality telemetry by default. A `(query, answer)` pair becomes training data only through the separate contribution flow described in the 2026-07-16 addendum.
+2. **Confidence-Based Sampling** — Low-confidence public, synthetic, expert-authored, or separately contributed examples may receive restricted human review.
 3. **Synthetic Generation** — Use GPT-4o to generate diverse Q&A pairs from policy chunks
 4. **Cross-Document Pairs** — Questions that require information from multiple policies
 
@@ -189,7 +249,7 @@ training_data/
 
 **Training Data:**
 - (context, question, answer) triples from insurance documents
-- User feedback-labeled answers
+- Separately contributed and privacy-released feedback-labeled answers
 - Hard negatives (wrong answers that sound plausible)
 
 **Method:** QLoRA instruction tuning
@@ -340,7 +400,7 @@ Always fall back gracefully. Never block user queries on model availability.
 | **Week 4** | Extraction fine-tuning | coverwise-extract-v1 + eval results |
 | **Week 5** | Q&A fine-tuning | coverwise-qa-v1 + eval results |
 | **Week 6** | Integration + A/B testing | Pipeline integration + golden set evaluation |
-| **Week 7+** | Iterative improvement | Continuous training with user feedback |
+| **Week 7+** | Iterative improvement | Governed retraining from public, synthetic, expert, and separately contributed sources |
 
 ---
 

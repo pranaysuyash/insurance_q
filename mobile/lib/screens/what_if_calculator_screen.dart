@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
 import '../utils/what_if_calculator.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/empty_state_widget.dart';
 
 /// What-If Calculator — lets users explore how changing coverage parameters
 /// affects premiums and out-of-pocket costs.
@@ -33,33 +35,26 @@ class _WhatIfCalculatorScreenState
   }
 
   WhatIfCalculator _buildCalculator() => WhatIfCalculator(
-    coverageMultiplier: _coverageMultiplier,
-    deductibleMultiplier: _deductibleMultiplier,
-    includeMaternity: _includeMaternity,
-    includeDaycare: _includeDaycare,
-    includePrePostHospital: _includePrePostHospital,
-  );
+        coverageMultiplier: _coverageMultiplier,
+        deductibleMultiplier: _deductibleMultiplier,
+        includeMaternity: _includeMaternity,
+        includeDaycare: _includeDaycare,
+        includePrePostHospital: _includePrePostHospital,
+      );
 
-  String _formatCurrency(double amount) => WhatIfCalculator.formatCurrency(amount);
+  String _formatCurrency(double amount) =>
+      WhatIfCalculator.formatCurrency(amount);
 
   @override
   Widget build(BuildContext context) {
     if (_baseSummary == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('What-If Calculator')),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.calculate, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text('No policy data available',
-                  style: TextStyle(fontSize: 18, color: Colors.grey)),
-              SizedBox(height: 8),
-              Text('Upload a policy first to use the calculator',
-                  style: TextStyle(color: Colors.grey)),
-            ],
-          ),
+        body: const EmptyStateWidget(
+          icon: Icons.calculate_outlined,
+          title: 'No policy data available',
+          subtitle: 'Add a policy first to explore planning estimates.',
+          color: Color(0xFF6A4BA8),
         ),
       );
     }
@@ -75,82 +70,116 @@ class _WhatIfCalculatorScreenState
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const CoverWisePageHeader(
+              title: 'Explore a scenario',
+              subtitle:
+                  'Adjust policy inputs to see rough planning estimates. Your saved policy is not changed.',
+            ),
             // Base policy info card
-            _buildBasePolicyCard(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildBasePolicyCard(),
+            ),
             const SizedBox(height: 20),
 
             // Coverage slider
-            _buildSlider(
-              label: 'Coverage Amount',
-              value: _coverageMultiplier,
-              min: 0.5,
-              max: 3.0,
-              divisions: 5,
-              format: (v) => '${(v * 100).round()}% of base',
-              onChanged: (v) => setState(() => _coverageMultiplier = v),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildSlider(
+                label: 'Coverage amount',
+                value: _coverageMultiplier,
+                min: 0.5,
+                max: 3.0,
+                divisions: 5,
+                format: (v) => '${(v * 100).round()}% of base',
+                onChanged: (v) => setState(() => _coverageMultiplier = v),
+              ),
             ),
             const SizedBox(height: 16),
 
             // Deductible slider
-            _buildSlider(
-              label: 'Deductible',
-              value: _deductibleMultiplier,
-              min: 0.5,
-              max: 2.0,
-              divisions: 6,
-              format: (v) => '${(v * 100).round()}% of base',
-              onChanged: (v) => setState(() => _deductibleMultiplier = v),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildSlider(
+                label: 'Deductible',
+                value: _deductibleMultiplier,
+                min: 0.5,
+                max: 2.0,
+                divisions: 6,
+                format: (v) => '${(v * 100).round()}% of base',
+                onChanged: (v) => setState(() => _deductibleMultiplier = v),
+              ),
             ),
             const SizedBox(height: 16),
 
             // Coverage toggles
-            const Text('Additional Coverage',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const CoverWiseSectionLabel('Optional benefits'),
             const SizedBox(height: 8),
-            SwitchListTile(
-              title: const Text('Maternity Coverage'),
-              value: _includeMaternity,
-              onChanged: (v) => setState(() => _includeMaternity = v),
-              contentPadding: EdgeInsets.zero,
-            ),
-            SwitchListTile(
-              title: const Text('Daycare Procedures'),
-              value: _includeDaycare,
-              onChanged: (v) => setState(() => _includeDaycare = v),
-              contentPadding: EdgeInsets.zero,
-            ),
-            SwitchListTile(
-              title: const Text('Pre/Post Hospitalization'),
-              value: _includePrePostHospital,
-              onChanged: (v) => setState(() => _includePrePostHospital = v),
-              contentPadding: EdgeInsets.zero,
+            CoverWiseSurface(
+              child: Column(
+                children: [
+                  SwitchListTile.adaptive(
+                    secondary: const Icon(Icons.pregnant_woman_outlined),
+                    title: const Text('Maternity coverage'),
+                    value: _includeMaternity,
+                    onChanged: (v) => setState(() => _includeMaternity = v),
+                  ),
+                  SwitchListTile.adaptive(
+                    secondary: const Icon(Icons.medical_services_outlined),
+                    title: const Text('Daycare procedures'),
+                    value: _includeDaycare,
+                    onChanged: (v) => setState(() => _includeDaycare = v),
+                  ),
+                  SwitchListTile.adaptive(
+                    secondary: const Icon(Icons.local_hospital_outlined),
+                    title: const Text('Pre/post hospitalization'),
+                    value: _includePrePostHospital,
+                    onChanged: (v) =>
+                        setState(() => _includePrePostHospital = v),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
 
             // Results card
-            _buildResultsCard(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildResultsCard(),
+            ),
             const SizedBox(height: 20),
 
             // Disclaimer
-            Card(
-              color: Colors.orange.shade50,
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'These are rough estimates for planning purposes only. Actual premiums vary by insurer and underwriting.',
-                        style: TextStyle(fontSize: 12, color: Colors.orange),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                color: Theme.of(context).colorScheme.tertiaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          color:
+                              Theme.of(context).colorScheme.onTertiaryContainer,
+                          size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'These are rough estimates for planning purposes only. Actual premiums vary by insurer and underwriting.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onTertiaryContainer,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -167,15 +196,30 @@ class _WhatIfCalculatorScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Base Policy: ${_baseSummary?.insurer ?? "Unknown"}',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16)),
+            Row(
+              children: [
+                CoverWiseIconBadge(
+                  icon: Icons.policy_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 40,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                      'Base policy: ${_baseSummary?.insurer ?? "Unknown"}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _infoChip('Coverage', _formatCurrency(_baseSummary?.coverageAmount ?? 0)),
-                _infoChip('Premium', _formatCurrency(_baseSummary?.premiumAmount ?? 0)),
+                _infoChip('Coverage',
+                    _formatCurrency(_baseSummary?.coverageAmount ?? 0)),
+                _infoChip('Premium',
+                    _formatCurrency(_baseSummary?.premiumAmount ?? 0)),
               ],
             ),
           ],
@@ -188,7 +232,10 @@ class _WhatIfCalculatorScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )),
         Text(value,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       ],
@@ -216,8 +263,9 @@ class _WhatIfCalculatorScreenState
                 Text(label,
                     style: const TextStyle(fontWeight: FontWeight.bold)),
                 Text(format(value),
-                    style: const TextStyle(
-                        color: Colors.blue, fontWeight: FontWeight.w500)),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w700)),
               ],
             ),
             Slider(
@@ -235,11 +283,15 @@ class _WhatIfCalculatorScreenState
 
   Widget _buildResultsCard() {
     final calc = _buildCalculator();
-    final estimatedPremium = calc.estimatePremium(_baseSummary?.premiumAmount ?? 0);
-    final estimatedCoverage = calc.estimateCoverage(_baseSummary?.coverageAmount ?? 0);
-    final estimatedDeductible = calc.estimateDeductible(_baseSummary?.deductible ?? 10000);
+    final estimatedPremium =
+        calc.estimatePremium(_baseSummary?.premiumAmount ?? 0);
+    final estimatedCoverage =
+        calc.estimateCoverage(_baseSummary?.coverageAmount ?? 0);
+    final estimatedDeductible =
+        calc.estimateDeductible(_baseSummary?.deductible ?? 10000);
     final premiumDiff = estimatedPremium - (_baseSummary?.premiumAmount ?? 0);
-    final coverageDiff = estimatedCoverage - (_baseSummary?.coverageAmount ?? 0);
+    final coverageDiff =
+        estimatedCoverage - (_baseSummary?.coverageAmount ?? 0);
 
     return Card(
       color: Theme.of(context).colorScheme.primaryContainer,
@@ -255,12 +307,14 @@ class _WhatIfCalculatorScreenState
                 coverageDiff >= 0 ? '+${_formatCurrency(coverageDiff)}' : null),
             const SizedBox(height: 12),
             _resultRow(
-                'Premium', _formatCurrency(estimatedPremium),
+                'Premium',
+                _formatCurrency(estimatedPremium),
                 premiumDiff >= 0
                     ? '+${_formatCurrency(premiumDiff)}/yr'
                     : '-${_formatCurrency(-premiumDiff)}/yr'),
             const SizedBox(height: 12),
-            _resultRow('Deductible', _formatCurrency(estimatedDeductible), null),
+            _resultRow(
+                'Deductible', _formatCurrency(estimatedDeductible), null),
           ],
         ),
       ),
@@ -271,13 +325,15 @@ class _WhatIfCalculatorScreenState
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey)),
+        Text(label,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimaryContainer)),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(value,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 18)),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             if (change != null)
               Text(change,
                   style: TextStyle(

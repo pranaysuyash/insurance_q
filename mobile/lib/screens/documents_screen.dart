@@ -16,9 +16,11 @@ import '../services/app_state_store.dart';
 import '../services/contact_service.dart';
 import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
+import '../theme/coverwise_motion.dart';
 import '../widgets/lead_capture_dialog.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/usage_stats_widget.dart';
+import '../widgets/shared/coverwise_components.dart';
 import 'documents_list.dart';
 import 'processing_status_screen.dart';
 
@@ -328,7 +330,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
         // Navigate to the policy detail screen if processing completed -
         // this IS the first value moment. The user sees their summary immediately.
-        if (documentId != null && !isOfflineFlag && serverStatus == 'completed') {
+        if (documentId != null &&
+            !isOfflineFlag &&
+            serverStatus == 'completed') {
           AnalyticsService.track('first_value_delivered', {
             'document_id': documentId.substring(0, 8),
           });
@@ -421,8 +425,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Documents'),
-        centerTitle: true,
+        title: const Text('Documents'),
         actions: [
           IconButton(
               icon: const Icon(Icons.refresh),
@@ -433,16 +436,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const CoverWisePageHeader(
+            title: 'Your policy library',
+            subtitle:
+                'Keep policy files together, then open one to review or ask a question.',
+          ),
           const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+            padding: EdgeInsets.symmetric(horizontal: 16),
             child: UsageStatsWidget(),
           ),
           if (_showUploadDetails ||
               _selectedFile != null ||
               _selectedWebFile != null)
-            Card(
-              margin: const EdgeInsets.all(16.0),
-              elevation: 4,
+            CoverWiseSurface(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -451,9 +458,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Upload New Document',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('Add a policy file',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w800)),
                         if (_selectedFile != null || _selectedWebFile != null)
                           IconButton(
                               icon: const Icon(Icons.close),
@@ -464,7 +473,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     const SizedBox(height: 16),
                     if (_selectedFile == null && _selectedWebFile == null)
                       Center(
-                        child: ElevatedButton.icon(
+                        child: FilledButton.tonalIcon(
                           icon: const Icon(Icons.file_upload_outlined),
                           label: const Text('Select Document'),
                           onPressed: _pickFile,
@@ -476,8 +485,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     if (_selectedFile != null || _selectedWebFile != null) ...[
                       Row(
                         children: [
-                          const Icon(Icons.insert_drive_file,
-                              color: Colors.grey),
+                          CoverWiseIconBadge(
+                            icon: Icons.description_outlined,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 40,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -533,42 +545,72 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                         const SizedBox(height: 8),
                       ],
                       Center(
-                        child: _isUploading
-                            ? Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const CircularProgressIndicator(),
-                                  if (_isReadingOnDevice) ...[
-                                    const SizedBox(height: 10),
-                                    const Text('Reading pages on this device…'),
-                                  ],
-                                ],
-                              )
-                            : ElevatedButton.icon(
-                                icon: const Icon(Icons.cloud_upload),
-                                label: const Text('Upload Selected File'),
-                                onPressed: _uploadFile,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      Theme.of(context).primaryColor,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 24, vertical: 12),
-                                ),
-                              ),
+                        child: CoverWiseStateTransition(
+                          child: KeyedSubtree(
+                            key: ValueKey(
+                              _isUploading
+                                  ? _isReadingOnDevice
+                                      ? 'reading-on-device'
+                                      : 'uploading'
+                                  : 'ready-to-upload',
+                            ),
+                            child: _isUploading
+                                ? Semantics(
+                                    liveRegion: true,
+                                    label: _isReadingOnDevice
+                                        ? 'Reading policy pages on this device'
+                                        : 'Uploading policy file',
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const CircularProgressIndicator(),
+                                        if (_isReadingOnDevice) ...[
+                                          const SizedBox(height: 10),
+                                          const Text(
+                                              'Reading pages on this device…'),
+                                        ],
+                                      ],
+                                    ),
+                                  )
+                                : FilledButton.icon(
+                                    icon:
+                                        const Icon(Icons.cloud_upload_outlined),
+                                    label: const Text('Upload Selected File'),
+                                    onPressed: _uploadFile,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 24, vertical: 12),
+                                    ),
+                                  ),
+                          ),
+                        ),
                       ),
                     ],
                     if (_uploadError != null) ...[
                       const SizedBox(height: 12),
-                      Text('Error: $_uploadError',
-                          style: const TextStyle(color: Colors.red)),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _uploadError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ],
                     if (_ocrResult != null) ...[
                       const SizedBox(height: 12),
-                      const Text('Upload & OCR Successful!',
+                      Semantics(
+                        liveRegion: true,
+                        child: const Text(
+                          'Upload and document reading completed',
                           style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold)),
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -578,11 +620,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.file_upload_outlined),
-                  label: const Text('Upload a Document'),
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.note_add_outlined),
+                  label: const Text('Add policy file'),
                   onPressed: _pickFile,
-                  style: ElevatedButton.styleFrom(
+                  style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 16),
                     textStyle: const TextStyle(fontSize: 16),
@@ -590,14 +632,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 ),
               ),
             ),
-          const Divider(height: 32),
+          const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Your Documents',
-                    style: Theme.of(context).textTheme.headlineSmall),
+                Text('Saved policies',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800)),
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   onPressed: () => ref.invalidate(documentsProvider),

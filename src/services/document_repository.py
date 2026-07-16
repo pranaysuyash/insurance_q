@@ -39,6 +39,10 @@ class DocumentRepository:
     def delete(self, document_id: str, owner_id: str) -> bool:
         raise NotImplementedError
 
+    def transfer_owner(self, from_owner: str, to_owner: str) -> int:
+        """Atomically reassign documents during anonymous-to-account upgrade."""
+        raise NotImplementedError
+
     def list_recoverable_processing(self) -> list[Document]:
         raise NotImplementedError
 
@@ -124,6 +128,23 @@ class SQLiteDocumentRepository(DocumentRepository):
                 (document_id, owner_id),
             )
         return cursor.rowcount == 1
+
+    def transfer_owner(self, from_owner: str, to_owner: str) -> int:
+        if from_owner == to_owner:
+            return 0
+        with self._lock, self._connection:
+            rows = self._connection.execute(
+                "SELECT id, payload FROM documents WHERE owner_id = ?",
+                (from_owner,),
+            ).fetchall()
+            for row in rows:
+                document = self._deserialize(row["payload"])
+                document.user_uid = to_owner
+                self._connection.execute(
+                    "UPDATE documents SET owner_id = ?, payload = ? WHERE id = ? AND owner_id = ?",
+                    (to_owner, self._serialize(document), row["id"], from_owner),
+                )
+        return len(rows)
 
     def list_recoverable_processing(self) -> list[Document]:
         with self._lock:
@@ -243,6 +264,9 @@ class DynamoDBDocumentRepository(DocumentRepository):
         )
         return bool(response.get("Attributes"))
 
+    def transfer_owner(self, from_owner: str, to_owner: str) -> int:
+        raise RuntimeError("DynamoDB ownership transfer is unsupported; use the canonical Supabase backend")
+
     def list_recoverable_processing(self) -> list[Document]:
         # DynamoDB is a compatibility adapter, not the canonical launch store.
         # Avoid a table scan hidden behind the production API.
@@ -344,6 +368,13 @@ class SupabaseDocumentRepository(DocumentRepository):
             .execute()
         )
         return bool(response.data)
+
+    def transfer_owner(self, from_owner: str, to_owner: str) -> int:
+        response = self._client.rpc(
+            "claim_anonymous_documents",
+            {"p_anonymous_owner": from_owner, "p_account_owner": to_owner},
+        ).execute()
+        return int(response.data or 0)
 
     def list_recoverable_processing(self) -> list[Document]:
         response = (

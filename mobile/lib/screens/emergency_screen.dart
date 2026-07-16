@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
+import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../utils/document_icons.dart';
 
@@ -19,20 +20,30 @@ class EmergencyScreen extends ConsumerWidget {
         body: const EmptyStateWidget(
           icon: Icons.emergency,
           title: 'No policies loaded',
-          subtitle: 'Upload insurance documents to access emergency information',
+          subtitle:
+              'Upload insurance documents to access emergency information',
+          color: Color(0xFFC43B55),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Emergency Card')),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: summaries.length,
-        itemBuilder: (context, index) {
-          final s = summaries[index];
-          return _EmergencyCard(summary: s);
-        },
+      appBar: AppBar(title: const Text('Emergency details')),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          const CoverWisePageHeader(
+            title: 'Help at a glance',
+            subtitle:
+                'Keep policy numbers and insurer contact details ready when time matters.',
+            trailing: CoverWiseIconBadge(
+              icon: Icons.emergency_outlined,
+              color: Colors.red,
+              size: 52,
+            ),
+          ),
+          ...summaries.map((summary) => _EmergencyCard(summary: summary)),
+        ],
       ),
     );
   }
@@ -48,35 +59,37 @@ class _EmergencyCard extends StatelessWidget {
     final color = colorForDocumentType(summary.documentType);
 
     return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 32),
-                ),
-                const SizedBox(width: 16),
+                CoverWiseIconBadge(icon: icon, color: color, size: 52),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         summary.documentType,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
                       ),
                       if (summary.insurer != null)
-                        Text(summary.insurer!, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+                        Text(
+                          summary.insurer!,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                        ),
                     ],
                   ),
                 ),
@@ -90,15 +103,27 @@ class _EmergencyCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             if (summary.policyNumber != null) ...[
-              _InfoRow(Icons.badge, 'Policy Number', summary.policyNumber!),
+              _InfoRow(
+                Icons.badge_outlined,
+                'Policy number',
+                summary.policyNumber!,
+              ),
               const SizedBox(height: 12),
             ],
             if (summary.formattedCoverageAmount != 'Unknown') ...[
-              _InfoRow(Icons.shield, 'Coverage', summary.formattedCoverageAmount),
+              _InfoRow(
+                Icons.shield_outlined,
+                'Coverage',
+                summary.formattedCoverageAmount,
+              ),
               const SizedBox(height: 12),
             ],
             if (summary.formattedExpiryDate != 'Unknown') ...[
-              _InfoRow(Icons.event, 'Expires', summary.formattedExpiryDate),
+              _InfoRow(
+                Icons.event_outlined,
+                'Expires',
+                summary.formattedExpiryDate,
+              ),
               const SizedBox(height: 12),
             ],
             if (summary.insurerHelpline != null) ...[
@@ -106,8 +131,8 @@ class _EmergencyCard extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  icon: const Icon(Icons.phone, size: 20),
-                  label: Text('Call ${summary.insurerHelpline}'),
+                  icon: const Icon(Icons.phone_outlined, size: 20),
+                  label: Text('Call insurer • ${summary.insurerHelpline}'),
                   onPressed: () => _callNumber(summary.insurerHelpline!),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -120,8 +145,8 @@ class _EmergencyCard extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  icon: const Icon(Icons.email, size: 20),
-                  label: Text(summary.insurerEmail!),
+                  icon: const Icon(Icons.email_outlined, size: 20),
+                  label: Text('Email • ${summary.insurerEmail!}'),
                   onPressed: () => _sendEmail(summary.insurerEmail!),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -158,17 +183,15 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
-      ),
+    return CoverWiseStatusChip(
+      icon: label.toLowerCase().contains('expired')
+          ? Icons.error_rounded
+          : label.toLowerCase().contains('left')
+              ? Icons.schedule_rounded
+              : Icons.check_circle_rounded,
+      label: label,
+      color: color,
+      compact: true,
     );
   }
 }
@@ -181,13 +204,11 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey),
-        const SizedBox(width: 8),
-        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey)),
-        Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold))),
-      ],
+    return CoverWiseMetadataRow(
+      icon: icon,
+      label: label,
+      value: value,
+      selectable: true,
     );
   }
 }

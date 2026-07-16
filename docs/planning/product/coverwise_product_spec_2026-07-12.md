@@ -1,5 +1,28 @@
 # CoverWise — Product Specification (First Principles)
 
+## Addendum (2026-07-16): permanent solo, non-regulated scope
+
+CoverWise will remain a solo, non-regulated personal-information product. It helps users understand and organize policies they already own. It does not recommend, rank, sell, solicit, procure, or renew insurance; earn commissions; sell leads; represent claims; or operate tools for insurers/brokers.
+
+This supersedes prescriptive language later in this snapshot:
+
+- "coverage gap" may only mean a term/category was not found in uploaded documents. It must not label a user under-insured or recommend an amount, product, insurer, purchase, or renewal.
+- comparison may make sourced, dimension-specific judgments between owned policies, such as "lower premium" or "broader documented benefits." It must not produce an unsupported overall winner, tell the user what to buy/renew, or imply equivalence when fields are missing.
+- renewal may store dates and remind users to review documents or contact their insurer, but cannot initiate or recommend renewal.
+- claims may include contacts, document-derived instructions, and a personal log, but not submission, negotiation, prediction, or representation.
+- premium simulation, shopping, compensated referral, paid insurance advice, and insurer/broker tooling are out of scope.
+- optional health tracking is limited to private records, neutral trends, reminders, and export. It cannot diagnose, treat, predict, prescribe, triage, or produce clinical/insurance risk scores.
+
+### Comparison copy and evidence contract
+
+CoverWise may say:
+
+> Policy A costs ₹10,000 per year and Policy B costs ₹6,000. Based on the uploaded documents, Policy B is ₹4,000 cheaper (40% less). Policy A lists a shorter waiting period for [benefit], while Policy B lists [exclusion/sub-limit]. The documents do not establish which policy is better for your personal situation.
+
+Use scoped labels such as **lower premium**, **broader documented benefits**, **shorter listed waiting period**, **higher deductible**, and **more exclusions listed**. Link each material conclusion to source clauses and show missing or uncertain fields.
+
+Do not use: "better for you," "switch," "best plan," "overpriced," or "under-insured." Price equivalence must be verified across payment frequency, taxes, riders, sum insured, deductibles, exclusions, sub-limits, waiting periods, and missing pages. The pipeline must generate structured evidence before the UI renders comparative copy.
+
 **Date:** 2026-07-12
 **Approach:** What should exist, derived from the problem and the user — not
 from what is currently built. This is the target architecture to measure

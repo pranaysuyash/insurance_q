@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:coverwise/models/policy_summary.dart';
-import 'package:coverwise/screens/coverage_gap_screen.dart' show gapId;
+import 'package:coverwise/models/policy_summary.dart' show CoverageGap, gapId;
 import 'package:coverwise/services/app_state_repository.dart';
 import 'package:coverwise/services/app_state_store.dart';
 

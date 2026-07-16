@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/document_model.dart';
 import '../utils/document_icons.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
 
 class DocumentSelectionDialog extends StatelessWidget {
   final List<InsuranceDocument> documents;
@@ -17,49 +19,42 @@ class DocumentSelectionDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Select Document',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Text(
+              'Choose a policy',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Choose which document to ask questions about:',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+              'CoverWise will ground the next answer in this document.',
             ),
             const SizedBox(height: 16),
 
             // Document limit indicator
             Row(
               children: [
-                const Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                const Icon(Icons.inventory_2_outlined,
+                    size: 18, color: CoverWiseColors.blue),
                 const SizedBox(width: 8),
                 Text(
                   '${documents.length}/5 documents (free storage limit)',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue,
-                  ),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: CoverWiseColors.blueDeep,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // List of specific documents
             Flexible(
               child: ConstrainedBox(
@@ -71,25 +66,18 @@ class DocumentSelectionDialog extends StatelessWidget {
                   itemCount: documents.length,
                   itemBuilder: (context, index) {
                     final doc = documents[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        leading: _getDocumentIcon(doc.documentType),
-                        title: Text(doc.filename),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Uploaded: ${doc.formattedUploadDate}'),
-                            if (doc.documentType != null)
-                              Text('Type: ${doc.documentType}'),
-                            if (doc.size != null)
-                              Text('Size: ${doc.formattedFileSize}'),
-                          ],
-                        ),
-                        trailing: doc.id == currentDocumentId
-                            ? const Icon(Icons.check_circle, color: Colors.green)
-                            : null,
-                        isThreeLine: true,
+                    final details = [
+                      doc.documentType ?? 'Policy document',
+                      doc.formattedUploadDate,
+                      if (doc.size != null) doc.formattedFileSize,
+                    ].join(' • ');
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: CoverWiseSelectableRow(
+                        icon: iconForDocumentType(doc.documentType),
+                        color: colorForDocumentType(doc.documentType),
+                        title: doc.filename,
+                        subtitle: details,
                         selected: doc.id == currentDocumentId,
                         onTap: () {
                           onDocumentSelected(doc.id);
@@ -101,9 +89,9 @@ class DocumentSelectionDialog extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -111,7 +99,7 @@ class DocumentSelectionDialog extends StatelessWidget {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  child: const Text('Cancel'),
+                  child: const Text('Close'),
                 ),
               ],
             ),
@@ -120,11 +108,4 @@ class DocumentSelectionDialog extends StatelessWidget {
       ),
     );
   }
-  
-  Widget _getDocumentIcon(String? documentType) {
-    return Icon(
-      iconForDocumentType(documentType),
-      color: colorForDocumentType(documentType),
-    );
-  }
-} 
+}

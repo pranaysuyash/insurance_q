@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
 import '../utils/document_icons.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/empty_state_widget.dart';
+import '../widgets/shared/coverwise_scene.dart';
+import '../theme/coverwise_motion.dart';
 
 /// Cross-document search screen — M2 from the audit.
 ///
@@ -76,35 +80,30 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final statusFilter = ref.watch(searchStatusFilterProvider);
     final uniqueTypes = ref.watch(uniqueDocumentTypesProvider);
     final allSummaries = ref.watch(policySummariesProvider);
-    final hasQuery = query.isNotEmpty || typeFilter != null || statusFilter != 'all';
+    final hasQuery =
+        query.isNotEmpty || typeFilter != null || statusFilter != 'all';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search Policies'),
+        title: const Text('Search policies'),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
+          preferredSize: const Size.fromHeight(72),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
             child: TextField(
               controller: _searchController,
               focusNode: _focusNode,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'Search by insurer, type, policy #, benefits...',
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Insurer, policy number, benefit…',
+                prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: _showClearButton
                     ? IconButton(
-                        icon: const Icon(Icons.clear),
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close_rounded),
                         onPressed: _clearSearch,
                       )
                     : null,
-                filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               ),
             ),
           ),
@@ -124,21 +123,58 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ref.read(searchStatusFilterProvider.notifier).state = status;
             },
           ),
+          if (allSummaries.isNotEmpty)
+            Semantics(
+              liveRegion: true,
+              label:
+                  '${results.length} ${results.length == 1 ? 'policy' : 'policies'} found',
+              child: ExcludeSemantics(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 2),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${results.length} ${results.length == 1 ? 'policy' : 'policies'}',
+                      key: ValueKey('search-count-${results.length}'),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // Results
           Expanded(
-            child: allSummaries.isEmpty
-                ? const _EmptyState(
-                    icon: Icons.folder_open,
-                    title: 'No policies uploaded',
-                    subtitle: 'Upload a policy to start searching',
-                  )
-                : hasQuery && results.isEmpty
-                    ? _EmptyState(
-                        icon: Icons.search_off,
-                        title: 'No results found',
-                        subtitle: 'Try a different search term or filter',
-                      )
-                    : _SearchResultsList(results: results, query: query),
+            child: CoverWiseStateTransition(
+              child: allSummaries.isEmpty
+                  ? const EmptyStateWidget(
+                      key: ValueKey('search-empty-library'),
+                      icon: Icons.folder_open_rounded,
+                      title: 'No policies uploaded',
+                      subtitle:
+                          'Add a policy to search its cover, exclusions and dates.',
+                      color: Color(0xFF2466B8),
+                      scene: CoverWiseSceneKind.firstPolicy,
+                    )
+                  : hasQuery && results.isEmpty
+                      ? const EmptyStateWidget(
+                          key: ValueKey('search-no-match'),
+                          icon: Icons.manage_search_rounded,
+                          title: 'Nothing matched',
+                          subtitle: 'Try another term or broaden the filters.',
+                          color: Color(0xFF6A4BA8),
+                        )
+                      : _SearchResultsList(
+                          key: ValueKey(
+                            'search-results-${results.length}-$query-$typeFilter-$statusFilter',
+                          ),
+                          results: results,
+                          query: query,
+                        ),
+            ),
           ),
         ],
       ),
@@ -243,27 +279,28 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? color : Colors.grey.shade300,
-            width: selected ? 1.5 : 1,
-          ),
+    final theme = Theme.of(context);
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: '$label filter',
+      excludeSemantics: true,
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        showCheckmark: false,
+        avatar:
+            selected ? Icon(Icons.check_rounded, size: 17, color: color) : null,
+        selectedColor: color.withValues(alpha: 0.12),
+        side: BorderSide(
+          color: selected ? color : theme.dividerColor,
+          width: selected ? 1.5 : 1,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? color : Colors.grey.shade600,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 13,
-          ),
+        labelStyle: theme.textTheme.labelLarge?.copyWith(
+          color: selected ? color : theme.colorScheme.onSurfaceVariant,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
         ),
+        onSelected: (_) => onTap(),
       ),
     );
   }
@@ -274,7 +311,11 @@ class _SearchResultsList extends StatelessWidget {
   final List<PolicySummary> results;
   final String query;
 
-  const _SearchResultsList({required this.results, required this.query});
+  const _SearchResultsList({
+    super.key,
+    required this.results,
+    required this.query,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -308,12 +349,11 @@ class _SearchResultCard extends StatelessWidget {
             ? ('$days days left', Colors.orange)
             : ('Active', Colors.green);
 
+    final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         onTap: () {
           Navigator.pushNamed(
             context,
@@ -328,10 +368,7 @@ class _SearchResultCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: statusColor.withValues(alpha: 0.1),
-                    child: Icon(icon, color: statusColor, size: 22),
-                  ),
+                  CoverWiseIconBadge(icon: icon, color: statusColor),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -340,18 +377,16 @@ class _SearchResultCard extends StatelessWidget {
                         _HighlightedText(
                           text: summary.documentType,
                           query: query,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                          style: theme.textTheme.titleMedium!.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         if (summary.insurer != null)
                           _HighlightedText(
                             text: summary.insurer!,
                             query: query,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
+                            style: theme.textTheme.bodySmall!.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                             maxLines: 1,
                           ),
@@ -371,8 +406,8 @@ class _SearchResultCard extends StatelessWidget {
                     const SizedBox(width: 16),
                   ],
                   if (summary.formattedPremium != 'Unknown') ...[
-                    _ResultMetric(Icons.payments, 'Premium',
-                        summary.formattedPremium),
+                    _ResultMetric(
+                        Icons.payments, 'Premium', summary.formattedPremium),
                     const SizedBox(width: 16),
                   ],
                   if (summary.formattedExpiryDate != 'Unknown')
@@ -384,13 +419,15 @@ class _SearchResultCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.confirmation_number,
-                        size: 14, color: Colors.grey.shade400),
+                    Icon(Icons.numbers_rounded,
+                        size: 14, color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     _HighlightedText(
                       text: summary.policyNumber!,
                       query: query,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      style: theme.textTheme.bodySmall!.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -452,26 +489,28 @@ class _SearchResultCard extends StatelessWidget {
         .where((item) => item.toLowerCase().contains(queryLower))
         .take(2)
         .toList();
-    final totalMatches = items
-        .where((item) => item.toLowerCase().contains(queryLower))
-        .length;
-    final widgets = matching.map<Widget>((item) => Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Row(
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
-              Expanded(
-                child: _HighlightedText(
-                  text: '$label: $item',
-                  query: query,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  maxLines: 1,
-                ),
+    final totalMatches =
+        items.where((item) => item.toLowerCase().contains(queryLower)).length;
+    final widgets = matching
+        .map<Widget>((item) => Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Icon(icon, size: 14, color: color),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: _HighlightedText(
+                      text: '$label: $item',
+                      query: query,
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        )).toList();
+            ))
+        .toList();
     if (totalMatches > 2) {
       widgets.add(Padding(
         padding: const EdgeInsets.only(top: 4),
@@ -502,7 +541,8 @@ class _HighlightedText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (query.isEmpty) {
-      return Text(text, style: style, maxLines: maxLines, overflow: TextOverflow.ellipsis);
+      return Text(text,
+          style: style, maxLines: maxLines, overflow: TextOverflow.ellipsis);
     }
 
     final queryLower = query.toLowerCase();
@@ -582,52 +622,15 @@ class _ResultStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.bold, fontSize: 11)),
-    );
-  }
-}
-
-/// Empty state widget
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(subtitle,
-                style: TextStyle(color: Colors.grey.shade600),
-                textAlign: TextAlign.center),
-          ],
-        ),
-      ),
+    return CoverWiseStatusChip(
+      icon: label.toLowerCase().contains('expired')
+          ? Icons.error_rounded
+          : label.toLowerCase().contains('left')
+              ? Icons.schedule_rounded
+              : Icons.check_circle_rounded,
+      label: label,
+      color: color,
+      compact: true,
     );
   }
 }

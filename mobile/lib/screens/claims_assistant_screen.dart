@@ -4,13 +4,17 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
 import '../providers/document_providers.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
+import '../widgets/shared/error_widget.dart';
 
 class ClaimsAssistantScreen extends ConsumerStatefulWidget {
   const ClaimsAssistantScreen({super.key});
 
   @override
-  ConsumerState<ClaimsAssistantScreen> createState() => _ClaimsAssistantScreenState();
+  ConsumerState<ClaimsAssistantScreen> createState() =>
+      _ClaimsAssistantScreenState();
 }
 
 class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
@@ -18,11 +22,34 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
   String? _selectedDocumentId;
 
   static const _incidentTypes = [
-    ('hospitalization', 'Hospitalization', Icons.local_hospital, Colors.red),
-    ('accident', 'Auto Accident', Icons.car_crash, Colors.orange),
-    ('death', 'Life Insurance Claim', Icons.favorite, Colors.purple),
-    ('general', 'Other / General', Icons.help_outline, Colors.blue),
+    (
+      'hospitalization',
+      'Hospitalization',
+      Icons.local_hospital_outlined,
+      Color(0xFFD14A61)
+    ),
+    ('accident', 'Auto accident', Icons.car_crash_outlined, Color(0xFFD97706)),
+    (
+      'death',
+      'Life insurance claim',
+      Icons.favorite_outline_rounded,
+      Color(0xFF7C5AC7)
+    ),
+    (
+      'general',
+      'Other or general',
+      Icons.help_outline_rounded,
+      CoverWiseColors.blueDeep
+    ),
   ];
+
+  String _incidentDescription(String type) => switch (type) {
+        'hospitalization' =>
+          'Prepare hospital, treatment and pre-authorization records.',
+        'accident' => 'Organize incident, vehicle and repair evidence.',
+        'death' => 'Review nominee, identity and insurer requirements.',
+        _ => 'Build a general document and contact checklist.',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -30,106 +57,94 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
     final documentsAsync = ref.watch(documentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Claims Assistant')),
+      appBar: AppBar(title: const Text('Claim guide')),
       body: documentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => AppErrorView(
+          message: 'Claim guidance could not load your policy library.',
+          icon: Icons.fact_check_outlined,
+          onRetry: () => ref.invalidate(documentsProvider),
+        ),
         data: (documents) {
           if (documents.isEmpty && summaries.isEmpty) {
             return const EmptyStateWidget(
-              icon: Icons.assignment_turned_in,
+              icon: Icons.fact_check_outlined,
               title: 'No documents uploaded',
               subtitle: 'Upload insurance documents to get claim guidance',
+              color: Color(0xFFD97706),
             );
           }
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.only(bottom: 28),
             children: [
-              const Text('What happened?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('Select the type of incident to get step-by-step claim guidance.',
-                style: TextStyle(color: Colors.grey)),
-              const SizedBox(height: 20),
+              const CoverWisePageHeader(
+                title: 'What happened?',
+                subtitle:
+                    'Choose an incident to see a practical preparation guide. CoverWise does not file or manage the claim.',
+              ),
+              const CoverWiseSectionLabel('Incident type'),
               ..._incidentTypes.map((item) {
                 final (type, label, icon, color) = item;
                 final isSelected = _selectedIncident == type;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Card(
-                    elevation: isSelected ? 3 : 1,
-                    color: isSelected ? color.withValues(alpha: 0.05) : null,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: isSelected ? BorderSide(color: color, width: 2) : BorderSide.none,
-                    ),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(icon, color: color),
-                      ),
-                      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-                      trailing: isSelected ? Icon(Icons.check_circle, color: color) : null,
-                      onTap: () => setState(() => _selectedIncident = type),
-                    ),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: CoverWiseSelectableRow(
+                    icon: icon,
+                    color: color,
+                    title: label,
+                    subtitle: _incidentDescription(type),
+                    selected: isSelected,
+                    onTap: () => setState(() => _selectedIncident = type),
                   ),
                 );
               }),
               if (_selectedIncident != null) ...[
                 if (summaries.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  const Text('Select policy (optional):', style: TextStyle(fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String?>(
-                    value: _selectedDocumentId,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  const CoverWiseSectionLabel('Related policy (optional)'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: DropdownButtonFormField<String?>(
+                      value: _selectedDocumentId,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.policy_outlined),
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                            value: null, child: Text('Auto-select best match')),
+                        ...summaries.map((s) => DropdownMenuItem(
+                              value: s.documentId,
+                              child: Text(
+                                  '${s.documentType} — ${s.insurer ?? "Unknown"}'),
+                            )),
+                      ],
+                      onChanged: (v) => setState(() => _selectedDocumentId = v),
                     ),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('Auto-select best match')),
-                      ...summaries.map((s) => DropdownMenuItem(
-                        value: s.documentId,
-                        child: Text('${s.documentType} - ${s.insurer ?? "Unknown"}'),
-                      )),
-                    ],
-                    onChanged: (v) => setState(() => _selectedDocumentId = v),
                   ),
                   const SizedBox(height: 20),
                 ] else ...[
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.info, color: Colors.blue, size: 20),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'No policy summaries available — you will get a general guide without policy-specific helpline or email details.',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ],
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: CoverWiseInfoPanel(
+                      icon: Icons.info_outline_rounded,
+                      title: 'General guidance only',
+                      body:
+                          'No policy summary is available, so this guide cannot include policy-specific contacts or requirements.',
                     ),
                   ),
                   const SizedBox(height: 20),
                 ],
-                FilledButton.icon(
-                  icon: const Icon(Icons.assignment),
-                  label: const Text('Get Claim Guide'),
-                  onPressed: () => _showClaimGuide(),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.fact_check_outlined),
+                      label: const Text('View preparation guide'),
+                      onPressed: () => _showClaimGuide(),
+                    ),
                   ),
                 ),
               ],
@@ -142,7 +157,8 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
 
   void _showClaimGuide() {
     if (_selectedIncident == null) return;
-    final guide = ref.read(claimGuideProvider((_selectedIncident!, _selectedDocumentId)));
+    final guide =
+        ref.read(claimGuideProvider((_selectedIncident!, _selectedDocumentId)));
     if (guide == null) return;
 
     showModalBottomSheet(
@@ -167,7 +183,18 @@ class _ClaimGuideSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(guide.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(guide.title,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text(
+              'Use this as a preparation checklist. Confirm requirements and deadlines directly with your insurer.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
             const SizedBox(height: 16),
             ...guide.steps.map((step) => _StepCard(step: step)),
             if (guide.helpline != null) ...[
@@ -175,7 +202,7 @@ class _ClaimGuideSheet extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  icon: const Icon(Icons.phone),
+                  icon: const Icon(Icons.call_outlined),
                   label: Text('Call ${guide.helpline}'),
                   onPressed: () => _callNumber(guide.helpline!),
                 ),
@@ -186,7 +213,7 @@ class _ClaimGuideSheet extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  icon: const Icon(Icons.email),
+                  icon: const Icon(Icons.mail_outline_rounded),
                   label: Text(guide.email!),
                   onPressed: () => _sendEmail(guide.email!),
                 ),
@@ -197,15 +224,19 @@ class _ClaimGuideSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                  color: CoverWiseColors.blueDeep.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: CoverWiseColors.blueDeep.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info, color: Colors.blue, size: 20),
+                    const Icon(Icons.info_outline_rounded,
+                        color: CoverWiseColors.blueDeep, size: 22),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(guide.notes!, style: const TextStyle(fontSize: 13))),
+                    Expanded(
+                        child: Text(guide.notes!,
+                            style: const TextStyle(fontSize: 13))),
                   ],
                 ),
               ),
@@ -241,24 +272,47 @@ class _StepCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(step.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(step.title,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800)),
               const SizedBox(height: 6),
-              Text(step.description, style: const TextStyle(color: Colors.black87)),
+              Text(step.description,
+                  style: Theme.of(context).textTheme.bodyMedium),
               if (step.documents.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
-                  children: step.documents.map((d) => Chip(
-                    label: Text(d, style: const TextStyle(fontSize: 12)),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  )).toList(),
+                  children: step.documents
+                      .map((d) => Chip(
+                            label:
+                                Text(d, style: const TextStyle(fontSize: 12)),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ))
+                      .toList(),
                 ),
               ],
               if (step.contactInfo != null) ...[
                 const SizedBox(height: 8),
-                Text('📞 ${step.contactInfo}', style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w500)),
+                Row(
+                  children: [
+                    const Icon(Icons.call_outlined,
+                        size: 18, color: CoverWiseColors.blueDeep),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        step.contactInfo!,
+                        style: const TextStyle(
+                            color: CoverWiseColors.blueDeep,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ],
           ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
 
 /// Privacy & Security: visible copy follows the production data architecture.
 class PrivacySecurityScreen extends StatelessWidget {
@@ -16,29 +18,28 @@ class PrivacySecurityScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Privacy & Security')),
+      appBar: AppBar(title: const Text('Privacy and security')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 28),
         children: [
+          const CoverWisePageHeader(
+            title: 'Your data, explained',
+            subtitle:
+                'See what stays on your device, what is synced for app features, and how to remove it.',
+          ),
           if (AppConfig.hasPrivacyPolicy) ...[
-            Card(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              child: ListTile(
-                leading: Icon(Icons.open_in_new,
-                    color: Theme.of(context).colorScheme.primary),
-                title: const Text('View Full Privacy Policy'),
-                subtitle: const Text('Opens in your browser'),
+            CoverWiseSurface(
+              child: CoverWiseActionRow(
+                icon: Icons.privacy_tip_outlined,
+                color: CoverWiseColors.blueDeep,
+                title: 'View full privacy policy',
+                subtitle: 'Opens in your browser',
                 onTap: _openHostedPolicy,
+                trailing: const Icon(Icons.open_in_new_rounded),
               ),
             ),
-            const SizedBox(height: 16),
           ],
-          Text('Data We Collect',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
+          const CoverWiseSectionLabel('Data we collect'),
           const _PrivacyItem(
             icon: Icons.description,
             title: 'Policy documents',
@@ -47,7 +48,7 @@ class PrivacySecurityScreen extends StatelessWidget {
                 'document is sent to CoverWise for summaries and answers.',
           ),
           const _PrivacyItem(
-            icon: Icons.question_answer,
+            icon: Icons.chat_bubble_outline_rounded,
             title: 'Your questions',
             body:
                 'Questions you ask about your policies are sent to the backend '
@@ -60,13 +61,7 @@ class PrivacySecurityScreen extends StatelessWidget {
             body: 'A secure anonymous app identity protects your documents and '
                 'enforces usage limits. An account is not required at launch.',
           ),
-          const SizedBox(height: 16),
-          Text('How Your Data Is Processed',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
+          const CoverWiseSectionLabel('How your data is processed'),
           const _PrivacyItem(
             icon: Icons.cloud,
             title: 'Backend processing',
@@ -88,13 +83,7 @@ class PrivacySecurityScreen extends StatelessWidget {
                 'parties. Your policy documents are used solely to provide the '
                 'app\'s features to you.',
           ),
-          const SizedBox(height: 16),
-          Text('Data Retention & Deletion',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
+          const CoverWiseSectionLabel('Retention and deletion'),
           const _PrivacyItem(
             icon: Icons.timer,
             title: 'Local storage',
@@ -118,13 +107,7 @@ class PrivacySecurityScreen extends StatelessWidget {
                 : 'You can delete all local data at any time via Settings. '
                     'Use the release support channel for server-side data help.',
           ),
-          const SizedBox(height: 16),
-          Text('Security',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
+          const CoverWiseSectionLabel('Security'),
           const _PrivacyItem(
             icon: Icons.lock,
             title: 'Encryption',
@@ -138,16 +121,33 @@ class PrivacySecurityScreen extends StatelessWidget {
             body: 'Usage is limited per session and per device to prevent '
                 'abuse and ensure fair availability of the service.',
           ),
-          const SizedBox(height: 24),
-          Text(
-            'CoverWise helps you understand your insurance policies. It does '
-            'not provide insurance, financial, or legal advice. Always verify '
-            'coverage details with your insurer. Answers are AI-generated and '
-            'may contain errors.',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: Colors.grey),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: CoverWiseColors.blueDeep.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: CoverWiseColors.blueDeep.withValues(alpha: 0.18),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    color: CoverWiseColors.blueDeep),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'CoverWise helps you understand your insurance policies. It does not provide insurance, financial, or legal advice. Always verify coverage details with your insurer. Answers are AI-generated and may contain errors.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          height: 1.45,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
         ],
@@ -169,21 +169,43 @@ class _PrivacyItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : CoverWiseColors.line,
+        ),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 22, color: Theme.of(context).colorScheme.primary),
+          CoverWiseIconBadge(
+            icon: icon,
+            color: CoverWiseColors.blueDeep,
+            size: 40,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                Text(body, style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                  body,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
               ],
             ),
           ),

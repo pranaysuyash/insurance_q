@@ -1,5 +1,35 @@
 # Technical Decisions & Issue Resolution Log
 
+## Decision: allow evidence-based comparison, prohibit unsupported insurance recommendations
+
+**Date:** 2026-07-16  
+**Owner:** Solo CoverWise operator  
+**Status:** accepted product boundary
+
+### Context
+
+Users may upload two policies that appear to cover the same need but have materially different premiums, for example ₹10,000 versus ₹6,000. A neutral product that refuses to explain this difference is not useful. The product must remain non-regulated and must not become an insurance seller, adviser, or recommender.
+
+### Decision
+
+CoverWise may compare user-selected policies and make source-grounded, dimension-specific judgments: lower premium, broader documented benefits, shorter listed waiting period, higher deductible, or more exclusions listed. It may state that one policy is cheaper for the documented terms. It must not declare an overall best policy, say what is better for the user personally, tell the user to switch/buy/renew, or label the user under-insured.
+
+### Required behavior
+
+- Normalize currency, payment frequency, taxes, riders, discounts, and period.
+- Calculate arithmetic with an explicit denominator: ₹6,000 is 40% below ₹10,000; ₹10,000 is 66.7% above ₹6,000.
+- Compare fields independently; never assume "same cover" without evidence.
+- Cite source page/section, expose missing or contradictory fields, and preserve user inspection.
+- Render comparative copy only after structured evidence passes validation.
+
+### Rationale and trade-off
+
+This preserves real user value while avoiding unsupported personalized insurance advice. The trade-off is that the app may feel less decisive than a salesperson; that is intentional. Its trust signal is transparent evidence, not a hidden recommendation.
+
+### Revisit trigger
+
+Revisit only if the product scope, operating entity, or customer journey changes. Any move into compensated referrals, product shopping, or personal advice requires a separate decision and regulatory review.
+
 This document captures specific technical decisions, issue resolutions, and architectural choices made during the development of the Insurance Document Processing application. It serves as a decision log to understand why certain approaches were chosen and how specific issues were resolved.
 
 ## OCR Processing

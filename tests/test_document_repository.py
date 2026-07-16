@@ -36,6 +36,18 @@ def test_sqlite_repository_survives_reopen_and_enforces_owner_scope(tmp_path):
     assert reopened.delete("document-a", owner_a) is True
 
 
+def test_sqlite_repository_transfers_anonymous_documents_and_updates_payload(tmp_path):
+    repository = SQLiteDocumentRepository(str(tmp_path / "documents.db"))
+    document = _document("document-a", "anon:owner-a")
+    repository.create(document)
+
+    assert repository.transfer_owner("anon:owner-a", "account-user-1") == 1
+    transferred = repository.get("document-a", "account-user-1")
+    assert transferred is not None
+    assert transferred.user_uid == "account-user-1"
+    assert repository.get("document-a", "anon:owner-a") is None
+
+
 def test_production_rejects_sqlite_metadata(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("DOCUMENT_REPOSITORY_BACKEND", "sqlite")

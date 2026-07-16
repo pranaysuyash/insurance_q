@@ -25,6 +25,36 @@ create unique index if not exists documents_owner_source_hash_unique
 create index if not exists documents_recovery_idx
   on public.documents (status, processing_lease_expires_at);
 
+-- Anonymous-to-account upgrade. The service-role API calls this only after it
+-- has independently verified both credentials. The payload is updated with
+-- the new owner because it is the serialized document contract used by the
+-- processing pipeline.
+create or replace function public.claim_anonymous_documents(
+  p_anonymous_owner text,
+  p_account_owner text
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare transferred integer;
+begin
+  update public.documents
+  set owner_id = p_account_owner,
+      payload = jsonb_set(payload, '{user_uid}', to_jsonb(p_account_owner), true),
+      updated_at = now()
+  where owner_id = p_anonymous_owner;
+  get diagnostics transferred = row_count;
+  return transferred;
+end;
+$$;
+
+revoke all on function public.claim_anonymous_documents(text, text)
+  from public, anon, authenticated;
+grant execute on function public.claim_anonymous_documents(text, text)
+  to service_role;
+
 create or replace function public.claim_document_processing(
   p_document_id uuid,
   p_owner_id text,

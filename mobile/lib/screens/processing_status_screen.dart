@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/local_storage_service.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../theme/coverwise_motion.dart';
 import 'policy_detail_screen.dart';
 
 /// Processing stages that map to the backend pipeline.
@@ -8,12 +10,22 @@ import 'policy_detail_screen.dart';
 /// The backend runs: received → processing (OCR → extraction → classification → indexing) → completed.
 /// This screen polls `documentsProvider` and maps `processingState` to visible stages.
 enum ProcessingStage {
-  received(0, 'Received', 'Document saved securely', Icons.upload_file, Colors.grey),
-  processing(1, 'Reading text', 'Extracting text from your document', Icons.document_scanner, Colors.blue),
-  extraction(2, 'Extracting details', 'Identifying coverage, premiums, and dates', Icons.psychology, Colors.purple),
-  classification(3, 'Classifying', 'Determining policy type and insurer', Icons.category, Colors.teal),
-  indexing(4, 'Indexing', 'Making your policy searchable', Icons.search, Colors.orange),
-  complete(5, 'Complete', 'Your policy is ready', Icons.check_circle, Colors.green),
+  received(
+      0, 'Received', 'Document saved securely', Icons.upload_file, Colors.grey),
+  processing(1, 'Reading text', 'Extracting text from your document',
+      Icons.document_scanner, Colors.blue),
+  extraction(
+      2,
+      'Extracting details',
+      'Identifying coverage, premiums, and dates',
+      Icons.find_in_page_outlined,
+      Colors.purple),
+  classification(3, 'Classifying', 'Determining policy type and insurer',
+      Icons.category, Colors.teal),
+  indexing(4, 'Indexing', 'Making your policy searchable', Icons.search,
+      Colors.orange),
+  complete(
+      5, 'Complete', 'Your policy is ready', Icons.check_circle, Colors.green),
   failed(5, 'Failed', 'Something went wrong', Icons.error, Colors.red);
 
   final int step;
@@ -22,7 +34,8 @@ enum ProcessingStage {
   final IconData icon;
   final Color color;
 
-  const ProcessingStage(this.step, this.label, this.description, this.icon, this.color);
+  const ProcessingStage(
+      this.step, this.label, this.description, this.icon, this.color);
 }
 
 /// Maps backend processing state strings to user-visible stages.
@@ -72,10 +85,8 @@ class ProcessingStatusScreen extends StatefulWidget {
   State<ProcessingStatusScreen> createState() => _ProcessingStatusScreenState();
 }
 
-class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
-    with SingleTickerProviderStateMixin {
+class _ProcessingStatusScreenState extends State<ProcessingStatusScreen> {
   Timer? _pollTimer;
-  late AnimationController _pulseController;
   ProcessingStage _currentStage = ProcessingStage.received;
   String? _errorMessage;
   int _pollCount = 0;
@@ -84,19 +95,15 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
     // Start polling immediately
     _pollStatus();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => _pollStatus());
+    _pollTimer =
+        Timer.periodic(const Duration(seconds: 2), (_) => _pollStatus());
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -108,7 +115,8 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
       _pollTimer?.cancel();
       if (mounted) {
         setState(() {
-          _errorMessage = 'Processing is taking longer than expected. You can close this screen and check back later.';
+          _errorMessage =
+              'Processing is taking longer than expected. You can close this screen and check back later.';
         });
       }
       return;
@@ -134,11 +142,14 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
         _pollTimer?.cancel();
         if (mounted) {
           setState(() => _currentStage = newStage);
-          await Future.delayed(const Duration(milliseconds: 800));
+          await Future<void>.delayed(
+            CoverWiseMotion.duration(context, CoverWiseMotion.emphasized),
+          );
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => PolicyDetailScreen(documentId: widget.documentId),
+                builder: (_) =>
+                    PolicyDetailScreen(documentId: widget.documentId),
               ),
             );
           }
@@ -151,7 +162,8 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
         if (mounted) {
           setState(() {
             _currentStage = newStage;
-            _errorMessage = 'Document processing did not complete. Please try re-uploading.';
+            _errorMessage =
+                'Document processing did not complete. Please try re-uploading.';
           });
         }
         return;
@@ -170,7 +182,9 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
     final theme = Theme.of(context);
 
     return PopScope(
-      canPop: _errorMessage != null || _currentStage == ProcessingStage.failed || _currentStage == ProcessingStage.complete,
+      canPop: _errorMessage != null ||
+          _currentStage == ProcessingStage.failed ||
+          _currentStage == ProcessingStage.complete,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
           _showDismissWarning();
@@ -178,36 +192,70 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Processing'),
-          automaticallyImplyLeading: _errorMessage != null || _currentStage == ProcessingStage.failed,
+          title: const Text('Preparing your policy'),
+          automaticallyImplyLeading:
+              _errorMessage != null || _currentStage == ProcessingStage.failed,
         ),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                const SizedBox(height: 32),
-                Text(
-                  widget.filename,
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+          child: Column(
+            children: [
+              CoverWisePageHeader(
+                title: _currentStage == ProcessingStage.failed
+                    ? 'We couldn\'t finish this file'
+                    : 'Turning pages into answers',
+                subtitle: _errorMessage ?? _currentStage.description,
+                trailing: CoverWiseIconBadge(
+                  icon: _currentStage == ProcessingStage.failed
+                      ? Icons.error_outline_rounded
+                      : _currentStage.icon,
+                  color: _currentStage.color,
+                  size: 52,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _currentStage.description,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
-                  textAlign: TextAlign.center,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Semantics(
+                  label: 'File being processed: ${widget.filename}',
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.picture_as_pdf_outlined,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            widget.filename,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 40),
-                Expanded(
-                  child: _errorMessage != null
-                      ? _buildErrorState(theme)
-                      : _buildStageProgress(theme),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 18),
+              Expanded(
+                child: _errorMessage != null
+                    ? _buildErrorState(theme)
+                    : _buildStageProgress(theme),
+              ),
+            ],
           ),
         ),
       ),
@@ -217,96 +265,122 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
   Widget _buildStageProgress(ThemeData theme) {
     final stages = ProcessingStage.values.where((s) => s.step < 5).toList();
 
-    return Column(
-      children: [
-        if (_currentStage != ProcessingStage.complete && _currentStage != ProcessingStage.failed)
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder: (context, child) {
-              return Opacity(
-                opacity: 0.6 + (_pulseController.value * 0.4),
-                child: child,
-              );
-            },
-            child: SizedBox(
-              width: 64,
-              height: 64,
-              child: CircularProgressIndicator(
-                strokeWidth: 4,
-                valueColor: AlwaysStoppedAnimation<Color>(_currentStage.color),
+    return Column(children: [
+      Semantics(
+          liveRegion: true,
+          label: '${_currentStage.label}. ${_currentStage.description}',
+          excludeSemantics: true,
+          child: Column(children: [
+            if (_currentStage != ProcessingStage.complete &&
+                _currentStage != ProcessingStage.failed)
+              CoverWiseIconBadge(
+                icon: _currentStage.icon,
+                color: _currentStage.color,
+                size: 68,
+              ),
+            if (_currentStage == ProcessingStage.complete)
+              CoverWiseIconBadge(
+                icon: Icons.check_circle_rounded,
+                color: ProcessingStage.complete.color,
+                size: 68,
+              ),
+            const SizedBox(height: 16),
+            Text(
+              _currentStage.label,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: _currentStage.color,
               ),
             ),
-          ),
-        if (_currentStage == ProcessingStage.complete)
-          Icon(Icons.check_circle, size: 64, color: ProcessingStage.complete.color),
-        const SizedBox(height: 32),
-        Expanded(
-          child: ListView.builder(
+          ])),
+      const SizedBox(height: 20),
+      Expanded(
+        child: CoverWiseSurface(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: ListView.separated(
+            padding: const EdgeInsets.all(10),
             itemCount: stages.length,
+            separatorBuilder: (_, __) => const Divider(indent: 58),
             itemBuilder: (context, index) => _buildStageTile(stages[index]),
           ),
         ),
-      ],
-    );
+      ),
+    ]);
   }
 
   Widget _buildStageTile(ProcessingStage stage) {
     final isCurrent = stage == _currentStage;
     final isComplete = _currentStage.step > stage.step;
-    final isFailed = _currentStage == ProcessingStage.failed && stage == _currentStage;
+    final isFailed = _currentStage == ProcessingStage.failed;
+    final theme = Theme.of(context);
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutCubic,
-      margin: const EdgeInsets.only(bottom: 4),
-      decoration: BoxDecoration(
-        color: isCurrent ? stage.color.withValues(alpha: 0.08) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+      duration: CoverWiseMotion.duration(
+        context,
+        CoverWiseMotion.standard,
       ),
-      child: ListTile(
-        leading: _buildStageIcon(stage, isCurrent: isCurrent, isComplete: isComplete),
-        title: Text(
-          stage.label,
-          style: TextStyle(
-            fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-            color: isComplete ? Colors.grey.shade500 : isCurrent ? stage.color : Colors.grey.shade400,
+      curve: CoverWiseMotion.enterCurve,
+      decoration: BoxDecoration(
+        color: isCurrent
+            ? stage.color.withValues(alpha: 0.08)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Semantics(
+        label:
+            '${stage.label}. ${isComplete ? 'Complete' : isCurrent ? 'In progress' : isFailed ? 'Not completed' : 'Pending'}',
+        excludeSemantics: true,
+        child: ListTile(
+          minTileHeight: 64,
+          leading: _buildStageIcon(stage,
+              isCurrent: isCurrent, isComplete: isComplete),
+          title: Text(
+            stage.label,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+              color: isComplete
+                  ? theme.colorScheme.onSurfaceVariant
+                  : isCurrent
+                      ? stage.color
+                      : theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
-        trailing: isComplete
-            ? Icon(Icons.check_circle, size: 20, color: stage.color)
-            : isFailed
-                ? Icon(Icons.error, size: 20, color: stage.color)
-                : isCurrent
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(stage.color),
+          subtitle: isCurrent ? Text(stage.description) : null,
+          trailing: isComplete
+              ? Icon(Icons.check_circle, size: 20, color: stage.color)
+              : isFailed
+                  ? Icon(Icons.error, size: 20, color: stage.color)
+                  : isCurrent
+                      ? CoverWiseMotion.isReduced(context)
+                          ? Icon(Icons.timelapse_rounded,
+                              size: 20, color: stage.color)
+                          : SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(stage.color),
+                              ),
+                            )
+                      : Icon(
+                          Icons.circle_outlined,
+                          size: 20,
+                          color: theme.colorScheme.outlineVariant,
                         ),
-                      )
-                    : Icon(Icons.circle_outlined, size: 20, color: Colors.grey.shade300),
+        ),
       ),
     );
   }
 
-  Widget _buildStageIcon(ProcessingStage stage, {required bool isCurrent, required bool isComplete}) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: isComplete
-            ? stage.color.withValues(alpha: 0.1)
-            : isCurrent
-                ? stage.color.withValues(alpha: 0.15)
-                : Colors.grey.shade100,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        isComplete ? Icons.check : stage.icon,
-        size: 20,
-        color: isComplete ? stage.color : isCurrent ? stage.color : Colors.grey.shade400,
-      ),
+  Widget _buildStageIcon(ProcessingStage stage,
+      {required bool isCurrent, required bool isComplete}) {
+    return CoverWiseIconBadge(
+      icon: isComplete ? Icons.check_rounded : stage.icon,
+      color: isComplete || isCurrent
+          ? stage.color
+          : Theme.of(context).colorScheme.onSurfaceVariant,
+      size: 40,
     );
   }
 
@@ -315,15 +389,30 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 56, color: Colors.red.shade300),
+          CoverWiseIconBadge(
+            icon: Icons.error_outline_rounded,
+            color: theme.colorScheme.error,
+            size: 68,
+          ),
           const SizedBox(height: 16),
-          Text('Processing failed', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+          Text('Processing failed',
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text(_errorMessage!, style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600), textAlign: TextAlign.center),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              _errorMessage!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Go Back'),
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Back to documents'),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -332,7 +421,8 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
   }
 
   void _showDismissWarning() {
-    if (_currentStage == ProcessingStage.complete || _currentStage == ProcessingStage.failed) {
+    if (_currentStage == ProcessingStage.complete ||
+        _currentStage == ProcessingStage.failed) {
       Navigator.of(context).pop();
       return;
     }
@@ -345,7 +435,9 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen>
           'processing continues in the background. You can check the document list for updates.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Stay')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Stay')),
           FilledButton.tonal(
             onPressed: () {
               Navigator.pop(context);

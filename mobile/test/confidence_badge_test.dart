@@ -26,16 +26,17 @@ void main() {
         );
 
         expect(find.text('High confidence'), findsOneWidget);
-        expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+        expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
       });
 
-      testWidgets('renders green badge for confidence exactly 0.7', (tester) async {
+      testWidgets('renders green badge for confidence exactly 0.7',
+          (tester) async {
         await tester.pumpWidget(
           buildTestApp(const ConfidenceBadge(confidence: 0.7)),
         );
 
         expect(find.text('High confidence'), findsOneWidget);
-        expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+        expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
       });
 
       testWidgets('renders green badge for confidence 1.0', (tester) async {
@@ -54,16 +55,17 @@ void main() {
         );
 
         expect(find.text('Medium confidence'), findsOneWidget);
-        expect(find.byIcon(Icons.info_outline), findsOneWidget);
+        expect(find.byIcon(Icons.info_outline_rounded), findsOneWidget);
       });
 
-      testWidgets('renders orange badge for confidence exactly 0.4', (tester) async {
+      testWidgets('renders orange badge for confidence exactly 0.4',
+          (tester) async {
         await tester.pumpWidget(
           buildTestApp(const ConfidenceBadge(confidence: 0.4)),
         );
 
         expect(find.text('Medium confidence'), findsOneWidget);
-        expect(find.byIcon(Icons.info_outline), findsOneWidget);
+        expect(find.byIcon(Icons.info_outline_rounded), findsOneWidget);
       });
 
       testWidgets('renders orange badge for confidence 0.69', (tester) async {
@@ -82,7 +84,7 @@ void main() {
         );
 
         expect(find.text('Low confidence'), findsOneWidget);
-        expect(find.byIcon(Icons.warning_amber_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
       });
 
       testWidgets('renders red badge for confidence 0.0', (tester) async {
@@ -91,7 +93,7 @@ void main() {
         );
 
         expect(find.text('Low confidence'), findsOneWidget);
-        expect(find.byIcon(Icons.warning_amber_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
       });
 
       testWidgets('renders red badge for confidence 0.39', (tester) async {
@@ -104,20 +106,23 @@ void main() {
     });
 
     group('Widget structure', () {
-      testWidgets('is a Container with rounded corners', (tester) async {
+      testWidgets('uses the canonical pill-shaped status container',
+          (tester) async {
         await tester.pumpWidget(
           buildTestApp(const ConfidenceBadge(confidence: 0.8)),
         );
 
         final container = tester.widget<Container>(
-          find.ancestor(
-            of: find.text('High confidence'),
-            matching: find.byType(Container),
-          ).first,
+          find
+              .ancestor(
+                of: find.text('High confidence'),
+                matching: find.byType(Container),
+              )
+              .first,
         );
 
         final decoration = container.decoration as BoxDecoration;
-        expect(decoration.borderRadius, BorderRadius.circular(12));
+        expect(decoration.borderRadius, BorderRadius.circular(999));
       });
 
       testWidgets('contains an icon and text in a Row', (tester) async {
@@ -130,14 +135,18 @@ void main() {
         expect(find.text('High confidence'), findsOneWidget);
       });
 
-      testWidgets('uses correct text style with fontWeight w600', (tester) async {
+      testWidgets('uses emphasized status text and exposes status semantics',
+          (tester) async {
         await tester.pumpWidget(
           buildTestApp(const ConfidenceBadge(confidence: 0.8)),
         );
 
         final textWidget = tester.widget<Text>(find.text('High confidence'));
-        expect(textWidget.style?.fontWeight, FontWeight.w600);
-        expect(textWidget.style?.fontSize, 11);
+        expect(textWidget.style?.fontWeight, FontWeight.w800);
+        expect(
+          find.bySemanticsLabel('Status: High confidence'),
+          findsOneWidget,
+        );
       });
     });
 

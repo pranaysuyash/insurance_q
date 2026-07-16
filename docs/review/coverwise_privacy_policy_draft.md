@@ -1,5 +1,19 @@
 # CoverWise Privacy Policy Draft
 
+## Addendum (2026-07-16): advertising and model-improvement boundary
+
+This is drafting direction for product and legal review, not publish-ready legal text.
+
+- CoverWise does not use policy documents, extracted contents, questions, answers, health, claim, family, or financial details to select behavioral advertisements.
+- CoverWise does not sell these data types or disclose them to data brokers.
+- Core product data is not used to train shared CoverWise models by default.
+- Any contribution program must use a separate optional consent flow describing exact data, purpose, safeguards, retention, withdrawal, and effects. Declining must not block core use.
+- Analytics remains limited to documented non-content events and coarse operational properties. Policy text, questions, answers, filenames, identifiers, and feedback comments must not enter analytics payloads.
+- Any future sponsor placement must be contextual, labeled, independent of profile and contents, and absent from policy, Q&A, claim, emergency, family, and gap workflows.
+- The published policy must name the entity, processors, model/analytics/payment providers, locations, retention, rights channel, deletion behavior, grievance contact, and effective date.
+
+Implementation and commercial detail: [`docs/planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md`](../planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md).
+
 **Status:** review required before publication  
 **Last updated:** 2026-07-12
 
@@ -24,7 +38,7 @@ The final policy must be narrowed to the actual deployed behavior. Do not publis
 
 We use submitted information to provide document processing and explanations, maintain service security, measure reliability, respond to support requests, and meet legal obligations where applicable.
 
-We do not use policy documents for advertising unless the user has separately agreed to that use.
+We do not use policy documents or inferences from them for advertising. The current product direction does not permit policy-targeted advertising even with an ordinary consent prompt; changing that boundary would require a new product decision, legal review, and a rewritten privacy architecture.
 
 ## Sensitive documents
 

@@ -77,9 +77,7 @@ PolicyType classifyPolicyType(String? documentType) {
   }
 
   // Travel — covers Overseas, Trip
-  if (t.contains('travel') ||
-      t.contains('overseas') ||
-      t.contains('trip')) {
+  if (t.contains('travel') || t.contains('overseas') || t.contains('trip')) {
     return PolicyType.travel;
   }
 
@@ -108,35 +106,39 @@ String canonicalTypeName(PolicyType type) {
 IconData iconForPolicyType(PolicyType type) {
   switch (type) {
     case PolicyType.health:
-      return Icons.health_and_safety;
+      return Icons.monitor_heart_rounded;
     case PolicyType.auto:
-      return Icons.directions_car;
+      return Icons.directions_car_filled_rounded;
     case PolicyType.life:
-      return Icons.favorite;
+      return Icons.person_rounded;
     case PolicyType.home:
-      return Icons.home;
+      return Icons.home_rounded;
     case PolicyType.travel:
-      return Icons.flight;
+      return Icons.flight_rounded;
     case PolicyType.other:
-      return Icons.shield;
+      return Icons.inventory_2_rounded;
   }
 }
 
 /// Color for a policy type.
-Color colorForPolicyType(PolicyType type) {
+Color colorForPolicyType(
+  PolicyType type, {
+  Brightness brightness = Brightness.light,
+}) {
+  final dark = brightness == Brightness.dark;
   switch (type) {
     case PolicyType.health:
-      return Colors.red;
+      return dark ? const Color(0xFFFF879A) : const Color(0xFFB52F4B);
     case PolicyType.auto:
-      return Colors.blue;
+      return dark ? const Color(0xFF83B6FF) : const Color(0xFF2466B8);
     case PolicyType.life:
-      return Colors.pink;
+      return dark ? const Color(0xFFD7A0F5) : const Color(0xFF7B459C);
     case PolicyType.home:
-      return Colors.deepPurple;
+      return dark ? const Color(0xFFB9A5FF) : const Color(0xFF6046AF);
     case PolicyType.travel:
-      return Colors.orange;
+      return dark ? const Color(0xFFFFB976) : const Color(0xFFA94E00);
     case PolicyType.other:
-      return Colors.indigo;
+      return dark ? const Color(0xFFA8BED8) : const Color(0xFF40556D);
   }
 }
 

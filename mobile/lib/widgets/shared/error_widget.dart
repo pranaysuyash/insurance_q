@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../theme/coverwise_theme.dart';
+import 'coverwise_components.dart';
 
 /// Centered, retryable error view for screens that failed to load content.
 ///
@@ -20,27 +22,43 @@ class AppErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48, color: Colors.red.shade300),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.red.shade700),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: onRetry,
-                child: const Text('Retry'),
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: onRetry == null ? message : '$message. Retry available.',
+      button: onRetry != null,
+      onTap: onRetry,
+      excludeSemantics: true,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CoverWiseIconBadge(
+                icon: icon,
+                color: const Color(0xFFD64C4C),
+                size: 64,
               ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      height: 1.45,
+                    ),
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 16),
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.refresh_rounded),
+                  onPressed: onRetry,
+                  label: const Text('Retry'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -56,23 +74,42 @@ class AppErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(message, style: TextStyle(color: Colors.grey[600])),
-            ),
-            if (onRetry != null)
-              IconButton(
-                icon: const Icon(Icons.refresh, size: 20),
-                onPressed: onRetry,
-                tooltip: 'Retry',
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: onRetry == null ? message : '$message. Retry available.',
+      button: onRetry != null,
+      onTap: onRetry,
+      excludeSemantics: true,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const CoverWiseIconBadge(
+                icon: Icons.info_outline_rounded,
+                color: CoverWiseColors.blue,
+                size: 40,
               ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              if (onRetry != null)
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded),
+                  onPressed: onRetry,
+                  tooltip: 'Retry',
+                ),
+            ],
+          ),
         ),
       ),
     );

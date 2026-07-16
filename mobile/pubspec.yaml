@@ -1,5 +1,5 @@
 name: coverwise
-description: "A new Flutter project."
+description: "Understand policy documents, ask grounded questions, and keep coverage details organized."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -58,6 +58,7 @@ dependencies:
   timezone: ^0.10.1
   google_mlkit_text_recognition: ^0.16.0
   app_links: ^6.4.1
+  supabase_flutter: ^2.15.4
 
 dev_dependencies:
   flutter_test:
@@ -82,17 +83,30 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   image_path: "assets/branding/coverwise_icon.png"
   min_sdk_android: 23
-  adaptive_icon_background: "#0d47a1"
-  adaptive_icon_foreground: "assets/branding/coverwise_icon.png"
+  adaptive_icon_background: "#071B33"
+  adaptive_icon_foreground: "assets/branding/coverwise_foreground.png"
+  adaptive_icon_monochrome: "assets/branding/coverwise_monochrome.png"
+  web:
+    generate: true
+    image_path: "assets/branding/coverwise_icon.png"
+    background_color: "#071B33"
+    theme_color: "#145BC7"
+  windows:
+    generate: true
+    image_path: "assets/branding/coverwise_icon.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/branding/coverwise_icon.png"
 
 # Native splash screen generation (run: dart run flutter_native_splash:create)
 flutter_native_splash:
-  color: "#ffffff"
+  color: "#071B33"
   image: "assets/branding/coverwise_splash.png"
   android_12:
-    color: "#ffffff"
+    color: "#071B33"
     image: "assets/branding/coverwise_splash.png"
-    icon_background_color: "#0d47a1"
+    icon_background_color: "#071B33"
 
 # The following section is specific to Flutter packages.
 flutter:
@@ -114,6 +128,8 @@ flutter:
   # https://flutter.dev/to/asset-from-package
   assets:
     - assets/demo/policy.pdf
+    - assets/onboarding/
+    - assets/scenes/
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

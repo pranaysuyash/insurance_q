@@ -19,7 +19,7 @@ final List<QuestionCategory> _categories = [
       name: 'Premiums & Payments',
       icon: Icons.payments),
   QuestionCategory(
-      id: 'Claims', name: 'Claims', icon: Icons.assignment_turned_in),
+      id: 'Claims', name: 'Claims', icon: Icons.fact_check_outlined),
   QuestionCategory(
       id: 'Exclusions & Limitations',
       name: 'Exclusions & Limitations',
@@ -226,4 +226,3 @@ class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
     _saveHistory();
   }
 }
-

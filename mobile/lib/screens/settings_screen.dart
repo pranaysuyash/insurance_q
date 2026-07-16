@@ -14,6 +14,8 @@ import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/phone_capture_sheet.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../theme/coverwise_theme.dart';
 import 'notification_preferences_screen.dart';
 
 /// App settings. Currently exposes the backend environment display and a
@@ -53,7 +55,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (ctx) => SimpleDialog(
         title: const Text('Appearance'),
         children: [
-          _themeOption(ctx, 'system', 'System default', Icons.brightness_auto, current),
+          _themeOption(
+              ctx, 'system', 'System default', Icons.brightness_auto, current),
           _themeOption(ctx, 'light', 'Light', Icons.light_mode, current),
           _themeOption(ctx, 'dark', 'Dark', Icons.dark_mode, current),
         ],
@@ -67,7 +70,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Widget _themeOption(BuildContext ctx, String value, String label, IconData icon, String current) {
+  Widget _themeOption(BuildContext ctx, String value, String label,
+      IconData icon, String current) {
     return SimpleDialogOption(
       onPressed: () => Navigator.pop(ctx, value),
       child: Row(
@@ -157,84 +161,100 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
-          // Identity section
-          ListTile(
-            leading: Icon(
-              phone != null ? Icons.verified_user_outlined : Icons.phone_android,
-              color: phone != null ? Colors.green : Colors.grey,
+          const CoverWisePageHeader(
+            title: 'Your app, your preferences',
+            subtitle: 'Manage access, reminders and what stays on this device.',
+          ),
+          const CoverWiseSectionLabel('Account'),
+          CoverWiseSurface(
+            child: CoverWiseActionRow(
+              icon: phone != null
+                  ? Icons.verified_user_rounded
+                  : Icons.phone_iphone_rounded,
+              color: phone != null
+                  ? const Color(0xFF0F9D84)
+                  : CoverWiseColors.blue,
+              title: phone != null ? 'Account linked' : 'Link your phone',
+              subtitle: phone != null
+                  ? 'Connected as $phone'
+                  : 'Back up policies and use them on another device',
+              trailing: TextButton(
+                onPressed: () async {
+                  if (phone != null) {
+                    await box.delete(AppStateStore.phoneNumberKey);
+                  } else {
+                    await box.put(AppStateStore.phonePromptCountKey, 0);
+                    if (!context.mounted) return;
+                    PhoneCaptureSheet.maybeShow(context);
+                  }
+                  if (mounted) setState(() {});
+                },
+                child: Text(phone != null ? 'Remove' : 'Add'),
+              ),
+              onTap: null,
             ),
-            title: Text(phone != null ? 'Account linked' : 'Link your phone'),
-            subtitle: Text(phone != null
-                ? 'Connected as $phone'
-                : 'Back up your policies and access from any device'),
-            trailing: phone != null
-                ? TextButton(
-                    onPressed: () async {
-                      await box.delete(AppStateStore.phoneNumberKey);
-                      setState(() {});
-                    },
-                    child: const Text('Remove'),
-                  )
-                : TextButton(
-                    onPressed: () async {
-                      // Re-trigger the phone capture sheet
-                      await box.put(AppStateStore.phonePromptCountKey, 0);
-                      if (!mounted) return;
-                      // ignore: use_build_context_synchronously
-                      PhoneCaptureSheet.maybeShow(context);
-                      setState(() {});
-                    },
-                    child: const Text('Add'),
+          ),
+          const CoverWiseSectionLabel('Experience'),
+          CoverWiseSurface(
+            child: Column(children: [
+              CoverWiseActionRow(
+                icon: Theme.of(context).brightness == Brightness.dark
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: const Color(0xFF7557D3),
+                title: 'Appearance',
+                subtitle: _themeModeLabel(AppStateRepository.getThemeMode()),
+                onTap: _showThemePicker,
+              ),
+              const Divider(indent: 74),
+              CoverWiseActionRow(
+                icon: Icons.notifications_active_outlined,
+                color: const Color(0xFFE58726),
+                title: 'Notifications',
+                subtitle: 'Renewal reminders and quiet hours',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationPreferencesScreen(),
                   ),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.dns_outlined),
-            title: const Text('Backend endpoint'),
-            subtitle: Text(_resolvedBaseUrl ?? AppConfig.baseUrl),
-          ),
-          ListTile(
-            leading: const Icon(Icons.tag),
-            title: const Text('App version'),
-            subtitle: Text('${AppConfig.appName} ${AppConfig.appVersion}'),
-          ),
-          const Divider(),
-          // Theme toggle
-          ListTile(
-            leading: Icon(
-              Theme.of(context).brightness == Brightness.dark
-                  ? Icons.dark_mode
-                  : Icons.light_mode,
-            ),
-            title: const Text('Appearance'),
-            subtitle: Text(_themeModeLabel(AppStateRepository.getThemeMode())),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _showThemePicker,
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.notifications_outlined),
-            title: const Text('Notification Preferences'),
-            subtitle: const Text('Manage renewal reminders and quiet hours'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const NotificationPreferencesScreen(),
                 ),
-              );
-            },
+              ),
+            ]),
           ),
-          const Divider(),
-          ListTile(
-            leading: Icon(Icons.delete_outline, color: Colors.red.shade700),
-            title: Text('Clear local data',
-                style: TextStyle(color: Colors.red.shade700)),
-            subtitle: const Text(
-                'Documents, summaries, history, family members, and session'),
-            onTap: _confirmClearData,
+          const CoverWiseSectionLabel('App details'),
+          CoverWiseSurface(
+            child: Column(children: [
+              CoverWiseActionRow(
+                icon: Icons.info_outline_rounded,
+                color: CoverWiseColors.blue,
+                title: 'Version',
+                subtitle: '${AppConfig.appName} ${AppConfig.appVersion}',
+                trailing: const SizedBox.shrink(),
+                onTap: null,
+              ),
+              const Divider(indent: 74),
+              CoverWiseActionRow(
+                icon: Icons.dns_outlined,
+                color: const Color(0xFF637083),
+                title: 'Service endpoint',
+                subtitle: _resolvedBaseUrl ?? AppConfig.baseUrl,
+                trailing: const SizedBox.shrink(),
+                onTap: null,
+              ),
+            ]),
+          ),
+          const CoverWiseSectionLabel('Device data'),
+          CoverWiseSurface(
+            child: CoverWiseActionRow(
+              icon: Icons.delete_outline_rounded,
+              color: const Color(0xFFC43D4B),
+              title: 'Clear local data',
+              subtitle:
+                  'Remove documents, summaries, history and family members',
+              onTap: _confirmClearData,
+            ),
           ),
         ],
       ),

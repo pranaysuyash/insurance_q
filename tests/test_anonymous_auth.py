@@ -111,3 +111,29 @@ def test_openapi_declares_bearer_auth_for_profile():
 
     assert schema["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
     assert schema["paths"]["/user/profile"]["get"]["security"] == [{"HTTPBearer": []}]
+
+
+def test_account_principal_can_access_profile(monkeypatch):
+    from src.api import user as user_api
+
+    monkeypatch.setattr(
+        user_api,
+        "verify_supabase_token",
+        lambda token: {
+            "sub": "account-user-1",
+            "email": "person@example.com",
+            "display_name": "Person",
+            "identity_type": "account",
+        },
+    )
+    app = FastAPI()
+    app.include_router(user_router)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/user/profile", headers={"Authorization": "Bearer account-token"}
+        )
+
+    assert response.status_code == 200
+    assert response.json()["uid"] == "account-user-1"
+    assert response.json()["identity_type"] == "account"

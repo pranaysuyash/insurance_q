@@ -19,6 +19,11 @@ class AppConfig {
       String.fromEnvironment('TERMS_OF_SERVICE_URL', defaultValue: '');
   static const String supportEmail =
       String.fromEnvironment('SUPPORT_EMAIL', defaultValue: '');
+  static const String supabaseUrl =
+      String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+  static const String supabasePublishableKey = String.fromEnvironment(
+      'SUPABASE_PUBLISHABLE_KEY',
+      defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''));
   static const String privacyPolicyVersion =
       String.fromEnvironment(
           'PRIVACY_POLICY_VERSION', defaultValue: 'development-unversioned');
@@ -98,6 +103,8 @@ class AppConfig {
   static bool get hasPrivacyPolicy => privacyPolicyUrl.startsWith('https://');
   static bool get hasTermsOfService => termsOfServiceUrl.startsWith('https://');
   static bool get hasSupportEmail => isValidEmail(supportEmail);
+  static bool get hasSupabaseAuthConfig =>
+      supabaseUrl.startsWith('https://') && supabasePublishableKey.isNotEmpty;
 
   static void validateReleaseConfiguration() {
     if (!kReleaseMode || !isProduction) return;

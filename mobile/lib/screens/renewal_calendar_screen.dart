@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
+import '../theme/coverwise_theme.dart';
+import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../utils/document_icons.dart';
 import '../services/notification_service.dart';
@@ -21,6 +23,7 @@ class RenewalCalendarScreen extends ConsumerWidget {
           icon: Icons.event_busy,
           title: 'No policies tracked',
           subtitle: 'Upload documents to track renewal dates',
+          color: Color(0xFFA94E00),
         ),
       );
     }
@@ -40,22 +43,35 @@ class RenewalCalendarScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Renewal Calendar')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
+          const CoverWisePageHeader(
+            title: 'Never miss a renewal',
+            subtitle:
+                'See what needs attention first and keep insurer contact details close.',
+            trailing: CoverWiseIconBadge(
+              icon: Icons.event_repeat_outlined,
+              color: CoverWiseColors.blueDeep,
+              size: 52,
+            ),
+          ),
           Card(
-            color: Theme.of(context).colorScheme.primaryContainer,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  const Icon(Icons.notifications_active_outlined),
+                  CoverWiseIconBadge(
+                    icon: Icons.notifications_active_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
                       'Get reminders 30, 15, 7 and 1 day before a policy expires.',
                     ),
                   ),
-                  TextButton(
+                  FilledButton.tonal(
                     onPressed: () async {
                       final granted =
                           await NotificationService.requestPermissions();
@@ -73,13 +89,13 @@ class RenewalCalendarScreen extends ConsumerWidget {
                         ),
                       );
                     },
-                    child: const Text('Turn on'),
+                    child: const Text('Enable'),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           if (expired.isNotEmpty) ...[
             _SectionHeader('Expired', Icons.error, Colors.red, expired.length),
             const SizedBox(height: 8),
@@ -106,11 +122,11 @@ class RenewalCalendarScreen extends ConsumerWidget {
                 Colors.blueGrey, noEndDate.length),
             const SizedBox(height: 8),
             Container(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blueGrey.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
                 border:
                     Border.all(color: Colors.blueGrey.withValues(alpha: 0.2)),
               ),
@@ -121,8 +137,10 @@ class RenewalCalendarScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'Expiry date not found in your policy — check your policy document',
-                      style: TextStyle(
-                          color: Colors.blueGrey.shade700, fontSize: 13),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
                   ),
                 ],
@@ -146,23 +164,32 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(width: 8),
-        Text(title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          CoverWiseIconBadge(icon: icon, color: color, size: 38),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
           ),
-          child: Text('$count',
-              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text('$count',
+                style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -185,39 +212,49 @@ class _RenewalCard extends StatelessWidget {
     final showRenewCta = summary.isExpired || summary.isExpiringSoon;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
         children: [
           ListTile(
-            leading: CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.1),
-              child: Icon(icon, color: color),
+            leading: CoverWiseIconBadge(icon: icon, color: color),
+            title: Text(
+              summary.documentType,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
-            title: Text(summary.documentType,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
-                '${summary.insurer ?? "Unknown"} • Expires: ${summary.formattedExpiryDate}'),
+              '${summary.insurer ?? "Insurer not found"}\nExpires ${summary.formattedExpiryDate}',
+            ),
+            isThreeLine: true,
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  trailingLabel,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                CoverWiseStatusChip(
+                  icon: hasNoEndDate
+                      ? Icons.help_outline_rounded
+                      : summary.isExpired
+                          ? Icons.error_rounded
+                          : Icons.schedule_rounded,
+                  label: trailingLabel,
+                  color: color,
+                  compact: true,
                 ),
                 if (summary.policyNumber != null)
-                  Text(summary.policyNumber!,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  Text(
+                    summary.policyNumber!,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           ),
-          if (showRenewCta)
-            _RenewNowButton(summary: summary, color: color),
+          if (showRenewCta) _RenewNowButton(summary: summary, color: color),
         ],
       ),
     );
@@ -242,10 +279,12 @@ class _RenewNowButton extends StatelessWidget {
               ? () => _showRenewalContactSheet(context)
               : () => _showNoContactInfo(context),
           icon: Icon(
-            summary.isExpired ? Icons.replay : Icons.autorenew,
+            summary.isExpired ? Icons.replay_rounded : Icons.autorenew_rounded,
             size: 18,
           ),
-          label: Text(summary.isExpired ? 'Renew Now' : 'Start Renewal'),
+          label: Text(
+            summary.isExpired ? 'Contact insurer to renew' : 'Start renewal',
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: color,
             side: BorderSide(color: color.withValues(alpha: 0.4)),
@@ -259,7 +298,7 @@ class _RenewNowButton extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -273,7 +312,7 @@ class _RenewNowButton extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: Theme.of(context).colorScheme.outlineVariant,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -281,46 +320,35 @@ class _RenewNowButton extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 'Renew ${summary.documentType}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Contact ${summary.insurer ?? "your insurer"} to start the renewal process.',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
               const SizedBox(height: 16),
               if (summary.insurerHelpline != null) ...[
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green.withValues(alpha: 0.1),
-                    child: const Icon(Icons.phone, color: Colors.green),
-                  ),
-                  title: const Text('Call Helpline'),
-                  subtitle: Text(summary.insurerHelpline!),
+                CoverWiseActionRow(
+                  icon: Icons.phone_outlined,
+                  color: Colors.green,
+                  title: 'Call helpline',
+                  subtitle: summary.insurerHelpline!,
                   onTap: () => _callHelpline(ctx),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
                 ),
                 const SizedBox(height: 8),
               ],
               if (summary.insurerEmail != null) ...[
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue.withValues(alpha: 0.1),
-                    child: const Icon(Icons.email, color: Colors.blue),
-                  ),
-                  title: const Text('Send Email'),
-                  subtitle: Text(summary.insurerEmail!),
+                CoverWiseActionRow(
+                  icon: Icons.email_outlined,
+                  color: CoverWiseColors.blueDeep,
+                  title: 'Send email',
+                  subtitle: summary.insurerEmail!,
                   onTap: () => _sendEmail(ctx),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
                 ),
               ],
             ],
@@ -349,7 +377,8 @@ class _RenewNowButton extends StatelessWidget {
       scheme: 'mailto',
       path: summary.insurerEmail,
       queryParameters: {
-        'subject': 'Policy Renewal - ${summary.policyNumber ?? summary.documentType}',
+        'subject':
+            'Policy Renewal - ${summary.policyNumber ?? summary.documentType}',
       },
     );
     if (await canLaunchUrl(uri)) {

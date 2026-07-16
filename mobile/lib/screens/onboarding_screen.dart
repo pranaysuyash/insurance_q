@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import '../theme/coverwise_theme.dart';
+import '../theme/coverwise_motion.dart';
+import '../widgets/shared/coverwise_mark.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onComplete;
@@ -14,29 +17,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _currentPage = 0;
 
   static const _pages = [
-    _OnboardingPage(
-      icon: Icons.upload_file,
-      color: Colors.blue,
-      title: 'Upload Your Policies',
-      description: 'Upload your insurance documents — health, auto, life, home. CoverWise reads them instantly.',
+    _OnboardingData(
+      eyebrow: 'UNDERSTAND',
+      assetPath: 'assets/onboarding/understand-policy.png',
+      title: 'Turn policy pages into plain answers.',
+      description:
+          'Add a policy once. CoverWise surfaces the cover, exclusions and benefits that matter.',
+      accent: CoverWiseColors.blue,
     ),
-    _OnboardingPage(
-      icon: Icons.question_answer,
-      color: Colors.purple,
-      title: 'Ask Questions',
-      description: 'Ask anything in plain English. "What is my coverage?" "What is not covered?" Get instant answers from your documents.',
+    _OnboardingData(
+      eyebrow: 'ASK',
+      assetPath: 'assets/onboarding/ask-policy.png',
+      title: 'Ask your policy, not the internet.',
+      description:
+          'Get document-grounded answers in everyday language, with the policy always within reach.',
+      accent: Color(0xFF7C5CE7),
     ),
-    _OnboardingPage(
-      icon: Icons.shield,
-      color: Colors.teal,
-      title: 'Stay Protected',
-      description: 'Track renewals, find coverage gaps, get claims guidance, and access your emergency card — all in one place.',
-    ),
-    _OnboardingPage(
-      icon: Icons.info_outline,
-      color: Colors.indigo,
-      title: 'Your Info, Not Ours',
-      description: "CoverWise is an information broker. We help you understand and manage your policies — we don't sell insurance or file claims. Your data stays on your device.",
+    _OnboardingData(
+      eyebrow: 'STAY READY',
+      assetPath: 'assets/onboarding/stay-ready.png',
+      title: 'Know what needs attention next.',
+      description:
+          'Keep renewals, coverage gaps and claim guidance together—without selling you another policy.',
+      accent: Color(0xFF079A86),
     ),
   ];
 
@@ -47,55 +50,107 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _complete() {
-    final box = Hive.box('app_state_box');
-    box.put('onboarding_complete', true);
+    Hive.box('app_state_box').put('onboarding_complete', true);
     widget.onComplete();
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLast = _currentPage == _pages.length - 1;
+
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 12, 0),
+              child: Row(
+                children: [
+                  CoverWiseMark(
+                    size: 30,
+                    onDark: theme.brightness == Brightness.dark,
+                    decorative: true,
+                  ),
+                  if (MediaQuery.textScalerOf(context).scale(1) <= 1.5) ...[
+                    const SizedBox(width: 10),
+                    Text(
+                      'CoverWise',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _complete,
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(64, 48),
+                    ),
+                    child: const Text('Skip'),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: PageView.builder(
                 controller: _controller,
                 itemCount: _pages.length,
-                onPageChanged: (i) => setState(() => _currentPage = i),
-                itemBuilder: (_, i) => _pages[i],
+                onPageChanged: (index) => setState(() => _currentPage = index),
+                itemBuilder: (_, index) => _OnboardingPage(data: _pages[index]),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+              child: Column(
                 children: [
-                  TextButton(onPressed: _complete, child: const Text('Skip')),
                   Row(
                     children: List.generate(
                       _pages.length,
-                      (i) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentPage == i ? 24 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _currentPage == i ? Colors.blue : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(4),
+                      (index) => Expanded(
+                        child: AnimatedContainer(
+                          duration: CoverWiseMotion.duration(
+                            context,
+                            CoverWiseMotion.standard,
+                          ),
+                          height: 4,
+                          margin: EdgeInsets.only(
+                            right: index == _pages.length - 1 ? 0 : 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: index <= _currentPage
+                                ? _pages[_currentPage].accent
+                                : CoverWiseColors.line,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  if (_currentPage == _pages.length - 1)
-                    FilledButton(onPressed: _complete, child: const Text('Get Started'))
-                  else
-                    FilledButton(
-                      onPressed: () => _controller.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      ),
-                      child: const Text('Next'),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: isLast
+                          ? _complete
+                          : () {
+                              if (CoverWiseMotion.isReduced(context)) {
+                                _controller.jumpToPage(_currentPage + 1);
+                              } else {
+                                _controller.nextPage(
+                                  duration: CoverWiseMotion.emphasized,
+                                  curve: CoverWiseMotion.enterCurve,
+                                );
+                              }
+                            },
+                      icon: Icon(isLast
+                          ? Icons.arrow_forward_rounded
+                          : Icons.chevron_right_rounded),
+                      label: Text(isLast ? 'Add my first policy' : 'Continue'),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -107,33 +162,146 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class _OnboardingPage extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String description;
-  const _OnboardingPage({required this.icon, required this.color, required this.title, required this.description});
+  final _OnboardingData data;
+  const _OnboardingPage({required this.data});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 80, color: color),
+    final theme = Theme.of(context);
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.25;
+
+    Widget artwork() => DecoratedBox(
+          decoration: BoxDecoration(
+            color: data.accent.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(32),
           ),
-          const SizedBox(height: 32),
-          Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          Text(description, style: const TextStyle(fontSize: 16, color: Colors.grey), textAlign: TextAlign.center),
-        ],
-      ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -36,
+                top: -28,
+                child: Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: data.accent.withValues(alpha: 0.08),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.94, end: 1),
+                  duration: CoverWiseMotion.duration(
+                    context,
+                    CoverWiseMotion.onboarding,
+                  ),
+                  curve: CoverWiseMotion.enterCurve,
+                  builder: (_, value, child) =>
+                      Transform.scale(scale: value, child: child),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(32),
+                    child: Image.asset(
+                      data.assetPath,
+                      fit: BoxFit.cover,
+                      excludeFromSemantics: true,
+                      errorBuilder: (context, error, stackTrace) => ColoredBox(
+                        color: data.accent.withValues(alpha: 0.08),
+                        child: Center(
+                          child: CoverWiseMark(
+                            size: 92,
+                            onDark: theme.brightness == Brightness.dark,
+                            decorative: true,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+    Widget details() => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              data.eyebrow,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: data.accent,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.6,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              data.title,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+                height: 1.08,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -1.0,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              data.description,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+          ],
+        );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (largeText) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 18, 24, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: (constraints.maxHeight * .38).clamp(180.0, 260.0),
+                  width: double.infinity,
+                  child: artwork(),
+                ),
+                const SizedBox(height: 24),
+                details(),
+              ],
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 18, 24, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: artwork()),
+              const SizedBox(height: 30),
+              details(),
+            ],
+          ),
+        );
+      },
     );
   }
+}
+
+class _OnboardingData {
+  final String eyebrow;
+  final String assetPath;
+  final String title;
+  final String description;
+  final Color accent;
+
+  const _OnboardingData({
+    required this.eyebrow,
+    required this.assetPath,
+    required this.title,
+    required this.description,
+    required this.accent,
+  });
 }

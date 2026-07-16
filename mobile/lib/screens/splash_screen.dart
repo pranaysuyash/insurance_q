@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../theme/coverwise_theme.dart';
+import '../theme/coverwise_motion.dart';
+import '../widgets/shared/coverwise_mark.dart';
 
 /// Branded splash screen shown while the app initializes.
 ///
@@ -19,7 +22,7 @@ class SplashScreen extends StatefulWidget {
   const SplashScreen({
     super.key,
     required this.onComplete,
-    this.minimumDuration = const Duration(milliseconds: 1500),
+    this.minimumDuration = const Duration(milliseconds: 1100),
   });
 
   @override
@@ -31,32 +34,48 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _fadeIn;
   late Animation<double> _scaleUp;
+  Timer? _completionTimer;
+  bool _motionPreferenceApplied = false;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: CoverWiseMotion.emphasized,
     );
 
-    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-    _scaleUp = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    _fadeIn = CurvedAnimation(
+      parent: _controller,
+      curve: CoverWiseMotion.enterCurve,
     );
-
-    _controller.forward();
+    _scaleUp = Tween<double>(begin: 0.92, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: CoverWiseMotion.enterCurve),
+    );
 
     // Complete after minimum duration to ensure brand visibility.
     // By the time this fires, main() initialization (Hive, auth, analytics)
     // has already completed before runApp() was called.
-    Timer(widget.minimumDuration, () {
+    _completionTimer = Timer(widget.minimumDuration, () {
       if (mounted) widget.onComplete();
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_motionPreferenceApplied) return;
+    _motionPreferenceApplied = true;
+    if (CoverWiseMotion.isReduced(context)) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
+  }
+
+  @override
   void dispose() {
+    _completionTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -67,16 +86,7 @@ class _SplashScreenState extends State<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1565C0),
-              Color(0xFF0D47A1),
-            ],
-          ),
-        ),
+        color: CoverWiseColors.ink,
         child: FadeTransition(
           opacity: _fadeIn,
           child: ScaleTransition(
@@ -84,48 +94,49 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.10),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.shield,
-                    size: 72,
-                    color: Colors.white,
+                  child: const CoverWiseMark(
+                    size: 76,
+                    onDark: true,
+                    decorative: true,
                   ),
                 ),
-                const SizedBox(height: 24),
-                // App name
+                const SizedBox(height: 28),
                 const Text(
                   'CoverWise',
                   style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
-                    letterSpacing: 1.2,
+                    letterSpacing: -1.2,
                   ),
                 ),
-                const SizedBox(height: 8),
-                // Tagline
+                const SizedBox(height: 10),
                 Text(
-                  'Your insurance, understood.',
+                  'Your cover, made clear.',
                   style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.68),
+                    letterSpacing: 0.2,
                   ),
                 ),
-                const SizedBox(height: 48),
-                // Loading indicator
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withValues(alpha: 0.7),
+                const SizedBox(height: 54),
+                Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(99),
+                    gradient: const LinearGradient(
+                      colors: [CoverWiseColors.blue, CoverWiseColors.mint],
                     ),
                   ),
                 ),

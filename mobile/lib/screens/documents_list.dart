@@ -12,6 +12,10 @@ import '../providers/questions_provider.dart';
 import '../services/app_state_repository.dart';
 import '../services/app_state_store.dart';
 import '../utils/document_icons.dart';
+import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_scene.dart';
+import '../widgets/shared/empty_state_widget.dart';
+import '../widgets/shared/error_widget.dart';
 import 'document_preview_screen.dart';
 
 class DocumentsList extends ConsumerWidget {
@@ -24,36 +28,24 @@ class DocumentsList extends ConsumerWidget {
     final documentsAsync = ref.watch(documentsProvider);
 
     return documentsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Error loading documents: $e',
-                style: const TextStyle(color: Colors.red),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton(
-                onPressed: () => ref.invalidate(documentsProvider),
-                child: const Text('Retry')),
-          ],
+      loading: () => Center(
+        child: Semantics(
+          label: 'Loading saved policies',
+          child: const CircularProgressIndicator(),
         ),
+      ),
+      error: (e, _) => AppErrorView(
+        message: 'We could not load your saved policies.',
+        onRetry: () => ref.invalidate(documentsProvider),
       ),
       data: (documents) {
         if (documents.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.folder_open, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('No documents yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey)),
-                SizedBox(height: 8),
-                Text('Upload a document to get started',
-                    style: TextStyle(color: Colors.grey)),
-              ],
-            ),
+          return const EmptyStateWidget(
+            icon: Icons.folder_open_outlined,
+            title: 'No saved policies yet',
+            subtitle:
+                'Add a PDF or policy image above to start building your library.',
+            scene: CoverWiseSceneKind.firstPolicy,
           );
         }
 
@@ -62,16 +54,32 @@ class DocumentsList extends ConsumerWidget {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline,
-                        size: 16, color: Colors.blue),
-                    const SizedBox(width: 8),
-                    Text('${documents.length}/5 documents (free storage limit)',
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.blue)),
-                  ],
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Semantics(
+                  label:
+                      '${documents.length} of 5 free policy storage slots used',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${documents.length} of 5 free policy slots used',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               Expanded(
@@ -82,17 +90,30 @@ class DocumentsList extends ConsumerWidget {
                     final processingState = doc.processingState;
                     final isReady = processingState == 'completed' ||
                         processingState == 'ready';
+                    final typeColor = colorForDocumentType(doc.documentType);
                     return Card(
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                          horizontal: 16, vertical: 6),
                       child: ExpansionTile(
-                        leading: Icon(iconForDocumentType(doc.documentType),
-                            color: colorForDocumentType(doc.documentType)),
+                        tilePadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        childrenPadding:
+                            const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        leading: CoverWiseIconBadge(
+                          icon: iconForDocumentType(doc.documentType),
+                          color: typeColor,
+                          size: 46,
+                        ),
                         title: Text(doc.filename,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                          'Uploaded: ${doc.formattedUploadDate} • ${_processingLabel(processingState)}',
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '${doc.formattedUploadDate} • ${_processingLabel(processingState)}',
+                          ),
                         ),
                         children: [
                           Padding(
@@ -100,20 +121,24 @@ class DocumentsList extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _metadataRow('Local ID', doc.id),
+                                _metadataRow(context, 'Local ID', doc.id),
                                 if (doc.remoteId != null)
-                                  _metadataRow('Backend ID', doc.remoteId!),
-                                _metadataRow(
-                                    'Type', doc.documentType ?? 'Unknown'),
-                                _metadataRow(
-                                    'Upload Date', doc.formattedUploadDate),
-                                _metadataRow(
-                                    'Analysis Date', doc.formattedAnalyzedDate),
+                                  _metadataRow(
+                                      context, 'Backend ID', doc.remoteId!),
+                                _metadataRow(context, 'Type',
+                                    doc.documentType ?? 'Unknown'),
+                                _metadataRow(context, 'Upload Date',
+                                    doc.formattedUploadDate),
+                                _metadataRow(context, 'Analysis Date',
+                                    doc.formattedAnalyzedDate),
                                 if (doc.size != null)
-                                  _metadataRow('Size', doc.formattedFileSize),
+                                  _metadataRow(
+                                      context, 'Size', doc.formattedFileSize),
                                 const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                                Wrap(
+                                  alignment: WrapAlignment.end,
+                                  spacing: 4,
+                                  runSpacing: 4,
                                   children: [
                                     if (doc.localFilePath != null)
                                       TextButton.icon(
@@ -133,41 +158,44 @@ class DocumentsList extends ConsumerWidget {
                                         },
                                       ),
                                     if (doc.localFilePath != null)
-                                      const SizedBox(width: 8),
-                                    TextButton.icon(
-                                      icon: const Icon(Icons.question_answer),
-                                      label: Text(isReady
-                                          ? 'Ask Questions'
-                                          : 'Reading policy'),
-                                      onPressed: isReady
-                                          ? () {
-                                              if (onDocumentSelectedForQA !=
-                                                  null) {
-                                                onDocumentSelectedForQA!(
-                                                    doc.id);
-                                              } else {
-                                                Navigator.pushNamed(
-                                                    context, '/qa',
-                                                    arguments: doc.id);
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.forum_outlined),
+                                        label: Text(isReady
+                                            ? 'Ask Questions'
+                                            : 'Reading policy'),
+                                        onPressed: isReady
+                                            ? () {
+                                                if (onDocumentSelectedForQA !=
+                                                    null) {
+                                                  onDocumentSelectedForQA!(
+                                                      doc.id);
+                                                } else {
+                                                  Navigator.pushNamed(
+                                                      context, '/qa',
+                                                      arguments: doc.id);
+                                                }
                                               }
-                                            }
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 8),
+                                            : null,
+                                      ),
                                     TextButton.icon(
-                                      icon: const Icon(Icons.swap_horiz),
+                                      icon: const Icon(
+                                          Icons.find_replace_outlined),
                                       label: const Text('Replace'),
                                       style: TextButton.styleFrom(
-                                          foregroundColor: Colors.orange),
+                                        foregroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .tertiary,
+                                      ),
                                       onPressed: () =>
                                           _replaceDocument(context, ref, doc),
                                     ),
-                                    const SizedBox(width: 8),
                                     TextButton.icon(
-                                      icon: const Icon(Icons.delete),
+                                      icon: const Icon(Icons.delete_outline),
                                       label: const Text('Delete'),
                                       style: TextButton.styleFrom(
-                                          foregroundColor: Colors.red),
+                                        foregroundColor:
+                                            Theme.of(context).colorScheme.error,
+                                      ),
                                       onPressed: () =>
                                           _deleteDocument(context, ref, doc),
                                     ),
@@ -258,21 +286,19 @@ class DocumentsList extends ConsumerWidget {
     }
   }
 
-  Widget _metadataRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text('$label:',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: Colors.grey)),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
+  Widget _metadataRow(BuildContext context, String label, String value) {
+    final icon = switch (label) {
+      'Local ID' || 'Server ID' => Icons.tag_rounded,
+      'Type' => Icons.category_outlined,
+      'Upload Date' => Icons.upload_file_outlined,
+      'Analysis Date' => Icons.manage_search_rounded,
+      'Status' => Icons.info_outline_rounded,
+      _ => Icons.description_outlined,
+    };
+    return CoverWiseMetadataRow(
+      icon: icon,
+      label: label,
+      value: value,
     );
   }
 
@@ -305,7 +331,8 @@ class _DocumentReplaceScreen extends ConsumerStatefulWidget {
       _DocumentReplaceScreenState();
 }
 
-class _DocumentReplaceScreenState extends ConsumerState<_DocumentReplaceScreen> {
+class _DocumentReplaceScreenState
+    extends ConsumerState<_DocumentReplaceScreen> {
   File? _selectedFile;
   bool _isUploading = false;
   String? _error;
@@ -336,7 +363,8 @@ class _DocumentReplaceScreenState extends ConsumerState<_DocumentReplaceScreen> 
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('This will delete "${widget.document.filename}" and replace it with the new file.'),
+            Text(
+                'This will delete "${widget.document.filename}" and replace it with the new file.'),
             const SizedBox(height: 8),
             const Text(
               "The old document's analysis will be lost. The new document will be processed fresh.",
@@ -370,13 +398,14 @@ class _DocumentReplaceScreenState extends ConsumerState<_DocumentReplaceScreen> 
 
     try {
       final box = Hive.box(AppStateStore.boxName);
-      final consentVersion = box.get('processing_consent_version') as String? ?? 'v1';
+      final consentVersion =
+          box.get('processing_consent_version') as String? ?? 'v1';
 
       final result = await ref.read(documentServiceProvider).replaceDocument(
-        widget.document.id,
-        _selectedFile!,
-        processingConsentVersion: consentVersion,
-      );
+            widget.document.id,
+            _selectedFile!,
+            processingConsentVersion: consentVersion,
+          );
 
       if (!mounted) return;
 
@@ -432,7 +461,8 @@ class _DocumentReplaceScreenState extends ConsumerState<_DocumentReplaceScreen> 
                     const SizedBox(height: 8),
                     Text(widget.document.filename),
                     Text('Uploaded: ${widget.document.formattedUploadDate}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
                 ),
               ),
@@ -445,6 +475,7 @@ class _DocumentReplaceScreenState extends ConsumerState<_DocumentReplaceScreen> 
                   title: Text(_selectedFile!.path.split('/').last),
                   trailing: IconButton(
                     icon: const Icon(Icons.close),
+                    tooltip: 'Clear replacement file',
                     onPressed: () => setState(() => _selectedFile = null),
                   ),
                 ),
