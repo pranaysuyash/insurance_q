@@ -7,6 +7,7 @@ import '../config/app_config.dart';
 import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
 import '../providers/family_providers.dart';
+import '../providers/entitlement_provider.dart';
 import '../providers/questions_provider.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
@@ -16,6 +17,7 @@ import '../services/auth_service.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../theme/coverwise_theme.dart';
+import '../models/entitlement.dart';
 import 'notification_preferences_screen.dart';
 
 /// App settings. Currently exposes the backend environment display and a
@@ -133,6 +135,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(documentsProvider);
       ref.invalidate(policySummariesProvider);
       ref.invalidate(qaHistoryProvider);
+      ref.read(entitlementProvider.notifier).resetToFree();
       refreshManualFamilyMembers(ref);
 
       // 5. Cancel all scheduled renewal notifications
@@ -166,6 +169,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const CoverWisePageHeader(
             title: 'Your app, your preferences',
             subtitle: 'Manage access, reminders and what stays on this device.',
+          ),
+          const CoverWiseSectionLabel('Plan'),
+          Consumer(
+            builder: (context, ref, _) {
+              final entitlement = ref.watch(entitlementProvider);
+              return CoverWiseSurface(
+                child: Column(children: [
+                  CoverWiseActionRow(
+                    icon: Icons.workspace_premium_rounded,
+                    color: entitlement.planTier == PlanTier.free
+                        ? const Color(0xFF637083)
+                        : const Color(0xFF7557D3),
+                    title: 'Current plan: ${entitlement.planTier.displayName}',
+                    subtitle: entitlement.planTier.tagline,
+                    trailing: entitlement.planTier == PlanTier.free
+                        ? TextButton(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Upgrade coming soon')),
+                              );
+                            },
+                            child: const Text('Upgrade'),
+                          )
+                        : TextButton(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Plan management coming soon')),
+                              );
+                            },
+                            child: const Text('Manage'),
+                          ),
+                    onTap: null,
+                  ),
+                  if (entitlement.planTier != PlanTier.free) ...[
+                    const Divider(indent: 74),
+                    CoverWiseActionRow(
+                      icon: Icons.calendar_today_rounded,
+                      color: const Color(0xFF0F9D84),
+                      title: 'Renews',
+                      subtitle: entitlement.expiresAt != null
+                          ? '${entitlement.expiresAt!.day}/${entitlement.expiresAt!.month}/${entitlement.expiresAt!.year}'
+                          : 'Unknown',
+                      trailing: const SizedBox.shrink(),
+                      onTap: null,
+                    ),
+                  ],
+                ]),
+              );
+            },
           ),
           const CoverWiseSectionLabel('Account'),
           CoverWiseSurface(

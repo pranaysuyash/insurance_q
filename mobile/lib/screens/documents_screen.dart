@@ -11,6 +11,7 @@ import '../config/app_config.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
+import '../providers/entitlement_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/app_state_store.dart';
 import '../services/contact_service.dart';
@@ -244,6 +245,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 useOnDeviceOcr: _useOnDeviceOcr,
                 onDeviceOcrScript: _onDeviceOcrScript,
                 processingConsentVersion: consentVersion,
+                documentLimit: ref.read(entitlementProvider).limits.maxPolicies,
               );
 
       if (mounted) {

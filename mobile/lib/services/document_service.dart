@@ -700,15 +700,17 @@ class DocumentService {
       String? pdfPassword,
       bool useOnDeviceOcr = false,
       OnDeviceOcrScript onDeviceOcrScript = OnDeviceOcrScript.latin,
-      required String processingConsentVersion}) async {
+      required String processingConsentVersion,
+      int? documentLimit}) async {
     try {
       final documents = await getDocuments();
-      if (documents.length >= 5) {
+      final limit = documentLimit ?? 5; // Default for free tier
+      if (documents.length >= limit) {
         return {
           'error': 'storage_limit_reached',
           'message':
-              'You already have 5 documents stored. Delete one before uploading another.',
-          'document_limit': 5,
+              'You already have $limit documents stored. Upgrade your plan or delete one before uploading another.',
+          'document_limit': limit,
         };
       }
 
