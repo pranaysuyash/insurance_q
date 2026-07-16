@@ -240,6 +240,17 @@ class CoverageGap {
     this.recommendation,
   });
 
+  /// Stable ID for tracking resolution status across sessions.
+  /// Uses djb2 hash — must match the standalone gapId() function.
+  String get gapId {
+    final raw = '$category|$description|$severity';
+    var hash = 0;
+    for (var i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash + raw.codeUnitAt(i)) & 0xFFFFFFFF;
+    }
+    return 'gap_${hash.toRadixString(16)}';
+  }
+
   Map<String, dynamic> toJson() => {
         'category': category,
         'description': description,

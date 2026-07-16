@@ -25,6 +25,10 @@ import 'screens/onboarding_screen.dart';
 import 'screens/claim_tracking_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/search_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/insurance_card_screen.dart';
+import 'screens/insurance_literacy_screen.dart';
+import 'screens/what_if_calculator_screen.dart';
 import 'config/app_config.dart';
 import 'providers/policy_providers.dart';
 import 'services/local_storage_service.dart';
@@ -208,6 +212,10 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         },
         '/claim-tracker': (context) => const ClaimTrackingScreen(),
         '/search': (context) => const SearchScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/insurance-cards': (context) => const InsuranceCardScreen(),
+        '/literacy': (context) => const InsuranceLiteracyScreen(),
+        '/what-if': (context) => const WhatIfCalculatorScreen(),
       },
       debugShowCheckedModeBanner: false,
     );

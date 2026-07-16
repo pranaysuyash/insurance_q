@@ -32,6 +32,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Stay Protected',
       description: 'Track renewals, find coverage gaps, get claims guidance, and access your emergency card — all in one place.',
     ),
+    _OnboardingPage(
+      icon: Icons.info_outline,
+      color: Colors.indigo,
+      title: 'Your Info, Not Ours',
+      description: "CoverWise is an information broker. We help you understand and manage your policies — we don't sell insurance or file claims. Your data stays on your device.",
+    ),
   ];
 
   @override

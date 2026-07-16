@@ -285,6 +285,9 @@ class QaScreenState extends ConsumerState<QaScreen>
             documentsAsync: documentsAsync,
             selectedDocumentId: selectedDocumentId,
             onSelectDocument: _showDocumentSelectionDialog,
+            onSelectAllDocuments: () {
+              ref.read(selectedDocumentProvider.notifier).state = null;
+            },
           ),
           Expanded(
             child: TabBarView(
@@ -325,14 +328,19 @@ class _DocumentSelector extends StatelessWidget {
   final AsyncValue<List<InsuranceDocument>> documentsAsync;
   final String? selectedDocumentId;
   final VoidCallback onSelectDocument;
+  final VoidCallback onSelectAllDocuments;
 
   const _DocumentSelector(
       {required this.documentsAsync,
       required this.selectedDocumentId,
-      required this.onSelectDocument});
+      required this.onSelectDocument,
+      required this.onSelectAllDocuments});
 
   @override
   Widget build(BuildContext context) {
+    final documents = documentsAsync.valueOrNull ?? [];
+    final isAllDocuments = selectedDocumentId == null;
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Card(
@@ -349,37 +357,58 @@ class _DocumentSelector extends StatelessWidget {
                     color: Colors.grey,
                     fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 4),
-              Builder(builder: (context) {
-                final documents = documentsAsync.valueOrNull ?? [];
-                final selectedDoc = documents.firstWhere(
-                  (doc) => doc.id == selectedDocumentId,
-                  orElse: () => InsuranceDocument(
-                      id: '',
-                      filename: 'No document selected',
-                      uploadedOn: DateTime.now()),
-                );
-
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        selectedDoc.filename,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      label: Text(
+                        isAllDocuments ? 'All Documents (${documents.length})' : 'Single Document',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      selected: isAllDocuments,
+                      onSelected: (selected) {
+                        if (selected) onSelectAllDocuments();
+                      },
+                      avatar: Icon(
+                        isAllDocuments ? Icons.dynamic_feed : Icons.description,
+                        size: 18,
                       ),
                     ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.folder_open, size: 18),
-                      label: const Text('Change'),
-                      onPressed: onSelectDocument,
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  ),
+                  if (!isAllDocuments) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Builder(builder: (context) {
+                        final selectedDoc = documents.firstWhere(
+                          (doc) => doc.id == selectedDocumentId,
+                          orElse: () => InsuranceDocument(
+                              id: '',
+                              filename: 'No document selected',
+                              uploadedOn: DateTime.now()),
+                        );
+                        return TextButton.icon(
+                          icon: const Icon(Icons.folder_open, size: 16),
+                          label: Text(
+                            selectedDoc.filename,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          onPressed: onSelectDocument,
+                        );
+                      }),
                     ),
                   ],
-                );
-              }),
+                ],
+              ),
+              if (isAllDocuments)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Search across all your uploaded policies',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
               if (documentsAsync.isLoading)
                 const Padding(
                   padding: EdgeInsets.only(top: 8.0),

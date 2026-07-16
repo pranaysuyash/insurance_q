@@ -24,17 +24,12 @@ class MoreScreen extends StatelessWidget {
             onTap: () => Navigator.pushNamed(context, '/emergency'),
           ),
           ListTile(
-            leading: const Icon(Icons.assignment_turned_in, color: Colors.orange),
-            title: const Text('Claims Assistant'),
-            subtitle: const Text('Step-by-step claim guidance for any incident'),
-            onTap: () => Navigator.pushNamed(context, '/claims'),
+            leading: const Icon(Icons.credit_card, color: Colors.blue),
+            title: const Text('Insurance Cards'),
+            subtitle: const Text('Digital proof of insurance for each policy'),
+            onTap: () => Navigator.pushNamed(context, '/insurance-cards'),
           ),
-          ListTile(
-            leading: const Icon(Icons.track_changes, color: Colors.deepOrange),
-            title: const Text('Claim Tracker'),
-            subtitle: const Text('Log and track your filed insurance claims'),
-            onTap: () => Navigator.pushNamed(context, '/claim-tracker'),
-          ),
+          const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.event, color: Colors.blue),
             title: const Text('Renewal Calendar'),
@@ -53,7 +48,40 @@ class MoreScreen extends StatelessWidget {
             subtitle: const Text('Side-by-side comparison of your policies'),
             onTap: () => Navigator.pushNamed(context, '/compare'),
           ),
-          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.calculate, color: Colors.indigo),
+            title: const Text('What-If Calculator'),
+            subtitle: const Text('Explore how changes affect coverage and premiums'),
+            onTap: () => Navigator.pushNamed(context, '/what-if'),
+          ),
+          const Divider(height: 1),
+          // Claims Info Guide (reframed from Claims Assistant — info only, not operational)
+          ListTile(
+            leading: const Icon(Icons.info_outline, color: Colors.orange),
+            title: const Text('Claims Info Guide'),
+            subtitle: const Text('Learn what to do if something happens — step-by-step info'),
+            onTap: () => Navigator.pushNamed(context, '/claims'),
+          ),
+          // My Claims Log (reframed from Claim Tracker — info log only)
+          ListTile(
+            leading: const Icon(Icons.list_alt, color: Colors.deepOrange),
+            title: const Text('My Claims Log'),
+            subtitle: const Text("Keep a personal record of claims you've filed"),
+            onTap: () => Navigator.pushNamed(context, '/claim-tracker'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.school, color: Colors.teal),
+            title: const Text('Insurance Basics'),
+            subtitle: const Text('Learn key terms and concepts'),
+            onTap: () => Navigator.pushNamed(context, '/literacy'),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('Profile'),
+            subtitle: const Text('Account info and identity'),
+            onTap: () => Navigator.pushNamed(context, '/profile'),
+          ),
           ListTile(
             leading: const Icon(Icons.settings),
             title: const Text('Settings'),

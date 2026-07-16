@@ -5,16 +5,6 @@ import '../providers/policy_providers.dart';
 import '../services/app_state_repository.dart';
 import '../widgets/shared/empty_state_widget.dart';
 
-/// Generates a stable ID for a coverage gap based on its content.
-String gapId(CoverageGap gap) {
-  final raw = '${gap.category}|${gap.description}|${gap.severity}';
-  // Simple hash for a stable short ID — not cryptographic.
-  var hash = 0;
-  for (var i = 0; i < raw.length; i++) {
-    hash = ((hash << 5) - hash + raw.codeUnitAt(i)) & 0xFFFFFFFF;
-  }
-  return 'gap_${hash.toRadixString(16)}';
-}
 
 /// Filter mode for the gap list.
 enum _GapFilter { all, unresolved, resolved }
@@ -42,10 +32,10 @@ class _CoverageGapScreenState extends ConsumerState<CoverageGapScreen> {
     });
   }
 
-  bool _isResolved(CoverageGap gap) => _resolvedGaps.containsKey(gapId(gap));
+  bool _isResolved(CoverageGap gap) => _resolvedGaps.containsKey(gap.gapId);
 
   Future<void> _toggleResolved(CoverageGap gap, Color color) async {
-    final id = gapId(gap);
+    final id = gap.gapId;
     if (_isResolved(gap)) {
       await AppStateRepository.unresolveGap(id);
     } else {
@@ -286,7 +276,7 @@ class _GapCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolved = state._isResolved(gap);
-    final resolvedInfo = state._resolvedGaps[gapId(gap)];
+    final resolvedInfo = state._resolvedGaps[gap.gapId];
     final notes = resolvedInfo?['notes'] as String?;
 
     return Card(

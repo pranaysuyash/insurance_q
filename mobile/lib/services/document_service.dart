@@ -632,6 +632,58 @@ class DocumentService {
     }
   }
 
+  /// Replace an existing document with a new file.
+  /// Deletes the old document and its summary, then uploads the new file.
+  Future<Map<String, dynamic>> replaceDocument(
+    String existingDocumentId,
+    File newFile, {
+    String? pdfPassword,
+    String? onDeviceOcrText,
+    required String processingConsentVersion,
+  }) async {
+    try {
+      // Get the existing document to preserve some metadata
+      final existingDoc = await _localStorageService.getDocumentById(existingDocumentId);
+      if (existingDoc == null) {
+        return {
+          'error': 'document_not_found',
+          'message': 'The original document could not be found.',
+        };
+      }
+
+      // Delete the old document's summary from local storage
+      // (the backend will re-extract from the new file)
+      debugPrint('Replacing document: ${existingDoc.filename}');
+
+      // Upload the new file (this creates a new document)
+      final uploadResult = await uploadDocument(
+        newFile,
+        pdfPassword: pdfPassword,
+        onDeviceOcrText: onDeviceOcrText,
+        processingConsentVersion: processingConsentVersion,
+      );
+
+      if (uploadResult.containsKey('error')) {
+        return uploadResult;
+      }
+
+      // Delete the old document after successful upload of the new one
+      await deleteDocument(existingDocumentId);
+
+      return {
+        ...uploadResult,
+        'replaced_document_id': existingDocumentId,
+        'message': 'Document replaced successfully',
+      };
+    } catch (e) {
+      debugPrint('Error replacing document: $e');
+      return {
+        'error': 'replace_failed',
+        'message': 'Could not replace the document. Please try again.',
+      };
+    }
+  }
+
   Future<InsuranceDocument?> checkForDuplicateDocument(File file) async {
     final filename = file.path.split('/').last;
     return await _localStorageService.findDuplicateDocument(filename);

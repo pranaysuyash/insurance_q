@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:hive/hive.dart';
 import '../models/document_model.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
@@ -7,6 +10,7 @@ import '../providers/policy_providers.dart';
 import '../providers/family_providers.dart';
 import '../providers/questions_provider.dart';
 import '../services/app_state_repository.dart';
+import '../services/app_state_store.dart';
 import '../utils/document_icons.dart';
 import 'document_preview_screen.dart';
 
@@ -151,6 +155,15 @@ class DocumentsList extends ConsumerWidget {
                                     ),
                                     const SizedBox(width: 8),
                                     TextButton.icon(
+                                      icon: const Icon(Icons.swap_horiz),
+                                      label: const Text('Replace'),
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: Colors.orange),
+                                      onPressed: () =>
+                                          _replaceDocument(context, ref, doc),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TextButton.icon(
                                       icon: const Icon(Icons.delete),
                                       label: const Text('Delete'),
                                       style: TextButton.styleFrom(
@@ -174,6 +187,19 @@ class DocumentsList extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _replaceDocument(
+      BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    // Import needed
+    if (context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _DocumentReplaceScreen(document: document),
+        ),
+      );
+    }
   }
 
   Future<void> _deleteDocument(
@@ -266,5 +292,201 @@ class DocumentsList extends ConsumerWidget {
       default:
         return 'Saved';
     }
+  }
+}
+
+/// Dedicated screen for replacing a document with a new file.
+class _DocumentReplaceScreen extends ConsumerStatefulWidget {
+  final InsuranceDocument document;
+  const _DocumentReplaceScreen({required this.document});
+
+  @override
+  ConsumerState<_DocumentReplaceScreen> createState() =>
+      _DocumentReplaceScreenState();
+}
+
+class _DocumentReplaceScreenState extends ConsumerState<_DocumentReplaceScreen> {
+  File? _selectedFile;
+  bool _isUploading = false;
+  String? _error;
+
+  Future<void> _pickReplacement() async {
+    final typeGroup = XTypeGroup(
+      label: 'Documents',
+      uniformTypeIdentifiers: ['com.adobe.pdf', 'public.image'],
+      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+    );
+    final file = await openFile(acceptedTypeGroups: [typeGroup]);
+    if (file != null && mounted) {
+      setState(() {
+        _selectedFile = File(file.path);
+        _error = null;
+      });
+    }
+  }
+
+  Future<void> _confirmReplacement() async {
+    if (_selectedFile == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Replace Document?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This will delete "${widget.document.filename}" and replace it with the new file.'),
+            const SizedBox(height: 8),
+            const Text(
+              "The old document's analysis will be lost. The new document will be processed fresh.",
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Replace'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _performReplacement();
+    }
+  }
+
+  Future<void> _performReplacement() async {
+    setState(() {
+      _isUploading = true;
+      _error = null;
+    });
+
+    try {
+      final box = Hive.box(AppStateStore.boxName);
+      final consentVersion = box.get('processing_consent_version') as String? ?? 'v1';
+
+      final result = await ref.read(documentServiceProvider).replaceDocument(
+        widget.document.id,
+        _selectedFile!,
+        processingConsentVersion: consentVersion,
+      );
+
+      if (!mounted) return;
+
+      if (result.containsKey('error')) {
+        setState(() {
+          _error = result['message']?.toString() ?? 'Replacement failed';
+          _isUploading = false;
+        });
+        return;
+      }
+
+      // Refresh document list
+      ref.invalidate(documentsProvider);
+      ref.invalidate(policySummariesProvider);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Document replaced successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Replacement failed: $e';
+          _isUploading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Replace Document'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Current Document',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text(widget.document.filename),
+                    Text('Uploaded: ${widget.document.formattedUploadDate}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_selectedFile != null) ...[
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.description),
+                  title: Text(_selectedFile!.path.split('/').last),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => setState(() => _selectedFile = null),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              ),
+              const SizedBox(height: 16),
+            ],
+            const Spacer(),
+            if (_isUploading)
+              const Center(child: CircularProgressIndicator())
+            else ...[
+              ElevatedButton.icon(
+                onPressed: _pickReplacement,
+                icon: const Icon(Icons.file_upload_outlined),
+                label: const Text('Select Replacement File'),
+              ),
+              if (_selectedFile != null) ...[
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: _confirmReplacement,
+                  icon: const Icon(Icons.swap_horiz),
+                  label: const Text('Replace Document'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }

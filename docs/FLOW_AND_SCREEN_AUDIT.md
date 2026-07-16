@@ -71,14 +71,25 @@ This audit maps every user flow end-to-end: what triggers it, what the user sees
 | ~~M1~~ | ~~Document Preview / Viewer~~ | ~~🔴 P0~~ | **RESOLVED (2026-07-15):** DocumentPreviewScreen implemented with page nav, zoom, error states |
 | ~~M2~~ | ~~Search / Filter Across Documents~~ | ~~🔴 P1~~ | **RESOLVED (2026-07-16):** SearchScreen with search bar, type/status filter chips, highlighted text matches, ranked results by relevance, and empty states. Accessible from DashboardScreen and MoreScreen. |
 | ~~M3~~ | ~~Notification Preferences Screen~~ | ~~🟡 P1~~ | **RESOLVED (2026-07-15):** NotificationPreferencesScreen with master toggle, custom reminder days, quiet hours, per-policy switches |
-| M4 | **Dark Mode / Theme Toggle** | 🟡 P2 | App follows `ThemeMode.system` but has no user override. Lower priority for solo launch. |
-| M5 | **Profile / Account Screen** | 🟡 P2 | Anonymous identity is invisible. No screen showing device ID, token status, or account health. |
-| M6 | **Document Re-upload / Replacement** | 🟡 P2 | If a policy is renewed, user must delete + re-upload. No "replace document" flow. |
+| ~~M4~~ | ~~Dark Mode / Theme Toggle~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-16):** Settings → Appearance picker with System/Light/Dark options. themeModeProvider triggers MaterialApp rebuild.
+| ~~M5~~ | ~~Profile / Account Screen~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-16):** ProfileScreen with identity, auth token, version, appearance, storage, privacy info, and scope disclaimer.
+| ~~M6~~ | ~~Document Re-upload / Replacement~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-16):** _DocumentReplaceScreen with file picker, confirmation dialog, replaceDocument() in DocumentService, provider invalidation. |
 | ~~M7~~ | ~~Policy Expiry Action Flow~~ | ~~🟡 P1~~ | **RESOLVED (2026-07-15):** _RenewNowButton with call/email bottom sheet on expired/expiring-soon cards |
-| M8 | **Cross-Document Insights Dashboard** | 🟢 P2 | CoverageGapScreen analyzes gaps but has no "insurance health score" or at-a-glance dashboard. |
+| ~~M8~~ | ~~Cross-Document Insights Dashboard~~ | ~~🟢 P2~~ | **RESOLVED (2026-07-16):** Insurance Health Score on dashboard with animated gauge, 4-factor breakdown.
 | ~~M9~~ | ~~Share / Export Policy Summary~~ | ~~🟢 P2~~ | **RESOLVED (2026-07-16):** Share button in app bar + Quick Actions, formats policy summary as readable text with emoji labels |
 | ~~M11~~ | ~~Coverage Gap Resolution Tracking~~ | ~~🟢 P2~~ | **RESOLVED (2026-07-16):** Filter bar (All/Open/Addressed), mark-as-addressed with notes dialog, resolution badge, strikethrough styling, reopen button, empty states. Hive-persisted. |
 | M10 | **Multi-language Support** | 🟢 P3 | Indian insurance documents are in Hindi, Tamil, etc. On-device OCR supports Latin script only. No i18n framework. Post-launch. |
+
+### 2C. New Screens/Features Added This Session
+
+| # | Screen/Feature | File | Status | Rating | Notes |
+|---|---|---|---|---|---|
+| 30 | **InsuranceCardScreen** | `insurance_card_screen.dart` | ✅ | 8/10 | Digital proof of insurance with gradient cards, policy info, call/share buttons |
+| 31 | **ProfileScreen** | `profile_screen.dart` | ✅ | 8/10 | Identity, token, version, appearance, storage, privacy, scope disclaimer |
+| 32 | **InsuranceLiteracyScreen** | `insurance_literacy_screen.dart` | ✅ | 8/10 | 12-term glossary + 6-question quiz with scoring |
+| 33 | **PreventiveHealthService** | `preventive_health_service.dart` | ✅ | 8/10 | Smart tips based on policy types with 7-day dedup |
+| 34 | **Health Tips Dashboard** | `dashboard_screen.dart` | ✅ | 8/10 | _PreventiveTipsSection with dismiss all and per-tip dismiss |
+| 35 | **Scope Disclaimer** | `onboarding_screen.dart` | ✅ | 9/10 | 4th onboarding page explaining info broker scope |
 
 ---
 
@@ -353,6 +364,7 @@ PolicyDetailScreen → Tap eye icon (app bar)
 12. **Renew Now CTA** — Bridges awareness-to-action gap with call/email bottom sheet and no-contact fallback.
 13. **Policy Share/Export** — Share button in app bar and Quick Actions formats policy summary as readable text for easy forwarding to family or advisors.
 14. **Coverage Gap Resolution Tracking** — Filter bar, mark-as-addressed with notes dialog, resolution badges, strikethrough styling, reopen button. Hive-persisted. Production-grade with empty states.
+15. **Insurance Health Score** — At-a-glance 0–100 score on dashboard with animated circular gauge, 4-factor breakdown (active policies, gap resolution, coverage breadth, renewal health), expandable detail. Uses AppStateRepository for gap resolution tracking. Animation replays on score change.
 
 ---
 
@@ -368,12 +380,25 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | ~~P1~~ | ~~Policy share/export (M9)~~ | ~~Small~~ | ~~🟢 Virality~~ | ✅ DONE |
 | ~~P1~~ | ~~Cross-document search (M2)~~ | ~~Large~~ | ~~🟢 Power user value~~ | ✅ DONE |
 | ~~P2~~ | ~~Coverage gap resolution tracking~~ | ~~Medium~~ | ~~🟢 Actionability~~ | ✅ DONE |
-| **P2** | Insurance Health Score (S1) | Medium | 🔴 Trust + completeness | 🔲 Next up |
-| **P2** | Preventive Health Reminders (S3) | Small | 🟡 Retention | |
-| **P2** | Document re-upload / replacement (M6) | Medium | 🟡 Renewal flow | |
-| **P2** | Dark mode / theme toggle (M4) | Small | 🟡 User preference | |
-| **P2** | Profile / Account Screen (M5) | Small | 🟡 User trust | |
+| ~~P2~~ | ~~Insurance Health Score (S1)~~ | ~~Medium~~ | ~~🔴 Trust + completeness~~ | ✅ DONE |
+| ~~P2~~ | ~~Preventive Health Reminders (S3)~~ | ~~Small~~ | ~~🟡 Retention~~ | ✅ DONE |
+| ~~P2~~ | ~~Dark mode / theme toggle (M4)~~ | ~~Small~~ | ~~🟡 User preference~~ | ✅ DONE |
+| ~~P2~~ | ~~Profile / Account Screen (M5)~~ | ~~Small~~ | ~~🟡 User trust~~ | ✅ DONE |
+| ~~P2~~ | ~~Document re-upload / replacement (M6)~~ | ~~Medium~~ | ~~🟡 Renewal flow~~ | ✅ DONE |
 | **P3** | Multi-language support (M10) | Large | 🟢 Indian market | Post-launch |
+
+### Brainstorm Features (Info Broker)
+
+| Priority | Feature | Status |
+|---|---|---|
+| ~~B1~~ | ~~Insurance Health Score~~ | ✅ DONE |
+| ~~B2~~ | ~~Preventive Health Reminders~~ | ✅ DONE |
+| ~~B3~~ | ~~Scope Disclaimer~~ | ✅ DONE |
+| ~~B4~~ | ~~Digital Insurance Card~~ | ✅ DONE |
+| ~~B5~~ | ~~Cross-document Q&A~~ | ✅ DONE |
+| ~~B6~~ | ~~Insurance Literacy Quiz~~ | ✅ DONE |
+| ~~B7~~ | ~~Claims feature reframing~~ | ✅ DONE |
+| ~~B8~~ | ~~What-If Calculator~~ | ✅ DONE |
 
 ---
 
@@ -394,7 +419,18 @@ PolicyDetailScreen → Tap eye icon (app bar)
 
 ---
 
-## 10. Change Log
+## 10. Reference Documents
+
+| Document | Purpose | Location |
+|---|---|---|
+| **RAG/Search/Vector DB/Embeddings Research** | Comprehensive reference for retrieval architectures, embedding models, vector databases, and production RAG patterns | `docs/RAG_SEARCH_VECTOR_DB_EMBEDDINGS_RESEARCH.md` |
+| **Customer Needs Research** | Competitor analysis, personas, and strategic roadmap | `docs/CUSTOMER_NEEDS_RESEARCH.md` |
+| **Wide Open Brainstorm** | Feature brainstorm with keep/reframe/remove decisions | `docs/WIDE_OPEN_BRAINSTORM.md` |
+| **motto_v3** | Product philosophy and decision framework | `motto_v3.md` |
+
+---
+
+## 11. Change Log
 
 | Date | Change | Author |
 |---|---|---|
@@ -426,3 +462,10 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | 2026-07-16 | Updated Flow 8 (Coverage Gap Analysis) to 9/10 — added filter bar, resolution workflow, empty states |
 | 2026-07-16 | Added Insurance Health Score (S1) and Preventive Health Reminders (S3) to priority stack from customer research |
 | 2026-07-16 | Created CUSTOMER_NEEDS_RESEARCH.md — comprehensive research document with competitor analysis, personas, and strategic roadmap | Buffy |
+| 2026-07-16 | Marked Insurance Health Score (B1/S1) as RESOLVED — dashboard card with animated gauge, 4-factor breakdown, gap resolution via AppStateRepository | Buffy |
+| 2026-07-16 | Created RAG/Search/Vector DB/Embeddings Research doc — comprehensive reference covering 12 sections: current implementation, RAG architectures, embedding models, vector DBs, retrieval strategies, reranking, chunking, evaluation, production practices, emerging innovations, recommendations, decision record | Buffy |
+| 2026-07-16 | Added §10 Reference Documents section to audit, linking to RAG research, customer needs research, brainstorm doc, and motto_v3 | Buffy |
+| 2026-07-16 | Marked M6 (Document Re-upload) as RESOLVED — _DocumentReplaceScreen with file picker, confirmation, replaceDocument(), provider invalidation | Buffy |
+| 2026-07-16 | Marked B5 (Cross-document Q&A) as RESOLVED — _DocumentSelector with All Documents ChoiceChip, null documentId for cross-doc queries | Buffy |
+| 2026-07-16 | Marked B8 (What-If Calculator) as RESOLVED — WhatIfCalculatorScreen with coverage/deductible sliders, coverage toggles, estimation formulas, disclaimer | Buffy |
+| 2026-07-16 | Added WhatIfCalculatorScreen (item #36) and _DocumentReplaceScreen to inventory | Buffy |

@@ -4,12 +4,15 @@ import '../models/document_model.dart';
 import '../models/policy_summary.dart';
 import '../providers/family_providers.dart';
 import '../providers/policy_providers.dart';
+import '../providers/health_score_provider.dart';
 import '../services/app_state_repository.dart';
 import '../data/insurance_terminology.dart';
 import '../utils/document_icons.dart';
 import '../widgets/terminology_dialog.dart';
 import '../widgets/policy_comparison_sheet.dart';
+import '../widgets/health_score_card.dart';
 import '../widgets/shared/policy_type_icon.dart';
+import '../services/preventive_health_service.dart';
 import 'add_family_member_dialog.dart';
 import '../providers/document_providers.dart';
 import 'qa_screen.dart';
@@ -70,6 +73,11 @@ class DashboardScreen extends ConsumerWidget {
                             .where((s) => s.isExpiringSoon)
                             .length,
                       ),
+                      const SizedBox(height: 16),
+                      // Insurance Health Score — at-a-glance coverage check
+                      HealthScoreCard(
+                        healthScore: ref.watch(healthScoreProvider),
+                      ),
                       const SizedBox(height: 20),
                       // First-time user: prominent upload CTA instead of empty sections
                       if (documents.isEmpty) ...[
@@ -100,6 +108,9 @@ class DashboardScreen extends ConsumerWidget {
                         documents: documents,
                         recentQuestions: recentQuestions,
                       ),
+                      const SizedBox(height: 20),
+                      if (policySummaries.isNotEmpty)
+                        _PreventiveTipsSection(summaries: policySummaries),
                       const SizedBox(height: 20),
                       _InsuranceTerminologySection(),
                       ],
@@ -991,6 +1002,78 @@ class _ActivityItem extends StatelessWidget {
         subtitle: Text(subtitle),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
+    );
+  }
+}
+
+class _PreventiveTipsSection extends StatefulWidget {
+  final List<PolicySummary> summaries;
+  const _PreventiveTipsSection({required this.summaries});
+
+  @override
+  State<_PreventiveTipsSection> createState() => _PreventiveTipsSectionState();
+}
+
+class _PreventiveTipsSectionState extends State<_PreventiveTipsSection> {
+  List<HealthTip> _tips = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _tips = PreventiveHealthService.getAvailableTips(widget.summaries);
+  }
+
+  @override
+  void didUpdateWidget(_PreventiveTipsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.summaries != widget.summaries) {
+      _tips = PreventiveHealthService.getAvailableTips(widget.summaries);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_tips.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Health Tips',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            TextButton(
+              onPressed: () async {
+                await PreventiveHealthService.markAllShown(_tips);
+                setState(() => _tips = []);
+              },
+              child: const Text('Dismiss All'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ..._tips.take(3).map((tip) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.teal.withValues(alpha: 0.1),
+                  child: Icon(tip.icon, color: Colors.teal),
+                ),
+                title: Text(tip.title,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(tip.body,
+                    style: const TextStyle(fontSize: 13), maxLines: 2),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () async {
+                    await PreventiveHealthService.markTipShown(tip.id);
+                    setState(() => _tips.remove(tip));
+                  },
+                ),
+              ),
+            )),
+      ],
     );
   }
 }
