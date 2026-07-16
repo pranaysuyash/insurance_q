@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_config.dart';
 import '../services/local_storage_service.dart';
+import '../services/session_service.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../theme/coverwise_motion.dart';
 import 'policy_detail_screen.dart';
@@ -39,22 +43,32 @@ enum ProcessingStage {
 }
 
 /// Maps backend processing state strings to user-visible stages.
+///
+/// Handles both coarse states from local storage (`received`, `processing`,
+/// `completed`) and granular stages from the backend status endpoint
+/// (`started`, `validating`, `extracting_text`, `extracting_policy_data`,
+/// `creating_embeddings`).
 ProcessingStage stageFromState(String? state) {
   switch (state) {
     case 'received':
     case 'pending':
     case 'pending_upload':
+    case 'started':
       return ProcessingStage.received;
     case 'processing':
     case 'ocr':
+    case 'validating':
+    case 'extracting_text':
       return ProcessingStage.processing;
     case 'extracting':
     case 'extraction':
+    case 'extracting_policy_data':
       return ProcessingStage.extraction;
     case 'classifying':
     case 'classification':
       return ProcessingStage.classification;
     case 'indexing':
+    case 'creating_embeddings':
       return ProcessingStage.indexing;
     case 'completed':
     case 'ready':
@@ -71,7 +85,7 @@ ProcessingStage stageFromState(String? state) {
 /// Polls `documentsProvider` every 2 seconds until the document reaches a
 /// terminal state (completed or failed), then auto-navigates to the policy
 /// detail screen on success.
-class ProcessingStatusScreen extends StatefulWidget {
+class ProcessingStatusScreen extends ConsumerStatefulWidget {
   final String documentId;
   final String filename;
 
@@ -82,15 +96,22 @@ class ProcessingStatusScreen extends StatefulWidget {
   });
 
   @override
-  State<ProcessingStatusScreen> createState() => _ProcessingStatusScreenState();
+  ConsumerState<ProcessingStatusScreen> createState() => _ProcessingStatusScreenState();
 }
 
-class _ProcessingStatusScreenState extends State<ProcessingStatusScreen> {
+class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen> {
   Timer? _pollTimer;
   ProcessingStage _currentStage = ProcessingStage.received;
   String? _errorMessage;
   int _pollCount = 0;
   static const int _maxPolls = 90; // 3 minutes at 2s intervals
+
+  /// Reused across all polls to avoid leaking connections.
+  late final Dio _dio = Dio(BaseOptions(
+    baseUrl: AppConfig.baseUrl,
+    connectTimeout: const Duration(seconds: 5),
+    receiveTimeout: const Duration(seconds: 5),
+  ));
 
   @override
   void initState() {
@@ -104,6 +125,7 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _dio.close();
     super.dispose();
   }
 
@@ -123,20 +145,44 @@ class _ProcessingStatusScreenState extends State<ProcessingStatusScreen> {
     }
 
     try {
-      // Read directly from local storage without invalidating the shared
-      // documentsProvider — this avoids triggering rebuilds across the entire
-      // app (dashboard, documents list, QA, etc.) on every 2-second tick.
-      final storage = LocalStorageService();
-      final doc = await storage.getDocumentById(widget.documentId);
-      if (!mounted) return;
-
-      if (doc == null) {
-        // Document not found locally — might still be processing on server.
-        // Keep polling; the server-side status may not be reflected locally yet.
-        return;
+      // Try backend status endpoint first for real granular stage data.
+      // Fall back to local Hive storage if the backend is unreachable.
+      String? stageString;
+      
+      try {
+        final sessionId = await SessionService.getSessionId();
+        final response = await _dio.get(
+          '/documents/${widget.documentId}/status',
+          options: Options(
+            headers: {'X-Session-ID': sessionId},
+            validateStatus: (status) => status == 200 || status == 404,
+          ),
+        );
+        if (response.statusCode == 200 && response.data is Map) {
+          final data = response.data as Map<String, dynamic>;
+          stageString = data['processing_details']?['stage']?.toString()
+              ?? data['status']?.toString();
+        }
+      } catch (_) {
+        // Backend unreachable — fall through to local storage.
       }
 
-      final newStage = stageFromState(doc.processingState);
+      // Fall back to local Hive storage if backend didn't return a stage.
+      if (stageString == null) {
+        final storage = LocalStorageService();
+        final doc = await storage.getDocumentById(widget.documentId);
+        if (!mounted) return;
+
+        if (doc == null) {
+          // Document not found locally — might still be processing on server.
+          // Keep polling; the server-side status may not be reflected locally yet.
+          return;
+        }
+
+        stageString = doc.processingState;
+      }
+
+      final newStage = stageFromState(stageString);
 
       if (newStage == ProcessingStage.complete) {
         _pollTimer?.cancel();

@@ -740,18 +740,12 @@ class _AnswerCardState extends State<_AnswerCard> {
                           style: const TextStyle(fontSize: 16)),
                       if (answer.sources.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        const Text('Sources:',
-                            style: TextStyle(
+                        Text('Sources (${answer.sources.length}):',
+                            style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 14)),
                         ...answer.sources.map((source) => Padding(
                               padding: const EdgeInsets.only(top: 8.0),
-                              child: CoverWiseInfoPanel(
-                                icon: Icons.menu_book_outlined,
-                                title: source.pageNumber == null
-                                    ? 'Policy source'
-                                    : 'Page ${source.pageNumber}',
-                                body: source.text,
-                              ),
+                              child: _SourceCard(source: source),
                             )),
                       ],
                       // Follow-up questions as tappable chips
@@ -830,6 +824,38 @@ class _AnswerCardState extends State<_AnswerCard> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Displays a Q&A source with resolved document name attribution.
+///
+/// When multiple documents are queried, the source's [documentId] is resolved
+/// to a human-readable document name via [documentsProvider]. This lets users
+/// verify which policy each fact was extracted from.
+class _SourceCard extends ConsumerWidget {
+  final QaSource source;
+  const _SourceCard({required this.source});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final documents = ref.watch(documentsProvider).valueOrNull ?? [];
+    final docName = source.documentId.isNotEmpty
+        ? documents
+            .where((d) => d.id == source.documentId || d.remoteId == source.documentId)
+            .map((d) => d.filename)
+            .firstOrNull
+        : null;
+
+    final title = <String>[
+      if (docName != null) docName,
+      if (source.pageNumber != null) 'Page ${source.pageNumber}',
+    ].join(' · ');
+
+    return CoverWiseInfoPanel(
+      icon: Icons.menu_book_outlined,
+      title: title.isNotEmpty ? title : 'Policy source',
+      body: source.text,
     );
   }
 }

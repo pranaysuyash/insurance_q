@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../config/app_config.dart';
+import 'analytics_schema.dart';
 import 'app_state_store.dart';
 import 'session_service.dart';
 
@@ -13,6 +14,9 @@ import 'session_service.dart';
 /// backend when network is available. No PII is ever included in event
 /// payloads — only event name, timestamp, anonymous UID, and safe properties
 /// per the analytics event spec (docs/review/coverwise_analytics_event_spec.md).
+///
+/// In debug builds, event payloads are validated against the registered schema
+/// to catch accidental PII leakage and type mismatches early.
 ///
 /// Usage: `AnalyticsService.track('event_name', {'key': 'value'})`.
 /// The service handles queueing, batching, and retry automatically.
@@ -45,12 +49,28 @@ class AnalyticsService {
   ///
   /// [name] must be a snake_case event name from the spec.
   /// [properties] must contain only safe, non-PII values (enums, buckets, counts).
+  ///
+  /// In debug builds, the payload is validated against [kEventSchemas] to
+  /// catch accidental PII leakage and type mismatches early.
   static void track(String name, [Map<String, dynamic>? properties]) {
+    final props = properties ?? {};
+
+    // Schema validation in debug builds only.
+    if (kDebugMode) {
+      final errors = validateAnalyticsEvent(name, props);
+      if (errors.isNotEmpty) {
+        debugPrint('Analytics schema violations for "$name":');
+        for (final error in errors) {
+          debugPrint('  ⚠ $error');
+        }
+      }
+    }
+
     final event = {
       'event': name,
       'ts': DateTime.now().toUtc().toIso8601String(),
       'uid': _uid ?? 'unknown',
-      if (properties != null) 'props': properties,
+      if (props.isNotEmpty) 'props': props,
     };
 
     _buffer.add(event);

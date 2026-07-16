@@ -7,11 +7,52 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../utils/document_icons.dart';
 
-class EmergencyScreen extends ConsumerWidget {
+class EmergencyScreen extends ConsumerStatefulWidget {
   const EmergencyScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EmergencyScreen> createState() => _EmergencyScreenState();
+}
+
+class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
+  bool _refreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure summaries are loaded from local Hive cache even if backend is
+    // unreachable. The provider reads from Hive on construction, so this is
+    // already offline-first. We also attempt a background refresh so newly
+    // processed documents appear without requiring a cold restart.
+    _refreshInBackground();
+  }
+
+  Future<void> _refreshInBackground() async {
+    if (_refreshing) return;
+    _refreshing = true;
+    try {
+      final summaries = ref.read(policySummariesProvider);
+      if (summaries.isNotEmpty) {
+        // Already have cached data — try fetching any new backend summaries
+        // in the background without blocking the UI.
+        for (final s in summaries) {
+          if (!mounted) return;
+          try {
+            await ref
+                .read(policySummariesProvider.notifier)
+                .fetchFromBackend(s.documentId, s.documentType);
+          } catch (_) {
+            // Backend unreachable — cached data is fine.
+          }
+        }
+      }
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final summaries = ref.watch(policySummariesProvider);
 
     if (summaries.isEmpty) {

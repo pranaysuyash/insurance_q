@@ -756,6 +756,40 @@ class DocumentService {
     return null;
   }
 
+  /// Fetch the real-time processing status from the backend.
+  ///
+  /// Returns the full status response including `processing_details.stage`
+  /// (e.g. `started`, `validating`, `extracting_text`, `extracting_policy_data`,
+  /// `creating_embeddings`, `completed`), or `null` if the backend is
+  /// unreachable or the document is not found.
+  Future<Map<String, dynamic>?> getDocumentStatus(String documentId) async {
+    try {
+      final sessionId = await SessionService.getSessionId();
+      final response = await _dio.get(
+        '/documents/$documentId/status',
+        options: Options(
+          headers: {'X-Session-ID': sessionId},
+          validateStatus: (status) => status == 200 || status == 404,
+        ),
+      );
+      if (response.statusCode == 200 && response.data is Map) {
+        return response.data as Map<String, dynamic>;
+      }
+      return null;
+    } on DioException catch (e) {
+      // Network errors during status polling are expected (backend down,
+      // document still queued). Only log non-transport failures.
+      if (e.type != DioExceptionType.connectionTimeout &&
+          e.type != DioExceptionType.connectionError) {
+        debugPrint('Backend status fetch failed: ${e.type}');
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Backend status fetch unexpected error: $e');
+      return null;
+    }
+  }
+
   Future<void> refreshAllDocumentTypes() async {
     try {
       debugPrint('Refreshing document types for all documents...');
