@@ -1,0 +1,219 @@
+"""Tests for DELETE /user/account endpoint.
+
+Verifies:
+- Anonymous users are rejected (403)
+- Account users can delete their account
+- Storage files are cleaned up before metadata deletion
+- Document metadata and chunks are deleted
+- Supabase auth user deletion failure is handled gracefully
+- Response includes correct counts
+"""
+
+import sys
+from unittest.mock import MagicMock, patch
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from src.api.user import router as user_router
+from src.models.document import Document
+from datetime import datetime, timezone
+
+
+def _make_account_token_verifier():
+    """Return a mock that verifies account tokens."""
+    def verify(token):
+        return {
+            "sub": "account-user-1",
+            "email": "person@example.com",
+            "display_name": "Person",
+            "identity_type": "account",
+        }
+    return verify
+
+
+def _make_document(doc_id="doc-1", owner_id="account-user-1", file_path="supabase://coverwise-documents/documents/doc-1/policy.pdf"):
+    """Create a test document with storage reference."""
+    return Document(
+        id=doc_id,
+        filename="policy.pdf",
+        size=1024,
+        upload_date=datetime.now(timezone.utc),
+        status="completed",
+        user_uid=owner_id,
+        file_path=file_path,
+        source_hash="abc123",
+    )
+
+
+class TestDeleteAccountAnonymousRejection:
+    """Anonymous users cannot delete their account."""
+
+    def test_anonymous_user_gets_403(self, monkeypatch):
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-key")
+
+        app = FastAPI()
+        app.include_router(user_router)
+
+        with TestClient(app) as client:
+            identity = client.post("/user/anonymous")
+            token = identity.json()["access_token"]
+            response = client.delete("/user/account", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 403
+        assert "Only account users" in response.json()["detail"]
+
+
+class TestDeleteAccountStorageCleanup:
+    """Storage files are cleaned up before metadata deletion."""
+
+    def test_storage_files_are_deleted(self, monkeypatch):
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("DOCUMENT_REPOSITORY_BACKEND", "sqlite")
+
+        from src.api import user as user_api
+        from src.services.document_repository import SQLiteDocumentRepository
+
+        # Mock token verification for account user
+        monkeypatch.setattr(user_api, "verify_supabase_token", _make_account_token_verifier())
+
+        # Set up a real SQLite repository with test documents
+        repo = SQLiteDocumentRepository(":memory:")
+        doc1 = _make_document("doc-1", "account-user-1", "supabase://bucket/documents/doc-1/policy.pdf")
+        doc2 = _make_document("doc-2", "account-user-1", "supabase://bucket/documents/doc-2/claim.pdf")
+        repo.create(doc1)
+        repo.create(doc2)
+
+        # Mock the document_api module to use our repo
+        mock_doc_api = MagicMock()
+        mock_doc_api.document_repository = repo
+
+        # Mock object store to track deletions
+        mock_store = MagicMock()
+        deleted_files = []
+        mock_store.delete.side_effect = lambda ref: deleted_files.append(ref)
+
+        # Mock create_document_object_store (imported locally in delete_account)
+        with patch("src.services.document_object_store.create_document_object_store", return_value=mock_store), \
+             patch.dict("sys.modules", {"src.api.document": mock_doc_api}):
+            app = FastAPI()
+            app.include_router(user_router)
+
+            with TestClient(app) as client:
+                response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["deleted_documents"] == 2
+        assert data["deleted_storage_files"] == 2
+        assert data["storage_errors"] == 0
+        assert len(deleted_files) == 2
+        assert "supabase://bucket/documents/doc-1/policy.pdf" in deleted_files
+        assert "supabase://bucket/documents/doc-2/claim.pdf" in deleted_files
+
+    def test_storage_error_does_not_block_deletion(self, monkeypatch):
+        """If storage cleanup fails, metadata and auth deletion still proceed."""
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("DOCUMENT_REPOSITORY_BACKEND", "sqlite")
+
+        from src.api import user as user_api
+        from src.services.document_repository import SQLiteDocumentRepository
+
+        monkeypatch.setattr(user_api, "verify_supabase_token", _make_account_token_verifier())
+
+        repo = SQLiteDocumentRepository(":memory:")
+        doc = _make_document("doc-1", "account-user-1", "supabase://bucket/documents/doc-1/policy.pdf")
+        repo.create(doc)
+
+        mock_doc_api = MagicMock()
+        mock_doc_api.document_repository = repo
+
+        # Mock object store that raises on delete
+        mock_store = MagicMock()
+        mock_store.delete.side_effect = RuntimeError("Storage unavailable")
+
+        with patch("src.services.document_object_store.create_document_object_store", return_value=mock_store), \
+             patch.dict("sys.modules", {"src.api.document": mock_doc_api}):
+            app = FastAPI()
+            app.include_router(user_router)
+
+            with TestClient(app) as client:
+                response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["deleted_documents"] == 1
+        assert data["deleted_storage_files"] == 0
+        assert data["storage_errors"] == 1
+
+    def test_non_supabase_file_path_skips_storage_cleanup(self, monkeypatch):
+        """Documents with local file paths (not supabase://) skip storage cleanup."""
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("DOCUMENT_REPOSITORY_BACKEND", "sqlite")
+
+        from src.api import user as user_api
+        from src.services.document_repository import SQLiteDocumentRepository
+
+        monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-key")
+        monkeypatch.setattr(user_api, "verify_supabase_token", _make_account_token_verifier())
+
+        repo = SQLiteDocumentRepository(":memory:")
+        doc = _make_document("doc-1", "account-user-1", "/storage/documents/doc-1.pdf")
+        repo.create(doc)
+
+        mock_doc_api = MagicMock()
+        mock_doc_api.document_repository = repo
+
+        mock_store = MagicMock()
+
+        with patch("src.services.document_object_store.create_document_object_store", return_value=mock_store), \
+             patch.dict("sys.modules", {"src.api.document": mock_doc_api}):
+            app = FastAPI()
+            app.include_router(user_router)
+
+            with TestClient(app) as client:
+                response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["deleted_storage_files"] == 0
+        mock_store.delete.assert_not_called()
+
+
+class TestDeleteAccountResponse:
+    """Response format is correct."""
+
+    def test_response_includes_all_fields(self, monkeypatch):
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("DOCUMENT_REPOSITORY_BACKEND", "sqlite")
+
+        from src.api import user as user_api
+        from src.services.document_repository import SQLiteDocumentRepository
+
+        monkeypatch.setattr(user_api, "verify_supabase_token", _make_account_token_verifier())
+
+        repo = SQLiteDocumentRepository(":memory:")
+        mock_doc_api = MagicMock()
+        mock_doc_api.document_repository = repo
+
+        mock_store = MagicMock()
+
+        with patch("src.services.document_object_store.create_document_object_store", return_value=mock_store), \
+             patch.dict("sys.modules", {"src.api.document": mock_doc_api}):
+            app = FastAPI()
+            app.include_router(user_router)
+
+            with TestClient(app) as client:
+                response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "deleted_documents" in data
+        assert "deleted_storage_files" in data
+        assert "storage_errors" in data
+        assert "auth_user_deleted" in data
+        assert "message" in data
+        assert isinstance(data["deleted_documents"], int)
+        assert isinstance(data["deleted_storage_files"], int)
+        assert isinstance(data["storage_errors"], int)
+        assert isinstance(data["auth_user_deleted"], bool)

@@ -1,26 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
+import '../providers/auth_provider.dart';
 import '../config/app_config.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Profile / Account Screen — shows device identity, token status, and account health.
 ///
 /// For an info broker, this is about transparency: users can see exactly
 /// what data the app holds and how their anonymous identity works.
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _DeleteConfirmationDialog extends StatefulWidget {
+  @override
+  State<_DeleteConfirmationDialog> createState() => _DeleteConfirmationDialogState();
+}
+
+class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
+  final _controller = TextEditingController();
+  bool _canDelete = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Type DELETE to confirm'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('This is your last chance. All data will be permanently erased.'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Type DELETE',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              setState(() => _canDelete = value == 'DELETE');
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.tonal(
+          onPressed: _canDelete ? () => Navigator.pop(context, true) : null,
+          style: FilledButton.styleFrom(
+            foregroundColor: const Color(0xFFC43D4B),
+          ),
+          child: const Text('Delete permanently'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String? _token;
   bool _loadingToken = true;
 
@@ -40,14 +96,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _signOut() async {
+    await AuthService.signOut();
+    // No need for setState — authStateProvider will trigger rebuild.
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_rounded, color: Color(0xFFC43D4B), size: 48),
+        title: const Text('Delete account permanently?'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This will permanently delete:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 8),
+            Text('• Your CoverWise account'),
+            Text('• All uploaded policy documents on our servers'),
+            Text('• All policy summaries and embeddings'),
+            Text('• Your Q&A history on the server'),
+            SizedBox(height: 12),
+            Text(
+              'This action cannot be undone. Local data on this device will be cleared separately via Settings → Clear local data.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              foregroundColor: const Color(0xFFC43D4B),
+            ),
+            child: const Text('Delete everything'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    // Show a second confirmation with typing requirement
+    final doubleConfirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _DeleteConfirmationDialog(),
+    );
+    if (doubleConfirmed != true || !mounted) return;
+
+    // Perform deletion
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Deleting account...')),
+      );
+      await AuthService.deleteAccount();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account deleted. All server data has been removed.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not delete account: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Reactive auth state — rebuilds automatically when user signs in/out.
+    final accountUser = ref.watch(currentUserProvider);
     final box = Hive.box(AppStateStore.boxName);
     final phone = box.get(AppStateStore.phoneNumberKey) as String?;
     final themeMode = AppStateRepository.getThemeMode();
-    final accountUser = AuthService.hasAccountSession
-        ? Supabase.instance.client.auth.currentUser
-        : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -78,8 +213,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 subtitle: const Text('Restore this policy workspace across devices'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () async {
-                  final changed = await Navigator.pushNamed(context, '/account');
-                  if (changed == true && mounted) setState(() {});
+                  await Navigator.pushNamed(context, '/account');
+                  // No manual setState needed — authStateProvider triggers rebuild.
                 },
               ),
             )
@@ -89,7 +224,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 leading: const Icon(Icons.verified_user_rounded),
                 title: Text(accountUser.email ?? 'Signed-in account'),
                 subtitle: const Text('Workspace is linked to your account'),
-                trailing: TextButton(onPressed: () async { await AuthService.signOut(); if (mounted) setState(() {}); }, child: const Text('Sign out')),
+                trailing: TextButton(
+                  onPressed: _signOut,
+                  child: const Text('Sign out'),
+                ),
               ),
             ),
           CoverWiseSurface(
@@ -179,13 +317,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               CoverWiseActionRow(
                 icon: Icons.delete_outline_rounded,
                 color: const Color(0xFFC43D4B),
-                title: 'Reset account data',
-                subtitle: 'Clear local data and revoke this device session',
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Use Settings → Clear local data to reset'),
-                  ),
-                ),
+                title: 'Delete account',
+                subtitle: 'Permanently remove account and all server data',
+                onTap: accountUser != null
+                    ? () => _confirmDeleteAccount(context)
+                    : () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Create an account first to delete it'),
+                          ),
+                        ),
               ),
             ]),
           ),

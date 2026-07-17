@@ -84,11 +84,30 @@ class AnalyticsService {
   }
 
   /// Check if analytics consent is currently granted (fresh from ledger).
+  ///
+  /// Returns `true` (analytics on) when:
+  /// - No consent record exists (first launch — consent granted by default).
+  /// - Ledger is corrupted (can't determine state — fail open).
+  ///
+  /// Returns `false` only when the user has explicitly revoked consent.
   static bool _checkConsentFresh() {
     try {
-      return ConsentLedger().hasConsent(ConsentPurpose.analytics);
+      final ledger = ConsentLedger();
+      final records = ledger.getAllRecords();
+      if (records.isEmpty) {
+        // No consent record or corrupted data — default to true.
+        return true;
+      }
+      // Check the latest analytics consent state from already-loaded records.
+      for (var i = records.length - 1; i >= 0; i--) {
+        if (records[i].purpose == ConsentPurpose.analytics) {
+          return records[i].isActive;
+        }
+      }
+      // No analytics record found — default to true.
+      return true;
     } catch (e) {
-      // If we can't check consent, default to true to avoid breaking analytics.
+      // If we can't check consent at all, default to true.
       return true;
     }
   }

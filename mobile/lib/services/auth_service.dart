@@ -28,6 +28,8 @@ class AuthService {
     _accountClientReady = true;
   }
 
+  static bool get isClientReady => _accountClientReady;
+
   static bool get hasAccountSession =>
       AppConfig.hasSupabaseAuthConfig &&
       _accountClientReady &&
@@ -75,6 +77,53 @@ class AuthService {
     if (_accountClientReady) {
       await Supabase.instance.client.auth.signOut();
     }
+  }
+
+  /// Sign in with Google via Supabase OAuth.
+  /// Opens browser for Google consent. Session is established automatically
+  /// when the deep link callback fires — authStateProvider picks up the change.
+  static Future<void> signInWithGoogle() async {
+    await Supabase.instance.client.auth.signInWithOAuth(
+      Provider.google,
+      redirectTo: 'io.coverwise://login-callback',
+    );
+  }
+
+  /// Resend email verification for the given email.
+  static Future<void> resendEmailVerification(String email) async {
+    await Supabase.instance.client.auth.resend(
+      email: email.trim(),
+      type: OtpType.signup,
+    );
+  }
+
+  /// Send a password-reset email via Supabase.
+  static Future<void> resetPassword(String email) async {
+    await Supabase.instance.client.auth.resetPasswordForEmail(
+      email.trim(),
+      redirectTo: 'io.coverwise://reset-callback',
+    );
+  }
+
+  /// Permanently delete the Supabase account and all server-side data.
+  /// Local data is NOT cleared here — the caller should handle that.
+  static Future<void> deleteAccount() async {
+    if (!hasAccountSession) {
+      throw StateError('No account session to delete');
+    }
+    // Call our backend which deletes documents/chunks + Supabase auth user.
+    final dio = Dio(BaseOptions(
+      baseUrl: AppConfig.baseUrl,
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+    ));
+    dio.interceptors.add(AuthInterceptor(dio));
+    final response = await dio.delete('/user/account');
+    if (response.statusCode != 200) {
+      throw Exception('Server returned ${response.statusCode}');
+    }
+    // Sign out after successful deletion
+    await signOut();
   }
 
   /// Reads only from platform secure storage. A one-time Hive migration avoids

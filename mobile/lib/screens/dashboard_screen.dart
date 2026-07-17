@@ -86,7 +86,9 @@ class DashboardScreen extends ConsumerWidget {
                         onUpload: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const DocumentsScreen(),
+                            builder: (_) => const DocumentsScreen(
+                              startWithFilePicker: true,
+                            ),
                           ),
                         ),
                       ),
@@ -199,7 +201,7 @@ class _FirstUploadCta extends StatelessWidget {
             const SizedBox(height: 14),
             Semantics(
               label:
-                  'Your original policy remains the source of truth for important decisions.',
+                  'Your original policy is always available for you to review. We process it securely on our servers.',
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -207,7 +209,7 @@ class _FirstUploadCta extends StatelessWidget {
                   SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      'Your original policy remains the source of truth.',
+                      'Your original policy is always available. We process it securely to generate summaries.',
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -647,8 +649,13 @@ class _QuickActions extends StatelessWidget {
               icon: Icons.upload_file,
               label: 'Upload Document',
               color: Colors.blue,
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const DocumentsScreen())),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DocumentsScreen(
+                      startWithFilePicker: true,
+                    ),
+                  )),
             )),
             const SizedBox(width: 12),
             Expanded(

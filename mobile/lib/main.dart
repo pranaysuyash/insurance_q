@@ -30,6 +30,7 @@ import 'screens/insurance_card_screen.dart';
 import 'screens/insurance_literacy_screen.dart';
 import 'screens/what_if_calculator_screen.dart';
 import 'screens/account_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'config/app_config.dart';
 import 'providers/policy_providers.dart';
 import 'services/local_storage_service.dart';
@@ -152,6 +153,14 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       case '/qa':
         final docId = uri.queryParameters['documentId'];
         nav.pushNamed('/qa', arguments: docId);
+      case '/reset-callback':
+        // Password reset redirect from Supabase email link.
+        // The access_token and refresh_token are in the fragment (#) for PKCE flow.
+        nav.pushNamed('/reset-password', arguments: uri.toString());
+      case '/login-callback':
+        // Google Sign-In redirect — Supabase handles token exchange.
+        // The session is established automatically by the Supabase client.
+        break;
       default:
         break;
     }
@@ -193,8 +202,23 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
             : _showOnboarding
                 ? OnboardingScreen(
                     key: const ValueKey('onboarding'),
-                    onComplete: () {
+                    onComplete: ({bool openFilePicker = false}) {
                       setState(() => _showOnboarding = false);
+                      // If the user completed onboarding via "Add my first policy",
+                      // open the DocumentsScreen with the file picker pre-triggered
+                      // so they go straight to file selection (2 taps instead of 4).
+                      if (openFilePicker) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const DocumentsScreen(
+                                startWithFilePicker: true,
+                              ),
+                            ),
+                          );
+                        });
+                      }
                     },
                   )
                 : const MainNavigation(key: ValueKey('main')),
@@ -225,6 +249,11 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/literacy': (context) => const InsuranceLiteracyScreen(),
         '/what-if': (context) => const WhatIfCalculatorScreen(),
         '/account': (context) => const AccountScreen(),
+        '/reset-password': (context) {
+          final redirectUrl =
+              ModalRoute.of(context)?.settings.arguments as String? ?? '';
+          return ResetPasswordScreen(redirectUrl: redirectUrl);
+        },
       },
       debugShowCheckedModeBanner: false,
     );

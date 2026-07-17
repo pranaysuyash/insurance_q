@@ -27,7 +27,12 @@ import 'documents_list.dart';
 import 'processing_status_screen.dart';
 
 class DocumentsScreen extends ConsumerStatefulWidget {
-  const DocumentsScreen({super.key});
+  /// When true, the file picker opens automatically on mount.
+  /// Used by onboarding and dashboard CTAs to skip the intermediate
+  /// "tap to open file picker" step — reduces upload taps from 4 to 2.
+  final bool startWithFilePicker;
+
+  const DocumentsScreen({super.key, this.startWithFilePicker = false});
   @override
   ConsumerState<DocumentsScreen> createState() => _DocumentsScreenState();
 }
@@ -47,13 +52,19 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   @override
   void initState() {
     super.initState();
-    if (AppConfig.bootstrapPolicyDemo) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _demoPolicyPreloaded) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Auto-open file picker when launched from onboarding/dashboard CTA.
+      if (widget.startWithFilePicker && !_demoPolicyPreloaded) {
         _demoPolicyPreloaded = true;
         _pickFile();
-      });
-    }
+        return;
+      }
+      if (AppConfig.bootstrapPolicyDemo && !_demoPolicyPreloaded) {
+        _demoPolicyPreloaded = true;
+        _pickFile();
+      }
+    });
   }
 
   @override

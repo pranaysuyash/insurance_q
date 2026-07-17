@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import '../services/consent_ledger.dart';
+import '../services/analytics_service.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
 import '../widgets/shared/coverwise_mark.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  final VoidCallback onComplete;
+  final void Function({bool openFilePicker}) onComplete;
   const OnboardingScreen({super.key, required this.onComplete});
 
   @override
@@ -15,6 +17,8 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _currentPage = 0;
+  bool _analyticsConsent = true; // Default ON — matches analytics fail-open.
+  bool _consentToggled = false; // Track if user explicitly changed the toggle.
 
   static const _pages = [
     _OnboardingData(
@@ -22,7 +26,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       assetPath: 'assets/onboarding/understand-policy.png',
       title: 'Turn policy pages into plain answers.',
       description:
-          'Add a policy once. CoverWise surfaces the cover, exclusions and benefits that matter.',
+          'Add a policy once. We process it securely on our servers to surface the cover, exclusions and benefits that matter.',
       accent: CoverWiseColors.blue,
     ),
     _OnboardingData(
@@ -49,9 +53,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  void _complete() {
+  void _complete({bool openFilePicker = false}) {
+    // Only record consent if the user explicitly toggled it.
+    // If they didn't touch the toggle, the default (ON) stands via
+    // AnalyticsService._checkConsentFresh() fail-open behavior.
+    if (_consentToggled) {
+      _recordAnalyticsConsent();
+    }
     Hive.box('app_state_box').put('onboarding_complete', true);
-    widget.onComplete();
+    widget.onComplete(openFilePicker: openFilePicker);
+  }
+
+  Future<void> _recordAnalyticsConsent() async {
+    try {
+      final ledger = ConsentLedger();
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.analytics,
+        version: 'analytics-v1',
+        granted: _analyticsConsent,
+      );
+      AnalyticsService.refreshConsentCache();
+    } catch (e) {
+      // Best-effort — don't block onboarding.
+    }
   }
 
   @override
@@ -85,7 +109,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ],
                   const Spacer(),
                   TextButton(
-                    onPressed: _complete,
+                    onPressed: () => _complete(),
                     style: TextButton.styleFrom(
                       minimumSize: const Size(64, 48),
                     ),
@@ -130,36 +154,56 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  // Privacy disclosure on the last onboarding page.
+                  // Interactive analytics consent toggle on the last page.
                   if (isLast)
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest
                             .withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
                             Icons.shield_outlined,
-                            size: 16,
+                            size: 18,
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              'CoverWise collects anonymous usage stats to '
-                                  'improve the app. No policy content or '
-                                  'personal data is shared. You can opt out '
-                                  'any time in Privacy settings.',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                                height: 1.4,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Anonymous usage stats',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Help improve CoverWise. No policy content '
+                                      'or personal data is shared.',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          Switch(
+                            value: _analyticsConsent,
+                            onChanged: (value) {
+                              setState(() {
+                                _analyticsConsent = value;
+                                _consentToggled = true;
+                              });
+                            },
                           ),
                         ],
                       ),
@@ -168,7 +212,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: isLast
-                          ? _complete
+                          ? () => _complete(openFilePicker: true)
                           : () {
                               if (CoverWiseMotion.isReduced(context)) {
                                 _controller.jumpToPage(_currentPage + 1);

@@ -25,11 +25,14 @@ void main() {
     await box.delete('consent_ledger_v1');
     await box.delete(AppStateStore.analyticsEventsKey);
     AnalyticsService.dispose();
+    // Close Hive to prevent test pollution across test files.
+    if (Hive.isBoxOpen(AppStateStore.boxName)) {
+      await Hive.close();
+    }
   });
 
   group('AnalyticsService track() consent gating', () {
     test('events flow when analytics consent is granted', () async {
-      // Record analytics consent as granted.
       final ledger = ConsentLedger();
       await ledger.recordConsent(
         purpose: ConsentPurpose.analytics,
@@ -38,15 +41,11 @@ void main() {
       );
       AnalyticsService.refreshConsentCache();
 
-      // Track an event.
       AnalyticsService.track('test_event', {'key': 'value'});
-
-      // Verify event was queued.
       expect(AnalyticsService.queuedCount, 1);
     });
 
     test('events are dropped when analytics consent is revoked', () async {
-      // Record analytics consent as granted, then revoke it.
       final ledger = ConsentLedger();
       await ledger.recordConsent(
         purpose: ConsentPurpose.analytics,
@@ -56,15 +55,11 @@ void main() {
       await ledger.revokeConsent(ConsentPurpose.analytics);
       AnalyticsService.refreshConsentCache();
 
-      // Track an event — should be dropped.
       AnalyticsService.track('test_event', {'key': 'value'});
-
-      // Verify event was NOT queued.
       expect(AnalyticsService.queuedCount, 0);
     });
 
     test('events resume after consent is re-enabled', () async {
-      // Grant, revoke, then re-grant.
       final ledger = ConsentLedger();
       await ledger.recordConsent(
         purpose: ConsentPurpose.analytics,
@@ -91,22 +86,29 @@ void main() {
       expect(AnalyticsService.queuedCount, 1);
     });
 
-    test('events flow when no consent record exists (first launch)', () async {
-      // No consent record — refreshConsentCache reads from ledger.
-      // On first launch, _recordAnalyticsConsent grants consent async.
-      // For this test, we simulate: no record → grant → track.
+    test('first launch: events flow immediately (no record defaults to true)',
+        () async {
+      // On first launch, no consent record exists. _checkConsentFresh()
+      // returns true (fail-open) so analytics flow from the start.
       final ledger = ConsentLedger();
       expect(ledger.hasConsent(ConsentPurpose.analytics), isFalse);
 
-      // Grant consent (simulating what _recordAnalyticsConsent does).
-      await ledger.recordConsent(
-        purpose: ConsentPurpose.analytics,
-        version: 'analytics-v1',
-        granted: true,
-      );
       AnalyticsService.refreshConsentCache();
 
+      // Events should flow immediately — no record defaults to true.
       AnalyticsService.track('first_launch_event');
+      expect(AnalyticsService.queuedCount, 1);
+    });
+
+    test('events flow when ledger is corrupted (fallback to true)', () async {
+      // Corrupt the consent ledger data.
+      await box.put('consent_ledger_v1', 'not-valid-json');
+
+      // _checkConsentFresh catches the error and defaults to true.
+      AnalyticsService.refreshConsentCache();
+
+      // Track an event — should flow because fallback is true.
+      AnalyticsService.track('corrupted_ledger_event');
       expect(AnalyticsService.queuedCount, 1);
     });
   });

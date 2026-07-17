@@ -43,6 +43,10 @@ class DocumentRepository:
         """Atomically reassign documents during anonymous-to-account upgrade."""
         raise NotImplementedError
 
+    def delete_all_for_owner(self, owner_id: str) -> int:
+        """Delete all documents and chunks for an owner. Used by account deletion."""
+        raise NotImplementedError
+
     def list_recoverable_processing(self) -> list[Document]:
         raise NotImplementedError
 
@@ -145,6 +149,14 @@ class SQLiteDocumentRepository(DocumentRepository):
                     (to_owner, self._serialize(document), row["id"], from_owner),
                 )
         return len(rows)
+
+    def delete_all_for_owner(self, owner_id: str) -> int:
+        with self._lock, self._connection:
+            cursor = self._connection.execute(
+                "DELETE FROM documents WHERE owner_id = ?",
+                (owner_id,),
+            )
+        return cursor.rowcount
 
     def list_recoverable_processing(self) -> list[Document]:
         with self._lock:
@@ -267,6 +279,18 @@ class DynamoDBDocumentRepository(DocumentRepository):
     def transfer_owner(self, from_owner: str, to_owner: str) -> int:
         raise RuntimeError("DynamoDB ownership transfer is unsupported; use the canonical Supabase backend")
 
+    def delete_all_for_owner(self, owner_id: str) -> int:
+        response = self._table.query(
+            IndexName="owner_id-index",
+            KeyConditionExpression=self._key("owner_id").eq(owner_id),
+        )
+        items = response.get("Items", [])
+        count = 0
+        for item in items:
+            self._table.delete_item(Key={"id": item["id"]})
+            count += 1
+        return count
+
     def list_recoverable_processing(self) -> list[Document]:
         # DynamoDB is a compatibility adapter, not the canonical launch store.
         # Avoid a table scan hidden behind the production API.
@@ -375,6 +399,13 @@ class SupabaseDocumentRepository(DocumentRepository):
             {"p_anonymous_owner": from_owner, "p_account_owner": to_owner},
         ).execute()
         return int(response.data or 0)
+
+    def delete_all_for_owner(self, owner_id: str) -> int:
+        # Delete chunks first (foreign key cascade may not be enabled)
+        self._client.table("document_chunks").delete().eq("owner_id", owner_id).execute()
+        # Delete documents
+        response = self._client.table(self._table_name).delete().eq("owner_id", owner_id).execute()
+        return len(response.data or [])
 
     def list_recoverable_processing(self) -> list[Document]:
         response = (
