@@ -18,7 +18,10 @@ import '../widgets/shared/offline_banner.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
+import '../providers/entitlement_provider.dart';
+import '../models/entitlement.dart';
 import 'document_selection_dialog.dart';
+import 'qa_packs_screen.dart';
 
 class QaScreen extends ConsumerStatefulWidget {
   final String? initialDocumentId;
@@ -143,6 +146,29 @@ class QaScreenState extends ConsumerState<QaScreen>
       return;
     }
 
+    // Gate on entitlement: subscription or pack questions must be available
+    final entitlement = ref.read(entitlementProvider);
+    if (!entitlement.hasQuestionsRemaining) {
+      AnalyticsService.track('qa_question_blocked_no_budget', {
+        'plan_tier': entitlement.planTier.name,
+        'subscription_remaining': entitlement.subscriptionQuestionsRemaining,
+        'pack_remaining': entitlement.packQuestionsRemaining,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No questions remaining. Buy a Q&A pack or upgrade your plan.'),
+          action: SnackBarAction(
+            label: 'Get packs',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const QaPacksScreen()),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
     final selectedDoc = _currentDocumentId();
     ref.read(isLoadingProvider.notifier).state = true;
     ref.read(currentAnswerProvider.notifier).state = null;
@@ -217,6 +243,9 @@ class QaScreenState extends ConsumerState<QaScreen>
       });
 
       if (answer.text.isNotEmpty) {
+        // Deduct a question from subscription (first) or pack (FIFO)
+        await ref.read(entitlementProvider.notifier).recordQuestionUsed();
+
         ref.read(qaHistoryProvider.notifier).addItem(question, answer);
         try {
           await AppStateRepository.addRecentQuestion(question);
@@ -288,6 +317,11 @@ class QaScreenState extends ConsumerState<QaScreen>
       body: Column(
         children: [
           const OfflineBanner(),
+          _QuestionBudgetBanner(
+            onTapUpgrade: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const QaPacksScreen()),
+            ),
+          ),
           _DocumentSelector(
             documentsAsync: documentsAsync,
             selectedDocumentId: selectedDocumentId,
@@ -326,6 +360,82 @@ class QaScreenState extends ConsumerState<QaScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shows remaining questions (subscription + packs) with a CTA to buy more.
+class _QuestionBudgetBanner extends ConsumerWidget {
+  final VoidCallback onTapUpgrade;
+
+  const _QuestionBudgetBanner({required this.onTapUpgrade});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final packState = ref.watch(qaPackStateProvider);
+    final entitlement = ref.watch(entitlementProvider);
+    final remaining = packState.totalQuestionsRemaining;
+    final isLow = remaining <= 3 && remaining > 0;
+    final isZero = remaining == 0;
+
+    // Show banner for free users always, and for paid users when questions are low
+    if (entitlement.planTier != PlanTier.free && !packState.hasPackQuestions && remaining > 3) {
+      return const SizedBox.shrink();
+    }
+
+    final subtitle = packState.hasSubscriptionQuestions && packState.hasPackQuestions
+        ? '${packState.subscriptionQuestionsRemaining} monthly + ${packState.packQuestionsRemaining} pack'
+        : packState.hasPackQuestions
+            ? '${packState.packQuestionsRemaining} questions in ${packState.activePacks.length} pack(s)'
+            : '${packState.subscriptionQuestionsRemaining} questions left this month';
+
+    return CoverWiseSurface(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              isZero
+                  ? Icons.error_outline_rounded
+                  : isLow
+                      ? Icons.warning_amber_rounded
+                      : Icons.check_circle_outline_rounded,
+              size: 20,
+              color: isZero
+                  ? Theme.of(context).colorScheme.error
+                  : isLow
+                      ? Colors.orange
+                      : Colors.green,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isZero ? 'No questions remaining' : '$remaining questions left',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: isZero ? Theme.of(context).colorScheme.error : null,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            if (isZero || isLow)
+              TextButton(
+                onPressed: onTapUpgrade,
+                child: const Text('Get more'),
+              ),
+          ],
+        ),
       ),
     );
   }

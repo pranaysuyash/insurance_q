@@ -11,6 +11,7 @@ import '../providers/entitlement_provider.dart';
 import '../providers/questions_provider.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
+import '../services/consent_ledger.dart';
 import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
@@ -19,6 +20,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../theme/coverwise_theme.dart';
 import '../models/entitlement.dart';
 import 'notification_preferences_screen.dart';
+import 'qa_packs_screen.dart';
 
 /// App settings. Currently exposes the backend environment display and a
 /// clear-data action. Kept deliberately small: only settings that actually
@@ -141,7 +143,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // 5. Cancel all scheduled renewal notifications
       await NotificationService.cancelAll();
 
-      // 6. Clear the auth token
+      // 6. Clear the consent ledger
+      await ConsentLedger().clear();
+
+      // 7. Clear the auth token
       await AuthService.clearToken();
 
       if (!mounted) return;
@@ -201,6 +206,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             child: const Text('Manage'),
                           ),
                     onTap: null,
+                  ),
+                  const Divider(indent: 74),
+                  CoverWiseActionRow(
+                    icon: Icons.shopping_bag_outlined,
+                    color: const Color(0xFFE58726),
+                    title: 'Q&A Packs',
+                    subtitle: entitlement.hasPackQuestionsRemaining
+                        ? '${entitlement.packQuestionsRemaining} questions in packs'
+                        : 'Buy questions without a subscription',
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const QaPacksScreen(),
+                      ),
+                    ),
                   ),
                   if (entitlement.planTier != PlanTier.free) ...[
                     const Divider(indent: 74),
@@ -297,6 +318,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ]),
           ),
+          const CoverWiseSectionLabel('Privacy & consent'),
+          _ConsentLedgerSection(),
           const CoverWiseSectionLabel('Device data'),
           CoverWiseSurface(
             child: CoverWiseActionRow(
@@ -310,6 +333,103 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Displays the purpose-specific consent ledger records so users can see
+/// exactly what consent they've granted, when, and for which purpose.
+///
+/// Uses ConsumerWidget so the section rebuilds after consent changes
+/// during the current session.
+class _ConsentLedgerSection extends ConsumerWidget {
+  const _ConsentLedgerSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the entitlement provider to trigger rebuilds after consent changes.
+    ref.watch(entitlementProvider);
+    final ledger = ConsentLedger();
+    final records = ledger.getAllRecords();
+
+    if (records.isEmpty) {
+      return CoverWiseSurface(
+        child: CoverWiseActionRow(
+          icon: Icons.shield_outlined,
+          color: const Color(0xFF0F9D84),
+          title: 'No consent records',
+          subtitle: 'Consent is recorded when you upload your first policy',
+          trailing: const SizedBox.shrink(),
+          onTap: null,
+        ),
+      );
+    }
+
+    // Group by purpose, show latest state for each.
+    final latestByPurpose = <ConsentPurpose, ConsentRecord>{};
+    for (final r in records) {
+      latestByPurpose[r.purpose] = r;
+    }
+
+    return CoverWiseSurface(
+      child: Column(
+        children: [
+          for (final entry in latestByPurpose.entries) ...[
+            _ConsentRecordRow(record: entry.value),
+            if (entry.key != latestByPurpose.keys.last)
+              const Divider(indent: 74),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsentRecordRow extends StatelessWidget {
+  final ConsentRecord record;
+  const _ConsentRecordRow({required this.record});
+
+  String _purposeLabel(ConsentPurpose purpose) {
+    switch (purpose) {
+      case ConsentPurpose.documentProcessing:
+        return 'Policy processing';
+      case ConsentPurpose.analytics:
+        return 'Usage analytics';
+      case ConsentPurpose.leadCapture:
+        return 'Contact capture';
+    }
+  }
+
+  IconData _purposeIcon(ConsentPurpose purpose) {
+    switch (purpose) {
+      case ConsentPurpose.documentProcessing:
+        return Icons.description_outlined;
+      case ConsentPurpose.analytics:
+        return Icons.bar_chart_outlined;
+      case ConsentPurpose.leadCapture:
+        return Icons.contact_mail_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = record.isActive;
+    final date = '${record.timestamp.day}/${record.timestamp.month}/${record.timestamp.year}';
+
+    return CoverWiseActionRow(
+      icon: _purposeIcon(record.purpose),
+      color: isActive ? const Color(0xFF0F9D84) : const Color(0xFF637083),
+      title: _purposeLabel(record.purpose),
+      subtitle: isActive
+          ? 'Granted $date • v${record.version}'
+          : 'Revoked $date',
+      trailing: CoverWiseStatusChip(
+        icon: isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
+        label: isActive ? 'Active' : 'Revoked',
+        color: isActive ? const Color(0xFF0F9D84) : const Color(0xFF637083),
+        compact: true,
+      ),
+      onTap: null,
     );
   }
 }

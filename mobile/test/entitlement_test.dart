@@ -82,17 +82,17 @@ void main() {
       expect(ent.isActive, false);
     });
 
-    test('questionsRemaining is clamped to max', () {
+    test('subscriptionQuestionsRemaining is clamped to max', () {
       final ent = const Entitlement(planTier: PlanTier.free);
-      expect(ent.questionsRemaining, 20);
+      expect(ent.subscriptionQuestionsRemaining, 20);
     });
 
-    test('questionsRemaining decreases with usage', () {
+    test('subscriptionQuestionsRemaining decreases with usage', () {
       final ent = const Entitlement(
         planTier: PlanTier.plus,
         questionsUsedThisMonth: 50,
       );
-      expect(ent.questionsRemaining, 150);
+      expect(ent.subscriptionQuestionsRemaining, 150);
     });
 
     test('hasQuestionsRemaining when under limit', () {

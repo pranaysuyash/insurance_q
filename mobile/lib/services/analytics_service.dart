@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import '../config/app_config.dart';
 import 'analytics_schema.dart';
 import 'app_state_store.dart';
+import 'consent_ledger.dart';
 import 'session_service.dart';
 
 /// Privacy-respecting analytics for CoverWise.
@@ -31,18 +32,71 @@ class AnalyticsService {
   static Timer? _syncTimer;
   static String? _uid;
 
+  /// Cached analytics consent state — refreshed at init and on toggle.
+  /// Avoids Hive reads on every track() call.
+  static bool _analyticsConsentCached = true;
+
   /// Initialize the analytics service. Call once at app startup.
   static void init() {
     _uid = SessionService.getSessionIdSync();
     // Load any unsent events from storage
     _loadBuffer();
 
+    // Record analytics consent in the purpose-specific ledger for auditability.
+    // This happens on every startup so the ledger reflects the current state.
+    // Read the actual consent state synchronously (_loadRecords is sync) so
+    // revoked consent stays revoked across restarts. The async write only
+    // fires on first launch (when no record exists).
+    _analyticsConsentCached = _checkConsentFresh();
+    unawaited(_recordAnalyticsConsent());
+
     // Periodic sync
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(_syncInterval, (_) => flush());
 
-    debugPrint('AnalyticsService initialized (uid=${_uid?.substring(0, 8)}..., '
-        'queued=${_buffer.length})');
+    debugPrint('AnalyticsService initialized (uid=${_uid?.substring(0, 8)}..., queued=${_buffer.length})');
+  }
+
+  /// Records analytics consent in the purpose-specific ledger.
+  /// Analytics is always-on for non-content, bucketed event tracking as
+  /// disclosed in the privacy policy. This record exists for auditability.
+  ///
+  /// Called on every startup. If consent was previously revoked, it stays
+  /// revoked — we only record the initial grant, not a re-grant.
+  static Future<void> _recordAnalyticsConsent() async {
+    try {
+      final ledger = ConsentLedger();
+      final latest = ledger.getLatestRecord(ConsentPurpose.analytics);
+      if (latest == null) {
+        // First startup — record analytics consent as granted.
+        await ledger.recordConsent(
+          purpose: ConsentPurpose.analytics,
+          version: 'analytics-v1',
+          granted: true,
+        );
+      }
+      // If consent exists (granted or revoked), don't overwrite.
+      // The user controls revocation from the privacy settings.
+    } catch (e) {
+      // Analytics consent recording is best-effort — don't disrupt init.
+      debugPrint('Analytics: failed to record consent in ledger: $e');
+    }
+  }
+
+  /// Check if analytics consent is currently granted (fresh from ledger).
+  static bool _checkConsentFresh() {
+    try {
+      return ConsentLedger().hasConsent(ConsentPurpose.analytics);
+    } catch (e) {
+      // If we can't check consent, default to true to avoid breaking analytics.
+      return true;
+    }
+  }
+
+  /// Called by PrivacySecurityScreen when the user toggles analytics consent.
+  /// Updates the cached state so track() respects it immediately.
+  static void refreshConsentCache() {
+    _analyticsConsentCached = _checkConsentFresh();
   }
 
   /// Track an analytics event.
@@ -52,7 +106,12 @@ class AnalyticsService {
   ///
   /// In debug builds, the payload is validated against [kEventSchemas] to
   /// catch accidental PII leakage and type mismatches early.
+  ///
+  /// If the user has revoked analytics consent, events are silently dropped.
   static void track(String name, [Map<String, dynamic>? properties]) {
+    // Respect analytics consent — drop events if consent is revoked.
+    if (!_analyticsConsentCached) return;
+
     final props = properties ?? {};
 
     // Schema validation in debug builds only.

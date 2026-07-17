@@ -128,43 +128,184 @@ The strongest position is **independent policy intelligence**, not another marke
 | Aggregate benchmark product | Medium | High | High | **Only after privacy maturity** |
 | Customer-derived training-data licensing | Low | Very high | Extreme | **Reject** |
 
-## Consumer packaging hypotheses
+## Ads vs Subscription: Deep Analysis (Updated 2026-07-17)
 
-Prices are test hypotheses, not forecasts.
+### The Core Tradeoff
+
+| Dimension | Ads (AdMob/Contextual) | Subscription | Winner |
+|-----------|----------------------|-------------|--------|
+| **Revenue per user** | ₹0.10-0.30/month (Indian CPM ₹10-30) | ₹149-249/month | Subscription (20-50x) |
+| **User trust** | Low — ads beside sensitive policy data feel exploitative | High — user pays for value, no data exploitation | Subscription |
+| **Regulatory load** | High — DPDP consent, Google Play health-app rules, IRDAI ad rules | Low-medium — standard consumer software | Subscription |
+| **Retention impact** | Negative — ads increase churn in utility apps | Positive — paid users have 2-3x higher retention | Subscription |
+| **Solo founder burden** | High — ad mediation, fill rate optimization, creative management | Low — set pricing, ship product, measure conversion | Subscription |
+| **Time to revenue** | Fast (1-2 weeks to integrate AdMob) | Medium (2-4 weeks for billing integration) | Ads (marginal) |
+| **Scalability** | Linear with DAU | Exponential with conversion rate improvements | Subscription |
+| **Data liability** | Very high — SDK telemetry, targeting, PII risk | Low — no third-party data sharing | Subscription |
+
+### The Case FOR Ads (Devil's Advocate)
+
+1. **Zero friction to monetize.** Every user who downloads and sees ads is monetized immediately. No conversion funnel, no billing integration, no payment failure recovery. With subscription, you need 5-10% of free users to pay ₹149/month to make meaningful revenue.
+
+2. **Distribution advantage.** An ad-supported free tier removes all limits. Users get unlimited Q&A, unlimited documents, full comparison — and you monetize attention. This could accelerate user growth dramatically.
+
+3. **Market reality.** Indian insurance app users are price-sensitive. ₹149/month sounds small, but for many Indian households it's non-trivial. PolicyBazaar's entire business model is "free for the user, monetized by insurer commissions." Users are already conditioned to expect free.
+
+4. **Ad networks have matured.** Google's privacy sandbox, contextual targeting, and consent frameworks have improved. You can serve contextual insurance ads without reading document content — just the category (health, auto, life) and rough demographics.
+
+### The Case AGAINST Ads (Why Subscription Wins)
+
+1. **Trust is your only moat.** CoverWise's entire value proposition is: "We help you understand your own policy. We don't sell you anything. We don't sell your data." The moment you put an ad next to a detected coverage gap, that message is dead.
+   - User sees "Your health policy has a coverage gap" → right below it: "Get a better health plan! Click here." Even if the ad is technically contextual, the user thinks: "They're using my gap to sell me something."
+   - User uploads a policy with their name, address, health details → AdMob SDK loads. User Googles "what data does AdMob collect" → finds device IDs, location, usage patterns. User uninstalls.
+   - User asks "What's excluded from my policy?" → answer includes an ad for an insurance broker. CoverWise becomes indistinguishable from PolicyBazaar.
+
+2. **Indian insurance CPMs are terrible.** Indian insurance ad CPMs are ₹10-30 (USD $0.12-0.35).
+   - You need ~100,000 monthly active users to earn ₹10,000-30,000/month from ads
+   - That's roughly ₹0.10-0.30 per user per month from ads
+   - Even if 5% of users pay ₹149/month for Plus, that's ₹7.45 per user per month — 25-75x more per paying user
+   - And paying users are more engaged, less likely to churn, and more likely to refer
+
+3. **Ad SDKs are a compliance minefield in India.** Google Play requires accurate Data Safety declarations. If you declare "share data with advertising partners" and your app handles health insurance documents, you trigger additional scrutiny:
+   - Health app disclosure requirements
+   - Sensitive-permission data restrictions
+   - DPDP Act consent requirements for ad tracking
+   - IRDAI advertising rules if ads are insurance-related
+   - A solo founder managing all this is a significant burden.
+
+4. **Ads kill the premium upsell.** If the free experience is ad-supported and fully featured (unlimited docs, unlimited Q&A), there's zero reason to upgrade to Plus. The only Plus benefit becomes "no ads" — which users will tolerate if the ads are contextual and not too aggressive. With subscription-only, the free tier is genuinely limited (1 policy, basic Q&A). Users who find value hit the wall and convert.
+
+5. **The "ad-free" promise is fragile.** Once you introduce ads, removing them later (if you switch to subscription) is perceived as a regression. Users who downloaded because "free with ads" existed will churn when you remove the free tier. You've locked yourself into the ad model.
+
+### Specific Trust-Destroying Scenarios
+
+| Scenario | What Happens | Trust Impact |
+|----------|-------------|-------------|
+| Coverage gap + ad | "Your health policy has a gap" → ad for better plan | User thinks app is using their data to sell insurance |
+| Policy upload + AdMob | User uploads health docs, AdMob SDK loads | User Googles data collection, uninstalls |
+| Q&A + ad | Answer about exclusions includes broker ad | App becomes indistinguishable from PolicyBazaar |
+| Emergency screen + ad | Insurance helpline number with ad above it | Life-safety context trivialized by commercial content |
+
+### When Ads *Could* Make Sense (Stage 4+)
+
+Only after subscription retention evidence, and only on **public education surfaces** (blog, glossary, landing page)—never inside the authenticated policy workspace:
+
+- Fixed-price sponsorships (e.g., "Covered by ICICI Lombard") on the public insurance literacy section
+- Display ads on the public blog/SEO content
+- No SDK inside the app itself
+- No targeting based on policy contents, health, or family data
+- Removable for paid subscribers
+
+### Decision: Subscription First, Pay-per-Q&A Packs as Alternative
+
+**Primary model:** Subscription (Free → Plus → Family)
+**Secondary model:** Pay-per-Q&A packs for occasional users who don't want a subscription
+
+The hybrid approach captures both segments:
+- Users who need ongoing household management → subscription
+- Users who upload 1 policy and ask 20 questions once, then don't use the app for months → packs
+
+This avoids the "ad-supported free tier" trap while still monetizing low-engagement users.
+
+**Final decision: Ads rejected in core app. Subscription is primary. Packs are secondary. Contextual sponsorship only on public education surfaces, only after subscription evidence.**
+
+---
+
+## Final Pricing Hypotheses (Implemented in Code)
+
+Prices are test hypotheses, not forecasts. All limits and prices are tunable via `mobile/lib/models/entitlement.dart`.
 
 ### Free: understand one policy
 
+**Price:** Free forever
+
 - 1 active policy;
 - useful summary and key fields;
-- limited monthly Q&A;
+- 20 questions/month;
 - basic renewal date;
-- sourced answers, export, and deletion.
+- sourced answers, export, and deletion;
+- insurance health score;
+- emergency screen;
+- preventive health tips.
 
-The free tier must reach the real aha moment. Uploading without useful interpretation will not build conversion.
+The free tier must reach the real aha moment. Uploading without useful interpretation will not build conversion. The free tier is generous enough to demonstrate value but limited enough to motivate upgrade.
+
+**Conversion trigger:** User hits the 1-policy limit or wants to compare two policies.
 
 ### Plus: household policy companion
 
-**Hypothesis:** INR 149/month or INR 999/year.
+**Price:** ₹149/month or ₹999/year (₹83/month equivalent — 44% savings)
 
 - up to 10 active policies;
 - family coverage view;
-- higher Q&A allowance;
+- 200 questions/month;
 - renewal reminders and calendar actions;
 - two-policy comparison;
 - encrypted cloud sync and structured export;
-- claim-ready document bundle.
+- claim-ready document bundle;
+- advanced cross-document search.
+
+**Why ₹149/month:** Below Netflix (₹149-649), below any insurance premium, positioned as "insurance for your insurance." Indian mobile-first users are price-sensitive but willing to pay for clear utility. ₹149 is the psychological threshold where the value proposition is obvious.
+
+**Why ₹999/year:** Annual discount drives commitment. ₹83/month equivalent feels like a steal. Annual subscribers have 2-3x higher retention.
+
+**Conversion trigger:** User has 2+ policies or wants family view.
 
 ### Family: ongoing household management
 
-**Hypothesis:** INR 249/month or INR 1,799/year.
+**Price:** ₹249/month or ₹1,799/year (₹150/month equivalent — 40% savings)
 
-- higher or fair-use policy limit;
+- 50 active policies (fair-use);
+- 500 questions/month;
 - household sharing and emergency access;
 - coverage-review prompts;
 - richer comparison and renewal history;
-- annual structured coverage review.
+- annual structured coverage review;
+- advanced search;
+- priority support.
 
-### Fixed-fee services
+**Why ₹249/month:** The family plan targets households with 3-5+ policies across multiple family members. ₹249 is still below any single insurance premium. The emergency access feature alone justifies the price for families.
+
+**Why ₹1,799/year:** ₹150/month equivalent. Annual pricing locks in the household for a full renewal cycle.
+
+**Conversion trigger:** User manages insurance for 3+ family members.
+
+### Pricing Psychology Notes
+
+- **No free trial** — the free tier IS the trial. Users experience real value before paying.
+
+- **Annual discount is aggressive** — 40-44% off monthly. This is intentional: annual subscribers are stickier, have lower churn, and provide predictable revenue.
+
+- **No per-feature pricing** — clean tiers avoid decision paralysis. Users upgrade when they hit limits, not when they want one feature.
+
+- **No regional pricing** — ₹149/₹249 works across India. Regional pricing adds complexity without measurable benefit at current scale.
+
+- **No family member limits** — the Family plan is per-household, not per-person. This avoids the complexity of tracking individual family members.
+
+### Revenue Projections (Hypotheses)
+
+| Scenario | MAU | Free→Plus | Free→Family | MRR | ARR |
+|----------|-----|-----------|-------------|-----|-----|
+| Conservative (Month 6) | 5,000 | 2% | 0.5% | ₹17,450 | ₹2,09,400 |
+| Moderate (Month 12) | 20,000 | 3% | 1% | ₹1,39,600 | ₹16,75,200 |
+| Optimistic (Month 18) | 50,000 | 5% | 2% | ₹7,45,000 | ₹89,40,000 |
+
+**Break-even estimate:** ~500 paying subscribers covers a solo founder's basic infrastructure costs (Cloud Run, Supabase, OpenAI API).
+
+### Unit Economics Target
+
+| Metric | Target | Rationale |
+|--------|--------|----------|
+| Cost per successful policy processing | < ₹5 | OCR + LLM + storage |
+| Cost per Q&A answer | < ₹1 | Embedding + retrieval + generation |
+| Gross margin per Plus subscriber | > 85% | ₹149 revenue - ~₹20 COGS |
+| Gross margin per Family subscriber | > 80% | ₹249 revenue - ~₹45 COGS |
+| LTV/CAC ratio | > 3:1 | Sustainable growth |
+| Payback period | < 3 months | Recover acquisition cost quickly |
+
+---
+
+## Fixed-fee services (Future)
 
 - policy wording review and question list;
 - pre-renewal coverage inventory;
@@ -355,8 +496,59 @@ Required capabilities:
 - annual-plan share and churn reason;
 - gross margin per household after OCR/LLM/storage/support;
 - service attach rate and fulfillment cost;
+- **cost per successful policy processing:** target < ₹5 (OCR + LLM + storage);
+- **cost per Q&A answer:** target < ₹1 (embedding + retrieval + generation);
+- **gross margin per Plus subscriber:** target > 85% (₹149 revenue - ~₹20 COGS);
+- **gross margin per Family subscriber:** target > 80% (₹249 revenue - ~₹45 COGS);
+- **LTV/CAC ratio:** target > 3:1;
+- **payback period:** target < 3 months.
 
 Pricing must never vary using inferred health, claim urgency, insurer, policy premium, or financial status. Deletion, export, and safety features remain available without payment.
+
+## Implementation status (2026-07-16)
+
+The following architecture seams from the original research are now partially or fully implemented:
+
+| Seam | Status | Evidence |
+|------|--------|----------|
+| **Entitlements service** | ✅ Implemented | `EntitlementService` (Hive-backed), `EntitlementProvider` (Riverpod), `PlanTier` enum with `PlanLimits` registry |
+| **Billing adapter** | ✅ Skeleton | `BillingAdapter` with product ID mapping (`coverwise_plus_monthly`, etc.), purchase/restore/manage stubs, `handlePaymentConfirmation` webhook handler |
+| **Consent ledger** | ✅ Implemented | `ConsentLedger` with purpose-specific grant/revoke/hasConsent, integrated into upload flow |
+| **Analytics schema** | ✅ Implemented | `validateAnalyticsEvent` with event registry, required properties, type checking, PII detection |
+| **Cost attribution** | 🔲 Not started | No per-operation cost tracking yet |
+| **Commercial disclosure registry** | 🔲 Not started | No partner/compensation tracking |
+| **Dataset registry** | 🔲 Not started | No model contribution governance |
+| **Privacy pipeline** | 🔲 Not started | No quarantine/de-identification/release gates |
+
+### What's built and working
+
+- **Plan tier system:** Free (1 policy, 20 Q&A/month), Plus (10 policies, 200 Q&A/month, ₹149/₹999), Family (50 policies, 500 Q&A/month, ₹249/₹1,799)
+- **Feature gating:** `checkAction()` returns reason strings for disabled features (comparison, family view, cloud sync, emergency access, annual review, advanced search)
+- **Usage tracking:** Q&A usage counted per month with automatic reset
+- **Upload limits:** Policy count checked against plan limits before upload
+- **Settings display:** Current plan shown in settings with upgrade CTA
+- **Consent recording:** Purpose-specific consent in ConsentLedger on first upload
+- **Analytics validation:** Server-side event/property validation with PII detection
+- **Pay-per-Q&A packs:** `QaPackType` enum (starter ₹49/5Q, value ₹119/15Q, pro ₹199/30Q), `QaPack` model with 90-day expiry, FIFO consumption (subscription first, then packs by earliest expiry), `QaPacksScreen` purchase UI with balance card, pack cards, active pack display, and FAQ. Pack-aware entitlement gating in QA screen with budget banner and analytics tracking.
+- **Emergency shortcut:** One-tap `_EmergencyShortcutButton` on DashboardScreen for fastest emergency access
+- **Processing status:** Real-time stage indicators (Received → Reading → Extracting → Classifying → Indexing) with Dio fallback to local storage, PopScope dismiss warning, and auto-navigate on completion
+- **Notification preferences:** Master toggle, custom reminder days, quiet hours, per-policy switches with try/finally error recovery
+- **Coverage gap resolution tracking:** Filter bar (All/Open/Addressed), mark-as-addressed with notes dialog, resolution badge, strikethrough styling, reopen button, Hive-persisted
+- **Insurance health score:** At-a-glance 0–100 score on dashboard with animated gauge, 4-factor breakdown
+- **Policy share/export:** Share button in app bar + Quick Actions formats policy summary as readable text
+- **Cross-document search:** SearchScreen with auto-focused search bar, type/status filter chips, highlighted text matches, ranked results
+- **Document preview:** DocumentPreviewScreen with PDF viewer, page navigation, pinch-to-zoom, error states
+- **What-If Calculator:** Coverage/deductible sliders, maternity/daycare/hospitalization toggles, estimation formulas
+- **Dark mode / theme toggle:** System/Light/Dark picker in Settings → Appearance
+- **Profile screen:** Identity, auth token, version, appearance, storage, privacy info, scope disclaimer
+
+### What's needed before subscription launch
+
+1. **Real billing integration:** Replace `BillingAdapter` stubs with RevenueCat or Google Play Billing
+2. **Backend subscription sync:** Endpoint to verify receipt and sync entitlement state
+3. **Cost attribution:** Per-operation tracking for OCR, LLM, storage costs
+4. **Grace periods:** Handle expired subscriptions without data loss
+5. **Webhook reliability:** Idempotent payment confirmation processing
 
 ## Architecture seams required before implementation
 
@@ -421,6 +613,9 @@ These must extend the canonical backend and validation stack, not introduce dupl
 ### Decisions
 
 - Subscription software is the primary revenue model; commissions and regulated services are prohibited.
+- **Ads vs Subscription: Subscription wins on every dimension** — revenue per user (20-50x), user trust, regulatory load, retention impact, solo founder burden, and data liability. Ads earn ₹0.10-0.30/month per active user (raw CPM ₹10-30); a single Plus subscriber earns ₹149/month. Ads are rejected in the core app.
+- **Pay-per-Q&A packs** are the secondary monetization model for occasional users who don't want a subscription. Starter (₹49/5Q), Value (₹119/15Q), Pro (₹199/30Q), all 90-day expiry. Packs are implemented in code but billing is still a stub.
+- The first paid promise is **household policy management** — the subscription's core value. Packs serve the occasional-use segment that doesn't justify a subscription.
 - Behavioral ads are excluded from trusted policy workflows.
 - Commission is deferred pending an explicit regulated operating model.
 - Operational data is not shared-training data.

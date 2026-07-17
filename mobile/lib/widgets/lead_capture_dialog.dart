@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
+import '../services/consent_ledger.dart';
 import 'shared/coverwise_components.dart';
 
 class LeadCaptureDialog extends StatefulWidget {
@@ -178,6 +179,15 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
                     'Accept the Privacy Policy to process this policy.');
                 return;
               }
+              // Record consent in the purpose-specific ledger.
+              final ledger = ConsentLedger();
+              if (!ledger.hasConsent(ConsentPurpose.documentProcessing)) {
+                ledger.recordConsent(
+                  purpose: ConsentPurpose.documentProcessing,
+                  version: AppConfig.privacyPolicyVersion,
+                  granted: true,
+                );
+              }
               Navigator.of(context).pop({
                 'email': null,
                 'phone': null,
@@ -201,6 +211,25 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
                 setState(() => _consentError =
                     'Accept the Privacy Policy to process this policy.');
                 return;
+              }
+              // Record consent in the purpose-specific ledger.
+              final ledger = ConsentLedger();
+              if (!ledger.hasConsent(ConsentPurpose.documentProcessing)) {
+                ledger.recordConsent(
+                  purpose: ConsentPurpose.documentProcessing,
+                  version: AppConfig.privacyPolicyVersion,
+                  granted: true,
+                );
+              }
+              // Record lead capture consent if contact info is provided.
+              final hasContact = _emailController.text.trim().isNotEmpty ||
+                  _phoneController.text.trim().isNotEmpty;
+              if (hasContact && !ledger.hasConsent(ConsentPurpose.leadCapture)) {
+                ledger.recordConsent(
+                  purpose: ConsentPurpose.leadCapture,
+                  version: AppConfig.privacyPolicyVersion,
+                  granted: true,
+                );
               }
               Navigator.of(context).pop({
                 'email': _emailController.text.trim().isEmpty

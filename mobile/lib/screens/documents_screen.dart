@@ -14,6 +14,7 @@ import '../providers/policy_providers.dart';
 import '../providers/entitlement_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/app_state_store.dart';
+import '../services/consent_ledger.dart';
 import '../services/contact_service.dart';
 import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
@@ -193,8 +194,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     String consentVersion;
     if (storedConsent != null) {
       consentVersion = storedConsent;
+      // Record in the purpose-specific consent ledger for auditability.
+      // The dialog also records consent, so check first to avoid duplicates.
+      final ledger = ConsentLedger();
+      if (!ledger.hasConsent(ConsentPurpose.documentProcessing)) {
+        await ledger.recordConsent(
+          purpose: ConsentPurpose.documentProcessing,
+          version: consentVersion,
+          granted: true,
+        );
+      }
     } else {
-      // First upload - show consent + optional contact capture
+      // First upload - show consent + optional contact capture.
+      // The dialog records consent in the ledger on submission, so we only
+      // persist the Hive key here.
       final savedContact = await ContactService.getSavedContact();
       if (!mounted) return;
       final leadInfo = await showDialog<Map<String, dynamic>>(

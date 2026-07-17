@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/entitlement.dart';
+import '../models/qa_pack.dart';
 import '../services/entitlement_service.dart';
 
 /// Provides the EntitlementService singleton.
@@ -13,6 +14,41 @@ final entitlementProvider =
     StateNotifierProvider<EntitlementNotifier, Entitlement>((ref) {
   return EntitlementNotifier(ref.watch(entitlementServiceProvider));
 });
+
+/// Derived provider for pack-specific state, rebuilds when entitlement changes.
+final qaPackStateProvider = Provider<QaPackState>((ref) {
+  final ent = ref.watch(entitlementProvider);
+  return QaPackState(
+    activePacks: ent.activePacks,
+    packQuestionsRemaining: ent.packQuestionsRemaining,
+    subscriptionQuestionsRemaining: ent.subscriptionQuestionsRemaining,
+    totalQuestionsRemaining: ent.totalQuestionsRemaining,
+    hasAnyQuestionsRemaining: ent.hasQuestionsRemaining,
+    hasPackQuestions: ent.hasPackQuestionsRemaining,
+    hasSubscriptionQuestions: ent.hasSubscriptionQuestionsRemaining,
+  );
+});
+
+/// Immutable snapshot of pack-related entitlement state for UI consumption.
+class QaPackState {
+  final List<QaPack> activePacks;
+  final int packQuestionsRemaining;
+  final int subscriptionQuestionsRemaining;
+  final int totalQuestionsRemaining;
+  final bool hasAnyQuestionsRemaining;
+  final bool hasPackQuestions;
+  final bool hasSubscriptionQuestions;
+
+  const QaPackState({
+    required this.activePacks,
+    required this.packQuestionsRemaining,
+    required this.subscriptionQuestionsRemaining,
+    required this.totalQuestionsRemaining,
+    required this.hasAnyQuestionsRemaining,
+    required this.hasPackQuestions,
+    required this.hasSubscriptionQuestions,
+  });
+}
 
 class EntitlementNotifier extends StateNotifier<Entitlement> {
   final EntitlementService _service;
@@ -30,9 +66,21 @@ class EntitlementNotifier extends StateNotifier<Entitlement> {
     state = _service.current();
   }
 
-  /// Record a Q&A usage event.
+  /// Record a Q&A usage event — consumes subscription first, then packs (FIFO).
   Future<void> recordQuestionUsed() async {
     await _service.recordQuestionUsed();
+    state = _service.current();
+  }
+
+  /// Add a purchased pack to the entitlement.
+  Future<void> addPack(QaPackType type) async {
+    await _service.addPack(type);
+    state = _service.current();
+  }
+
+  /// Prune expired packs from the entitlement.
+  Future<void> pruneExpiredPacks() async {
+    await _service.pruneExpiredPacks();
     state = _service.current();
   }
 
@@ -51,7 +99,13 @@ class EntitlementNotifier extends StateNotifier<Entitlement> {
         return null;
       case 'ask_question':
         if (!ent.hasQuestionsRemaining) {
-          return 'You\'ve used all ${ent.limits.maxQuestionsPerMonth} questions this month on ${ent.planTier.displayName}. Upgrade for more.';
+          if (ent.hasSubscriptionQuestionsRemaining) {
+            return 'You\'ve used all ${ent.limits.maxQuestionsPerMonth} questions this month on ${ent.planTier.displayName}. Upgrade for more.';
+          } else if (ent.hasPackQuestionsRemaining) {
+            return 'You\'ve used all your pack questions. Buy more packs to continue asking.';
+          } else {
+            return 'No questions remaining. Buy a Q&A pack or upgrade your plan.';
+          }
         }
         return null;
       case 'compare_policies':

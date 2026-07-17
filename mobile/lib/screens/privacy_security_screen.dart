@@ -1,12 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
+import '../services/consent_ledger.dart';
+import '../services/analytics_service.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 
 /// Privacy & Security: visible copy follows the production data architecture.
-class PrivacySecurityScreen extends StatelessWidget {
+class PrivacySecurityScreen extends StatefulWidget {
   const PrivacySecurityScreen({super.key});
+
+  @override
+  State<PrivacySecurityScreen> createState() => _PrivacySecurityScreenState();
+}
+
+class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
+  late bool _analyticsConsent;
+  final _ledger = ConsentLedger();
+
+  @override
+  void initState() {
+    super.initState();
+    _analyticsConsent = _ledger.hasConsent(ConsentPurpose.analytics);
+  }
+
+  Future<void> _toggleAnalyticsConsent(bool value) async {
+    setState(() => _analyticsConsent = value);
+    try {
+      await _ledger.recordConsent(
+        purpose: ConsentPurpose.analytics,
+        version: 'analytics-v1',
+        granted: value,
+      );
+      // Refresh the analytics service cache so track() respects the new state.
+      AnalyticsService.refreshConsentCache();
+      if (value) {
+        // Re-grant: track a re-enable event for audit.
+        AnalyticsService.track('analytics_consent_re_enabled');
+      }
+    } catch (e) {
+      // Revert the switch if persistence fails.
+      if (mounted) setState(() => _analyticsConsent = !value);
+    }
+  }
 
   Future<void> _openHostedPolicy() async {
     final uri = Uri.parse(AppConfig.privacyPolicyUrl);
@@ -60,6 +96,60 @@ class PrivacySecurityScreen extends StatelessWidget {
             title: 'Device data',
             body: 'A secure anonymous app identity protects your documents and '
                 'enforces usage limits. An account is not required at launch.',
+          ),
+          // Analytics consent toggle — lets users control usage tracking.
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : CoverWiseColors.line,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CoverWiseIconBadge(
+                  icon: Icons.analytics_outlined,
+                  color: CoverWiseColors.blueDeep,
+                  size: 40,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Analytics',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Help improve CoverWise by sharing anonymous usage '
+                            'statistics. No personal data or policy content is '
+                            'included — only anonymous event counts and '
+                            'feature usage patterns.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              height: 1.4,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _analyticsConsent,
+                  onChanged: _toggleAnalyticsConsent,
+                ),
+              ],
+            ),
           ),
           const CoverWiseSectionLabel('How your data is processed'),
           const _PrivacyItem(

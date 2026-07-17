@@ -65,6 +65,7 @@ This audit maps every user flow end-to-end: what triggers it, what the user sees
 | 29 | **SearchScreen** | `search_screen.dart` | ✅ | 9/10 | **NEW (M2):** Cross-document search with auto-focused search bar, type/status filter chips, highlighted text matches, ranked results by relevance, and empty states. Accessible from Dashboard and More. |
 | 30 | **WhatIfCalculatorScreen** | `what_if_calculator_screen.dart` | ✅ | 8/10 | **NEW (B8):** Coverage/deductible sliders, maternity/daycare/hospitalization toggles, estimation formulas with disclaimer. **Testability:** Estimation logic extracted to `what_if_calculator.dart` helper class — 30 unit tests cover premium estimation, coverage estimation, deductible estimation, currency formatting, and edge cases. |
 | 31 | **_DocumentReplaceScreen** | `documents_list.dart` | ✅ | 7/10 | **NEW (M6):** File picker, confirmation dialog, replaceDocument() in DocumentService, provider invalidation. Private widget in documents_list.dart. |
+| 32 | **QaPacksScreen** | `qa_packs_screen.dart` | ✅ | 8/10 | **NEW:** Pay-per-Q&A packs purchase UI. Balance card showing subscription + pack questions, pack cards (Starter ₹49/5Q, Value ₹119/15Q, Pro ₹199/30Q) with buy button, active pack display with progress bars and expiry, FAQ section with expandable items. Pack-aware entitlement gating in QA screen with budget banner and analytics tracking. |
 
 ### 2B. Screens/Flows That SHOULD Exist But DON'T
 
@@ -302,6 +303,8 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | `isLoadingProvider` | Loading state for Q&A | ✅ Good |
 | `currentAnswerProvider` | Current answer display | ✅ Good |
 | `selectedDocumentProvider` | Selected doc for Q&A | ✅ Good |
+| `entitlementProvider` | Plan tier + usage + packs | ✅ Good |
+| `qaPackStateProvider` | Derived pack state for UI | ✅ Good |
 
 **Overall State Management Rating: 8/10** — Clean Riverpod usage. No state leaks observed.
 
@@ -393,6 +396,18 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | ~~P2~~ | ~~Document re-upload / replacement (M6)~~ | ~~Medium~~ | ~~🟡 Renewal flow~~ | ✅ DONE |
 | **P3** | Multi-language support (M10) | Large | 🟢 Indian market | Post-launch |
 
+### Monetization Features
+
+| Priority | Feature | Status |
+|---|---|---|
+| ~~M12~~ | ~~Pay-per-Q&A Packs~~ | ✅ DONE |
+| ~~M13~~ | ~~Emergency Shortcut~~ | ✅ DONE |
+| ~~M14~~ | ~~Notification Preferences~~ | ✅ DONE |
+| ~~M15~~ | ~~Processing Status Stages~~ | ✅ DONE |
+| M16 | Real billing integration (RevenueCat) | 🔲 Stub only — needs SDK |
+| M17 | Backend subscription sync endpoint | 🔲 Not started |
+| M18 | Cost attribution per operation | 🔲 Not started |
+
 ### Brainstorm Features (Info Broker)
 
 | Priority | Feature | Status |
@@ -475,3 +490,4 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | 2026-07-16 | Marked B5 (Cross-document Q&A) as RESOLVED — _DocumentSelector with All Documents ChoiceChip, null documentId for cross-doc queries | Buffy |
 | 2026-07-16 | Marked B8 (What-If Calculator) as RESOLVED — WhatIfCalculatorScreen with coverage/deductible sliders, coverage toggles, estimation formulas, disclaimer | Buffy |
 | 2026-07-16 | Added WhatIfCalculatorScreen (#40), _DocumentReplaceScreen (#41) to section 2C; WhatIfCalculator helper (#38), gapId function (#39) to section 2C | Buffy |
+| 2026-07-17 | Added QaPacksScreen (#32) to inventory. Added pay-per-Q&A packs feature with QaPackType enum, QaPack model, FIFO consumption, QaPacksScreen purchase UI, pack-aware entitlement gating, and 33 unit tests. Updated monetization doc with full ads vs subscription analysis and pack pricing hypotheses. | Buffy |

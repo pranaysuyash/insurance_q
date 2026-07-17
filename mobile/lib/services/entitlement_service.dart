@@ -1,16 +1,20 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/entitlement.dart';
+import '../models/qa_pack.dart';
 import 'app_state_store.dart';
 
-/// Canonical service for managing the user's subscription entitlement.
+/// Canonical service for managing the user's subscription entitlement
+/// and pay-per-Q&A packs.
 ///
-/// Reads and writes the current plan tier, usage counters, and expiry to Hive.
-/// This is the single source of truth for "what can this user do?" on the
-/// client side. Backend verification is a separate concern (billing adapter).
+/// Reads and writes the current plan tier, usage counters, packs, and expiry
+/// to Hive. This is the single source of truth for "what can this user do?"
+/// on the client side. Backend verification is a separate concern (billing adapter).
 class EntitlementService {
   static const _entitlementKey = 'entitlement_v1';
   static Box get _box => Hive.box(AppStateStore.boxName);
+
+  // ── Core CRUD ────────────────────────────────────────────────────
 
   /// Load the current entitlement from local storage.
   ///
@@ -37,6 +41,8 @@ class EntitlementService {
     }
   }
 
+  // ── Plan management ──────────────────────────────────────────────
+
   /// Upgrade (or downgrade) the user's plan.
   ///
   /// [expiresAt] should be set for paid tiers. Pass null to reset to free.
@@ -52,7 +58,14 @@ class EntitlementService {
     debugPrint('EntitlementService: plan set to ${tier.name}, expires: $expiresAt');
   }
 
-  /// Record a Q&A usage event. Resets counter monthly.
+  // ── Q&A consumption ──────────────────────────────────────────────
+
+  /// Record a single Q&A usage event.
+  ///
+  /// Consumption strategy:
+  /// 1. If the user has remaining *subscription* questions this month, deduct there.
+  /// 2. Otherwise, consume from the earliest-expiring *pack* (FIFO).
+  /// 3. If neither is available, no-op (caller should gate before calling).
   Future<void> recordQuestionUsed() async {
     var ent = current();
 
@@ -67,20 +80,105 @@ class EntitlementService {
       );
     }
 
-    final updated = ent.copyWith(
-      questionsUsedThisMonth: ent.questionsUsedThisMonth + 1,
-      questionsResetAt: ent.questionsResetAt ?? _nextMonthStart(),
-    );
-    await save(updated);
+    // Step 1: try subscription questions first
+    if (ent.hasSubscriptionQuestionsRemaining) {
+      final updated = ent.copyWith(
+        questionsUsedThisMonth: ent.questionsUsedThisMonth + 1,
+        questionsResetAt: ent.questionsResetAt ?? _nextMonthStart(),
+      );
+      await save(updated);
+      return;
+    }
+
+    // Step 2: consume from earliest-expiring pack (FIFO)
+    final activePacks = ent.activePacks;
+    if (activePacks.isNotEmpty) {
+      final packToConsume = activePacks.first;
+      final newPacks = List<QaPack>.from(ent.packs);
+      final idx = newPacks.indexWhere(
+        (p) => p.purchasedAt == packToConsume.purchasedAt &&
+               p.type == packToConsume.type,
+      );
+      if (idx != -1) {
+        newPacks[idx] = packToConsume.copyWith(
+          questionsRemaining: packToConsume.questionsRemaining - 1,
+        );
+      }
+      final updated = ent.copyWith(
+        packs: newPacks,
+        questionsResetAt: ent.questionsResetAt ?? _nextMonthStart(),
+      );
+      await save(updated);
+      debugPrint(
+        'EntitlementService: consumed pack question (${packToConsume.type.name}), '
+        '${newPacks[idx].questionsRemaining} remaining',
+      );
+    }
   }
 
+  // ── Pack management ──────────────────────────────────────────────
 
+  /// Add a purchased pack to the entitlement.
+  ///
+  /// Called by the BillingAdapter after a successful consumable purchase.
+  /// Packs are stored unsorted; [activePacks] on Entitlement sorts them
+  /// by expiry at read time.
+  Future<void> addPack(QaPackType type) async {
+    final now = DateTime.now();
+    final pack = QaPack(
+      type: type,
+      questionsRemaining: type.questionCount,
+      purchasedAt: now,
+      expiresAt: now.add(Duration(days: type.validityDays)),
+    );
+
+    final ent = current();
+    final updated = ent.copyWith(
+      packs: [...ent.packs, pack],
+    );
+    await save(updated);
+    debugPrint(
+      'EntitlementService: added ${type.name} pack '
+      '(${type.questionCount}Q, expires ${pack.expiresAt.toIso8601String()})',
+    );
+  }
+
+  /// Remove expired packs from the entitlement.
+  ///
+  /// Called lazily on every [current()] read and explicitly after purchases.
+  /// Expired pack questions are lost (no refund — standard consumable behavior).
+  Future<void> pruneExpiredPacks() async {
+    final ent = current();
+    final before = ent.packs.length;
+    final active = ent.activePacks;
+    if (active.length == before) return; // nothing to prune
+
+    final updated = ent.copyWith(packs: active);
+    await save(updated);
+    debugPrint(
+      'EntitlementService: pruned ${before - active.length} expired pack(s), '
+      '${active.length} active remaining',
+    );
+  }
+
+  /// Total questions remaining across all active packs.
+  int get packQuestionsRemaining => current().packQuestionsRemaining;
+
+  /// List of active packs with their remaining questions.
+  List<QaPack> get activePacks => current().activePacks;
+
+  /// Whether the user can ask a question (subscription or packs).
+  bool get canAskQuestion => current().hasQuestionsRemaining;
+
+  // ── Reset ────────────────────────────────────────────────────────
 
   /// Reset entitlement to free tier (e.g., for testing or account reset).
   Future<void> resetToFree() async {
     await save(const Entitlement());
     debugPrint('EntitlementService: reset to free tier');
   }
+
+  // ── Helpers ──────────────────────────────────────────────────────
 
   DateTime _nextMonthStart() {
     final now = DateTime.now();
