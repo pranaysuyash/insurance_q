@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../models/field_citation.dart';
 import '../models/policy_summary.dart';
 import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
+import '../services/evidence_service.dart';
 import '../theme/coverwise_theme.dart';
 import '../utils/policy_type.dart';
+import '../widgets/field_citations_card.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import 'document_preview_screen.dart';
@@ -93,6 +96,28 @@ class PolicyDetailScreen extends ConsumerWidget {
             subtitle: summary.insurer == null
                 ? 'Your policy, translated into the details that matter.'
                 : '${summary.insurer} • Your policy at a glance',
+          ),
+          // Trust Phase 1: cited fields from the evidence substrate.
+          // Renders nothing when the substrate has no verified data
+          // (the Phase 0 P0-0.4 path handles that case above this
+          // build method via _buildUnverifiedSummaryScaffold).
+          _CitedFieldsSection(
+            documentId: documentId,
+            onPageTap: (pageNumber) {
+              // v1 of the page-level navigation: surface the
+              // cited page in a SnackBar and open the source
+              // document preview. v2 of the highlight overlay
+              // (Trust Phase 2 follow-up) will draw the cited
+              // span directly on the page image.
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Opening page $pageNumber from the source document…'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              _openDocumentPreview(context, ref);
+            },
           ),
           _HeaderCard(summary: summary, policyType: policyType),
           const SizedBox(height: 12),
@@ -928,4 +953,53 @@ Widget _buildUnverifiedSummaryScaffold({
       ],
     ),
   );
+}
+
+// --- Trust Phase 1: cited fields from the evidence substrate ---
+
+class _CitedFieldsSection extends StatefulWidget {
+  final String documentId;
+  final void Function(int pageNumber) onPageTap;
+
+  const _CitedFieldsSection({
+    required this.documentId,
+    required this.onPageTap,
+  });
+
+  @override
+  State<_CitedFieldsSection> createState() => _CitedFieldsSectionState();
+}
+
+class _CitedFieldsSectionState extends State<_CitedFieldsSection> {
+  final EvidenceService _service = EvidenceService();
+  late Future<List<FieldCitation>?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _service.getFieldCitations(widget.documentId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<FieldCitation>?>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox.shrink();
+        }
+        final citations = snapshot.data ?? const <FieldCitation>[];
+        if (citations.isEmpty) {
+          // The substrate has no verified data for this document.
+          // The Phase 0 P0-0.4 scaffold (rendered at a higher
+          // level) handles the user-visible case.
+          return const SizedBox.shrink();
+        }
+        return FieldCitationsCard(
+          citations: citations,
+          onPageTap: widget.onPageTap,
+        );
+      },
+    );
+  }
 }
