@@ -24,6 +24,29 @@ JSON_SCHEMA_MODELS = {
 }
 
 
+def _inject_additional_properties_false(schema: dict) -> None:
+    """Recursively add additionalProperties: false to all object schemas.
+
+    OpenAI's strict json_schema mode requires this on every object, including
+    nested ones. Pydantic's model_json_schema() doesn't emit it by default.
+    """
+    if schema.get("type") == "object" or "properties" in schema:
+        schema["additionalProperties"] = False
+    for value in schema.values():
+        if isinstance(value, dict):
+            _inject_additional_properties_false(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    _inject_additional_properties_false(item)
+    # Handle $defs / definitions (nested model schemas)
+    for def_key in ("$defs", "definitions"):
+        if def_key in schema:
+            for def_value in schema[def_key].values():
+                if isinstance(def_value, dict):
+                    _inject_additional_properties_false(def_value)
+
+
 @dataclass
 class UsageRecord:
     model: str
@@ -248,6 +271,8 @@ class LLMClient:
     ):
         """Generate structured output. Only passes fallback models that support json_schema format."""
         json_schema = response_model.model_json_schema()
+        # OpenAI strict mode requires additionalProperties: false on all objects
+        _inject_additional_properties_false(json_schema)
         response_format = {
             "type": "json_schema",
             "json_schema": {
