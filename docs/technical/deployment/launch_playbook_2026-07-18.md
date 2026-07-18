@@ -4,9 +4,10 @@
 current repo state after the Phase 0 commit `fa02854`.)
 
 **Supabase project:** `https://eyumuxwabmsymytjbxoj.supabase.co`
-**Status at last review:** Supabase project created, **5 SQL migrations
-pending apply** (3 base + 2 RevOps/analytics). Cloud Run service: not yet
-deployed. APK: not yet built for the post-Phase-0 code.
+**Status at last review:** Supabase project created, **6 SQL migrations
+pending apply** (3 base + 2 RevOps/analytics + 1 evidence substrate).
+Cloud Run service: not yet deployed. APK: not yet built for the
+post-Phase-0 code.
 
 This is the exact step-by-step to go from where the repo is now to a live app.
 Every step has a **Verify** sub-step that you can run to confirm it actually
@@ -49,8 +50,16 @@ schema must be applied first; the RevOps/analytics migrations depend on
    `events_unrouted`) and their RLS policies. Self-contained
    (`create table if not exists public.profiles` is at line 295; no
    external dependency on a pre-existing `profiles`).
+6. **`supabase/migrations/2026_07_18_evidence_substrate.sql`** (184
+   lines) — Trust Phase 1 evidence substrate. Creates 4 immutable
+   append-only tables (`page_artifacts`, `source_spans`,
+   `extracted_fields`, `field_evidence`), 1 read view
+   (`v_field_citations`), and 1 cost-tracking table
+   (`evidence_extraction_costs`). All RLS-enabled, all access
+   revoked from anon/authenticated, only `service_role` granted.
+   Depends on `public.documents` (created in step 1).
 
-**Verify after applying all 5:**
+**Verify after applying all 6:**
 
 ```sql
 -- Run in Supabase SQL Editor. Must return rows for every object.
@@ -66,14 +75,22 @@ union all select 'failed_subscription_writes', count(*) from public.failed_subsc
 union all select 'routing_decisions', count(*) from public.routing_decisions
 union all select 'eval_set_candidates', count(*) from public.eval_set_candidates
 union all select 'deal_decisions', count(*) from public.deal_decisions
-union all select 'events_unrouted', count(*) from public.events_unrouted;
+union all select 'events_unrouted', count(*) from public.events_unrouted
+union all select 'page_artifacts', count(*) from public.page_artifacts
+union all select 'source_spans', count(*) from public.source_spans
+union all select 'extracted_fields', count(*) from public.extracted_fields
+union all select 'field_evidence', count(*) from public.field_evidence
+union all select 'evidence_extraction_costs', count(*) from public.evidence_extraction_costs;
 
--- Views must exist.
+-- Views must exist (3 RevOps + 1 evidence).
 select viewname from pg_views
 where schemaname = 'public'
-  and viewname in ('v_daily_active_users','v_conversion_funnel','v_cohort_retention');
+  and viewname in (
+    'v_daily_active_users','v_conversion_funnel','v_cohort_retention',
+    'v_field_citations'
+  );
 
--- RLS must be enabled on the RevOps tables.
+-- RLS must be enabled on the RevOps + evidence tables.
 select tablename, rowsecurity
 from pg_tables
 where schemaname = 'public'
@@ -81,13 +98,16 @@ where schemaname = 'public'
     'profiles','user_lifecycle','subscriptions','webhook_audit_log',
     'processed_webhook_events','failed_subscription_writes',
     'routing_decisions','eval_set_candidates','deal_decisions',
-    'events_unrouted'
+    'events_unrouted',
+    'page_artifacts','source_spans','extracted_fields',
+    'field_evidence','evidence_extraction_costs'
   )
 order by tablename;
 ```
 
 Expected: every `count(*)` returns a number (0 is fine for empty tables);
-3 rows from the views query; every RevOps table has `rowsecurity = t`.
+4 rows from the views query; every RevOps + evidence table has
+`rowsecurity = t`.
 
 ---
 
@@ -332,7 +352,7 @@ for it. **Only do this after Step 8 verifies the Cloud Run path.**
 ## Pre-launch checklist (motto v3 §0.4 acceptance contract)
 
 - [ ] OpenAI account funded; new key generated and stored only in GCP Secret Manager
-- [ ] All 5 SQL migrations applied to Supabase; Step 1 verify passes
+- [ ] All 6 SQL migrations applied to Supabase; Step 1 verify passes
 - [ ] Supabase service_role key captured (not the publishable key)
 - [ ] GCP project created with Cloud Run / Secret Manager / Cloud Build APIs enabled
 - [ ] 3 secrets created in Secret Manager; Step 4 verify passes
@@ -353,12 +373,13 @@ for it. **Only do this after Step 8 verifies the Cloud Run path.**
 These are tracked in the Phase 1+ audits and are explicitly NOT part
 of "go live":
 
-- **Trust Phase 1** — evidence substrate (page_artifacts,
-  source_spans, extracted_fields, field_evidence). Without it the
-  policy detail screen shows the "Not yet verified" scaffold
-  instead of full verified citations. This is the right behavior
-  per the audit; the scaffold is honest, the underlying substrate
-  is the next layer of work.
+- **Trust Phase 1 Python layer** — the SQL substrate (Step 1's
+  migration #6) is in scope; the typed Python access layer in
+  `src/services/evidence_substrate_service.py` and the parser
+  pipeline are Phase 1 follow-up. Until those land, the substrate
+  is empty and the policy detail screen continues to show the
+  "Not yet verified" scaffold (which is the correct behavior
+  per the Phase 0 trust fix).
 - **Security Phase 1** — principal-scoped encrypted local storage.
   Hive boxes are currently device-scoped. Acceptable for solo
   founder, flagged for Phase 1.
@@ -371,11 +392,12 @@ of "go live":
 ## Why this revision is different from the previous version
 
 The original launch playbook (2026-07-18, pre-Phase-0) referenced
-3 SQL migrations. The current repo has 5: the original 3 plus the
-2 RevOps/analytics migrations added in commit `fa02854`. This
-revision:
+3 SQL migrations. The current repo has 6: the original 3 plus the
+2 RevOps/analytics migrations added in commit `fa02854`, plus the
+evidence substrate migration added in the next commit on the
+Trust Phase 1 track. This revision:
 
-1. Adds the 2 new SQL files to the apply order with explicit
+1. Adds the 3 new SQL files to the apply order with explicit
    dependency notes.
 2. Adds `OPERATOR_DASHBOARD_TOKEN` to the runtime env (the
    security P0-08 gate now fails closed if this is missing).
