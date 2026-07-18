@@ -200,10 +200,11 @@ void main() {
       expect(errors, isEmpty);
     });
 
-    test('global_error validates both string properties', () {
+    test('global_error validates all string properties', () {
       final errors = validateAnalyticsEvent('global_error', {
         'error_type': 'FlutterError',
         'error_summary': 'Null check operator used on a null value',
+        'error_code': 'abc123',
       });
       expect(errors, isEmpty);
     });

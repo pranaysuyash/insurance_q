@@ -116,6 +116,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      // Scroll to the delete account row (below fold in ListView)
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       // Tap the delete account row.
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
@@ -142,6 +144,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 
@@ -166,6 +169,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 
@@ -191,6 +195,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 
@@ -216,6 +221,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 
@@ -240,6 +246,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 
@@ -263,6 +270,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 
@@ -282,6 +290,7 @@ void main() {
       await tester.pumpWidget(buildProfile(documents: []));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 
@@ -307,6 +316,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 
@@ -330,6 +340,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
       await tester.pumpAndSettle();
 

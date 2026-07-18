@@ -4,10 +4,10 @@
 current repo state after the Phase 0 commit `fa02854`.)
 
 **Supabase project:** `https://eyumuxwabmsymytjbxoj.supabase.co`
-**Status at last review:** Supabase project created, **6 SQL migrations
-pending apply** (3 base + 2 RevOps/analytics + 1 evidence substrate).
-Cloud Run service: not yet deployed. APK: not yet built for the
-post-Phase-0 code.
+**Status at last review:** Supabase project created, **7 SQL migrations
+pending apply** (3 base + 2 RevOps/analytics + 1 evidence substrate
++ 1 job outbox). Cloud Run service: not yet deployed. APK: not yet
+built for the post-Phase-0 code.
 
 This is the exact step-by-step to go from where the repo is now to a live app.
 Every step has a **Verify** sub-step that you can run to confirm it actually
@@ -58,8 +58,14 @@ schema must be applied first; the RevOps/analytics migrations depend on
    (`evidence_extraction_costs`). All RLS-enabled, all access
    revoked from anon/authenticated, only `service_role` granted.
    Depends on `public.documents` (created in step 1).
+7. **`supabase/migrations/2026_07_19_job_outbox.sql`** (~150 lines) —
+   Durable work queue per `docs/decisions/ADR-2026-07-19-01-...md`.
+   Creates `job_outbox` (the generic queue for every async path)
+   plus `v_outbox_health` and `v_outbox_dead_letter` operator
+   views. RLS-enabled, only `service_role` granted. Depends on
+   `pgcrypto` (created in step 6's same apply if not already).
 
-**Verify after applying all 6:**
+**Verify after applying all 7:**
 
 ```sql
 -- Run in Supabase SQL Editor. Must return rows for every object.
@@ -80,17 +86,19 @@ union all select 'page_artifacts', count(*) from public.page_artifacts
 union all select 'source_spans', count(*) from public.source_spans
 union all select 'extracted_fields', count(*) from public.extracted_fields
 union all select 'field_evidence', count(*) from public.field_evidence
-union all select 'evidence_extraction_costs', count(*) from public.evidence_extraction_costs;
+union all select 'evidence_extraction_costs', count(*) from public.evidence_extraction_costs
+union all select 'job_outbox', count(*) from public.job_outbox;
 
--- Views must exist (3 RevOps + 1 evidence).
+-- Views must exist (3 RevOps + 1 evidence + 2 outbox = 6).
 select viewname from pg_views
 where schemaname = 'public'
   and viewname in (
     'v_daily_active_users','v_conversion_funnel','v_cohort_retention',
-    'v_field_citations'
+    'v_field_citations',
+    'v_outbox_health','v_outbox_dead_letter'
   );
 
--- RLS must be enabled on the RevOps + evidence tables.
+-- RLS must be enabled on the RevOps + evidence + outbox tables.
 select tablename, rowsecurity
 from pg_tables
 where schemaname = 'public'
@@ -100,13 +108,14 @@ where schemaname = 'public'
     'routing_decisions','eval_set_candidates','deal_decisions',
     'events_unrouted',
     'page_artifacts','source_spans','extracted_fields',
-    'field_evidence','evidence_extraction_costs'
+    'field_evidence','evidence_extraction_costs',
+    'job_outbox'
   )
 order by tablename;
 ```
 
 Expected: every `count(*)` returns a number (0 is fine for empty tables);
-4 rows from the views query; every RevOps + evidence table has
+6 rows from the views query; every RevOps + evidence + outbox table has
 `rowsecurity = t`.
 
 ---
@@ -352,7 +361,7 @@ for it. **Only do this after Step 8 verifies the Cloud Run path.**
 ## Pre-launch checklist (motto v3 §0.4 acceptance contract)
 
 - [ ] OpenAI account funded; new key generated and stored only in GCP Secret Manager
-- [ ] All 6 SQL migrations applied to Supabase; Step 1 verify passes
+- [ ] All 7 SQL migrations applied to Supabase; Step 1 verify passes
 - [ ] Supabase service_role key captured (not the publishable key)
 - [ ] GCP project created with Cloud Run / Secret Manager / Cloud Build APIs enabled
 - [ ] 3 secrets created in Secret Manager; Step 4 verify passes
