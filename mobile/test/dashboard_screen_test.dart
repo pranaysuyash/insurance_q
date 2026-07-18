@@ -147,6 +147,7 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Your Policies'), 200);
       expect(find.text('Your Policies'), findsOneWidget);
       expect(find.text('Health Insurance'), findsOneWidget);
       expect(find.text('Auto Insurance'), findsOneWidget);
@@ -156,6 +157,7 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Policy: POL-12345'), 200);
       expect(find.text('Policy: POL-12345'), findsOneWidget);
       expect(find.text('Policy: POL-67890'), findsOneWidget);
     });
@@ -164,6 +166,8 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
+      // Scroll to policy cards section to build them, then check ACTIVE badges
+      await tester.scrollUntilVisible(find.text('Your Policies'), 200);
       expect(find.text('ACTIVE'), findsWidgets);
     });
 
@@ -182,6 +186,8 @@ void main() {
       await tester.pumpWidget(buildDashboard(summaries: summaries));
       await tester.pumpAndSettle();
 
+      // Badge is in _PolicyCard which may be below fold in SliverList
+      await tester.scrollUntilVisible(find.textContaining('LEFT'), 200);
       expect(find.textContaining('LEFT'), findsOneWidget);
     });
 
@@ -189,6 +195,7 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('₹5.0 L'), 200);
       expect(find.text('₹5.0 L'), findsOneWidget);
     });
 
@@ -196,6 +203,7 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('₹12.0K'), 200);
       expect(find.text('₹12.0K'), findsOneWidget);
     });
 
@@ -220,6 +228,7 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Search Across All Policies'), 200);
       expect(find.text('Search Across All Policies'), findsOneWidget);
     });
 
@@ -227,6 +236,7 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('Documents by Type'), 200);
       expect(find.text('Documents by Type'), findsOneWidget);
     });
   });

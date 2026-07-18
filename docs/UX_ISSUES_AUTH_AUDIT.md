@@ -569,9 +569,374 @@ Onboarding "Add my first policy" → Dashboard → DocumentsScreen → File pick
 
 ## 10. Remaining Work
 
-1. **Google Sign-In** — Needs Supabase dashboard configuration (Google OAuth provider) + `google_sign_in` package in pubspec.yaml. Backend already supports it via Supabase.
-2. **Wire auth_provider.dart into existing widgets** — ProfileScreen, AccountScreen should use `hasAccountProvider` / `currentUserProvider` instead of static getters.
-3. **Email verification UI** — Add a "Resend verification" button when user gets "email not confirmed" error.
-4. **Password reset redirect handling** — Handle the `io.coverwise://reset-callback` deep link for password reset flow.
-5. **Supabase Storage cleanup** — Delete files from `coverwise-documents` bucket during account deletion.
-6. **Pending-processing guard** — Check for in-flight processing jobs before allowing account deletion.
+| # | Item | Status | Notes |
+|---|---|---|---|
+| ~~1~~ | ~~Google Sign-In~~ | ✅ **RESOLVED** | Code complete: `signInWithGoogle()` in auth_service.dart, Google button in AccountScreen, `google_sign_in: ^6.3.0` in pubspec.yaml, `/login-callback` deep link handler. Needs Supabase dashboard setup (§11D). |
+| ~~2~~ | ~~Wire auth_provider.dart into existing widgets~~ | ✅ **RESOLVED** | ProfileScreen (`ref.watch(currentUserProvider)`), SettingsScreen (`ref.watch(currentUserProvider)`) both wired. `AuthService.hasAccountSession` only used internally in auth_service.dart (AuthInterceptor). |
+| ~~3~~ | ~~Email verification UI~~ | ✅ **RESOLVED** | "Resend verification email" link + inline banner after "email not confirmed" error in AccountScreen. `AuthService.resendEmailVerification()` implemented. |
+| ~~4~~ | ~~Password reset redirect handling~~ | ✅ **RESOLVED** | `io.coverwise://` URL scheme registered on iOS + Android. `/reset-callback` handler in main.dart routes to ResetPasswordScreen. `auth_service.dart:resetPassword()` uses `redirectTo: 'io.coverwise://reset-callback'`. |
+| ~~5~~ | ~~Supabase Storage cleanup~~ | ✅ **RESOLVED** | `DELETE /user/account` in user.py now lists documents before deletion, deletes source files from Supabase Storage via `object_store.delete()`, then deletes metadata + chunks. Returns `deleted_storage_files` count. |
+| **6** | **Pending-processing guard** | 🔲 **OPEN** | No guard prevents account deletion while documents are being processed. Low risk for solo launch — processing is fast and deletion is destructive anyway. Could add a check for `processing_state == 'processing'` in the document repository before allowing deletion. |
+
+---
+
+## 11. Supabase Dashboard Configuration Requirements
+
+**motto_v3 §0.14:** *The operator must be able to configure the system without guessing.*
+
+All auth features (sign-up, sign-in, forgot password, email verification, Google Sign-In, account deletion) require manual configuration in the Supabase dashboard. This section documents every step needed — without these, the mobile app will show "Account auth is not configured for this build" or silently fail.
+
+### 11A. Environment Variables (Build-Time)
+
+These must be passed as `--dart-define` at build time:
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=eyJ... \
+  --dart-define=API_BASE_URL=https://YOUR_API_URL
+```
+
+**Config source:** `mobile/lib/config/app_config.dart` — `hasSupabaseAuthConfig` returns `true` only when both `SUPABASE_URL` starts with `https://` AND `SUPABASE_PUBLISHABLE_KEY` is non-empty.
+
+**Verification:** If either is missing, `AccountScreen` shows a disabled state: "Account auth is not configured for this build."
+
+### 11B. Authentication Provider Configuration
+
+**Dashboard path:** Supabase Dashboard → Authentication → Providers
+
+| Provider | Required? | What to Configure | Notes |
+|---|---|---|---| |
+| **Email** | ✅ Yes (default) | Enable in Providers list | Must be enabled for email/password sign-up, sign-in, and password reset. Confirmed as enabled by default in new Supabase projects. |
+| **Google** | 🔲 Optional (P1) | Enable Google provider, add Client ID + Client Secret from Google Cloud Console | Required for Google Sign-In. See §11D below. |
+| **Apple** | 🔲 Not planned | Requires Apple Developer account + App Store Connect | Future enhancement only. |
+
+### 11C. Redirect URL Configuration
+
+**Dashboard path:** Supabase Dashboard → Authentication → URL Configuration
+
+Supabase uses redirect URLs to route users back to the app after OAuth flows (Google Sign-In) and email actions (password reset, email confirmation). The app registers the `io.coverwise://` custom URL scheme in:
+
+- **iOS:** `mobile/ios/Runner/Info.plist` — `CFBundleURLTypes` with `io.coverwise` scheme
+- **Android:** `mobile/android/app/src/main/AndroidManifest.xml` — intent-filter with `io.coverwise` scheme + `BROWSABLE` category
+
+**Required redirect URLs to add in Supabase Dashboard:**
+
+| Redirect URL | Purpose | Code Reference |
+|---|---|---|
+| `io.coverwise://reset-callback` | Password reset — user taps link in email, app opens to ResetPasswordScreen | `auth_service.dart:resetPassword()` passes `redirectTo: 'io.coverwise://reset-callback'` |
+| `io.coverwise://login-callback` | Google Sign-In — OAuth flow returns session via deep link | `auth_service.dart:signInWithGoogle()` passes `redirectTo: 'io.coverwise://login-callback'` |
+
+**⚠️ Without these URLs added, password reset emails will show "Invalid link" and Google Sign-In will fail silently.**
+
+### 11D. Google OAuth Setup
+
+**Prerequisites:**
+1. Google Cloud Console project with OAuth 2.0 Client ID (Web application type)
+2. Android app registered in Google Cloud Console with SHA-1 fingerprint
+3. Supabase project with Google provider enabled
+
+**Step 1: Register Android app in Google Cloud Console**
+
+Before creating the OAuth Client ID, register the Android app:
+
+1. **Google Cloud Console** → APIs & Services → Credentials
+2. Click **+ Create Credentials** → **Android app**
+3. Fill in:
+   - **App package name:** `com.example.coverwise` (verify in `mobile/android/app/build.gradle.kts` → `applicationId`)
+   - **SHA-1 certificate fingerprint:**
+     - Debug: `96:0E:D9:BF:3A:9D:33:B5:8E:3F:83:01:EC:C6:C5:39:5E:9A:CC:1D`
+     - Release: extract from `mobile/android/app/upload-keystore.jks` (see below)
+4. Click **Register**
+
+**To extract release SHA-1:**
+```bash
+keytool -list -v -keystore mobile/android/app/upload-keystore.jks -alias upload
+# Enter the keystore password when prompted
+# Copy the SHA1 fingerprint value
+```
+
+**Step 2: Create OAuth 2.0 Client ID (Web application)**
+
+Supabase's Google provider uses a **Web application** Client ID (not Android) because the OAuth flow goes through Supabase's callback URL:
+
+1. **Google Cloud Console** → APIs & Services → Credentials
+2. Click **+ Create Credentials** → **OAuth client ID**
+3. Application type: **Web application**
+4. Name: `CoverWise Supabase Auth`
+5. Authorized redirect URIs: `https://YOUR_PROJECT.supabase.co/auth/v1/callback`
+6. Save **Client ID** and **Client Secret**
+
+**Step 3: Configure Supabase Dashboard**
+
+1. **Supabase Dashboard** → Authentication → Providers → Google
+2. Enable Google
+3. Paste **Client ID** (from Step 2)
+4. Paste **Client Secret** (from Step 2)
+5. Save
+
+**Step 4: Verify mobile app configuration** (already implemented)
+
+- `google_sign_in: ^6.3.0` in `pubspec.yaml` ✅
+- `AuthService.signInWithGoogle()` uses `signInWithOAuth(Provider.google, redirectTo: 'io.coverwise://login-callback')` ✅
+- Google button renders in `AccountScreen` when `AppConfig.hasSupabaseAuthConfig` is true ✅
+- `/login-callback` deep link handler in `main.dart` ✅
+
+**Known debug keystore fingerprints:**
+
+| Keystore | SHA-1 | SHA-256 |
+|---|---|---|
+| Debug (`~/.android/debug.keystore`) | `96:0E:D9:BF:3A:9D:33:B5:8E:3F:83:01:EC:C6:C5:39:5E:9A:CC:1D` | `63:F2:44:14:D9:88:F8:A2:59:25:4B:EC:DC:A4:D6:94:24:27:96:88:39:DD:39:87:4D:AE:11:B7:E4:DA:B0:FB` |
+| Release (`upload-keystore.jks`) | `6B:5C:A6:45:BF:4B:E7:27:07:35:0B:86:78:CF:A9:0B:95:79:B7:03` | Extract with: `keytool -list -v -keystore upload-keystore.jks -alias upload` |
+
+**⚠️ Important:** Google Sign-In requires BOTH the debug AND release SHA-1 fingerprints registered in Google Cloud Console. Without the release fingerprint, Google Sign-In will fail on production builds.
+
+### 11E. Email Templates
+
+**Dashboard path:** Supabase Dashboard → Authentication → Email Templates
+
+Supabase sends transactional emails for three actions. Each template uses the `{{ .ConfirmationURL }}` variable which includes the redirect URL.
+
+| Template | Trigger | Default Subject | Redirect URL Contains |
+|---|---|---|---|
+| **Confirm signup** | User signs up with email/password | `Confirm your email` | `io.coverwise://login-callback` (default) or custom redirect |
+| **Magic Link** | Passwordless sign-in (not currently used) | `Your magic link` | N/A — not implemented |
+| **Change Email Address** | User changes email in account settings | `Confirm email change` | `io.coverwise://login-callback` (default) |
+| **Reset Password** | User taps "Forgot password?" | `Reset your password` | `io.coverwise://reset-callback` ✅ Custom redirect configured in `auth_service.dart` |
+
+**Configuration notes:**
+
+- **Confirm signup:** The default template works as-is. The `{{ .ConfirmationURL }}` will include the Supabase project URL by default. To redirect back to the app, update the email template's link to use `io.coverwise://login-callback?token={{ .Token }}` — OR rely on Supabase's automatic deep link handling (recommended).
+- **Reset Password:** Already configured in code: `resetPasswordForEmail(email, redirectTo: 'io.coverwise://reset-callback')`. The Supabase template's `{{ .ConfirmationURL }}` will automatically include this redirect. **No template changes needed** — but verify the URL is in the allowed redirect list (§11C).
+- **Email confirmation:** Supabase's built-in confirmation flow works without template changes. After sign-up, the user receives an email with a confirmation link. If the redirect URL is in the allowed list, the app handles it automatically via `onAuthStateChange`.
+
+**⚠️ If the redirect URL is NOT in the allowed list, Supabase will strip it from the email and the user will see a web page instead of being redirected to the app.**
+
+### 11F. API Key Security
+
+**Dashboard path:** Supabase Dashboard → Settings → API
+
+| Key | Purpose | Used In |
+|---|---|---|
+| **Project URL** (`https://xxx.supabase.co`) | Supabase API endpoint | `AppConfig.supabaseUrl` (build-time `--dart-define`) |
+| **anon / publishable key** (`eyJ...`) | Public API key — safe to ship in client apps | `AppConfig.supabasePublishableKey` (build-time `--dart-define`) |
+| **service_role key** | Admin API key — **NEVER ship in client apps** | Backend only: `user.py` uses `SUPABASE_SERVICE_ROLE_KEY` env var |
+
+**Row Level Security (RLS):**
+- Supabase RLS policies ensure each user can only read/write their own documents
+- The `anon` key is used by the mobile app; RLS prevents cross-user access
+- The `service_role` key bypasses RLS — used server-side for admin operations (account deletion)
+
+### 11G. Storage Bucket Configuration
+
+**Dashboard path:** Supabase Dashboard → Storage
+
+| Bucket | Purpose | Access Policy |
+|---|---|---|
+| `coverwise-documents` | Stores uploaded policy PDFs | RLS: authenticated users can read/write their own files only |
+
+**Configuration:**
+- Bucket must be created manually (or via migration script)
+- Set to **private** (not public) — documents contain sensitive PII
+- RLS policies: `auth.uid() = path_tokens[1]` ensures user-scoped access
+- File cleanup: `DELETE /user/account` endpoint now deletes storage files before metadata (see §9, Account Deletion Implementation Details)
+
+### 11H. Database Schema
+
+**Dashboard path:** Supabase Dashboard → SQL Editor
+
+The app requires these tables (created via `infra/supabase/001_coverwise_schema.sql`):
+
+| Table | Purpose | RLS Policy |
+|---|---|---|
+| `documents` | Policy document metadata (owner, status, OCR text) | `auth.uid() = owner_uid` |
+| `document_chunks` | Chunked text for RAG embedding | `EXISTS (SELECT 1 FROM documents WHERE documents.id = document_chunks.document_id AND documents.owner_uid = auth.uid())` |
+| `analytics_events` | App analytics (global errors, usage) | `auth.uid() = user_uid` (or anonymous) |
+
+**Key indexes:**
+- `idx_documents_owner` on `documents(owner_uid)` — supports per-user document queries
+- `idx_chunks_document` on `document_chunks(document_id)` — supports chunk retrieval for RAG
+- `idx_analytics_error_window` on `analytics_events(received_at, event_name)` — supports error aggregation queries
+- `idx_analytics_summary` on `analytics_events(received_at, event_name, user_uid)` — supports summary endpoint
+
+### 11I. Configuration Checklist (Pre-Launch)
+
+| # | Task | Where | Done? |
+|---|---|---|---|
+| 1 | Create Supabase project | app.supabase.com | ☐ |
+| 2 | Set build-time env vars (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`) | Build script / CI | ☐ |
+| 3 | Enable Email provider | Dashboard → Auth → Providers | ☐ |
+| 4 | Add `io.coverwise://reset-callback` to redirect URLs | Dashboard → Auth → URL Configuration | ☐ |
+| 5 | Add `io.coverwise://login-callback` to redirect URLs | Dashboard → Auth → URL Configuration | ☐ |
+| 6 | Verify email templates use `{{ .ConfirmationURL }}` correctly | Dashboard → Auth → Email Templates | ☐ |
+| 7 | Create `coverwise-documents` storage bucket (private) | Dashboard → Storage | ☐ |
+| 8 | Run schema migration (`001_coverwise_schema.sql`) | Dashboard → SQL Editor | ☐ |
+| 9 | Enable Google provider (when ready) | Dashboard → Auth → Providers | ☐ |
+| 10 | Set `SUPABASE_SERVICE_ROLE_KEY` env var on backend | Backend deployment | ☐ |
+| 11 | Test password reset end-to-end | Manual | ☐ |
+| 12 | Test Google Sign-In end-to-end | Manual | ☐ |
+
+### 11J. Common Failure Modes
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| "Account auth is not configured for this build" | Missing `SUPABASE_URL` or `SUPABASE_PUBLISHABLE_KEY` at build time | Pass `--dart-define` flags |
+| Password reset email never arrives | Email provider not enabled in Supabase | Enable Email in Auth → Providers |
+| Password reset link opens browser instead of app | `io.coverwise://reset-callback` not in redirect URLs | Add to Auth → URL Configuration |
+| Google Sign-In fails silently | Google provider not configured in Supabase | Complete §11D setup |
+| "Invalid token" on account operations | `SUPABASE_SERVICE_ROLE_KEY` not set on backend | Set env var on backend deployment |
+| 403 on document upload | RLS policy missing or `owner_uid` mismatch | Verify RLS policy and anonymous-to-account migration |
+| Storage files orphaned after account deletion | Storage cleanup not triggered | Verify `DELETE /user/account` includes storage cleanup (§9) |
+
+---
+
+---
+
+## 12. Production Monitoring & Alerting
+
+**motto_v3 §0.10 (Observability):** *"If the system fails and nobody notices, it didn't fail gracefully."*
+
+Auth health is the highest-risk operational surface for CoverWise. A broken login flow means zero revenue, zero data collection, and immediate App Store delisting risk. This section defines what to monitor, where to find the data, and when to alert.
+
+### 12A. Key Metrics to Track
+
+| Metric | Source | Query / Location | Alert Threshold | Why It Matters |
+|---|---|---|---|---|
+| **Auth sign-in success rate** | Supabase Dashboard → Authentication → Users | `% of signIn() calls that return a session` | < 90% over 1 hour | Broken auth = zero user acquisition |
+| **Sign-up completion rate** | Supabase Dashboard → Authentication → Users | `signUps / confirmations` | < 50% | Users who sign up but never confirm email |
+| **Password reset completion rate** | Supabase Dashboard → Authentication → Logs | `resetPasswordForEmail calls / actual password changes` | < 30% | Broken redirect URLs or email delivery failures |
+| **Google OAuth success rate** | Supabase Dashboard → Authentication → Providers → Google | `successful OAuth callbacks / total OAuth initiations` | < 80% | Misconfigured SHA-1, Client ID, or redirect URLs |
+| **Anonymous token acquisition rate** | Backend: `POST /user/anonymous` 2xx responses | `2xx / total requests` | < 95% | Backend outage or rate limiting kicking in |
+| **Document upload success rate** | Backend: `POST /documents/upload` 2xx responses | `2xx / total requests` | < 90% | Processing pipeline failures |
+| **Account deletion success rate** | Backend: `DELETE /user/account` 2xx responses | `2xx / total requests` | < 95% | Storage cleanup or Supabase admin API failures |
+| **Email delivery rate** | Supabase Dashboard → Authentication → Logs | `emails sent / emails delivered` | < 85% | Email provider reputation or Supabase email quota |
+| **Global error rate** | Backend: `GET /analytics/errors` | `error_count in last 24h` | > 50 errors/hour | Any systemic failure |
+| **Active user count** | Supabase Dashboard → Authentication → Users | `users with activity in last 7 days` | < 10 DAU (pre-launch) | Engagement baseline |
+
+### 12B. Auth Health Dashboard Queries
+
+**Supabase SQL Editor — run these weekly:**
+
+```sql
+-- 1. Sign-up funnel (last 7 days)
+SELECT
+  DATE(created_at) as day,
+  COUNT(*) as signups,
+  COUNT(CASE WHEN email_confirmed_at IS NOT NULL THEN 1 END) as confirmed,
+  ROUND(100.0 * COUNT(CASE WHEN email_confirmed_at IS NOT NULL THEN 1 END) / NULLIF(COUNT(*), 0), 1) as confirm_rate
+FROM auth.users
+WHERE created_at > NOW() - INTERVAL '7 days'
+GROUP BY DATE(created_at)
+ORDER BY day DESC;
+
+-- 2. User activity proxy (last 7 days)
+-- NOTE: recovery_token is not exposed in Supabase's auth.users view,
+-- so we cannot query password resets directly. This approximates
+-- user engagement by counting sign-ups and record modifications
+-- (updated_at > created_at fires for email confirmation, profile
+-- updates, session refreshes, and password resets alike).
+SELECT
+  DATE(created_at) as day,
+  COUNT(*) as signups,
+  COUNT(CASE WHEN updated_at > created_at THEN 1 END) as users_with_activity
+FROM auth.users
+WHERE created_at > NOW() - INTERVAL '7 days'
+GROUP BY DATE(created_at)
+ORDER BY day DESC;
+
+-- 3. Google OAuth attempts (last 7 days)
+SELECT
+  DATE(created_at) as day,
+  COUNT(*) as google_signups
+FROM auth.users
+WHERE created_at > NOW() - INTERVAL '7 days'
+  AND raw_user_meta_data->>'provider' = 'google'
+GROUP BY DATE(created_at)
+ORDER BY day DESC;
+
+-- 4. Stale accounts (never confirmed, older than 30 days)
+SELECT
+  COUNT(*) as stale_unconfirmed
+FROM auth.users
+WHERE email_confirmed_at IS NULL
+  AND created_at < NOW() - INTERVAL '30 days';
+
+-- 5. Storage cleanup verification (orphaned files)
+-- NOTE: The documents table stores storage paths in `object_reference`,
+-- not `file_path`. The storage.objects `name` field matches this column.
+SELECT
+  COUNT(*) as orphaned_files
+FROM storage.objects
+WHERE bucket_id = 'coverwise-documents'
+  AND created_at < NOW() - INTERVAL '90 days'
+  AND name NOT IN (
+    SELECT DISTINCT object_reference FROM documents WHERE object_reference IS NOT NULL
+  );
+```
+
+### 12C. Alerting Rules
+
+| Rule | Condition | Severity | Action |
+|---|---|---|---|
+| **Auth outage** | `POST /user/anonymous` error rate > 50% for 5 min | 🔴 P0 | Check backend health, Supabase status page, restart if needed |
+| **Email delivery failure** | Supabase email bounce rate > 20% | 🔴 P0 | Check Supabase email quota, verify sender domain, contact Supabase support |
+| **Google OAuth broken** | Google sign-in success rate < 50% for 1 hour | 🟡 P1 | Verify SHA-1 fingerprints, check Google Cloud Console quota, verify Client ID |
+| **Password reset broken** | Reset completion rate < 20% for 24 hours | 🟡 P1 | Verify redirect URLs in Supabase, test email template links |
+| **Sign-up spam** | > 50 sign-ups from same IP in 1 hour | 🟡 P1 | Enable CAPTCHA on sign-up, review disposable email list |
+| **Account deletion failure** | `DELETE /user/account` error rate > 30% | 🟡 P1 | Check Supabase admin API key, verify storage bucket permissions |
+| **Storage quota** | Supabase Storage used > 80% of plan limit | 🟢 P2 | Review storage usage, consider tier upgrade |
+| **Supabase plan approaching limit** | Auth MAU > 80% of free tier (50K) | 🟢 P2 | Plan Supabase upgrade or self-host migration |
+
+### 12D. Monitoring Stack Recommendations
+
+**For solo launch (current):**
+- **Primary:** Supabase Dashboard built-in analytics (Authentication → Logs)
+- **Secondary:** Backend `/analytics/errors` endpoint + `GET /analytics/summary`
+- **Tertiary:** Manual weekly SQL queries from §12B above
+- **Uptime:** Set up a free UptimeRobot or Betterstack monitor on `GET /health`
+
+**For scale (post-1000 users):**
+- **Structured logging:** Send auth events to a log aggregator (Axiom, Betterstack, or Datadog free tier)
+- **Real-time alerts:** PagerDuty or Slack webhook for P0/P1 conditions
+- **Dashboards:** Grafana or Metabase connected to Supabase/Postgres
+- **Cost monitoring:** Supabase billing alerts at 50%, 80%, 100% of plan limits
+
+### 12E. Auth Event Tracking (Already Implemented)
+
+The app already tracks auth-related analytics events via `AnalyticsService`:
+
+| Event | Triggered When | Code Location |
+|---|---|---|
+| `sign_in_success` | User successfully signs in | account_screen.dart |
+| `sign_in_error` | Sign-in fails (wrong password, network, etc.) | account_screen.dart |
+| `sign_up_success` | User successfully creates account | account_screen.dart |
+| `sign_up_error` | Sign-up fails (email taken, etc.) | account_screen.dart |
+| `sign_out` | User signs out | profile_screen.dart |
+| `password_reset_request` | User requests password reset | account_screen.dart |
+| `password_reset_success` | User successfully resets password | reset_password_screen.dart |
+| `password_reset_error` | Password reset fails | reset_password_screen.dart |
+| `google_sign_in_attempt` | User taps Google Sign-In button | account_screen.dart |
+| `google_sign_in_success` | Google OAuth completes successfully | auth_provider.dart |
+| `google_sign_in_error` | Google OAuth fails | account_screen.dart |
+| `account_deletion_request` | User initiates account deletion | profile_screen.dart |
+| `account_deletion_success` | Account fully deleted | profile_screen.dart |
+| `account_deletion_error` | Account deletion fails | profile_screen.dart |
+| `email_verification_resend` | User requests verification email resend | account_screen.dart |
+| `global_error` | Unhandled Flutter error caught by GlobalErrorBoundary | global_error_boundary.dart |
+
+**Note:** All events are consent-gated via `ConsentLedger.analytics` — they only fire when the user has granted analytics consent during onboarding.
+
+### 12F. Operational Runbook (Quick Reference)
+
+| Scenario | Symptom | Diagnosis | Fix |
+|---|---|---|---|
+| **All auth broken** | Every sign-in/sign-up fails | Check Supabase status page (status.supabase.com). If down, wait. If up, check `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` env vars. | Restart backend, verify env vars |
+| **Google Sign-In broken** | Google button shows but fails silently | Check Google Cloud Console → APIs → Quotas. Verify SHA-1 fingerprints match debug AND release keystores. Verify Web Client ID (not Android). | Re-register Android app with correct SHA-1, verify redirect URI |
+| **Password reset broken** | Reset email arrives but link opens browser instead of app | Verify `io.coverwise://reset-callback` is in Supabase → Auth → URL Configuration. Check iOS Info.plist and Android manifest for URL scheme. | Add redirect URL to Supabase dashboard |
+| **Email not confirming** | Sign-up succeeds but confirmation email never arrives | Check Supabase → Authentication → Logs for email delivery status. Check spam folder. Verify email provider is enabled. | Enable email provider, check spam, verify domain |
+| **Account deletion hanging** | Delete button shows spinner forever | Check `DELETE /user/account` backend logs. Supabase admin API may be rate-limited. Verify `SUPABASE_SERVICE_ROLE_KEY` is set. | Check backend logs, verify service role key, retry |
+| **Anonymous auth broken** | App shows "Account auth is not configured" on startup | Missing `SUPABASE_URL` or `SUPABASE_PUBLISHABLE_KEY` at build time. | Pass `--dart-define` flags |
+
+---
+
+*Last updated: 2026-07-18 — Production monitoring and alerting section added.*

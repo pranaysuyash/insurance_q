@@ -11,7 +11,7 @@ final authStateProvider = StreamProvider<AuthState>((ref) {
   if (!AppConfig.hasSupabaseAuthConfig || !AuthService.isClientReady) {
     // No Supabase configured — emit a single "no session" state.
     return Stream.value(
-      const AuthState(session: null, event: null),
+      const AuthState(AuthChangeEvent.initialSession, null),
     );
   }
   return Supabase.instance.client.auth.onAuthStateChange;

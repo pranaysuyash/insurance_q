@@ -123,17 +123,17 @@ class DashboardScreen extends ConsumerWidget {
                         healthScore: ref.watch(healthScoreProvider),
                       ),
                       const SizedBox(height: 20),
-                      if (policySummaries.isNotEmpty) ...[
-                        _PolicySummaryCards(summaries: policySummaries),
-                        const SizedBox(height: 20),
-                      ],
+                      _QuickActions(documents: documents),
+                      const SizedBox(height: 20),
                       _SearchShortcutButton(
                         onTap: () => Navigator.pushNamed(context, '/search'),
                       ),
                       const SizedBox(height: 20),
+                      if (policySummaries.isNotEmpty) ...[
+                        _PolicySummaryCards(summaries: policySummaries),
+                        const SizedBox(height: 20),
+                      ],
                       _DocumentSummary(documents: documents),
-                      const SizedBox(height: 20),
-                      _QuickActions(documents: documents),
                       const SizedBox(height: 20),
                       _FamilySection(documents: documents),
                       const SizedBox(height: 20),
@@ -305,9 +305,11 @@ class _PolicySummaryCards extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Your Policies',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 12),
         ...summaries.map((s) => _PolicyCard(summary: s)),
@@ -349,14 +351,16 @@ class _PolicyCard extends StatelessWidget {
                       children: [
                         Text(
                           summary.documentType,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         if (summary.insurer != null)
                           Text(
                             summary.insurer!,
-                            style: TextStyle(
-                                fontSize: 13, color: Colors.grey.shade600),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -388,7 +392,9 @@ class _PolicyCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Policy: ${summary.policyNumber}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ],
@@ -405,11 +411,12 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final (label, color) = summary.isExpired
-        ? ('EXPIRED', Colors.red)
+        ? ('EXPIRED', scheme.error)
         : summary.isExpiringSoon
-            ? ('${summary.daysUntilExpiry}d LEFT', Colors.orange)
-            : ('ACTIVE', Colors.green);
+            ? ('${summary.daysUntilExpiry}d LEFT', scheme.tertiary)
+            : ('ACTIVE', scheme.primary);
 
     return CoverWiseStatusChip(
       icon: summary.isExpired
@@ -437,14 +444,18 @@ class _MetricChip extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: 14, color: Colors.grey),
+            Icon(icon, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 4),
             Text(label,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )),
           ],
         ),
         Text(value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            )),
       ],
     );
   }
@@ -460,9 +471,11 @@ class _DocumentSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Documents by Type',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 12),
         _CoverageTypeExplorer(documents: documents),
@@ -635,12 +648,14 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Quick Actions',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Quick Actions',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -731,12 +746,11 @@ class _ActionButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           constraints: const BoxConstraints(minHeight: 104),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.28)),
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: color.withValues(alpha: 0.2)),
+                ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -848,6 +862,41 @@ class _EmergencyShortcutButton extends StatelessWidget {
   }
 }
 
+/// Shows a detail dialog for a family member.
+void _showFamilyMemberDetail(BuildContext context, PolicyHolder holder) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(holder.name),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (holder.dob != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('Date of Birth: ${holder.dob}'),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('Relationship: ${holder.relationship}'),
+          ),
+          Text(
+            holder.isManual ? 'Added manually' : 'Detected from policy',
+            style: Theme.of(ctx).textTheme.bodySmall,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
 class _FamilySection extends ConsumerWidget {
   final List<InsuranceDocument> documents;
   const _FamilySection({required this.documents});
@@ -862,9 +911,11 @@ class _FamilySection extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Family Members & Insured',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             TextButton.icon(
               icon: const Icon(Icons.add, size: 18),
@@ -914,26 +965,31 @@ class _FamilySection extends ConsumerWidget {
               children: [
                 ...policyHolders.values.map((holder) => Card(
                       margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blue.withValues(alpha: 0.1),
-                          child: Icon(
-                            holder.relationship == 'Primary Insured'
-                                ? Icons.person
-                                : Icons.people_alt,
-                            color: Colors.blue,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => _showFamilyMemberDetail(context, holder),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                            child: Icon(
+                              holder.relationship == 'Primary Insured'
+                                  ? Icons.person
+                                  : Icons.people_alt,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
                           ),
+                          title: Text(holder.name),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (holder.dob != null) Text('DOB: ${holder.dob}'),
+                              Text(holder.relationship),
+                            ],
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                         ),
-                        title: Text(holder.name),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (holder.dob != null) Text('DOB: ${holder.dob}'),
-                            Text(holder.relationship),
-                          ],
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
                       ),
                     )),
                 Align(
@@ -942,8 +998,9 @@ class _FamilySection extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       'Auto-detected from your policies, plus anyone you add manually.',
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),
@@ -973,49 +1030,59 @@ class _RecentActivities extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Recent Activities',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text('Recent Activities',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            )),
         const SizedBox(height: 12),
         if (docs.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text('Recently uploaded documents',
-                style: TextStyle(fontWeight: FontWeight.w500)),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                )),
           ),
           ...docs.map((doc) => _ActivityItem(
                 icon: Icons.upload_file,
                 title: doc.filename,
                 subtitle:
                     'Uploaded on ${doc.uploadedOn.day}/${doc.uploadedOn.month}/${doc.uploadedOn.year}',
-                color: Colors.blue,
+                color: Theme.of(context).colorScheme.primary,
+                onTap: () => Navigator.pushNamed(context, '/policy-detail', arguments: doc.id),
               )),
           const SizedBox(height: 8),
         ],
         if (deletedDocs.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text('Recently deleted documents',
-                style: TextStyle(fontWeight: FontWeight.w500)),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                )),
           ),
           ...deletedDocs.take(2).map((filename) => _ActivityItem(
                 icon: Icons.delete_outline,
                 title: filename,
                 subtitle: 'Deleted recently',
-                color: Colors.red,
+                color: Theme.of(context).colorScheme.error,
               )),
           const SizedBox(height: 8),
         ],
         if (recentQuestions.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text('Recent questions',
-                style: TextStyle(fontWeight: FontWeight.w500)),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                )),
           ),
           ...recentQuestions.take(3).map((question) => _ActivityItem(
                 icon: Icons.chat_bubble_outline_rounded,
                 title: question,
                 subtitle: 'Asked recently',
-                color: Colors.purple,
+                color: Theme.of(context).colorScheme.secondary,
+                onTap: () => Navigator.pushNamed(context, '/qa'),
               )),
         ],
         if (docs.isEmpty && recentQuestions.isEmpty && deletedDocs.isEmpty)
@@ -1035,27 +1102,37 @@ class _ActivityItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final Color color;
+  final VoidCallback? onTap;
 
   const _ActivityItem(
       {required this.icon,
       required this.title,
       required this.subtitle,
-      required this.color});
+      required this.color,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final tile = ListTile(
+      leading: CircleAvatar(
+        backgroundColor: color.withValues(alpha: 0.1),
+        child: Icon(icon, color: color),
+      ),
+      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(subtitle),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 1,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.1),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(subtitle),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      ),
+      child: onTap != null
+          ? InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: tile,
+            )
+          : tile,
     );
   }
 }
@@ -1095,8 +1172,10 @@ class _PreventiveTipsSectionState extends State<_PreventiveTipsSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Health Tips',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Health Tips',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                )),
             TextButton(
               onPressed: () async {
                 await PreventiveHealthService.markAllShown(_tips);
@@ -1112,7 +1191,7 @@ class _PreventiveTipsSectionState extends State<_PreventiveTipsSection> {
               child: ListTile(
                 leading: CoverWiseIconBadge(
                   icon: tip.icon,
-                  color: Colors.teal,
+                  color: Theme.of(context).colorScheme.tertiary,
                   size: 40,
                 ),
                 title: Text(tip.title,
@@ -1143,8 +1222,10 @@ class _InsuranceTerminologySection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Insurance Terminology',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Insurance Terminology',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                )),
             TextButton(
               onPressed: () => showDialog(
                   context: context, builder: (_) => const TerminologyDialog()),

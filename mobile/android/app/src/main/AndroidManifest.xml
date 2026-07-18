@@ -38,6 +38,22 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!--
+          R1.8 (2026-07-18): Play Store INSTALL_REFERRER receiver.
+          Fires once per fresh install when the user came from a tracked
+          Play Store link. The receiver (see InstallReferrerReceiver.kt)
+          parses utm_source / utm_medium / utm_campaign and writes them
+          to SharedPreferences for the Flutter app to read on first launch.
+          No runtime permission required; the OS delivers the broadcast.
+        -->
+        <receiver
+            android:name="com.coverwise.app.InstallReferrerReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.android.vending.INSTALL_REFERRER" />
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

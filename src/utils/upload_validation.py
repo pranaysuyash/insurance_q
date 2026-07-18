@@ -69,11 +69,6 @@ def _validate_pdf(file_content: bytes) -> None:
             "This PDF could not be opened. Check that it is a valid, readable document.",
         ) from error
     try:
-        if document.needs_pass:
-            raise UploadValidationError(
-                "encrypted_pdf_not_supported",
-                "Password-protected PDFs are not supported yet. Remove the password and upload a readable copy.",
-            )
         if document.page_count > MAX_PDF_PAGES:
             raise UploadValidationError(
                 "pdf_too_many_pages",
@@ -84,6 +79,27 @@ def _validate_pdf(file_content: bytes) -> None:
                 "pdf_empty",
                 "This PDF has no pages. Upload a readable policy document.",
             )
+        # Phase 0 P0-0.5 (trust audit, 2026-07-18): if the PDF is encrypted,
+        # validate the supplied password in-memory and unlock for the rest of
+        # the validation. The password is never logged, never persisted, and
+        # never passed to the object store. The downstream processing pipeline
+        # accepts the same password and re-unlocks the same way (see
+        # src/utils/pdf_access.py::unlock_pdf). This closes the contradiction
+        # flagged by the trust audit: previously the API exposed a password
+        # field that the validator rejected and the parser used — neither
+        # contract was honest. Now both validate and unlock consistently.
+        if document.needs_pass:
+            if not pdf_password:
+                raise UploadValidationError(
+                    "pdf_password_required",
+                    "This PDF is password-protected. Re-upload with the password so we can read the policy.",
+                )
+            unlock_result = document.authenticate(password=pdf_password)
+            if not unlock_result:
+                raise UploadValidationError(
+                    "pdf_password_invalid",
+                    "The supplied password did not unlock this PDF. Re-upload with the correct password.",
+                )
     finally:
         document.close()
 

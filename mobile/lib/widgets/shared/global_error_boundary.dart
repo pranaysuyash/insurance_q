@@ -151,46 +151,58 @@ class GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
     });
   }
 
-  /// Track an error event with safe, non-PII properties for production monitoring.
+  /// Track an error event with allowlisted, non-PII properties only.
+  ///
+  /// Security audit P0-12 (2026-07-18): the previous implementation
+  /// sent `_safeErrorMessage(details.exception)` which is the
+  /// exception's `toString()`. The audit says exceptions can contain
+  /// filenames, URLs, server responses, bearer tokens, paths, or
+  /// policy IDs. Per the audit: "emit allowlisted error codes only;
+  /// put detailed crash diagnostics in a separate protected,
+  /// redacted system."
+  ///
+  /// The Phase 0 minimum: do NOT send the exception message or
+  /// stack frames. Send only:
+  ///   - error_type: the runtime class name of the exception
+  ///   - library: the originating library
+  ///   - error_code: a hash of the exception type, used for
+  ///     deduplication on the operator side
+  /// Detailed crash info stays in debug-only logs (already gated
+  /// by kDebugMode).
   void _trackError(FlutterErrorDetails details) {
     try {
+      final errorType = details.exception.runtimeType.toString();
       AnalyticsService.track('global_error', {
-        'error_type': details.exception.runtimeType.toString(),
-        'error_message': _safeErrorMessage(details.exception),
+        'error_type': errorType,
+        'error_code': _errorCode(errorType),
         'library': details.library ?? 'unknown',
-        'stack_summary': _stackTraceSummary(details.stack),
+        // No error_message, no stack_summary. Per the audit, those
+        // leak PII. Detailed diagnostics live in debug logs only.
       });
     } catch (_) {
       // Analytics failure should never disrupt error handling
     }
   }
 
-  /// Extract a safe error message (no PII, truncated to 200 chars).
-  String _safeErrorMessage(Object error) {
-    final message = error.toString();
-    return message.length > 200 ? '${message.substring(0, 200)}...' : message;
-  }
-
-  /// Create a compact stack trace summary (top 3 frames, no file paths).
-  String _stackTraceSummary(StackTrace? stack) {
-    if (stack == null) return 'no_stack';
-    final frames = stack
-        .toString()
-        .split('\n')
-        .where((f) => f.trim().isNotEmpty)
-        .take(3)
-        .map((f) => f.trim())
-        .join(' | ');
-    return frames.isEmpty ? 'no_stack' : frames;
+  /// Short allowlisted error code derived from the exception type.
+  /// Used by the operator dashboard to deduplicate errors without
+  /// seeing the exception message itself. Format: `err_<sha-prefix>`.
+  String _errorCode(String errorType) {
+    final hash = errorType.hashCode.toRadixString(16);
+    return 'err_${hash.length > 8 ? hash.substring(0, 8) : hash}';
   }
 
   /// Clear the current error and attempt to rebuild.
   void clearError() {
-    // Track error recovery for analytics
+    // Track error recovery for analytics. The error_type is the
+    // runtime class name (allowlisted); the error message is not
+    // sent (per security audit P0-12).
     try {
+      final errorType =
+          _errorDetails?.exception.runtimeType.toString() ?? 'unknown';
       AnalyticsService.track('global_error_recovered', {
-        'error_type':
-            _errorDetails?.exception.runtimeType.toString() ?? 'unknown',
+        'error_type': errorType,
+        'error_code': _errorCode(errorType),
       });
     } catch (_) {
       // Analytics failure should never disrupt error handling

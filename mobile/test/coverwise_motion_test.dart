@@ -86,7 +86,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(_motionHost(
       reduceMotion: true,
-      child: OnboardingScreen(onComplete: () {}),
+      child: OnboardingScreen(onComplete: ({bool openFilePicker = false}) {}),
     ));
     await tester.pump();
 
@@ -112,7 +112,7 @@ void main() {
           textScaler: TextScaler.linear(2),
           disableAnimations: true,
         ),
-        child: OnboardingScreen(onComplete: () {}),
+        child: OnboardingScreen(onComplete: ({bool openFilePicker = false}) {}),
       ),
     ));
     await tester.pump();

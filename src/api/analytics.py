@@ -5,14 +5,25 @@ Accepts batches of events from the mobile app. Events are stored in SQLite
 (insurance_app.db) for solo-launch simplicity. No PII is stored — only event
 name, timestamp, anonymous UID, and safe properties per the analytics spec
 (docs/review/coverwise_analytics_event_spec.md).
+
+Phase R1.4 (2026-07-18): dual-write to Supabase Postgres when
+DUAL_WRITE_ANALYTICS=true. Supabase becomes the canonical source per
+docs/planning/coverwise_supabase_canonical_plan_2026-07-16.md. SQLite is
+retained as a fallback for 30 days of verified parity, then dropped.
+
+Migration tool: tools/migrate/sqlite_analytics_to_supabase.py
+
+Idempotency: events are inserted with ON CONFLICT (received_at, event_name,
+user_uid) DO NOTHING. Safe to replay a batch.
 """
 import json
-import sqlite3
 import logging
+import os
+import sqlite3
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from src.api.user import get_current_user
@@ -22,6 +33,39 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 DB_PATH = "insurance_app.db"
+
+# Feature flag: when true, ingest also writes to Supabase Postgres.
+# Set to false during initial rollout if Supabase project is not yet provisioned.
+DUAL_WRITE_ANALYTICS = os.environ.get("DUAL_WRITE_ANALYTICS", "false").lower() == "true"
+
+# Cached Supabase client (lazy-init, reused across requests).
+_supabase_client = None
+_supabase_init_attempted = False
+
+
+def _get_supabase_client():
+    """Lazy-init a Supabase service-role client. Returns None if not configured.
+
+    Per motto v3 §0.6: never raise on missing config — fall back to SQLite
+    so events are never lost during the 30-day dual-write window.
+    """
+    global _supabase_client, _supabase_init_attempted
+    if _supabase_init_attempted:
+        return _supabase_client
+    _supabase_init_attempted = True
+    url = os.environ.get("SUPABASE_URL", "").strip()
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    if not url or not key:
+        logger.warning("Supabase not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing); analytics dual-write disabled")
+        return None
+    try:
+        from supabase import create_client
+        _supabase_client = create_client(url, key)
+        logger.info("Supabase client initialized for analytics dual-write")
+        return _supabase_client
+    except Exception as e:
+        logger.exception("Failed to initialize Supabase client: %s", e)
+        return None
 
 
 def _init_analytics_table():
@@ -53,9 +97,23 @@ def _init_analytics_table():
             timestamp TEXT NOT NULL,
             user_uid TEXT NOT NULL,
             properties TEXT,
-            received_at TEXT NOT NULL
+            received_at TEXT NOT NULL,
+            install_id TEXT,
+            session_id TEXT,
+            is_reinstall INTEGER NOT NULL DEFAULT 0
         )
     """);
+    # In-place upgrades for pre-R1.4 tables. Each ALTER wrapped to be idempotent.
+    for alter in (
+        "ALTER TABLE analytics_events ADD COLUMN install_id TEXT",
+        "ALTER TABLE analytics_events ADD COLUMN session_id TEXT",
+        "ALTER TABLE analytics_events ADD COLUMN is_reinstall INTEGER NOT NULL DEFAULT 0",
+    ):
+        try:
+            conn.execute(alter)
+        except Exception:
+            # Column already exists; safe to ignore.
+            pass
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_analytics_event_name
         ON analytics_events(event_name)
@@ -72,6 +130,14 @@ def _init_analytics_table():
         CREATE INDEX IF NOT EXISTS idx_analytics_summary
         ON analytics_events(received_at, event_name, user_uid)
     """);
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_analytics_install_id
+        ON analytics_events(install_id) WHERE install_id IS NOT NULL
+    """);
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_analytics_session_id
+        ON analytics_events(session_id) WHERE session_id IS NOT NULL
+    """);
     conn.commit()
     conn.close()
 
@@ -81,10 +147,37 @@ class AnalyticsEvent(BaseModel):
     ts: str = Field(..., description="ISO 8601 UTC timestamp from the client")
     uid: str = Field(..., description="Anonymous user/session ID")
     props: Dict[str, Any] = Field(default_factory=dict, description="Safe, non-PII properties")
+    # Phase R1.5 additions (2026-07-18). All optional for backward compat with
+    # older app versions. New events from R1.6+ populate all three.
+    install_id: Optional[str] = Field(default=None, description="UUID string; stable per install")
+    session_id: Optional[str] = Field(default=None, description="UUID string; per app launch")
+    is_reinstall: Optional[bool] = Field(default=False, description="True if install_id was seen before")
 
 
 class AnalyticsBatch(BaseModel):
     events: List[AnalyticsEvent]
+
+
+def _insert_supabase_batch(client, rows: List[Dict[str, Any]]) -> int:
+    """Insert a batch into Supabase with ON CONFLICT DO NOTHING semantics.
+
+    Returns count of rows that were newly inserted (excluding duplicates).
+    Raises on unrecoverable errors so the caller can fall back to SQLite.
+    """
+    if not rows:
+        return 0
+    try:
+        # Supabase upsert with ignore_duplicates=True translates to
+        # INSERT ... ON CONFLICT DO NOTHING on the unique constraint.
+        res = client.table("analytics_events").upsert(
+            rows, ignore_duplicates=True
+        ).execute()
+        if res.data:
+            return len(res.data)
+        return 0
+    except Exception:
+        logger.exception("Supabase analytics batch insert failed")
+        raise
 
 
 @router.post("/events")
@@ -92,43 +185,152 @@ async def ingest_events(
     batch: AnalyticsBatch,
     current_user: User = Depends(get_current_user),
 ):
-    """Accept a batch of analytics events from the mobile app."""
+    """Accept a batch of analytics events from the mobile app.
+
+
+    Dual-write path (Phase R1.4):
+    1. Always write to SQLite (legacy path, kept for 30-day rollback window).
+    2. If DUAL_WRITE_ANALYTICS=true and Supabase is configured, also write
+       to Supabase. Supabase failure does NOT cause request failure — the
+       SQLite write is the durability guarantee during the dual-write window.
+
+    The server-authoritative user_uid overrides any client-claimed uid,
+    per the existing convention in this endpoint.
+    """
     _init_analytics_table()
 
+    # Build a single row schema used by both SQLite and Supabase paths.
+    server_now = datetime.now(timezone.utc).isoformat()
+    supabase_rows: List[Dict[str, Any]] = []
+    sqlite_inserted = 0
+
     conn = sqlite3.connect(DB_PATH)
-    now = datetime.now(timezone.utc).isoformat()
-    inserted = 0
+    try:
+        for event in batch.events:
+            row = {
+                "event_name": event.event,
+                "timestamp": event.ts,
+                "user_uid": current_user.uid,  # server-enforced, not client-claimed
+                "properties": json.dumps(event.props) if event.props else None,
+                "received_at": server_now,
+                "install_id": event.install_id,
+                "session_id": event.session_id,
+                "is_reinstall": bool(event.is_reinstall),
+            }
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO analytics_events
+                      (event_name, timestamp, user_uid, properties, received_at, install_id, session_id, is_reinstall)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        row["event_name"],
+                        row["timestamp"],
+                        row["user_uid"],
+                        row["properties"],
+                        row["received_at"],
+                        row["install_id"],
+                        row["session_id"],
+                        row["is_reinstall"],
+                    ),
+                )
+                sqlite_inserted += 1
+            except Exception as e:
+                logger.warning("Failed to insert analytics event %s: %s", event.event, e)
+            supabase_rows.append(row)
+        conn.commit()
+    finally:
+        conn.close()
 
-    for event in batch.events:
-        # Enforce the UID from the auth token, not the client claim
-        try:
-            conn.execute(
-                "INSERT INTO analytics_events (event_name, timestamp, user_uid, properties, received_at) VALUES (?, ?, ?, ?, ?)",
-                (
-                    event.event,
-                    event.ts,
-                    current_user.uid,
-                    json.dumps(event.props) if event.props else None,
-                    now,
-                ),
-            )
-            inserted += 1
-        except Exception as e:
-            logger.warning("Failed to insert analytics event %s: %s", event.event, e)
+    # Supabase dual-write (best-effort). On failure, log and continue — the
+    # SQLite write above is the durability guarantee during the 30-day window.
+    supabase_inserted = 0
+    if DUAL_WRITE_ANALYTICS and supabase_rows:
+        client = _get_supabase_client()
+        if client is None:
+            logger.warning("DUAL_WRITE_ANALYTICS=true but Supabase not configured; events only in SQLite")
+        else:
+            try:
+                supabase_inserted = _insert_supabase_batch(client, supabase_rows)
+            except Exception as e:
+                logger.warning(
+                    "Supabase dual-write failed (%d events will be replayed by migration script): %s",
+                    len(supabase_rows), e,
+                )
 
-    conn.commit()
-    conn.close()
+    logger.info(
+        "Analytics: ingested %d events for user %s (sqlite=%d, supabase=%d)",
+        len(batch.events), current_user.uid[:8], sqlite_inserted, supabase_inserted,
+    )
+    return {
+        "status": "accepted",
+        "ingested": sqlite_inserted,
+        "supabase_ingested": supabase_inserted,
+        "dual_write": DUAL_WRITE_ANALYTICS,
+    }
 
-    logger.info("Analytics: ingested %d/%d events for user %s", inserted, len(batch.events), current_user.uid[:8])
-    return {"status": "accepted", "ingested": inserted}
+
+# Security audit P0-08 (2026-07-18): the analytics read endpoints
+# previously required only an ordinary bearer token, so any signed-in
+# user could read global product metrics. The audit requires explicit
+# operator authorization. The Phase 0 minimum is a shared-secret
+# operator token checked against the `OPERATOR_DASHBOARD_TOKEN` env
+# var. Security Phase 1 will replace this with a server-side
+# principal model that includes an `operator` role on the verified
+# JWT, with the shared secret as a transitional fallback.
+def _check_operator_token(x_operator_token: str | None) -> None:
+    """Verify the request carries a valid operator token.
+
+    Raises 403 if the header is missing or does not match the
+    configured operator secret. The check is constant-time and does
+    not log the candidate or the secret.
+    """
+    import hmac
+
+    expected = os.environ.get("OPERATOR_DASHBOARD_TOKEN", "").strip()
+    if not expected:
+        # No operator token configured means the operator endpoints
+        # are unavailable. This is fail-closed: a misconfigured
+        # deployment cannot leak analytics to ordinary users.
+        raise HTTPException(
+            status_code=403,
+            detail="Operator endpoints are not configured in this environment.",
+        )
+    if not x_operator_token:
+        raise HTTPException(
+            status_code=403, detail="Operator token required."
+        )
+    # Constant-time comparison to avoid timing oracles on the secret.
+    if not hmac.compare_digest(x_operator_token.encode("utf-8"), expected.encode("utf-8")):
+        raise HTTPException(
+            status_code=403, detail="Invalid operator token."
+        )
+
+
+def require_operator(
+    x_operator_token: str | None = Header(default=None, alias="X-Operator-Token"),
+) -> None:
+    """FastAPI dependency: requires a valid X-Operator-Token header.
+
+    Operators send this header from the operator dashboard. Ordinary
+    mobile clients do not have this secret and cannot reach the
+    endpoint. Until Security Phase 1 wires a server-side role claim,
+    this is the Phase 0 minimum.
+    """
+    _check_operator_token(x_operator_token)
 
 
 @router.get("/summary")
 async def get_analytics_summary(
     days: int = 7,
     current_user: User = Depends(get_current_user),
+    _operator: None = Depends(require_operator),
 ):
     """Get a summary of analytics events (for the founder's dashboard).
+
+    Security audit P0-08: requires both an ordinary bearer token AND
+    the X-Operator-Token header. Ordinary users cannot reach this.
 
     Optimized to 2 queries:
     1. Event counts by name (also used to derive total events via sum)
@@ -175,8 +377,12 @@ async def get_analytics_summary(
 @router.get("/health")
 async def get_analytics_health(
     current_user: User = Depends(get_current_user),
+    _operator: None = Depends(require_operator),
 ):
     """Report index existence and row counts for operational visibility.
+
+    Security audit P0-08: requires the X-Operator-Token header. Ordinary
+    users cannot reach this endpoint.
 
     Does NOT call _init_analytics_table() so it can accurately report
     when the table is missing.
@@ -235,8 +441,13 @@ async def get_analytics_health(
 async def get_error_aggregation(
     days: int = 7,
     current_user: User = Depends(get_current_user),
+    _operator: None = Depends(require_operator),
 ):
     """Aggregate global_error events for production monitoring dashboards.
+
+    Security audit P0-08: requires the X-Operator-Token header. Ordinary
+    users cannot reach this endpoint. The data is allowlisted and
+    truncated; raw error messages are NOT exposed.
 
     Returns:
     - Error counts by type (runtime type of the exception)

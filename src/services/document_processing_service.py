@@ -36,6 +36,106 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Phase 0 P0-0.1 + P0-0.2 (trust audit, 2026-07-18): derive document state
+# from required stage outcomes, not from a hardcoded "completed" string.
+# The trust audit's NO-GO verdict says "completed" can hide OCR/extraction/
+# indexing failures. The new model uses per-mode required-stage sets and
+# derives a state machine value: `ready`, `summary_partial`, `text_partial`,
+# `partial`, `ocr_required`, `password_required`, `indexing_failed`,
+# `terminal_failed`, `retryable_failed`, or `ready_for_qa`.
+REQUIRED_STAGES: Dict[str, frozenset] = {
+    "full": frozenset({"file_storage", "ocr", "policy_extraction", "rag_ingestion"}),
+    "ocr_only": frozenset({"file_storage", "ocr"}),
+    "rag_only": frozenset({"file_storage", "rag_ingestion"}),
+}
+
+# Per-stage failure class. A "skipped" stage is non-fatal (the service
+# was unavailable); a "failed" stage is fatal for the corresponding
+# capability. The trust audit says never coerce a "failed" stage into
+# "completed" because that hides the failure from the user.
+FATAL_STAGE_STATUSES = frozenset({"failed", "error"})
+NON_FATAL_STAGE_STATUSES = frozenset({"skipped", "not_available"})
+
+
+def derive_document_state(
+    processing_mode: str,
+    stages: Dict[str, Any],
+    policy_summary_present: bool,
+) -> str:
+    """Derive the terminal document state from stage outcomes.
+
+    Implements the state machine the trust audit requires in Phase 0 P0-0.1
+    + P0-0.2: a document is `ready` only when every required stage for its
+    mode is `completed`. Partial readiness (e.g. text extracted but
+    summary failed) produces capability-specific states.
+
+    Order of checks matters. We first look for password / OCR-class
+    failures (caller can fix by re-uploading), then capability-specific
+    partial states, then generic `partial`, then the success cases.
+    """
+    required = REQUIRED_STAGES.get(processing_mode, REQUIRED_STAGES["full"])
+
+    # Per-stage failure classification for required stages.
+    failed_required = []
+    ocr_stage = stages.get("ocr", {}) if isinstance(stages.get("ocr"), dict) else {}
+    for stage_name in required:
+        stage = stages.get(stage_name, {}) if isinstance(stages.get(stage_name), dict) else {}
+        if stage.get("status") in FATAL_STAGE_STATUSES:
+            failed_required.append(stage_name)
+
+    # Special-case: password or OCR-class failure when OCR is the SOLE
+    # required-stage failure. The user can fix by re-uploading with a
+    # password or a text-based PDF. If other required stages also failed,
+    # we fall through to the generic `partial` state because the recovery
+    # action is more than just re-uploading.
+    if failed_required == ["ocr"]:
+        ocr_err = (ocr_stage.get("error", "") or "").lower()
+        if "password" in ocr_err:
+            return "password_required"
+        if "ocr" in ocr_err:
+            return "ocr_required"
+
+    if failed_required:
+        # Capability-specific granularity. The contract:
+        #   - Only policy_extraction failed  -> summary_partial
+        #     (text + Q&A still work; the policy detail page is partial)
+        #   - Only rag_ingestion failed:
+        #       - summary present  -> indexing_failed
+        #         (detail page works; Q&A does not)
+        #       - summary missing  -> ready_for_qa
+        #         (text is ready but no projection; document is not
+        #         customer-ready; UI must show "processing incomplete")
+        #   - Only the two projection stages failed (both policy_extraction
+        #     AND rag_ingestion) -> ready_for_qa. The text is in the
+        #     canonical store; only the customer-facing projections
+        #     are missing. The user can still see the source via the
+        #     document preview; the UI should show "partial".
+        #   - Anything else with multiple failures -> partial.
+        if set(failed_required) == {"policy_extraction"}:
+            return "summary_partial"
+        if set(failed_required) == {"rag_ingestion"}:
+            if policy_summary_present:
+                return "indexing_failed"
+            return "ready_for_qa"
+        if set(failed_required) == {"policy_extraction", "rag_ingestion"}:
+            return "ready_for_qa"
+        return "partial"
+
+    # No required failures. The document is "ready" for the capabilities
+    # its mode intended. But defence-in-depth: if the policy summary
+    # is required for full mode and missing, the function must NOT
+    # claim ready. This catches a class of silent-failure bugs where
+    # a stage self-reports 'completed' but produces no usable artifact.
+    if processing_mode == "full" and not policy_summary_present:
+        return "summary_partial"
+    if processing_mode == "rag_only":
+        # rag_only mode never produces a policy summary by design; the
+        # honest label is "ready for Q&A" so operators and the UI know
+        # the document is queryable but has no detail-page projection.
+        return "ready_for_qa"
+    return "ready"
+
+
 class DocumentProcessingService:
     """
     Orchestrates the complete document processing pipeline:
@@ -180,12 +280,57 @@ class DocumentProcessingService:
                     "reason": "RAG pipeline not available"
                 }
             
-            # Stage 4: Completion
-            await self._update_status(document_id, "completed", 100)
-            result["status"] = "completed"
+            # Stage 4: Completion — derive the terminal state from stage
+            # outcomes, do NOT hardcode "completed". The trust audit's
+            # Phase 0 P0-0.1 says a document becomes `ready` only when
+            # every required stage for its mode is `completed`; partial
+            # readiness produces capability-specific states (e.g.
+            # `summary_partial`, `ocr_required`, `indexing_failed`).
+            failed_stages = [
+                stage_name
+                for stage_name, stage_data in result.get("stages", {}).items()
+                if isinstance(stage_data, dict) and stage_data.get("status") == "failed"
+            ]
+
+            policy_summary_present = bool(result.get("policy_summary"))
+            derived_state = derive_document_state(
+                processing_mode=processing_mode,
+                stages=result.get("stages", {}),
+                policy_summary_present=policy_summary_present,
+            )
+            result["derived_state"] = derived_state
+            result["failed_stages"] = failed_stages
+
+            # Map the derived state onto the legacy status string the
+            # repository uses elsewhere (backward compat). New code
+            # should branch on `derived_state` directly. The legacy
+            # status retains a "completed" only when the document is
+            # actually ready, and reports "partial" or a capability-
+            # specific state otherwise.
+            legacy_status_map = {
+                "ready": "completed",
+                "ready_for_qa": "completed_no_summary",
+                "summary_partial": "completed_summary_partial",
+                "text_partial": "completed_text_partial",
+                "ocr_required": "ocr_required",
+                "password_required": "password_required",
+                "indexing_failed": "indexing_failed",
+                "partial": "partial",
+                "terminal_failed": "failed",
+            }
+            legacy_status = legacy_status_map.get(derived_state, "partial")
+            await self._update_status(document_id, legacy_status, 100)
+            result["status"] = legacy_status
+
+            if derived_state == "ready":
+                logger.info("document_processing_completed document_id=%s", document_id)
+            else:
+                logger.warning(
+                    "document_processing_partial document_id=%s derived_state=%s failed_stages=%s",
+                    document_id, derived_state, failed_stages,
+                )
+
             result["completed_at"] = datetime.utcnow().isoformat()
-            
-            logger.info("document_processing_completed document_id=%s", document_id)
             return result
             
         except Exception as e:

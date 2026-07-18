@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../config/app_config.dart';
+import '../services/document_service.dart';
 import '../services/local_storage_service.dart';
 import '../services/session_service.dart';
 import '../widgets/shared/coverwise_components.dart';
@@ -71,6 +71,7 @@ ProcessingStage stageFromState(String? state) {
     case 'creating_embeddings':
       return ProcessingStage.indexing;
     case 'completed':
+    case 'completed_with_errors':
     case 'ready':
       return ProcessingStage.complete;
     case 'failed':
@@ -107,11 +108,8 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
   static const int _maxPolls = 90; // 3 minutes at 2s intervals
 
   /// Reused across all polls to avoid leaking connections.
-  late final Dio _dio = Dio(BaseOptions(
-    baseUrl: AppConfig.baseUrl,
-    connectTimeout: const Duration(seconds: 5),
-    receiveTimeout: const Duration(seconds: 5),
-  ));
+  /// Uses the authenticated Dio client so auth tokens are attached.
+  late final Dio _dio = DocumentService.authenticatedDio;
 
   @override
   void initState() {

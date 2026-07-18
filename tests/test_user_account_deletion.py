@@ -1,12 +1,17 @@
 """Tests for DELETE /user/account endpoint.
 
-Verifies:
-- Anonymous users are rejected (403)
-- Account users can delete their account
-- Storage files are cleaned up before metadata deletion
-- Document metadata and chunks are deleted
-- Supabase auth user deletion failure is handled gracefully
-- Response includes correct counts
+Security audit P0-04 (2026-07-18): the previous test set codified that the
+endpoint returned 200 + 'permanently deleted' even when storage
+cleanup or auth-user deletion failed. The audit says this is a false
+claim and the response must be 202 with per-stage status. This test
+file enforces the new contract:
+
+- 202 on success AND on partial failure (the work is async / best-effort)
+- response includes `status` ('deletion_succeeded' | 'deletion_partial')
+- response includes `failed_stages` so the durable deletion job
+  (Security Phase 3) knows what to retry
+- the mobile client must not show 'permanently deleted' if
+  `status == 'deletion_partial'`
 """
 
 import sys
@@ -99,20 +104,31 @@ class TestDeleteAccountStorageCleanup:
             app = FastAPI()
             app.include_router(user_router)
 
-            with TestClient(app) as client:
-                response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
+        with TestClient(app) as client:
+            response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
 
-        assert response.status_code == 200
+        # Security audit P0-04: 202 on success, not 200.
+        assert response.status_code == 202
         data = response.json()
+        assert data["status"] == "deletion_succeeded"
         assert data["deleted_documents"] == 2
         assert data["deleted_storage_files"] == 2
         assert data["storage_errors"] == 0
+        assert data["failed_stages"] == []
         assert len(deleted_files) == 2
         assert "supabase://bucket/documents/doc-1/policy.pdf" in deleted_files
         assert "supabase://bucket/documents/doc-2/claim.pdf" in deleted_files
 
-    def test_storage_error_does_not_block_deletion(self, monkeypatch):
-        """If storage cleanup fails, metadata and auth deletion still proceed."""
+    def test_storage_error_yields_partial_deletion(self, monkeypatch):
+        """Security audit P0-04: when storage cleanup fails, the endpoint
+        MUST return 202 + `deletion_partial` and list the failed stage.
+        The mobile client must NOT show 'permanently deleted' in this
+        case. The durable deletion job (Security Phase 3) picks up the
+        retry from `failed_stages`.
+
+        Previous test name was `test_storage_error_does_not_block_deletion`
+        — that was the wrong contract. It has been replaced.
+        """
         monkeypatch.setenv("ENVIRONMENT", "test")
         monkeypatch.setenv("DOCUMENT_REPOSITORY_BACKEND", "sqlite")
 
@@ -140,11 +156,19 @@ class TestDeleteAccountStorageCleanup:
             with TestClient(app) as client:
                 response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
 
-        assert response.status_code == 200
+        # Security audit P0-04: 202 even on partial failure, NEVER 200
+        # on a partial completion.
+        assert response.status_code == 202
         data = response.json()
+        assert data["status"] == "deletion_partial"
         assert data["deleted_documents"] == 1
         assert data["deleted_storage_files"] == 0
         assert data["storage_errors"] == 1
+        assert "storage_object_deletion" in data["failed_stages"]
+        # The message must NOT claim 'permanently deleted' on partial
+        # failure.
+        assert "permanently deleted" not in data["message"].lower()
+        assert "remaining" in data["message"].lower() or "partial" in data["message"].lower()
 
     def test_non_supabase_file_path_skips_storage_cleanup(self, monkeypatch):
         """Documents with local file paths (not supabase://) skip storage cleanup."""
@@ -174,7 +198,7 @@ class TestDeleteAccountStorageCleanup:
             with TestClient(app) as client:
                 response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
         assert data["deleted_storage_files"] == 0
         mock_store.delete.assert_not_called()
@@ -206,12 +230,15 @@ class TestDeleteAccountResponse:
             with TestClient(app) as client:
                 response = client.delete("/user/account", headers={"Authorization": "Bearer account-token"})
 
-        assert response.status_code == 200
+        # Security audit P0-04: 202 not 200.
+        assert response.status_code == 202
         data = response.json()
+        assert "status" in data
         assert "deleted_documents" in data
         assert "deleted_storage_files" in data
         assert "storage_errors" in data
         assert "auth_user_deleted" in data
+        assert "failed_stages" in data
         assert "message" in data
         assert isinstance(data["deleted_documents"], int)
         assert isinstance(data["deleted_storage_files"], int)

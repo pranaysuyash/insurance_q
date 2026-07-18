@@ -168,10 +168,19 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
           ),
           const _PrivacyItem(
             icon: Icons.block,
+            // Security audit P0-18 (2026-07-18): "No data selling" was
+            // imprecise while Supabase and OpenAI process data. The
+            // honest version is: CoverWise does not sell, share, or
+            // rent your data to third parties. Sub-processors
+            // (Supabase for storage, OpenAI for analysis) process
+            // data under contract to provide the app's features.
             title: 'No data selling',
-            body: 'CoverWise does not sell, share, or rent your data to third '
-                'parties. Your policy documents are used solely to provide the '
-                'app\'s features to you.',
+            body: 'CoverWise does not sell, share, or rent your data to '
+                'third parties. Your policy documents are processed by '
+                'CoverWise and by named sub-processors (Supabase for '
+                'private storage, OpenAI for analysis) under contract to '
+                'provide the app\'s features. No marketing use, no '
+                'third-party advertising.',
           ),
           const CoverWiseSectionLabel('Retention and deletion'),
           const _PrivacyItem(
@@ -181,21 +190,40 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                 'device and persist until you delete them. Use Settings → '
                 'Clear local data to remove everything at any time.',
           ),
+          // Security audit P0-18 + P0-02 (2026-07-18): the previous
+          // copy said "Deleting a synced policy removes these
+          // server-side records." That was false — the mobile
+          // "Remove from this device" button deletes only the local
+          // copy; the server copy is NOT deleted until the durable
+          // remote deletion lands (Security Phase 3). The honest
+          // version makes that explicit.
           const _PrivacyItem(
             icon: Icons.timer_off,
             title: 'Server storage',
-            body: 'Synced policies are retained in private storage, metadata, '
-                'summaries, and the search index to answer your questions. '
-                'Deleting a synced policy removes these server-side records.',
+            body: 'Synced policies are retained in private storage, '
+                'metadata, summaries, and the search index. Removing a '
+                'policy from this device does NOT delete the server '
+                'copy yet. Server-side deletion is currently a manual '
+                'request to support; remote-first durable deletion is '
+                'in progress (Security Phase 3).',
           ),
           _PrivacyItem(
             icon: Icons.delete_outline,
             title: 'Your rights',
+            // Security audit P0-04 + P0-18: account deletion returns
+            // 202 + per-stage status. The previous copy implied a
+            // single click would remove everything. The honest
+            // version is: deletion is best-effort per stage; partial
+            // deletions are surfaced honestly.
             body: AppConfig.hasSupportEmail
-                ? 'You can delete all local data at any time via Settings. For '
-                    'help with server-side data, contact ${AppConfig.supportEmail}.'
+                ? 'You can delete all local data at any time via Settings. '
+                    'For account deletion, use the Delete account action '
+                    'in Settings; the backend returns a per-stage status '
+                    'and any incomplete stages will be retried. For '
+                    'questions, contact ${AppConfig.supportEmail}.'
                 : 'You can delete all local data at any time via Settings. '
-                    'Use the release support channel for server-side data help.',
+                    'Use the release support channel for account and '
+                    'server-side data requests.',
           ),
           const CoverWiseSectionLabel('Security'),
           const _PrivacyItem(

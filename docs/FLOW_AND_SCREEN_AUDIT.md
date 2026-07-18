@@ -1,6 +1,6 @@
 # CoverWise — Flow & Screen Audit
 
-**Date:** 2026-07-16  
+**Date:** 2026-07-18  
 **Evidence Tier:** Tier 1 (static inspection of all source files)  
 **Author:** Buffy (AI Agent)  
 **Purpose:** First-principles audit of every screen, flow, use case, gap, and missing feature — aligned with motto_v3.
@@ -40,7 +40,8 @@ This audit maps every user flow end-to-end: what triggers it, what the user sees
 | 4 | **DocumentsScreen** | `documents_screen.dart` | ✅ | 8/10 | Upload + list + on-device OCR + limit checks. Routes to ProcessingStatusScreen |
 | 5 | **ProcessingStatusScreen** | `processing_status_screen.dart` | ✅ | 8/10 | Animated stage indicators (Received → Reading → Extracting → Classifying → Indexing → Complete/Failed), auto-navigate on completion, pulse animation, PopScope dismiss warning |
 | 6 | **DocumentsList** | `documents_list.dart` | ✅ | 7/10 | Sub-component. Missing: pull-to-refresh visual cue |
-| 7 | **QaScreen** | `qa_screen.dart` | ✅ | 9/10 | 3 tabs. Demo sequence. Confidence badge (NEW). Follow-up chips (NEW). Answer feedback. Excellent |
+| 7 | **QaScreen** | `qa_screen.dart` | ✅ | 9/10 | 3 tabs. Demo sequence. Confidence badge (NEW). Follow-up chips with loading state (NEW). Answer feedback. Excellent |
+| 8a | **AccountScreen** | `account_screen.dart` | ✅ | 8/10 | **IMPROVED:** Email validation, specific error messages (wrong password, email not confirmed, user already registered), "Forgot password?" link, "Resend verification email" link, Google Sign-In button, inline email verification banner, improved loading state (SizedBox spinner). Rating up from 4/10. |
 | 8 | **FamilyScreen** | `family_screen.dart` | ✅ | 7/10 | Auto-detect + manual add. Missing: per-member policy assignment |
 | 9 | **MoreScreen** | `more_screen.dart` | ✅ | 6/10 | Flat list. Missing: visual hierarchy, badges for urgent items |
 | 10 | **EmergencyScreen** | `emergency_screen.dart` | ✅ | 8/10 | Policy-specific cards with call/email CTAs |
@@ -67,15 +68,38 @@ This audit maps every user flow end-to-end: what triggers it, what the user sees
 | 31 | **_DocumentReplaceScreen** | `documents_list.dart` | ✅ | 7/10 | **NEW (M6):** File picker, confirmation dialog, replaceDocument() in DocumentService, provider invalidation. Private widget in documents_list.dart. |
 | 32 | **QaPacksScreen** | `qa_packs_screen.dart` | ✅ | 8/10 | **NEW:** Pay-per-Q&A packs purchase UI. Balance card showing subscription + pack questions, pack cards (Starter ₹49/5Q, Value ₹119/15Q, Pro ₹199/30Q) with buy button, active pack display with progress bars and expiry, FAQ section with expandable items. Pack-aware entitlement gating in QA screen with budget banner and analytics tracking. |
 
-### 2B. Screens/Flows That SHOULD Exist But DON'T
+### 2B. Auth Flow Screens (Session 2026-07-18)
+
+| # | Screen/Feature | File | Status | Rating | Notes |
+|---|---|---|---|---|---|
+| 44 | **AccountScreen improvements** | `account_screen.dart` | ✅ | 8/10 | Email validation, specific errors, Forgot Password, Resend verification, Google Sign-In, inline verification banner |
+| 45 | **ProfileScreen auth reactivity** | `profile_screen.dart` | ✅ | 9/10 | ConsumerStatefulWidget, ref.watch(currentUserProvider), two-step account deletion |
+| 46 | **ResetPasswordScreen** | `reset_password_screen.dart` | ✅ | 8/10 | New password entry, validation, success/error states |
+| 47 | **Auth providers** | `auth_provider.dart` | ✅ | 9/10 | StreamProvider for auth state, reactive UI across app |
+| 48 | **Password reset deep link** | `main.dart` | ✅ | 8/10 | `/reset-callback` handler routes to ResetPasswordScreen |
+| 49 | **Login callback deep link** | `main.dart` | ✅ | 8/10 | `/login-callback` handler for Google OAuth return |
+| 50 | **URL scheme registration** | `Info.plist`, `AndroidManifest.xml` | ✅ | 8/10 | `io.coverwise://` scheme on iOS + Android |
+| 51 | **Backend account deletion** | `user.py`, `document_repository.py` | ✅ | 8/10 | `DELETE /user/account` with storage cleanup, metadata + chunk deletion |
+| 52 | **Account deletion test** | `test_user_account_deletion.py` | ✅ | 8/10 | 5 tests: anonymous rejection, storage cleanup, error handling, non-supabase skip, response format |
+| 53 | **Supabase config docs** | `UX_ISSUES_AUTH_AUDIT.md` §11 | ✅ | 9/10 | 10-section guide: env vars, providers, redirect URLs, Google OAuth, email templates, API keys, storage, schema, checklist, failure modes |
+
+---
+
+## 2C. Screens/Flows That SHOULD Exist But DON'T
 
 | # | Missing Screen/Flow | Priority | Why It Matters (First Principles) |
 |---|---|---|---|
 | ~~M1~~ | ~~Document Preview / Viewer~~ | ~~🔴 P0~~ | **RESOLVED (2026-07-15):** DocumentPreviewScreen implemented with page nav, zoom, error states |
 | ~~M2~~ | ~~Search / Filter Across Documents~~ | ~~🔴 P1~~ | **RESOLVED (2026-07-16):** SearchScreen with search bar, type/status filter chips, highlighted text matches, ranked results by relevance, and empty states. Accessible from DashboardScreen and MoreScreen. |
 | ~~M3~~ | ~~Notification Preferences Screen~~ | ~~🟡 P1~~ | **RESOLVED (2026-07-15):** NotificationPreferencesScreen with master toggle, custom reminder days, quiet hours, per-policy switches |
-| ~~M4~~ | ~~Dark Mode / Theme Toggle~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-16):** Settings → Appearance picker with System/Light/Dark options. themeModeProvider triggers MaterialApp rebuild.
-| ~~M5~~ | ~~Profile / Account Screen~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-16):** ProfileScreen with identity, auth token, version, appearance, storage, privacy info, and scope disclaimer.
+| ~~M4~~ | ~~Dark Mode / Theme Toggle~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-16):** Settings → Appearance picker with System/Light/Dark options. themeModeProvider triggers MaterialApp rebuild. |
+| ~~M5~~ | ~~Profile / Account Screen~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-16):** ProfileScreen with identity, auth token, version, appearance, storage, privacy info, and scope disclaimer. **IMPROVED (2026-07-18):** Reactive auth state, two-step account deletion. |
+| ~~A1~~ | ~~Forgot Password~~ | ~~🔴 P0~~ | **RESOLVED (2026-07-18):** "Forgot password?" link in AccountScreen → `AuthService.resetPassword()` → email with `io.coverwise://reset-callback` deep link → ResetPasswordScreen. |
+| ~~A2~~ | ~~Account Deletion~~ | ~~🔴 P0~~ | **RESOLVED (2026-07-18):** Backend `DELETE /user/account` with storage cleanup. ProfileScreen two-step confirmation (dialog + type DELETE). `AuthService.deleteAccount()` with timeout. |
+| ~~A3~~ | ~~Auth State Reactivity~~ | ~~🟡 P1~~ | **RESOLVED (2026-07-18):** `auth_provider.dart` — Riverpod StreamProvider wrapping `onAuthStateChange`. `hasAccountProvider` and `currentUserProvider`. ProfileScreen uses `ref.watch(currentUserProvider)`. |
+| ~~A4~~ | ~~Google Sign-In~~ | ~~🟡 P1~~ | **RESOLVED (2026-07-18):** `google_sign_in: ^6.2.1` in pubspec.yaml. `AuthService.signInWithGoogle()` via Supabase OAuth. Google button in AccountScreen. `/login-callback` deep link handler. Needs Supabase dashboard setup (§11 in UX_ISSUES_AUTH_AUDIT.md). |
+| ~~A5~~ | ~~Email Verification Resend~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-18):** "Resend verification email" link in AccountScreen. Inline banner after "email not confirmed" error with Resend button. `AuthService.resendEmailVerification()`. |
+| ~~A6~~ | ~~Password Reset Deep Link~~ | ~~🟡 P1~~ | **RESOLVED (2026-07-18):** `io.coverwise://` URL scheme registered on iOS + Android. `/reset-callback` handler in `main.dart`. ResetPasswordScreen for new password entry. |
 | ~~M6~~ | ~~Document Re-upload / Replacement~~ | ~~🟡 P2~~ | **RESOLVED (2026-07-16):** _DocumentReplaceScreen with file picker, confirmation dialog, replaceDocument() in DocumentService, provider invalidation. |
 | ~~M7~~ | ~~Policy Expiry Action Flow~~ | ~~🟡 P1~~ | **RESOLVED (2026-07-15):** _RenewNowButton with call/email bottom sheet on expired/expiring-soon cards |
 | ~~M8~~ | ~~Cross-Document Insights Dashboard~~ | ~~🟢 P2~~ | **RESOLVED (2026-07-16):** Insurance Health Score on dashboard with animated gauge, 4-factor breakdown.
@@ -83,12 +107,14 @@ This audit maps every user flow end-to-end: what triggers it, what the user sees
 | ~~M11~~ | ~~Coverage Gap Resolution Tracking~~ | ~~🟢 P2~~ | **RESOLVED (2026-07-16):** Filter bar (All/Open/Addressed), mark-as-addressed with notes dialog, resolution badge, strikethrough styling, reopen button, empty states. Hive-persisted. |
 | M10 | **Multi-language Support** | 🟢 P3 | Indian insurance documents are in Hindi, Tamil, etc. On-device OCR supports Latin script only. No i18n framework. Post-launch. |
 
-### 2C. New Screens/Features Added This Session
+### 2D. New Screens/Features Added This Session
 
 | # | Screen/Feature | File | Status | Rating | Notes |
 |---|---|---|---|---|---|
 | 32 | **InsuranceCardScreen** | `insurance_card_screen.dart` | ✅ | 8/10 | Digital proof of insurance with gradient cards, policy info, call/share buttons |
-| 33 | **ProfileScreen** | `profile_screen.dart` | ✅ | 8/10 | Identity, token, version, appearance, storage, privacy, scope disclaimer |
+| 33 | **ProfileScreen** | `profile_screen.dart` | ✅ | 9/10 | Identity, token, version, appearance, storage, privacy, scope disclaimer. **IMPROVED:** Reactive auth state via `ref.watch(currentUserProvider)`, two-step account deletion confirmation (dialog + type DELETE), automatic UI rebuild on sign-in/sign-out. Rating up from 8/10. |
+| 42 | **ResetPasswordScreen** | `reset_password_screen.dart` | ✅ | 8/10 | **NEW:** New password entry after email link. Password validation (min 8 chars, confirmation match), success state with checkmark, error handling for expired links, Supabase `updateUser()` integration. |
+| 43 | **AuthProvider** | `auth_provider.dart` | ✅ | 9/10 | **NEW:** Riverpod StreamProvider wrapping Supabase `onAuthStateChange`. `hasAccountProvider`, `currentUserProvider` convenience providers. Handles Supabase-not-configured case. Makes auth state reactive across all widgets.
 | 34 | **InsuranceLiteracyScreen** | `insurance_literacy_screen.dart` | ✅ | 8/10 | 12-term glossary + 6-question quiz with scoring |
 | 35 | **PreventiveHealthService** | `preventive_health_service.dart` | ✅ | 8/10 | Smart tips based on policy types with 7-day dedup |
 | 36 | **Health Tips Dashboard** | `dashboard_screen.dart` | ✅ | 8/10 | _PreventiveTipsSection with dismiss all and per-tip dismiss |
@@ -355,6 +381,31 @@ PolicyDetailScreen → Tap eye icon (app bar)
 
 **Status:** `_EmergencyShortcutButton` added to DashboardScreen — full-width red button with `Icons.emergency` icon, visible directly on the home screen. One tap to emergency access.
 
+### 6.5 ~~Auth Gap: No Forgot Password~~ — RESOLVED
+**motto_v3 §0.6 (Risk-Based Verification):** Users who forget their password must have a recovery path. App Store requires account recovery.
+
+**Status:** "Forgot password?" link in AccountScreen → `AuthService.resetPassword()` → email with `io.coverwise://reset-callback` deep link → ResetPasswordScreen for new password entry. Password validation (min 8 chars, confirmation match). Success state with checkmark.
+
+### 6.6 ~~Auth Gap: No Account Deletion~~ — RESOLVED
+**motto_v3 §0.11 (Customer-Facing Claims):** Both Apple and Google require account deletion mechanisms.
+
+**Status:** Backend `DELETE /user/account` with Supabase Storage cleanup, document metadata + chunk deletion, and auth user deletion. ProfileScreen two-step confirmation (warning dialog + type DELETE). `AuthService.deleteAccount()` with 30s timeout and automatic signOut().
+
+### 6.7 ~~Auth Gap: Static Auth State~~ — RESOLVED
+**motto_v3 §0.8 (Data Layer Rule):** Auth state must be reactive — UI must rebuild when user signs in/out.
+
+**Status:** `auth_provider.dart` — Riverpod StreamProvider wrapping Supabase `onAuthStateChange`. `hasAccountProvider` and `currentUserProvider` convenience providers. ProfileScreen uses `ConsumerStatefulWidget` with `ref.watch(currentUserProvider)`. Manual `setState()` removed — auth changes trigger automatic UI rebuilds.
+
+### 6.8 ~~Auth Gap: No Google Sign-In~~ — RESOLVED (Code Done, Dashboard Setup Needed)
+**motto_v3 §0.14 (Operator Workflow):** Zero-friction auth path expected by users.
+
+**Status:** `google_sign_in: ^6.2.1` in pubspec.yaml. `AuthService.signInWithGoogle()` via Supabase `signInWithOAuth(Provider.google)`. Google button in AccountScreen. `/login-callback` deep link handler. Supabase dashboard configuration documented in §11 of UX_ISSUES_AUTH_AUDIT.md.
+
+### 6.9 ~~Auth Gap: No Email Verification Resend~~ — RESOLVED
+**motto_v3 §0.14 (Operator Workflow):** Users must be able to complete email verification.
+
+**Status:** "Resend verification email" link in AccountScreen. Inline banner after "email not confirmed" error with Resend button. `AuthService.resendEmailVerification()` using Supabase `resend(type: OtpType.signup)`. Banner auto-hides after successful resend.
+
 ---
 
 ## 7. What's Genuinely Excellent
@@ -382,18 +433,24 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | Priority | Item | Effort | Impact | Status |
 |---|---|---|---|---|
 | ~~P0~~ | ~~Document Preview/Viewer (M1)~~ | ~~Medium~~ | ~~🔴 Trust + completeness~~ | ✅ DONE |
+| ~~P0~~ | ~~Forgot Password (A1)~~ | ~~Small~~ | ~~🔴 Account recovery~~ | ✅ DONE |
+| ~~P0~~ | ~~Account Deletion (A2)~~ | ~~Medium~~ | ~~🔴 App Store requirement~~ | ✅ DONE |
 | ~~P1~~ | ~~Follow-up chip loading state~~ | ~~Small~~ | ~~🟡 UX polish~~ | ✅ DONE |
 | ~~P1~~ | ~~Emergency shortcut on dashboard~~ | ~~Small~~ | ~~🟡 Safety~~ | ✅ DONE |
 | ~~P1~~ | ~~Notification preferences screen~~ | ~~Medium~~ | ~~🟡 User control~~ | ✅ DONE |
 | ~~P1~~ | ~~Policy Expiry Action Flow (M7)~~ | ~~Small~~ | ~~🟡 Safety + actionability~~ | ✅ DONE |
 | ~~P1~~ | ~~Policy share/export (M9)~~ | ~~Small~~ | ~~🟢 Virality~~ | ✅ DONE |
 | ~~P1~~ | ~~Cross-document search (M2)~~ | ~~Large~~ | ~~🟢 Power user value~~ | ✅ DONE |
+| ~~P1~~ | ~~Auth State Reactivity (A3)~~ | ~~Small~~ | ~~🟡 UI consistency~~ | ✅ DONE |
+| ~~P1~~ | ~~Google Sign-In (A4)~~ | ~~Medium~~ | ~~🟡 Zero-friction auth~~ | ✅ DONE (dashboard setup needed) |
+| ~~P1~~ | ~~Password Reset Deep Link (A6)~~ | ~~Small~~ | ~~🟡 Account recovery~~ | ✅ DONE |
 | ~~P2~~ | ~~Coverage gap resolution tracking~~ | ~~Medium~~ | ~~🟢 Actionability~~ | ✅ DONE |
 | ~~P2~~ | ~~Insurance Health Score (S1)~~ | ~~Medium~~ | ~~🔴 Trust + completeness~~ | ✅ DONE |
 | ~~P2~~ | ~~Preventive Health Reminders (S3)~~ | ~~Small~~ | ~~🟡 Retention~~ | ✅ DONE |
 | ~~P2~~ | ~~Dark mode / theme toggle (M4)~~ | ~~Small~~ | ~~🟡 User preference~~ | ✅ DONE |
 | ~~P2~~ | ~~Profile / Account Screen (M5)~~ | ~~Small~~ | ~~🟡 User trust~~ | ✅ DONE |
 | ~~P2~~ | ~~Document re-upload / replacement (M6)~~ | ~~Medium~~ | ~~🟡 Renewal flow~~ | ✅ DONE |
+| ~~P2~~ | ~~Email Verification Resend (A5)~~ | ~~Small~~ | ~~🟡 Account activation~~ | ✅ DONE |
 | **P3** | Multi-language support (M10) | Large | 🟢 Indian market | Post-launch |
 
 ### Monetization Features
@@ -491,3 +548,16 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | 2026-07-16 | Marked B8 (What-If Calculator) as RESOLVED — WhatIfCalculatorScreen with coverage/deductible sliders, coverage toggles, estimation formulas, disclaimer | Buffy |
 | 2026-07-16 | Added WhatIfCalculatorScreen (#40), _DocumentReplaceScreen (#41) to section 2C; WhatIfCalculator helper (#38), gapId function (#39) to section 2C | Buffy |
 | 2026-07-17 | Added QaPacksScreen (#32) to inventory. Added pay-per-Q&A packs feature with QaPackType enum, QaPack model, FIFO consumption, QaPacksScreen purchase UI, pack-aware entitlement gating, and 33 unit tests. Updated monetization doc with full ads vs subscription analysis and pack pricing hypotheses. | Buffy |
+| 2026-07-18 | **Auth Improvements Session:** Added AccountScreen (#44), ProfileScreen improvements (#45), ResetPasswordScreen (#46), AuthProvider (#47), password reset deep link (#48), login callback deep link (#49), URL scheme registration (#50), backend account deletion (#51), account deletion test (#52), Supabase config docs (#53). | Buffy |
+| 2026-07-18 | Marked A1 (Forgot Password) as RESOLVED — link in AccountScreen → email → ResetPasswordScreen | Buffy |
+| 2026-07-18 | Marked A2 (Account Deletion) as RESOLVED — backend endpoint + storage cleanup + two-step UI confirmation | Buffy |
+| 2026-07-18 | Marked A3 (Auth State Reactivity) as RESOLVED — auth_provider.dart with StreamProvider, ProfileScreen uses ref.watch | Buffy |
+| 2026-07-18 | Marked A4 (Google Sign-In) as RESOLVED (code done, dashboard setup needed) — signInWithOAuth, Google button, /login-callback | Buffy |
+| 2026-07-18 | Marked A5 (Email Verification Resend) as RESOLVED — inline banner + link in AccountScreen | Buffy |
+| 2026-07-18 | Marked A6 (Password Reset Deep Link) as RESOLVED — io.coverwise:// URL scheme, /reset-callback handler, ResetPasswordScreen | Buffy |
+| 2026-07-18 | Added §11 (Supabase Dashboard Configuration Requirements) to UX_ISSUES_AUTH_AUDIT.md — 10-section guide with checklist | Buffy |
+| 2026-07-18 | Updated AccountScreen rating from 4/10 to 8/10 — email validation, specific errors, Forgot Password, Resend, Google Sign-In | Buffy |
+| 2026-07-18 | Updated ProfileScreen rating from 8/10 to 9/10 — reactive auth state, two-step account deletion | Buffy |
+| 2026-07-18 | Added Flow 12 (Account Auth) and Flow 13 (Account Deletion) to flow mapping | Buffy |
+| 2026-07-18 | Added Gaps 6.5–6.9 (auth gaps) as RESOLVED in critical gaps section | Buffy |
+| 2026-07-18 | Updated priority stack: 6 auth items marked DONE (A1–A6) | Buffy |

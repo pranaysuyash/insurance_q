@@ -394,11 +394,22 @@ class SupabaseDocumentRepository(DocumentRepository):
         return bool(response.data)
 
     def transfer_owner(self, from_owner: str, to_owner: str) -> int:
+        # Transfer document metadata via RPC
         response = self._client.rpc(
             "claim_anonymous_documents",
             {"p_anonymous_owner": from_owner, "p_account_owner": to_owner},
         ).execute()
-        return int(response.data or 0)
+        doc_count = int(response.data or 0)
+
+        # Also transfer vector chunks — the RPC only handles the documents table.
+        # Without this, the new owner cannot search their chunks because
+        # they still carry the old anonymous owner_id.
+        if doc_count > 0:
+            self._client.table("document_chunks").update(
+                {"owner_id": to_owner}
+            ).eq("owner_id", from_owner).execute()
+
+        return doc_count
 
     def delete_all_for_owner(self, owner_id: str) -> int:
         # Delete chunks first (foreign key cascade may not be enabled)

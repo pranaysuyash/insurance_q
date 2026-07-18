@@ -42,6 +42,57 @@ class PolicySummary {
   bool get isActive =>
       endDate != null && endDate!.isAfter(DateTime.now());
 
+  /// Phase 0 P0-0.4 (trust audit, 2026-07-18): a policy summary must not be
+  /// displayed to the user unless it carries a minimum viable set of
+  /// critical fields with evidence. The trust audit's NO-GO verdict
+  /// explicitly says "Prevent policy summary display when critical
+  /// fields lack evidence." Without this guard, the user sees a
+  /// summary that looks complete but is actually a partial projection
+  /// over an incomplete extraction.
+  ///
+  /// Critical fields per the trust audit §10.3 (extraction strategy)
+  /// and the canonical plan are:
+  ///   - policy number  (without it, the user cannot identify the policy)
+  ///   - insurer         (without it, the user cannot call/email)
+  ///   - document type   (without it, the extraction scope is unknown)
+  ///   - start AND end dates (without either, renewal guidance is unsafe)
+  ///   - coverage amount OR a non-empty benefits list
+  ///     (without either, the "what does this policy cover?" answer is empty)
+  bool get hasMinimumViableEvidence {
+    if (policyNumber == null || policyNumber!.isEmpty) return false;
+    if (insurer == null || insurer!.isEmpty) return false;
+    if (documentType.isEmpty || documentType == 'Unknown') return false;
+    if (startDate == null || endDate == null) return false;
+    if (coverageAmount == null && keyBenefits.isEmpty) return false;
+    return true;
+  }
+
+  /// Human-readable reason why the summary failed the evidence check.
+  /// Returns null when [hasMinimumViableEvidence] is true. The mobile UI
+  /// shows this to the user instead of the partial summary, per the
+  /// trust audit's P0-0.4.
+  String? get missingEvidenceReason {
+    if (policyNumber == null || policyNumber!.isEmpty) {
+      return 'Policy number not found in this document. Re-upload a clearer copy or check the source.';
+    }
+    if (insurer == null || insurer!.isEmpty) {
+      return 'Insurer name not found in this document. Check the source document and try again.';
+    }
+    if (documentType.isEmpty || documentType == 'Unknown') {
+      return 'Document type could not be determined. The extraction needs a clearer policy page.';
+    }
+    if (startDate == null) {
+      return 'Policy start date not found. The summary is not safe to display without it.';
+    }
+    if (endDate == null) {
+      return 'Policy end date not found. Renewal reminders are unsafe without it.';
+    }
+    if (coverageAmount == null && keyBenefits.isEmpty) {
+      return 'Coverage amount and benefits are both missing. The summary would be empty.';
+    }
+    return null;
+  }
+
   int get daysUntilExpiry {
     if (endDate == null) return -1;
     return endDate!.difference(DateTime.now()).inDays;

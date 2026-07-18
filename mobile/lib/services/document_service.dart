@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 import '../models/document_model.dart';
+import 'auth_service.dart';
 import 'local_storage_service.dart';
 import 'session_service.dart';
 import 'app_state_repository.dart';
@@ -10,6 +12,26 @@ import 'ml_ocr_service.dart';
 class DocumentService {
   final Dio _dio;
   final LocalStorageService _localStorageService = LocalStorageService();
+
+  /// The singleton authenticated Dio instance. All API calls should use this
+  /// instead of creating ad-hoc Dio instances without auth tokens.
+  static Dio? _authenticatedDio;
+
+  /// Returns the authenticated Dio instance, creating it lazily if needed.
+  /// This ensures all API calls go through the AuthInterceptor.
+  static Dio get authenticatedDio {
+    if (_authenticatedDio == null) {
+      _authenticatedDio = Dio(
+        BaseOptions(
+          baseUrl: AppConfig.baseUrl,
+          connectTimeout: Duration(seconds: AppConfig.connectTimeoutSeconds),
+          receiveTimeout: Duration(seconds: AppConfig.receiveTimeoutSeconds),
+        ),
+      );
+      _authenticatedDio!.interceptors.add(AuthInterceptor(_authenticatedDio!));
+    }
+    return _authenticatedDio!;
+  }
 
   DocumentService(this._dio);
 
@@ -758,6 +780,9 @@ class DocumentService {
 
   /// Fetch the real-time processing status from the backend.
   ///
+  /// Uses the centralized authenticated Dio client to ensure auth tokens
+  /// are attached to the request.
+  ///
   /// Returns the full status response including `processing_details.stage`
   /// (e.g. `started`, `validating`, `extracting_text`, `extracting_policy_data`,
   /// `creating_embeddings`, `completed`), or `null` if the backend is
@@ -765,7 +790,7 @@ class DocumentService {
   Future<Map<String, dynamic>?> getDocumentStatus(String documentId) async {
     try {
       final sessionId = await SessionService.getSessionId();
-      final response = await _dio.get(
+      final response = await authenticatedDio.get(
         '/documents/$documentId/status',
         options: Options(
           headers: {'X-Session-ID': sessionId},

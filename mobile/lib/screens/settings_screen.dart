@@ -15,6 +15,7 @@ import '../services/consent_ledger.dart';
 import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../theme/coverwise_theme.dart';
@@ -165,6 +166,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final box = Hive.box(AppStateStore.boxName);
     final phone = box.get(AppStateStore.phoneNumberKey) as String?;
+    final accountUser = ref.watch(currentUserProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -242,32 +244,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const CoverWiseSectionLabel('Account'),
           CoverWiseSurface(
-            child: CoverWiseActionRow(
-              icon: phone != null
-                  ? Icons.verified_user_rounded
-                  : Icons.phone_iphone_rounded,
-              color: phone != null
-                  ? const Color(0xFF0F9D84)
-                  : CoverWiseColors.blue,
-              title: phone != null ? 'Account linked' : 'Link your phone',
-              subtitle: phone != null
-                  ? 'Connected as $phone'
-                  : 'Back up policies and use them on another device',
-              trailing: TextButton(
-                onPressed: () async {
-                  if (phone != null) {
-                    await box.delete(AppStateStore.phoneNumberKey);
-                  } else {
-                    await box.put(AppStateStore.phonePromptCountKey, 0);
-                    if (!context.mounted) return;
-                    PhoneCaptureSheet.maybeShow(context);
-                  }
-                  if (mounted) setState(() {});
-                },
-                child: Text(phone != null ? 'Remove' : 'Add'),
+            child: Column(children: [
+              if (accountUser != null) ...[
+                CoverWiseActionRow(
+                  icon: Icons.email_outlined,
+                  color: const Color(0xFF0F9D84),
+                  title: accountUser.email ?? 'Signed in',
+                  subtitle: 'Supabase account',
+                  trailing: const SizedBox.shrink(),
+                  onTap: null,
+                ),
+                const Divider(indent: 74),
+              ],
+              CoverWiseActionRow(
+                icon: phone != null
+                    ? Icons.verified_user_rounded
+                    : Icons.phone_iphone_rounded,
+                color: phone != null
+                    ? const Color(0xFF0F9D84)
+                    : CoverWiseColors.blue,
+                title: phone != null ? 'Account linked' : 'Link your phone',
+                subtitle: phone != null
+                    ? 'Connected as $phone'
+                    : 'Back up policies and use them on another device',
+                trailing: TextButton(
+                  onPressed: () async {
+                    if (phone != null) {
+                      await box.delete(AppStateStore.phoneNumberKey);
+                    } else {
+                      await box.put(AppStateStore.phonePromptCountKey, 0);
+                      if (!context.mounted) return;
+                      PhoneCaptureSheet.maybeShow(context);
+                    }
+                    if (mounted) setState(() {});
+                  },
+                  child: Text(phone != null ? 'Remove' : 'Add'),
+                ),
+                onTap: null,
               ),
-              onTap: null,
-            ),
+            ]),
           ),
           const CoverWiseSectionLabel('Experience'),
           CoverWiseSurface(

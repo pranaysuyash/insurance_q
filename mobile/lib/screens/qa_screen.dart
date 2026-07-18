@@ -1005,14 +1005,30 @@ class FollowUpChips extends ConsumerWidget {
 
 /// Confidence badge shown next to Q&A answers.
 ///
-/// Displays a color-coded chip indicating the backend's confidence level.
-/// No badge is shown if confidence is null (backend didn't return it).
+/// Phase 0 P0-0.3 (trust audit, 2026-07-18): the trust audit returns a
+/// NO-GO verdict because confidence is computed as
+/// `max(model_confidence, retrieval_confidence)` which inflates weak
+/// answers. Until a real benchmark calibrates confidence, the badge
+/// must NOT show high/medium/low colours — it must show "uncalibrated"
+/// or hide entirely.
+///
+/// When [AppConfig.confidenceCalibrated] is false (the default), the
+/// badge shows a single neutral "uncalibrated" chip. When true, it
+/// shows the legacy high/medium/low chip behaviour.
 class ConfidenceBadge extends StatelessWidget {
   final double confidence;
   const ConfidenceBadge({super.key, required this.confidence});
 
   @override
   Widget build(BuildContext context) {
+    if (!AppConfig.confidenceCalibrated) {
+      return const CoverWiseStatusChip(
+        icon: Icons.help_outline_rounded,
+        label: 'uncalibrated',
+        color: Colors.grey,
+        compact: true,
+      );
+    }
     final (label, color) = confidence >= 0.7
         ? ('High', Colors.green)
         : confidence >= 0.4

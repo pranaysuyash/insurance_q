@@ -177,21 +177,41 @@ class DocumentsList extends ConsumerWidget {
                                               }
                                             : null,
                                       ),
-                                    TextButton.icon(
-                                      icon: const Icon(
-                                          Icons.find_replace_outlined),
-                                      label: const Text('Replace'),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Theme.of(context)
-                                            .colorScheme
-                                            .tertiary,
+                                    // Security audit P0-03 (2026-07-18):
+                                    // "Replace" uploads a new server
+                                    // document and only removes the old
+                                    // local record. The old server
+                                    // document remains in Supabase,
+                                    // Supabase Storage, and the RAG
+                                    // index. Disabling until the
+                                    // server-side orphan is handled in
+                                    // Security Phase 3.
+                                    Tooltip(
+                                      message:
+                                          'Replace is temporarily disabled. The old document is still on CoverWise servers and will be cleared with the next account sync (see Security Phase 3).',
+                                      child: TextButton.icon(
+                                        icon: const Icon(
+                                            Icons.find_replace_outlined),
+                                        label: const Text('Replace'),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .tertiary
+                                              .withValues(alpha: 0.38),
+                                        ),
+                                        onPressed: null,
                                       ),
-                                      onPressed: () =>
-                                          _replaceDocument(context, ref, doc),
                                     ),
                                     TextButton.icon(
                                       icon: const Icon(Icons.delete_outline),
-                                      label: const Text('Delete'),
+                                      // Security audit P0-02 (2026-07-18):
+                                      // the "Delete" action only removes the
+                                      // local copy. The old copy on the
+                                      // server is not deleted by this
+                                      // button (until remote-first deletion
+                                      // ships in Security Phase 3). Honest
+                                      // copy: "Remove from this device".
+                                      label: const Text('Remove from this device'),
                                       style: TextButton.styleFrom(
                                         foregroundColor:
                                             Theme.of(context).colorScheme.error,
@@ -217,9 +237,15 @@ class DocumentsList extends ConsumerWidget {
     );
   }
 
+  // Security audit P0-03 (2026-07-18): the Replace button is disabled
+  // in the document list, so this handler is currently unreachable from
+  // the UI. The handler is preserved for Security Phase 3, which will
+  // re-enable Replace once the old server document is atomically
+  // deleted server-side. Removing the handler now would lose the
+  // navigation contract that _DocumentReplaceScreen relies on.
+  // ignore: unused_element
   Future<void> _replaceDocument(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
-    // Import needed
     if (context.mounted) {
       Navigator.push(
         context,
@@ -235,16 +261,22 @@ class DocumentsList extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Deletion'),
-        content:
-            Text('Are you sure you want to delete "${document.filename}"?'),
+        // Security audit P0-02: honest copy. The action removes the
+        // local copy only; the server copy remains until remote-first
+        // deletion ships in Security Phase 3.
+        title: const Text('Remove from this device?'),
+        content: Text(
+          'This removes "${document.filename}" from this device. '
+          'The copy on CoverWise servers is NOT deleted by this action. '
+          'You can clear the server copy from your account later.',
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete')),
+              child: const Text('Remove from this device')),
         ],
       ),
     );
@@ -274,13 +306,17 @@ class DocumentsList extends ConsumerWidget {
 
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Document deleted successfully')),
+            // Security audit P0-02: honest copy. The local copy is
+            // removed; the server copy is not.
+            const SnackBar(
+                content: Text(
+                    'Removed from this device. The server copy was not affected.')),
           );
         }
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting document: $e')),
+          SnackBar(content: Text('Error removing from this device: $e')),
         );
       }
     }

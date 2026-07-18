@@ -39,6 +39,7 @@ import 'services/app_state_repository.dart';
 import 'services/notification_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
+import 'services/install_service.dart';
 import 'widgets/shared/global_error_boundary.dart';
 import 'theme/coverwise_theme.dart';
 import 'theme/coverwise_motion.dart';
@@ -62,6 +63,12 @@ void main() async {
     if (AppConfig.hasSupabaseAuthConfig) {
       await AuthService.initializeAccountClient();
     }
+
+    // R1.6 (2026-07-18): load install identity (install_id, is_reinstall,
+    // days_since_install, install_referrer_*) from SharedPreferences before
+    // AnalyticsService.init() runs, so the app_session_started event
+    // emitted from init() has accurate values. Must run before init().
+    await InstallService.ensureInitialized();
 
     // Acquire anonymous auth token if we don't have one yet (non-blocking —
     // the AuthInterceptor also acquires on first 401).

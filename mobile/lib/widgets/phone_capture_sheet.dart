@@ -11,7 +11,11 @@ import '../theme/coverwise_motion.dart';
 ///
 /// Design principles:
 /// - Never blocking — "Maybe Later" is always prominent
-/// - Value exchange framing — "access from any device", not "create account"
+/// - Honest framing (security audit P0-13, 2026-07-18): the phone number
+///   is stored only on this device. It does NOT enable cross-device
+///   access, automatic backup, or account identification until a
+///   verified account/restore contract exists. Treating it as such
+///   was a false claim that the security audit explicitly flagged.
 /// - Smart re-prompt — ask after 1st upload, then 2nd, then stop
 /// - Analytics at every step
 ///
@@ -81,7 +85,11 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Phone number linked. Your policies are now backed up.'),
+        // Security audit P0-13: honest copy. The phone number is
+        // stored only on this device and is not used to identify an
+        // account, enable cross-device access, or back up policies
+        // until a verified account/restore contract exists.
+        content: Text('Phone number saved on this device only.'),
         duration: Duration(seconds: 3),
       ),
     );
@@ -113,23 +121,29 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
             Align(
               alignment: Alignment.center,
               child: CoverWiseIconBadge(
-                icon: Icons.phonelink_lock_outlined,
+                icon: Icons.phone_outlined,
                 color: theme.colorScheme.primary,
                 size: 68,
               ),
             ),
             const SizedBox(height: 16),
-            // Title
+            // Title — security audit P0-13: honest. No "never lose",
+            // no "access from any device". This is a local-only
+            // preference.
             const Text(
-              'Never lose your policies',
+              'Save your number on this device',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            // Body
+            // Body — security audit P0-13: explicit "stays on this
+            // device", no claim about cross-device access or
+            // automatic backup.
             Text(
-              'Your policy is saved on this device. Add your number to access '
-              'it from any device and back it up automatically.',
+              'CoverWise will store your number locally so you can quickly '
+              'check policies you have on this device. It does not enable '
+              'cross-device sync, automatic backup, or account recovery. '
+              'Those features are not available yet.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 height: 1.5,
@@ -158,7 +172,7 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            // Save button
+            // Save button — security audit P0-13: honest label
             FilledButton(
               onPressed: _isValid ? _save : null,
               style: FilledButton.styleFrom(
@@ -166,7 +180,8 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Link Number', style: TextStyle(fontSize: 16)),
+              child: const Text('Save on this device',
+                  style: TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 8),
             // Maybe Later
@@ -178,9 +193,13 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            // Privacy note
+            // Privacy note — security audit P0-13: no "we'll use this
+            // to identify your account" claim; no "no spam, no sharing"
+            // until the underlying contract supports it.
             Text(
-              'We\'ll use this number only to identify your account. No spam, no sharing.',
+              'Stored only on this device. Not shared with servers, '
+              'insurers, or third parties. You can clear it from the '
+              'privacy screen at any time.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

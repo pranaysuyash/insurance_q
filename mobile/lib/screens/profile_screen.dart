@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
 import '../providers/auth_provider.dart';
+import '../providers/document_providers.dart';
 import '../config/app_config.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
@@ -77,23 +77,9 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  String? _token;
-  bool _loadingToken = true;
-
   @override
   void initState() {
     super.initState();
-    _loadToken();
-  }
-
-  Future<void> _loadToken() async {
-    final token = await AuthService.cachedToken();
-    if (mounted) {
-      setState(() {
-        _token = token;
-        _loadingToken = false;
-      });
-    }
   }
 
   void _signOut() async {
@@ -101,7 +87,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // No need for setState — authStateProvider will trigger rebuild.
   }
 
-  Future<void> _confirmDeleteAccount(BuildContext context) async {
+  /// Documents whose [processingState] is in-flight (not yet settled).
+  static const _inFlightStates = {'received', 'processing', 'pending'};
+
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    // ── Pending-processing guard (§10 item 6) ──
+    // Prevent account deletion while documents are still being processed.
+    // Processing is fast, so the user can retry in a few seconds.
+    final docs = ref.read(documentsProvider).valueOrNull ?? [];
+    final inFlight = docs.where((d) => _inFlightStates.contains(d.processingState)).toList();
+    if (inFlight.isNotEmpty) {
+      if (!mounted) return;
+      final names = inFlight.map((d) => d.filename).join(', ');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${inFlight.length} document${inFlight.length == 1 ? ' is' : 's are'} still processing: $names. '
+            'Please wait for processing to complete before deleting your account.',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -249,28 +258,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 onTap: null,
               ),
               const Divider(indent: 74),
+              // Security audit P0-07 (2026-07-18): the bearer token is
+              // never displayed, copied, or exported. The session state is
+              // shown as a single line with no actionable export, rotate,
+              // or revoke controls until Security Phase 1 (rotate/revoke)
+              // lands. The "rotate" and "revoke" actions the audit
+              // recommends are NOT exposed yet — adding them would either
+              // need a real backend endpoint or would be lying.
               CoverWiseActionRow(
                 icon: Icons.key_rounded,
                 color: const Color(0xFF7557D3),
                 title: 'Secure session',
-                subtitle: _loadingToken
-                    ? 'Checking session…'
-                    : (_token != null
-                        ? 'Active on this device'
-                        : 'Not available'),
-                trailing: _token != null
-                    ? IconButton(
-                        tooltip: 'Copy session token',
-                        icon: const Icon(Icons.copy_rounded),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: _token!));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Session token copied')),
-                          );
-                        },
-                      )
-                    : const SizedBox.shrink(),
+                subtitle: accountUser != null
+                    ? 'Account session active on this device'
+                    : 'Anonymous session active on this device',
+                trailing: const SizedBox.shrink(),
                 onTap: null,
               ),
             ]),
@@ -320,7 +322,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 title: 'Delete account',
                 subtitle: 'Permanently remove account and all server data',
                 onTap: accountUser != null
-                    ? () => _confirmDeleteAccount(context)
+                    ? () => _confirmDeleteAccount(context, ref)
                     : () => ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Create an account first to delete it'),

@@ -1,13 +1,18 @@
 import 'dart:convert';
 import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
-import '../config/app_config.dart';
 import 'analytics_schema.dart';
 import 'app_state_store.dart';
 import 'consent_ledger.dart';
+import 'document_service.dart';
+import 'install_service.dart';
 import 'session_service.dart';
+
+/// App version string. Mirrors `version:` in pubspec.yaml. Update on every
+/// version bump. We avoid adding `package_info_plus` to pubspec.yaml per
+/// motto v3 §0 (no new packages for things the build can supply directly).
+const String kAppVersion = '0.1.2+11';
 
 /// Privacy-respecting analytics for CoverWise.
 ///
@@ -54,61 +59,109 @@ class AnalyticsService {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(_syncInterval, (_) => flush());
 
+    // R1.6 (2026-07-18): emit app_session_started on every cold start.
+    // Runs after consent is checked, so a user who revoked consent will not
+    // have their session tracked. Runs after the sync timer is up so the
+    // event is flushed in the next batch within 5 minutes.
+    //
+    // The emission is scheduled as a microtask after a fresh referrer cache
+    // refresh so install_referrer_source/medium/campaign are populated when
+    // the Play Store INSTALL_REFERRER was received. On iOS / organic installs
+    // / channel errors, the referrer properties are null and the schema
+    // validator skips them.
+    _scheduleAppSessionStarted();
+
     debugPrint('AnalyticsService initialized (uid=${_uid?.substring(0, 8)}..., queued=${_buffer.length})');
   }
 
-  /// Records analytics consent in the purpose-specific ledger.
-  /// Analytics is always-on for non-content, bucketed event tracking as
-  /// disclosed in the privacy policy. This record exists for auditability.
+  /// Refresh the install referrer cache and emit app_session_started.
   ///
-  /// Called on every startup. If consent was previously revoked, it stays
-  /// revoked — we only record the initial grant, not a re-grant.
-  static Future<void> _recordAnalyticsConsent() async {
+  /// Split from init() so the async referrer fetch completes before the
+  /// event is emitted. The emission itself remains synchronous (track()
+  /// is sync); only the referrer cache refresh is async.
+  static void _scheduleAppSessionStarted() {
+    // Use unawaited so init() returns immediately. The microtask chain runs
+    // after the current event loop turn, which is the right moment: Hive is
+    // initialized, consent is loaded, and any pending flush can pick up the
+    // event in the next batch.
+    unawaited(_emitAppSessionStarted());
+  }
+
+  static Future<void> _emitAppSessionStarted() async {
     try {
-      final ledger = ConsentLedger();
-      final latest = ledger.getLatestRecord(ConsentPurpose.analytics);
-      if (latest == null) {
-        // First startup — record analytics consent as granted.
-        await ledger.recordConsent(
-          purpose: ConsentPurpose.analytics,
-          version: 'analytics-v1',
-          granted: true,
-        );
-      }
-      // If consent exists (granted or revoked), don't overwrite.
-      // The user controls revocation from the privacy settings.
+      // Refresh the referrer cache before reading. On iOS / web / no-referrer
+      // this is a no-op (returns null) so the synchronous read below is safe.
+      await InstallService.refreshInstallReferrerCache();
+      final referrer = InstallService.getInstallReferrerSync();
+      track('app_session_started', {
+        'install_id': InstallService.getInstallId(),
+        'session_id': SessionService.getSessionIdSync(),
+        'platform': InstallService.platformTag(),
+        // App version is maintained as a const by the build; update on each
+        // version bump. Keeping it as a const avoids adding package_info_plus
+        // to pubspec.yaml per motto v3 §0 (no new packages for things the
+        // build can supply directly).
+        'app_version': kAppVersion,
+        'days_since_install': InstallService.daysSinceInstall(),
+        'is_reinstall': InstallService.isReinstall(),
+        'install_referrer_source': referrer?['source'],
+        'install_referrer_medium': referrer?['medium'],
+        'install_referrer_campaign': referrer?['campaign'],
+      });
     } catch (e) {
-      // Analytics consent recording is best-effort — don't disrupt init.
-      debugPrint('Analytics: failed to record consent in ledger: $e');
+      // app_session_started is best-effort. Failures here must not block init.
+      debugPrint('Analytics: failed to track app_session_started: $e');
     }
+  }
+
+  /// Records analytics consent in the purpose-specific ledger.
+  ///
+  /// Security audit P0-10 (2026-07-18): the previous behaviour
+  /// auto-recorded an analytics GRANT on first launch with no user
+  /// action. The audit says optional analytics must "fail closed and
+  /// require an explicit recorded action". The fix is:
+  /// - do NOT auto-record a grant;
+  /// - the user must grant analytics through the privacy screen
+  ///   (which calls [recordConsent] explicitly);
+  /// - the on-device `track()` is gated on [hasAnalyticsConsent].
+  ///
+  /// This method now only does a no-op refresh so the cache is
+  /// consistent with whatever the user has explicitly recorded.
+  static Future<void> _recordAnalyticsConsent() async {
+    // No-op. The previous auto-grant has been removed per the
+    // security audit. The user must grant analytics explicitly
+    // through the privacy screen.
+    return;
   }
 
   /// Check if analytics consent is currently granted (fresh from ledger).
   ///
-  /// Returns `true` (analytics on) when:
-  /// - No consent record exists (first launch — consent granted by default).
-  /// - Ledger is corrupted (can't determine state — fail open).
-  ///
-  /// Returns `false` only when the user has explicitly revoked consent.
+  /// Security audit P0-10: returns `true` only when the user has
+  /// explicitly GRANTED analytics. Returns `false` for:
+  /// - no consent record (first launch — the user has not decided yet)
+  /// - ledger is corrupted or unreadable (fail closed, not fail open)
+  /// - latest record is a REVOCATION
   static bool _checkConsentFresh() {
     try {
       final ledger = ConsentLedger();
       final records = ledger.getAllRecords();
       if (records.isEmpty) {
-        // No consent record or corrupted data — default to true.
-        return true;
+        // No consent record — the user has not decided. Fail closed.
+        return false;
       }
-      // Check the latest analytics consent state from already-loaded records.
+      // Check the latest analytics consent state.
       for (var i = records.length - 1; i >= 0; i--) {
         if (records[i].purpose == ConsentPurpose.analytics) {
           return records[i].isActive;
         }
       }
-      // No analytics record found — default to true.
-      return true;
+      // No analytics record found — fail closed.
+      return false;
     } catch (e) {
-      // If we can't check consent at all, default to true.
-      return true;
+      // If we can't check consent at all, fail closed (not open).
+      // The audit explicitly says missing/corrupt consent must not
+      // default to granted.
+      return false;
     }
   }
 
@@ -168,11 +221,7 @@ class AnalyticsService {
     final batch = List<Map<String, dynamic>>.from(_buffer);
 
     try {
-      final dio = Dio(BaseOptions(
-        baseUrl: AppConfig.baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 15),
-      ));
+      final dio = DocumentService.authenticatedDio;
 
       final response = await dio.post(_endPoint, data: {
         'events': batch,

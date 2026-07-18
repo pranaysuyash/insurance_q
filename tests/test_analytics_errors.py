@@ -2,6 +2,10 @@
 
 Sends a batch of global_error events to /analytics/events and verifies
 that /analytics/errors returns the correct aggregated data.
+
+Security audit P0-08 (2026-07-18): the operator-only read endpoints
+require the X-Operator-Token header. These tests use the test
+operator secret 'test-operator-secret' via a fixture.
 """
 import json
 import sqlite3
@@ -44,18 +48,34 @@ def _ingest_events(client: TestClient, token: str, events: list) -> dict:
 
 
 def _get_error_aggregation(client: TestClient, token: str, days: int = 7) -> dict:
-    """Get error aggregation data."""
+    """Get error aggregation data.
+
+    Security audit P0-08: this is an operator endpoint. The test
+    sends the X-Operator-Token header. Real operator clients do the
+    same; ordinary user clients do not have this secret and would
+    receive 403.
+    """
     response = client.get(
         f"/analytics/errors?days={days}",
-        headers={"Authorization": f"Bearer {token}"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Operator-Token": "test-operator-secret",
+        },
     )
     assert response.status_code == 200
     return response.json()
 
 
 @pytest.fixture(autouse=True)
-def setup_test_db(tmp_path):
-    """Set up a temporary database for each test."""
+def setup_test_db(tmp_path, monkeypatch):
+    """Set up a temporary database and operator token for each test.
+
+    Security audit P0-08: the operator read endpoints require the
+    OPERATOR_DASHBOARD_TOKEN env var. The fixture sets it to a test
+    value so the tests can exercise the operator path; without this,
+    the endpoints would fail-closed with 403.
+    """
+    monkeypatch.setenv("OPERATOR_DASHBOARD_TOKEN", "test-operator-secret")
     import src.api.analytics as analytics_module
     original_db_path = analytics_module.DB_PATH
     test_db = str(tmp_path / "test_analytics.db")
@@ -311,6 +331,38 @@ class TestAnalyticsErrorAggregation:
             assert "OldError" not in result["error_types"]
 
 
+def _get_health(client: TestClient, token: str) -> dict:
+    """Get analytics health (operator endpoint).
+
+    Security audit P0-08: requires X-Operator-Token header.
+    """
+    response = client.get(
+        "/analytics/health",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Operator-Token": "test-operator-secret",
+        },
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
+def _get_summary(client: TestClient, token: str, days: int = 7) -> dict:
+    """Get analytics summary (operator endpoint).
+
+    Security audit P0-08: requires X-Operator-Token header.
+    """
+    response = client.get(
+        f"/analytics/summary?days={days}",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Operator-Token": "test-operator-secret",
+        },
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
 class TestAnalyticsHealth:
     """Test suite for the /analytics/health endpoint."""
 
@@ -319,12 +371,7 @@ class TestAnalyticsHealth:
         app = _create_test_app()
         with TestClient(app) as client:
             token = _get_auth_token(client)
-            response = client.get(
-                "/analytics/health",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            assert response.status_code == 200
-            result = response.json()
+            result = _get_health(client, token)
             assert result["status"] == "success"
             assert result["table_exists"] is True
 
@@ -333,12 +380,7 @@ class TestAnalyticsHealth:
         app = _create_test_app()
         with TestClient(app) as client:
             token = _get_auth_token(client)
-            response = client.get(
-                "/analytics/health",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            assert response.status_code == 200
-            result = response.json()
+            result = _get_health(client, token)
             index_names = [idx["name"] for idx in result["indexes"]]
             assert "idx_analytics_event_name" in index_names
             assert "idx_analytics_user_uid" in index_names
@@ -359,14 +401,36 @@ class TestAnalyticsHealth:
                 {"event": "question_submitted", "ts": now.isoformat(), "uid": "u3", "props": {}},
             ])
 
+            result = _get_health(client, token)
+            assert result["row_count"] == 3
+            assert result["recent_events_24h"] == 3
+
+    def test_health_rejects_request_without_operator_token(self):
+        """Security audit P0-08: a request without the operator token
+        must be rejected with 403, even if the bearer token is valid.
+        """
+        app = _create_test_app()
+        with TestClient(app) as client:
+            token = _get_auth_token(client)
             response = client.get(
                 "/analytics/health",
                 headers={"Authorization": f"Bearer {token}"},
             )
-            assert response.status_code == 200
-            result = response.json()
-            assert result["row_count"] == 3
-            assert result["recent_events_24h"] == 3
+            assert response.status_code == 403
+
+    def test_health_rejects_request_with_wrong_operator_token(self):
+        """Security audit P0-08: wrong operator token is rejected with 403."""
+        app = _create_test_app()
+        with TestClient(app) as client:
+            token = _get_auth_token(client)
+            response = client.get(
+                "/analytics/health",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-Operator-Token": "not-the-real-secret",
+                },
+            )
+            assert response.status_code == 403
 
     def test_health_reports_missing_table(self):
         """Health endpoint reports table_exists=false when table is missing."""
@@ -378,12 +442,7 @@ class TestAnalyticsHealth:
             app = _create_test_app()
             with TestClient(app) as client:
                 token = _get_auth_token(client)
-                response = client.get(
-                    "/analytics/health",
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                assert response.status_code == 200
-                result = response.json()
+                result = _get_health(client, token)
                 assert result["table_exists"] is False
                 assert result["row_count"] == 0
                 assert result["recent_events_24h"] == 0

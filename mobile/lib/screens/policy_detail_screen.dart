@@ -47,6 +47,20 @@ class PolicyDetailScreen extends ConsumerWidget {
       );
     }
 
+    // Phase 0 P0-0.4 (trust audit, 2026-07-18): do NOT display the
+    // summary if it fails the minimum-viable-evidence check. The
+    // trust audit's NO-GO verdict says a partial summary over an
+    // incomplete extraction is a lying product. Show the user
+    // "not yet verified" with the specific reason instead.
+    if (!summary.hasMinimumViableEvidence) {
+      return _buildUnverifiedSummaryScaffold(
+        context: context,
+        documentId: documentId,
+        reason: summary.missingEvidenceReason ??
+            'This summary is missing critical fields and cannot be safely displayed yet.',
+      );
+    }
+
     final policyType = classifyPolicyType(summary.documentType);
 
     return Scaffold(
@@ -88,35 +102,41 @@ class PolicyDetailScreen extends ConsumerWidget {
           const SizedBox(height: 6),
           if (summary.keyBenefits.isNotEmpty) ...[
             const CoverWiseSectionLabel('What this policy covers'),
-            _SectionList(
-              title: 'Included benefits',
-              icon: Icons.verified_outlined,
-              iconColor: Colors.green,
-              items: summary.keyBenefits,
-              itemIcon: Icons.check_rounded,
-              itemColor: Colors.green,
+            Builder(
+              builder: (context) => _SectionList(
+                title: 'Included benefits',
+                icon: Icons.verified_outlined,
+                iconColor: Theme.of(context).colorScheme.primary,
+                items: summary.keyBenefits,
+                itemIcon: Icons.check_rounded,
+                itemColor: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ],
           if (summary.exclusions.isNotEmpty) ...[
             const CoverWiseSectionLabel('Important exclusions'),
-            _SectionList(
-              title: 'Not included',
-              icon: Icons.block_outlined,
-              iconColor: Colors.red,
-              items: summary.exclusions,
-              itemIcon: Icons.close_rounded,
-              itemColor: Colors.red,
+            Builder(
+              builder: (context) => _SectionList(
+                title: 'Not included',
+                icon: Icons.block_outlined,
+                iconColor: Theme.of(context).colorScheme.error,
+                items: summary.exclusions,
+                itemIcon: Icons.close_rounded,
+                itemColor: Theme.of(context).colorScheme.error,
+              ),
             ),
           ],
           if (summary.waitingPeriods.isNotEmpty) ...[
             const CoverWiseSectionLabel('Timing conditions'),
-            _SectionList(
-              title: 'Waiting Periods',
-              icon: Icons.hourglass_top_rounded,
-              iconColor: Colors.orange,
-              items: summary.waitingPeriods,
-              itemIcon: Icons.access_time,
-              itemColor: Colors.orange,
+            Builder(
+              builder: (context) => _SectionList(
+                title: 'Waiting Periods',
+                icon: Icons.hourglass_top_rounded,
+                iconColor: Theme.of(context).colorScheme.tertiary,
+                items: summary.waitingPeriods,
+                itemIcon: Icons.access_time,
+                itemColor: Theme.of(context).colorScheme.tertiary,
+              ),
             ),
           ],
           if (summary.coverageItems.isNotEmpty) ...[
@@ -124,7 +144,7 @@ class PolicyDetailScreen extends ConsumerWidget {
             _CoverageItemsCard(items: summary.coverageItems),
           ],
           const CoverWiseSectionLabel('Next steps'),
-          _QuickActions(summary: summary, context: context),
+          _QuickActions(summary: summary),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
             child: Row(
@@ -294,18 +314,19 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     String label;
     Color color;
+    final scheme = Theme.of(context).colorScheme;
     if (summary.isExpired) {
       label = 'EXPIRED';
-      color = Colors.red;
+      color = scheme.error;
     } else if (summary.isExpiringSoon) {
       label = '${summary.daysUntilExpiry}d LEFT';
-      color = Colors.orange;
+      color = scheme.tertiary;
     } else if (summary.isActive) {
       label = 'ACTIVE';
-      color = Colors.green;
+      color = scheme.primary;
     } else {
       label = 'UNKNOWN';
-      color = Colors.grey;
+      color = scheme.outline;
     }
 
     return CoverWiseStatusChip(
@@ -329,27 +350,28 @@ class _MoneyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final items = <_MoneyItem>[
       if (summary.coverageAmount != null)
         _MoneyItem(
           label: 'Sum Insured',
           value: summary.formattedCoverageAmount,
           icon: Icons.shield,
-          color: Colors.blue,
+          color: scheme.primary,
         ),
       if (summary.premiumAmount != null)
         _MoneyItem(
           label: 'Premium',
           value: summary.formattedPremium,
           icon: Icons.payments,
-          color: Colors.green,
+          color: scheme.primary,
         ),
       if (summary.deductible != null)
         _MoneyItem(
           label: 'Deductible',
           value: '₹${summary.deductible!.toStringAsFixed(0)}',
           icon: Icons.money_off,
-          color: Colors.orange,
+          color: scheme.tertiary,
         ),
     ];
 
@@ -479,15 +501,20 @@ class _DatesCard extends StatelessWidget {
                   ],
                   if (summary.isActive || summary.isExpiringSoon) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      '${summary.daysUntilExpiry} days remaining',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: summary.isExpiringSoon
-                            ? Colors.orange.shade700
-                            : Colors.green.shade700,
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final scheme = Theme.of(context).colorScheme;
+                        return Text(
+                          '${summary.daysUntilExpiry} days remaining',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: summary.isExpiringSoon
+                                ? scheme.tertiary
+                                : scheme.primary,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ],
@@ -610,71 +637,75 @@ class _CoverageItemsCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        item.covered ? Icons.check_circle : Icons.cancel,
-                        size: 18,
-                        color: item.covered ? Colors.green : Colors.red,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
+                ...items.map((item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Builder(
+                        builder: (context) => Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              item.name,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            Icon(
+                              item.covered ? Icons.check_circle : Icons.cancel,
+                              size: 18,
+                              color: item.covered
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.error,
                             ),
-                            if (item.limitText != null)
-                              Text(
-                                item.limitText!,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                            if (item.limit != null && item.limitText == null)
-                              Text(
-                                'Limit: ₹${item.limit!.toStringAsFixed(0)}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                            if (item.notes != null)
-                              Text(
-                                item.notes!,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                              ),
-                          ],
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.name,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                if (item.limitText != null)
+                                  Text(
+                                    item.limitText!,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                  ),
+                                if (item.limit != null && item.limitText == null)
+                                  Text(
+                                    'Limit: ₹${item.limit!.toStringAsFixed(0)}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                  ),
+                                if (item.notes != null)
+                                  Text(
+                                    item.notes!,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                )),
+                    ),
+                  )),
           ],
         ),
       ),
@@ -684,9 +715,11 @@ class _CoverageItemsCard extends StatelessWidget {
 
 class _QuickActions extends StatelessWidget {
   final PolicySummary summary;
-  final BuildContext context;
 
-  const _QuickActions({required this.summary, required this.context});
+  // Policy detail audit P0-2 (2026-07-18): the previous constructor
+  // took a `BuildContext context` parameter that shadowed the
+  // build method's own context. The field was unused. Removed.
+  const _QuickActions({required this.summary});
 
   @override
   Widget build(BuildContext context) {
@@ -822,4 +855,77 @@ String buildShareSummaryText(PolicySummary summary) {
 
 void _shareSummary(PolicySummary summary) {
   SharePlus.instance.share(ShareParams(text: buildShareSummaryText(summary)));
+}
+
+/// Phase 0 P0-0.4 (trust audit, 2026-07-18): the unverified-summary
+/// scaffold replaces the policy detail body when the summary is missing
+/// critical fields. Per the trust audit's NO-GO verdict, the mobile app
+/// must NOT display a summary that does not have evidence for the
+/// fields it shows. The user is shown a clear "not yet verified" state
+/// with the specific missing field, the source document, and a path
+/// to ask questions directly against the source text.
+Widget _buildUnverifiedSummaryScaffold({
+  required BuildContext context,
+  required String documentId,
+  required String reason,
+}) {
+  // Theme-derived warning color. The previous build used
+  // CoverWiseIconBadge with a `tone` parameter that doesn't exist on
+  // the current widget (it takes `icon` + `color`). Using a
+  // theme-derived warning color keeps this consistent with the
+  // existing policy detail screen and works in dark mode.
+  final warningColor = Theme.of(context).colorScheme.tertiary;
+  return Scaffold(
+    appBar: AppBar(title: const Text('Policy details')),
+    body: ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        CoverWiseIconBadge(
+          icon: Icons.gpp_maybe_outlined,
+          color: warningColor,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Not yet verified',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          reason,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Why this happens',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Your policy document is on file, but the extracted summary is missing one or more '
+          'critical fields (policy number, insurer, dates, or coverage). Showing those fields '
+          'without evidence could mislead you, so CoverWise blocks the summary view until the '
+          'extraction is complete or the document is re-uploaded with clearer scans.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.description_outlined),
+              label: const Text('View source document'),
+              onPressed: () =>
+                  Navigator.pushNamed(context, '/policy-detail', arguments: documentId),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              label: const Text('Ask about this policy'),
+              onPressed: () =>
+                  Navigator.pushNamed(context, '/qa', arguments: documentId),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }

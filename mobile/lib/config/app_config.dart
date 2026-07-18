@@ -28,6 +28,27 @@ class AppConfig {
       String.fromEnvironment(
           'PRIVACY_POLICY_VERSION', defaultValue: 'development-unversioned');
 
+  // Phase 0 P0-0.3 (trust audit, 2026-07-18): confidence badge calibration
+  // gate. The trust audit's NO-GO verdict says confidence badges must be
+  // hidden or labelled "uncalibrated" until the backend's confidence is
+  // calibrated against a real benchmark (Trust audit §12.5 release gates).
+  // Default is false (NOT calibrated) because the audit states the existing
+  // confidence is "max(model_confidence, retrieval_confidence)" which inflates
+  // weak answers. Flip to true ONLY after a benchmark shows calibration.
+  static const bool confidenceCalibrated = bool.fromEnvironment(
+    'CONFIDENCE_CALIBRATED',
+    defaultValue: false,
+  );
+
+  // Phase 0 P0-0.6 (trust audit): contextual retrieval contamination. The
+  // trust audit says contextualization prepends model-generated text to
+  // stored source chunks, contaminating citations. Disable in production
+  // until source-vs-retrieval text separation exists (Trust Phase 1+).
+  static const bool contextualRetrievalEnabled = bool.fromEnvironment(
+    'CONTEXTUAL_RETRIEVAL_ENABLED',
+    defaultValue: false,
+  );
+
   // Get the appropriate base URL based on environment
   static String get baseUrl {
     if (_configuredBaseUrl.isNotEmpty) {

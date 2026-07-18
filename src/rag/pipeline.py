@@ -61,6 +61,18 @@ class RAGPipeline:
         self.openai_embedding_model = settings.openai_embedding_model
         self.hf_embedding_model = settings.hf_embedding_model
 
+        # Phase 0 P0-0.6 (trust audit, 2026-07-18): contextual retrieval
+        # contamination. The trust audit's NO-GO verdict says
+        # `_contextualize_chunks` prepends model-generated text to stored
+        # source chunks, contaminating citations. Default is OFF in
+        # production until the evidence substrate separates
+        # `source_text` (immutable, citable) from `retrieval_text` (may
+        # include generated context, never directly citable). Flip to
+        # true ONLY after Trust Phase 1 lands.
+        self._contextual_retrieval_enabled = os.getenv(
+            "CONTEXTUAL_RETRIEVAL_ENABLED", "false"
+        ).lower() == "true"
+
         self.openai_embedding_dimensions = EMBEDDING_DIMENSIONS.get(
             self.openai_embedding_model, 1536
         )
@@ -428,9 +440,16 @@ class RAGPipeline:
         text_blocks = filtered
 
         # Contextual Retrieval: prepend chunk-specific context to each block
-        # before embedding (Anthropic technique, 35% reduction in retrieval failures)
-        if getattr(self, "llm", None):
+        # before embedding (Anthropic technique, 35% reduction in retrieval failures).
+        #
+        # Phase 0 P0-0.6 (trust audit, 2026-07-18): disabled by default in
+        # production. The trust audit says contextualization contaminates
+        # source evidence with model-generated text. Re-enable only after
+        # Trust Phase 1 separates source_text and retrieval_text.
+        contextualized = False
+        if getattr(self, "llm", None) and getattr(self, "_contextual_retrieval_enabled", False):
             text_blocks = await self._contextualize_chunks(text_blocks, document_metadata or {})
+            contextualized = True
 
         texts = [b["text"] for b in text_blocks]
         if not texts:
@@ -455,7 +474,7 @@ class RAGPipeline:
                 "document_id": document_id,
                 "points_added": points_added,
                 "embedding_model_used": self.active_embedding_model,
-                "contextualized": True,
+                "contextualized": contextualized,  # P0-0.6: report actual state
             }
 
         points = []
@@ -499,7 +518,7 @@ class RAGPipeline:
                 "document_id": document_id,
                 "points_added": len(points),
                 "embedding_model_used": self.active_embedding_model,
-                "contextualized": True,
+                "contextualized": contextualized,  # P0-0.6: report actual state
             }
 
         return {"status": "success", "message": "No valid points.", "points_added": 0}

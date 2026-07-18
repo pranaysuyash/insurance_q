@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'app_state_store.dart';
+import 'analytics_service.dart';
+import 'install_service.dart';
 import '../config/app_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,6 +16,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AuthService {
   static const _tokenKey = 'anonymous_auth_token';
   static const _tokenExpiryKey = 'anonymous_auth_token_expiry';
+
+  /// Hive key for the "first identity ever created on this install" flag.
+  /// R1.7 (2026-07-18): used to emit the identity_created analytics event
+  /// exactly once per install. Stays true even after the anonymous token
+  /// rotates, so re-issuance does not double-count.
+  static const _identityCreatedKey = 'analytics_identity_created';
 
   static Box get _box => Hive.box(AppStateStore.boxName);
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
@@ -52,11 +60,32 @@ class AuthService {
 
   static Future<AuthResponse> signUp(
       String email, String password, String displayName) async {
-    return Supabase.instance.client.auth.signUp(
+    final response = await Supabase.instance.client.auth.signUp(
       email: email.trim(),
       password: password,
       data: {'display_name': displayName.trim()},
     );
+
+    // R1.7 (2026-07-18): emit account_created on successful sign-up.
+    // Distinct from identity_created (anonymous). A user can have both events
+    // if they used the app anonymously before signing up.
+    if (response.user != null) {
+      _trackAccountCreated(authMethod: 'email');
+    }
+    return response;
+  }
+
+  /// Emit account_created once per successful Supabase Auth sign-up.
+  /// Best-effort, never throws.
+  static void _trackAccountCreated({required String authMethod}) {
+    try {
+      AnalyticsService.track('account_created', {
+        'install_id': InstallService.getInstallId(),
+        'auth_method': authMethod,
+      });
+    } catch (e) {
+      debugPrint('AuthService: failed to track account_created: $e');
+    }
   }
 
   static Future<String?> anonymousToken() async {
@@ -84,7 +113,7 @@ class AuthService {
   /// when the deep link callback fires — authStateProvider picks up the change.
   static Future<void> signInWithGoogle() async {
     await Supabase.instance.client.auth.signInWithOAuth(
-      Provider.google,
+      OAuthProvider.google,
       redirectTo: 'io.coverwise://login-callback',
     );
   }
@@ -169,12 +198,41 @@ class AuthService {
           await _secureStorage.write(key: _tokenExpiryKey, value: expiresAt);
         }
         debugPrint('Anonymous auth token acquired, expires: $expiresAt');
+
+        // R1.7 (2026-07-18): emit identity_created exactly once per install.
+        // _trackIdentityCreated is best-effort and never throws; it sets the
+        // flag before emitting so a re-acquire (e.g. after token expiry)
+        // does not double-count.
+        _trackIdentityCreated();
+
         return token;
       }
     } catch (e) {
       debugPrint('Failed to acquire anonymous token: $e');
     }
     return null;
+  }
+
+  /// Emit identity_created once per install. Idempotent: a second call is a no-op.
+  /// Called from acquireToken after the first successful anonymous token issue.
+  /// Per-account creation (Supabase Auth sign-up) emits a separate
+  /// account_created event from the auth flow handler.
+  static void _trackIdentityCreated() {
+    try {
+      final box = _box;
+      final alreadyTracked = box.get(_identityCreatedKey) == true;
+      if (alreadyTracked) return;
+      // Set the flag BEFORE emitting so even a synchronous crash during track
+      // does not result in a duplicate event on the next acquireToken call.
+      box.put(_identityCreatedKey, true);
+      AnalyticsService.track('identity_created', {
+        'identity_type': 'anonymous',
+        'install_id': InstallService.getInstallId(),
+      });
+    } catch (e) {
+      // Tracking is best-effort; never propagate.
+      debugPrint('AuthService: failed to track identity_created: $e');
+    }
   }
 
   static Future<void> clearToken() async {
