@@ -189,10 +189,19 @@ class LLMClient:
                     kwargs = dict(
                         model=model,
                         messages=adapted_messages,
-                        temperature=temperature,
                     )
+                    # gpt-5+/o1+/o3+ models don't support custom temperature
+                    # (only default=1). Skip the param for those models.
+                    if not (model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3")):
+                        kwargs["temperature"] = temperature
                     if max_tokens is not None:
-                        kwargs["max_tokens"] = max_tokens
+                        # gpt-5+ models use max_completion_tokens instead of max_tokens.
+                        # Ollama/Groq still use max_tokens. Try the newer param first,
+                        # fall back gracefully.
+                        if model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3"):
+                            kwargs["max_completion_tokens"] = max_tokens
+                        else:
+                            kwargs["max_tokens"] = max_tokens
                     if adapted_rf is not None:
                         kwargs["response_format"] = adapted_rf
 
