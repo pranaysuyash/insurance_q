@@ -25,13 +25,19 @@ JSON_SCHEMA_MODELS = {
 
 
 def _inject_additional_properties_false(schema: dict) -> None:
-    """Recursively add additionalProperties: false to all object schemas.
+    """Recursively add additionalProperties: false to all object schemas and
+    ensure all properties are in 'required' (OpenAI strict mode requirements).
 
-    OpenAI's strict json_schema mode requires this on every object, including
-    nested ones. Pydantic's model_json_schema() doesn't emit it by default.
+    OpenAI's strict json_schema mode requires:
+    1. additionalProperties: false on every object
+    2. every property listed in 'required' (no optionals allowed)
+    Pydantic's model_json_schema() doesn't do either by default.
     """
     if schema.get("type") == "object" or "properties" in schema:
         schema["additionalProperties"] = False
+        # Make all properties required (strict mode)
+        if "properties" in schema:
+            schema["required"] = list(schema["properties"].keys())
     for value in schema.values():
         if isinstance(value, dict):
             _inject_additional_properties_false(value)
