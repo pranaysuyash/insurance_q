@@ -1,0 +1,394 @@
+# CoverWise Launch Playbook — Solo Founder
+
+**Date:** 2026-07-18 (revision 2 — refreshes the 2026-07-18 original to match the
+current repo state after the Phase 0 commit `fa02854`.)
+
+**Supabase project:** `https://eyumuxwabmsymytjbxoj.supabase.co`
+**Status at last review:** Supabase project created, **5 SQL migrations
+pending apply** (3 base + 2 RevOps/analytics). Cloud Run service: not yet
+deployed. APK: not yet built for the post-Phase-0 code.
+
+This is the exact step-by-step to go from where the repo is now to a live app.
+Every step has a **Verify** sub-step that you can run to confirm it actually
+worked — no "trust me" steps. If a Verify sub-step fails, the deploy chain
+is broken; stop and fix before proceeding.
+
+> **Reading order:** read this entire file before starting. The order is
+> load-bearing (Supabase apply → secrets → deploy → verify → APK).
+> Re-arranging steps will produce a half-broken system.
+
+---
+
+## Step 1: Apply SQL migrations to Supabase (~10 minutes)
+
+The migrations are in two folders with a strict apply order. The base
+schema must be applied first; the RevOps/analytics migrations depend on
+`pgvector` and the `storage` schema being available.
+
+**Apply via Supabase dashboard → SQL Editor.** For each file in order:
+
+1. **`infra/supabase/001_coverwise_schema.sql`** (141 lines) — base
+   schema. Creates: `documents`, `document_chunks` (pgvector 1536d),
+   `match_document_chunks` RPC, `coverwise-documents` storage bucket
+   (private), `coverwise_thumbnails` bucket (private).
+2. **`infra/supabase/002_document_processing_leases.sql`** (54 lines) —
+   processing lease functions. Required by `derive_document_state()` in
+   `src/services/document_processing_service.py`.
+3. **`infra/supabase/003_rate_limit_windows.sql`** (61 lines) — rate
+   limit RPCs. Required by `src/api/document.py`.
+4. **`supabase/migrations/2026_07_18_analytics_supabase.sql`** (146 lines)
+   — RevOps R1.2. Creates: `analytics_events` table, 3 dashboard views
+   (`v_daily_active_users`, `v_conversion_funnel`, `v_cohort_retention`).
+   Required for the analytics dual-write in `src/api/analytics.py` when
+   `DUAL_WRITE_ANALYTICS=true`.
+5. **`supabase/migrations/2026_07_18_revops_tables.sql`** (318 lines) —
+   RevOps R1.1. Creates: `profiles` (with `role` column), 9 RevOps
+   tables (`user_lifecycle`, `subscriptions`, `webhook_audit_log`,
+   `processed_webhook_events`, `failed_subscription_writes`,
+   `routing_decisions`, `eval_set_candidates`, `deal_decisions`,
+   `events_unrouted`) and their RLS policies. Self-contained
+   (`create table if not exists public.profiles` is at line 295; no
+   external dependency on a pre-existing `profiles`).
+
+**Verify after applying all 5:**
+
+```sql
+-- Run in Supabase SQL Editor. Must return rows for every object.
+select 'documents' as object, count(*) from public.documents
+union all select 'document_chunks', count(*) from public.document_chunks
+union all select 'analytics_events', count(*) from public.analytics_events
+union all select 'profiles', count(*) from public.profiles
+union all select 'user_lifecycle', count(*) from public.user_lifecycle
+union all select 'subscriptions', count(*) from public.subscriptions
+union all select 'webhook_audit_log', count(*) from public.webhook_audit_log
+union all select 'processed_webhook_events', count(*) from public.processed_webhook_events
+union all select 'failed_subscription_writes', count(*) from public.failed_subscription_writes
+union all select 'routing_decisions', count(*) from public.routing_decisions
+union all select 'eval_set_candidates', count(*) from public.eval_set_candidates
+union all select 'deal_decisions', count(*) from public.deal_decisions
+union all select 'events_unrouted', count(*) from public.events_unrouted;
+
+-- Views must exist.
+select viewname from pg_views
+where schemaname = 'public'
+  and viewname in ('v_daily_active_users','v_conversion_funnel','v_cohort_retention');
+
+-- RLS must be enabled on the RevOps tables.
+select tablename, rowsecurity
+from pg_tables
+where schemaname = 'public'
+  and tablename in (
+    'profiles','user_lifecycle','subscriptions','webhook_audit_log',
+    'processed_webhook_events','failed_subscription_writes',
+    'routing_decisions','eval_set_candidates','deal_decisions',
+    'events_unrouted'
+  )
+order by tablename;
+```
+
+Expected: every `count(*)` returns a number (0 is fine for empty tables);
+3 rows from the views query; every RevOps table has `rowsecurity = t`.
+
+---
+
+## Step 2: Supabase keys (2 minutes, dashboard)
+
+Dashboard → **Settings** → **API**:
+- **Project URL** — you already have this: `https://eyumuxwabmsymytjbxoj.supabase.co`
+- **`service_role` key** (secret; never put in mobile) — needed for the
+  Cloud Run service. Copy it. You will use it in Step 4.
+- **`publishable` / `anon` key** — you already have this:
+  `sb_publishable_QokliXvSKAyiqeWvbsNy2Q_2EyKVqAy`. The mobile app
+  uses this; it is not a secret.
+
+**Verify:** open the key copy and confirm it matches the format
+`sb_publishable_...` (not `sb_secret_...`). Wrong key in the wrong
+place is the #1 cause of "auth works locally, fails in production."
+
+---
+
+## Step 3: Create a GCP project (~5 minutes)
+
+1. https://console.cloud.google.com → create project `coverwise`.
+2. Enable APIs: **Cloud Run**, **Secret Manager**, **Cloud Build**
+   (Cloud Build is required for `gcloud run deploy --source`).
+3. `brew install google-cloud-sdk` if you don't have it.
+4. `gcloud auth login` and `gcloud config set project coverwise`.
+
+**Verify:**
+```bash
+gcloud config get-value project     # → coverwise
+gcloud services list --enabled | grep -E 'run|secretmanager|cloudbuild'
+# Expect 3 lines.
+```
+
+---
+
+## Step 4: Create secrets in Secret Manager (~3 minutes)
+
+The deploy script reads 3 secrets at deploy time. None of these are
+logged; all are mounted as env vars on the Cloud Run service.
+
+```bash
+# OpenAI key (you must fund the account first; do not reuse a key
+# you have ever pasted into a chat window — generate a new one).
+echo -n "sk-proj-YOUR-NEW-KEY" \
+  | gcloud secrets create coverwise-openai-key --data-file=-
+
+# Supabase service_role key (from Step 2). MUST be the service_role,
+# not the publishable/anon key.
+echo -n "YOUR_SUPABASE_SERVICE_ROLE_KEY" \
+  | gcloud secrets create coverwise-supabase-service-role --data-file=-
+
+# Anonymous auth signing key. Generate a random 32-byte value.
+echo -n "$(openssl rand -hex 32)" \
+  | gcloud secrets create coverwise-anon-auth-signing-key --data-file=-
+```
+
+**Verify:**
+```bash
+gcloud secrets list --project=coverwise \
+  | grep -E 'coverwise-openai-key|coverwise-supabase-service-role|coverwise-anon-auth-signing-key'
+# Expect 3 lines.
+```
+
+---
+
+## Step 5: Create the runtime env file (~2 minutes)
+
+Create `coverwise-runtime.env` **at the repo root** (gitignored). This
+file holds non-secret values only. Never put API keys here.
+
+```env
+ENVIRONMENT=production
+SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co
+SUPABASE_STORAGE_BUCKET=coverwise-documents
+DOCUMENT_REPOSITORY_BACKEND=supabase
+DOCUMENT_OBJECT_STORE_BACKEND=supabase
+RAG_VECTOR_BACKEND=supabase
+ALLOWED_ORIGINS=https://coverwise-api-xxx.a.run.app
+PUBLIC_SITE_URL=https://coverwise.app
+OPENAI_CHAT_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+# Phase 0 additions:
+ANALYTICS_DUAL_WRITE=true
+DUAL_WRITE_ANALYTICS=true
+CONTEXTUAL_RETRIEVAL_ENABLED=false
+OPERATOR_DASHBOARD_TOKEN=<random-32-byte-hex>
+```
+
+**Verify:**
+```bash
+test -f coverwise-runtime.env && echo "ok" || echo "MISSING"
+grep -E '^(SUPABASE_URL|ANALYTICS_DUAL_WRITE|DUAL_WRITE_ANALYTICS|CONTEXTUAL_RETRIEVAL_ENABLED|OPERATOR_DASHBOARD_TOKEN)' coverwise-runtime.env
+# All 5 must appear.
+```
+
+**Important:** the `OPERATOR_DASHBOARD_TOKEN` is the shared secret that
+guards `/api/analytics/summary`, `/health`, and `/errors` per the
+Phase 0 Security audit fix (P0-08). Without it set in the env, those
+endpoints fail closed. The value must match what the operator dashboard
+sends as `X-Operator-Token`. Use the same `openssl rand -hex 32` and
+store the value in your password manager.
+
+---
+
+## Step 6: Deploy to Cloud Run (~10 minutes build, then 1 command)
+
+```bash
+cd /Users/pranay/Projects/medpiper/insurance_app
+
+COVERWISE_GCP_PROJECT=coverwise \
+COVERWISE_CLOUD_RUN_REGION=asia-south1 \
+COVERWISE_RUNTIME_ENV_FILE=coverwise-runtime.env \
+COVERWISE_OPENAI_SECRET=coverwise-openai-key \
+COVERWISE_SUPABASE_SERVICE_ROLE_SECRET=coverwise-supabase-service-role \
+COVERWISE_ANON_AUTH_SIGNING_SECRET=coverwise-anon-auth-signing-key \
+tools/deploy_cloud_run.sh
+```
+
+The script builds the Docker image, deploys to Cloud Run with
+`min-instances=0` (scale-to-zero), and prints the URL.
+
+**Verify after deploy:**
+```bash
+URL=$(gcloud run services describe coverwise-api --region=asia-south1 \
+  --format='value(status.url)' 2>/dev/null)
+
+curl -sS "$URL/health" | python3 -m json.tool
+# Expected: {"status":"ok","rag_status":"available","embedding_probe":"ok",...}
+
+# Analytics must require the operator token.
+curl -sS -o /dev/null -w '%{http_code}\n' "$URL/api/analytics/summary"
+# Expected: 401 or 403 (no token = no access).
+curl -sS -o /dev/null -w '%{http_code}\n' \
+  -H "X-Operator-Token: $OPERATOR_DASHBOARD_TOKEN" \
+  "$URL/api/analytics/summary"
+# Expected: 200.
+```
+
+If `/health` does not return `embedding_probe: ok`, the OpenAI key
+secret is wrong. If the operator token test returns 401/403 with the
+right token, the env file is missing `OPERATOR_DASHBOARD_TOKEN`.
+
+---
+
+## Step 7: Build the release APK (~5 minutes + Android SDK setup)
+
+```bash
+cd mobile
+
+flutter build apk --release \
+  --dart-define=ENVIRONMENT=production \
+  --dart-define=API_BASE_URL=https://coverwise-api-xxx.a.run.app \
+  --dart-define=SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_QokliXvSKAyiqeWvbsNy2Q_2EyKVqAy \
+  --dart-define=PRIVACY_POLICY_URL=https://coverwise.app/privacy \
+  --dart-define=TERMS_OF_SERVICE_URL=https://coverwise.app/terms \
+  --dart-define=SUPPORT_EMAIL=support@coverwise.app \
+  --dart-define=PRIVACY_POLICY_VERSION=1.0
+```
+
+APK will be at `mobile/build/app/outputs/flutter-apk/app-release.apk`.
+
+**Android SDK setup if needed:** `flutter doctor` — if Android
+toolchain shows ✗, open Android Studio → SDK Manager → install the
+SDK, then `flutter config --android-sdk ~/Library/Android/sdk`.
+
+**Verify the APK was built:**
+```bash
+ls -la build/app/outputs/flutter-apk/app-release.apk
+# Expect a non-zero file, recent mtime.
+```
+
+---
+
+## Step 8: Real-device end-to-end test (15 minutes)
+
+This step is **not optional**. The unit tests cover Python logic. The
+only way to verify the Phase 0 fixes (the evidence guard in policy
+detail, the privacy copy relabeling, the operator token gate, the
+allowlisted error codes) is to actually run the APK on a phone.
+
+```bash
+# Install the APK on a real device
+adb install -r mobile/build/app/outputs/flutter-apk/app-release.apk
+
+# Watch the Cloud Run logs while you exercise the app
+gcloud run services logs tail coverwise-api --region=asia-south1
+```
+
+Test sequence:
+1. Cold-start the app. Verify no token copy button on the Profile
+   screen (Phase 0 P0-07).
+2. Open a policy, hit the policy detail screen. Upload a PDF without
+   enough text — verify the "Not yet verified" scaffold shows
+   instead of a confident summary (Phase 0 P0-0.4).
+3. Tap "Remove from this device" on a document. Verify the button
+   copy is honest (Phase 0 P0-02).
+4. Privacy screen. Verify there is no "synced across devices" copy
+   (Phase 0 P0-18).
+5. Force a crash (any way). Wait 60s. Verify the
+   `global_error_boundary` does NOT send the exception message text
+   to `/api/analytics/errors` (Phase 0 P0-12).
+
+If any of those fail, the Phase 0 commit is not actually deployed.
+Re-check the build cache and re-deploy.
+
+---
+
+## Step 9: Tear down the old AWS App Runner service (5 minutes)
+
+The old App Runner at `aa2485vt7t.ap-south-1.awsapprunner.com` runs
+13-month-old code with a dead OpenAI key. You are paying ~$35/month
+for it. **Only do this after Step 8 verifies the Cloud Run path.**
+
+1. AWS Console → App Runner → find `insurance-app-enhanced-v2`.
+2. Stop / delete the service.
+3. Delete the ECR repo `insurance-rag-enhanced-v2`.
+4. Cancel any ElastiCache Redis instances attached to it.
+
+**Verify:**
+```bash
+# AWS billing — expect CoverWise line items to drop ~$35/month
+# on the next statement. There is no API to assert "this is
+# off"; manual billing check is the only verification.
+```
+
+---
+
+## Cost summary after launch
+
+| Service | Cost/month | Notes |
+|---|---|---|
+| Cloud Run (scale-to-zero, solo traffic) | $0-5 | Free tier covers 2M requests, 360K GB-seconds |
+| Supabase (free tier) | $0 | 500MB DB, 1GB storage |
+| OpenAI (gpt-4o-mini + embeddings, 10K queries) | ~$2 | Dominated by chat completions |
+| Domain (coverwise.app or similar) | ~$10/year | ~$0.83/month amortized |
+| **Total** | **~$5-10/month** | vs. ~$55-60/month for the old AWS setup |
+
+---
+
+## Pre-launch checklist (motto v3 §0.4 acceptance contract)
+
+- [ ] OpenAI account funded; new key generated and stored only in GCP Secret Manager
+- [ ] All 5 SQL migrations applied to Supabase; Step 1 verify passes
+- [ ] Supabase service_role key captured (not the publishable key)
+- [ ] GCP project created with Cloud Run / Secret Manager / Cloud Build APIs enabled
+- [ ] 3 secrets created in Secret Manager; Step 4 verify passes
+- [ ] `coverwise-runtime.env` created with `OPERATOR_DASHBOARD_TOKEN` set
+- [ ] Cloud Run deployed; `/health` returns 200 with `embedding_probe: ok`
+- [ ] Operator token gate verified (Step 6 verify)
+- [ ] `coverwise.app` (or chosen brand) domain registered; DNS pointed
+- [ ] Privacy policy + terms hosted at real URLs (not placeholder domains)
+- [ ] `support@coverwise.app` mailbox set up
+- [ ] Release APK built; Step 7 verify passes
+- [ ] APK installed on a real device; all 5 Step 8 verifications pass
+- [ ] Old AWS App Runner service stopped and ECR repo deleted
+
+---
+
+## Out of scope for this playbook
+
+These are tracked in the Phase 1+ audits and are explicitly NOT part
+of "go live":
+
+- **Trust Phase 1** — evidence substrate (page_artifacts,
+  source_spans, extracted_fields, field_evidence). Without it the
+  policy detail screen shows the "Not yet verified" scaffold
+  instead of full verified citations. This is the right behavior
+  per the audit; the scaffold is honest, the underlying substrate
+  is the next layer of work.
+- **Security Phase 1** — principal-scoped encrypted local storage.
+  Hive boxes are currently device-scoped. Acceptable for solo
+  founder, flagged for Phase 1.
+- **Security Phase 3** — durable deletion job. `delete_account`
+  returns 202 + per-stage status; the actual back-end retry /
+  tombstone job is Phase 3.
+
+---
+
+## Why this revision is different from the previous version
+
+The original launch playbook (2026-07-18, pre-Phase-0) referenced
+3 SQL migrations. The current repo has 5: the original 3 plus the
+2 RevOps/analytics migrations added in commit `fa02854`. This
+revision:
+
+1. Adds the 2 new SQL files to the apply order with explicit
+   dependency notes.
+2. Adds `OPERATOR_DASHBOARD_TOKEN` to the runtime env (the
+   security P0-08 gate now fails closed if this is missing).
+3. Adds `ANALYTICS_DUAL_WRITE=true` and
+   `DUAL_WRITE_ANALYTICS=true` to the runtime env so the
+   mobile-app analytics actually reach Supabase.
+4. Sets `CONTEXTUAL_RETRIEVAL_ENABLED=false` so the trust
+   P0-0.6 contamination fix is in effect.
+5. Replaces every "verify" with an actual command and expected
+   output. The old playbook had some "should work" steps with no
+   assertion. Per motto v3 §0.5, evidence is verified, not
+   asserted.
+6. Adds a real-device end-to-end test (Step 8) with the specific
+   Phase 0 acceptance criteria. The old playbook stopped at
+   "test a query" and did not exercise the new customer-visible
+   fixes.
