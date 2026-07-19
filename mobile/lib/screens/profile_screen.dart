@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
+import '../models/document_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/document_providers.dart';
 import '../config/app_config.dart';

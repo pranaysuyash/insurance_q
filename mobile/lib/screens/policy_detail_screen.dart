@@ -12,6 +12,8 @@ import '../utils/policy_type.dart';
 import '../widgets/field_citations_card.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
+import 'claim_assistance_screen.dart';
+import 'coverage_gap_screen.dart';
 import 'document_preview_screen.dart';
 
 /// The core value screen: turns a 40-page policy PDF into one page the user
@@ -97,6 +99,13 @@ class PolicyDetailScreen extends ConsumerWidget {
                 ? 'Your policy, translated into the details that matter.'
                 : '${summary.insurer} • Your policy at a glance',
           ),
+          // Trust Phase 1 / Bucket 5 #21 thin slice: navigation
+          // to the coverage-gap + claim-assistance screens. The
+          // two screens are read-only consumers of the
+          // substrate; they re-fetch citations on entry so the
+          // navigation is decoupled from the existing
+          // _CitedFieldsSection state.
+          _PolicyActionsRow(documentId: documentId),
           // Trust Phase 1: cited fields from the evidence substrate.
           // Renders nothing when the substrate has no verified data
           // (the Phase 0 P0-0.4 path handles that case above this
@@ -1000,6 +1009,93 @@ class _CitedFieldsSectionState extends State<_CitedFieldsSection> {
           onPageTap: widget.onPageTap,
         );
       },
+    );
+  }
+}
+
+/// A horizontal row of two action buttons: "Coverage gaps" and
+/// "Claim assistance". Each button pushes the respective
+/// screen with the citations fetched fresh on entry, so the
+/// row's state is independent of the existing
+/// _CitedFieldsSection state.
+///
+/// Per docs/decisions/ADR-2026-07-19-04-...md, the two screens
+/// are the thin-slice implementation of the architecture
+/// audit's ADR-09. The full coverage-gap + claim-assistance
+/// features are deferred to a follow-up session that extends
+/// the parser pipeline.
+class _PolicyActionsRow extends StatelessWidget {
+  final String documentId;
+
+  const _PolicyActionsRow({required this.documentId});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _openCoverageGaps(context),
+              icon: const Icon(Icons.help_outline),
+              label: const Text('Coverage gaps'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colorScheme.onSurface,
+                side: BorderSide(color: colorScheme.outlineVariant),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _openClaimAssistance(context),
+              icon: const Icon(Icons.assignment_outlined),
+              label: const Text('Claim assistance'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colorScheme.onSurface,
+                side: BorderSide(color: colorScheme.outlineVariant),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openCoverageGaps(BuildContext context) async {
+    final service = EvidenceService();
+    final citations = await service.getFieldCitations(documentId);
+    if (!context.mounted) return;
+    final safe = citations ?? const <FieldCitation>[];
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CoverageGapScreen(
+          documentId: documentId,
+          citations: safe,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openClaimAssistance(BuildContext context) async {
+    final service = EvidenceService();
+    final citations = await service.getFieldCitations(documentId);
+    if (!context.mounted) return;
+    final safe = citations ?? const <FieldCitation>[];
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ClaimAssistanceScreen(
+          documentId: documentId,
+          citations: safe,
+        ),
+      ),
     );
   }
 }

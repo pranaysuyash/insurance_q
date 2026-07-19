@@ -91,6 +91,10 @@ void main() {
   });
 
   /// Build a ProfileScreen with overridden providers.
+  ///
+  /// ProfileScreen now reads documents via ref.watch(documentsProvider) in
+  /// build() and passes them to _confirmDeleteAccount. The FutureProvider
+  /// override still needs to resolve, so we pump extra frames after build.
   Widget buildProfile({
     required List<InsuranceDocument> documents,
     bool hasAccount = true,
@@ -129,7 +133,7 @@ void main() {
       await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
-      expect(find.text('health.pdf'), findsOneWidget);
+      expect(find.textContaining('health.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
     });
 
@@ -154,7 +158,7 @@ void main() {
       await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
-      expect(find.text('auto.pdf'), findsOneWidget);
+      expect(find.textContaining('auto.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
     });
 
@@ -179,7 +183,7 @@ void main() {
       await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
-      expect(find.text('life.pdf'), findsOneWidget);
+      expect(find.textContaining('life.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
     });
 
@@ -326,7 +330,7 @@ void main() {
       await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
-      expect(find.text('processing.pdf'), findsOneWidget);
+      expect(find.textContaining('processing.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
     });
 

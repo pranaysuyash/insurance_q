@@ -13,6 +13,7 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-19-01 | 2026-07-19 | Durable work queue = Supabase outbox (not Cloud Tasks) | Accepted | [link](./ADR-2026-07-19-01-durable-work-queue-supabase-outbox.md) |
 | ADR-2026-07-19-02 | 2026-07-19 | Outbox migration of existing 5 async paths deferred to a follow-up session | Accepted | [link](./ADR-2026-07-19-02-outbox-migration-deferred.md) |
 | ADR-2026-07-19-03 | 2026-07-19 | Embedding model = `text-embedding-3-small` (default), with 30-day benchmark for `voyage-3` | Accepted | [link](./ADR-2026-07-19-03-embedding-model-text-embedding-3-small-default.md) |
+| ADR-2026-07-19-04 | 2026-07-19 | Coverage-gap + claim-assistance = thin slice from the existing 7 substrate fields; full features deferred | Accepted | [link](./ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md) |
 
 ---
 

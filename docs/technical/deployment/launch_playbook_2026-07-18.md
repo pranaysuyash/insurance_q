@@ -443,6 +443,15 @@ of "go live":
   The benchmark may recommend switching to `voyage-3`; the
   migration is a separate session. Step 1.5 above covers the
   benchmark; the migration itself is not in this playbook.
+- **Coverage-gap + claim-assistance full features** — the thin slice
+  shipped in commit `a7166ff` is grounded in the existing 7
+  substrate fields (`room_rent_cap`, `insurer_name`). The full
+  features (maternity, dental, OPD, pre-existing disease waiting
+  period, network hospital list, claim helpline, claim email, full
+  claim-assistance flow) require extending the parser pipeline
+  with 5-7 new extractors. Per
+  [ADR-2026-07-19-04](../../decisions/ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md),
+  the full features are a follow-up session.
 
 ---
 

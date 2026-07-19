@@ -1,394 +1,228 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/policy_summary.dart';
-import '../providers/policy_providers.dart';
-import '../services/app_state_repository.dart';
-import '../widgets/shared/empty_state_widget.dart';
-import '../theme/coverwise_motion.dart';
-import '../widgets/shared/coverwise_components.dart';
 
-/// Filter mode for the gap list.
-enum _GapFilter { all, unresolved, resolved }
+import '../models/field_citation.dart';
+import '../widgets/not_yet_extracted_section.dart';
 
-class CoverageGapScreen extends ConsumerStatefulWidget {
-  const CoverageGapScreen({super.key});
+/// The coverage-gap view (Trust audit ADR-09 thin slice).
+///
+/// Per docs/decisions/ADR-2026-07-19-04-...md, the thin slice
+/// shows the substrate's existing `room_rent_cap` field (the
+/// most-asked-about coverage gap) and the `insurer_name` (for
+/// context). Other coverage gaps (maternity, dental, OPD,
+/// pre-existing disease waiting period) are NOT in the
+/// substrate yet; the `NotYetExtractedSection` makes the
+/// limits visible at the UI layer.
+///
+/// This screen is reached from a button in the policy detail
+/// screen's action area. It is a read-only consumer of the
+/// substrate; it does not call extractors, does not write
+/// to the substrate, and does not invent citation text.
+class CoverageGapScreen extends StatelessWidget {
+  final String documentId;
+  final List<FieldCitation> citations;
 
-  @override
-  ConsumerState<CoverageGapScreen> createState() => _CoverageGapScreenState();
-}
+  const CoverageGapScreen({
+    super.key,
+    required this.documentId,
+    required this.citations,
+  });
 
-class _CoverageGapScreenState extends ConsumerState<CoverageGapScreen> {
-  _GapFilter _filter = _GapFilter.all;
-  Map<String, Map<String, dynamic>> _resolvedGaps = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _resolvedGaps = AppStateRepository.getResolvedGaps();
-  }
-
-  void _refreshResolved() {
-    setState(() {
-      _resolvedGaps = AppStateRepository.getResolvedGaps();
-    });
-  }
-
-  bool _isResolved(CoverageGap gap) => _resolvedGaps.containsKey(gap.gapId);
-
-  Future<void> _toggleResolved(CoverageGap gap, Color color) async {
-    final id = gap.gapId;
-    if (_isResolved(gap)) {
-      await AppStateRepository.unresolveGap(id);
-    } else {
-      // Show notes dialog
-      final notes = await _showNotesDialog(gap, color);
-      if (notes == null) return; // user cancelled
-      await AppStateRepository.markGapResolved(id,
-          notes: notes.isEmpty ? null : notes);
-    }
-    _refreshResolved();
-  }
-
-  Future<String?> _showNotesDialog(CoverageGap gap, Color color) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Mark as Addressed'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              gap.description,
-              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Notes (optional)',
-                hintText: 'How did you address this gap?',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Mark Addressed'),
-          ),
-        ],
-      ),
-    );
-  }
+  /// The list of fields the substrate does NOT yet extract.
+  /// Per ADR-2026-07-19-04, the deferred work is:
+  /// - maternity_covered
+  /// - dental_covered
+  /// - opd_covered
+  /// - pre_existing_disease_waiting_period
+  /// - mental_health_covered
+  /// - cosmetic_covered
+  static const List<String> _deferredFields = [
+    'Maternity coverage',
+    'Dental coverage',
+    'Outpatient (OPD) coverage',
+    'Pre-existing disease waiting period',
+    'Mental health coverage',
+    'Cosmetic procedure coverage',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final gaps = ref.watch(coverageGapsProvider);
-
-    if (gaps.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Coverage Gaps')),
-        body: const EmptyStateWidget(
-          icon: Icons.verified_user_outlined,
-          title: 'No coverage gaps detected',
-          subtitle:
-              'Add more policy documents to make this review more complete.',
-          color: Color(0xFF16866B),
-        ),
-      );
-    }
-
-    // Apply filter
-    final filtered = gaps.where((g) {
-      switch (_filter) {
-        case _GapFilter.all:
-          return true;
-        case _GapFilter.unresolved:
-          return !_isResolved(g);
-        case _GapFilter.resolved:
-          return _isResolved(g);
-      }
-    }).toList();
-
-    final resolvedCount = gaps.where((g) => _isResolved(g)).length;
-    final unresolvedCount = gaps.length - resolvedCount;
-
-    final highGaps = filtered.where((g) => g.severity == 'high').toList();
-    final mediumGaps = filtered.where((g) => g.severity == 'medium').toList();
-    final lowGaps = filtered.where((g) => g.severity == 'low').toList();
-
-    final hasAnyGaps =
-        highGaps.isNotEmpty || mediumGaps.isNotEmpty || lowGaps.isNotEmpty;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final roomRent = _findCitation(citations, 'room_rent_cap');
+    final insurer = _findCitation(citations, 'insurer_name');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Coverage Gaps')),
-      body: Column(
+      appBar: AppBar(
+        title: const Text('Coverage gaps'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
-          const CoverWisePageHeader(
-            title: 'Review potential gaps',
-            subtitle:
-                'Track areas that may need a closer look. Addressed items stay available for reference.',
-          ),
-          // Filter bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(children: [
-                _FilterChip(
-                  label: 'All (${gaps.length})',
-                  selected: _filter == _GapFilter.all,
-                  onTap: () => setState(() => _filter = _GapFilter.all),
-                ),
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: 'Open ($unresolvedCount)',
-                  selected: _filter == _GapFilter.unresolved,
-                  color: Colors.orange,
-                  onTap: () => setState(() => _filter = _GapFilter.unresolved),
-                ),
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: 'Addressed ($resolvedCount)',
-                  selected: _filter == _GapFilter.resolved,
-                  color: Colors.green,
-                  onTap: () => setState(() => _filter = _GapFilter.resolved),
-                ),
-              ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text(
+              'What your policy says',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          Semantics(
-            liveRegion: true,
-            label:
-                '${filtered.length} ${filtered.length == 1 ? 'coverage item' : 'coverage items'} shown',
-            child: const SizedBox.shrink(),
-          ),
-          // Gap list
-          Expanded(
-            child: CoverWiseStateTransition(
-              child: hasAnyGaps
-                  ? ListView(
-                      key: ValueKey(
-                          'gap-list-${_filter.name}-${filtered.length}'),
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        if (highGaps.isNotEmpty) ...[
-                          _GapSection(
-                              'High Priority',
-                              Icons.priority_high_rounded,
-                              Theme.of(context).colorScheme.error,
-                              highGaps,
-                              this),
-                          const SizedBox(height: 20),
-                        ],
-                        if (mediumGaps.isNotEmpty) ...[
-                          _GapSection(
-                              'Medium Priority',
-                              Icons.warning_amber_rounded,
-                              Theme.of(context).colorScheme.tertiary,
-                              mediumGaps,
-                              this),
-                          const SizedBox(height: 20),
-                        ],
-                        if (lowGaps.isNotEmpty) ...[
-                          _GapSection(
-                              'Low Priority',
-                              Icons.info_outline_rounded,
-                              Theme.of(context).colorScheme.primary,
-                              lowGaps,
-                              this),
-                        ],
-                      ],
-                    )
-                  : EmptyStateWidget(
-                      key: ValueKey('gap-empty-${_filter.name}'),
-                      icon: _filter == _GapFilter.resolved
-                          ? Icons.task_alt_rounded
-                          : Icons.filter_list_off_rounded,
-                      title: _filter == _GapFilter.resolved
-                          ? 'No addressed gaps yet'
-                          : _filter == _GapFilter.unresolved
-                              ? 'All gaps are addressed'
-                              : 'No coverage gaps detected',
-                      subtitle: _filter == _GapFilter.unresolved
-                          ? 'You can review addressed items from the filter above.'
-                          : null,
-                      color: _filter == _GapFilter.resolved
-                          ? const Color(0xFF16866B)
-                          : const Color(0xFF6A4BA8),
-                    ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(
+              'Each item below is grounded in a specific page of your policy document.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
+          if (roomRent != null)
+            _CoverageGapRow(
+              label: 'Room rent cap',
+              displayValue: roomRent.value.display,
+              citeString: roomRent.citeString,
+              pageNumber: roomRent.pageNumber,
+              fieldConfidence: roomRent.fieldConfidence,
+            ),
+          if (insurer != null)
+            _CoverageGapRow(
+              label: 'Insurer',
+              displayValue: insurer.value.display,
+              citeString: insurer.citeString,
+              pageNumber: insurer.pageNumber,
+              fieldConfidence: insurer.fieldConfidence,
+            ),
+          if (roomRent == null && insurer == null)
+            // Neither of the two fields the thin slice relies
+            // on is in the substrate yet. This is the expected
+            // state for documents uploaded before the substrate
+            // pipeline ran, or for documents the pipeline
+            // could not extract from. The screen is honest.
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 24,
+              ),
+              child: Text(
+                'The substrate has not extracted any coverage-gap fields for this document yet. '
+                'This is the honest state when the parser pipeline has not completed, or '
+                'when the document does not contain extractable coverage-gap information.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          NotYetExtractedSection(fieldNames: _deferredFields),
         ],
       ),
     );
   }
+
+  static FieldCitation? _findCitation(
+    List<FieldCitation> citations,
+    String fieldName,
+  ) {
+    for (final c in citations) {
+      if (c.fieldName == fieldName) return c;
+    }
+    return null;
+  }
 }
 
-class _FilterChip extends StatelessWidget {
+class _CoverageGapRow extends StatelessWidget {
   final String label;
-  final bool selected;
-  final Color? color;
-  final VoidCallback onTap;
-  const _FilterChip(
-      {required this.label,
-      required this.selected,
-      this.color,
-      required this.onTap});
+  final String displayValue;
+  final String citeString;
+  final int pageNumber;
+  final double fieldConfidence;
+
+  const _CoverageGapRow({
+    required this.label,
+    required this.displayValue,
+    required this.citeString,
+    required this.pageNumber,
+    required this.fieldConfidence,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = color ?? Theme.of(context).colorScheme.primary;
-    return Semantics(
-      selected: selected,
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        selectedColor: effectiveColor.withValues(alpha: 0.15),
-        side: BorderSide(
-          color: selected
-              ? effectiveColor
-              : Theme.of(context).colorScheme.outlineVariant,
-        ),
-        labelStyle: TextStyle(
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          color: selected
-              ? effectiveColor
-              : Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-}
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final lowConfidence = fieldConfidence < 0.7;
 
-class _GapSection extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-  final List<CoverageGap> gaps;
-  final _CoverageGapScreenState state;
-  const _GapSection(this.title, this.icon, this.color, this.gaps, this.state);
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(width: 8),
-            Text(title,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(width: 8),
-            CoverWiseStatusChip(
-              icon: icon,
-              label: '${gaps.length}',
-              color: color,
-              compact: true,
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...gaps.map((gap) => _GapCard(gap: gap, color: color, state: state)),
-      ],
-    );
-  }
-}
-
-class _GapCard extends StatelessWidget {
-  final CoverageGap gap;
-  final Color color;
-  final _CoverageGapScreenState state;
-  const _GapCard({required this.gap, required this.color, required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final resolved = state._isResolved(gap);
-    final resolvedInfo = state._resolvedGaps[gap.gapId];
-    final notes = resolvedInfo?['notes'] as String?;
-
-    final scheme = Theme.of(context).colorScheme;
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: resolved ? scheme.surfaceContainerLow : null,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    gap.category,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      decoration: resolved ? TextDecoration.lineThrough : null,
-                      color: resolved ? scheme.onSurfaceVariant : null,
-                    ),
-                  ),
-                ),
-                if (resolved)
-                  const CoverWiseStatusChip(
-                    icon: Icons.check_circle_rounded,
-                    label: 'Addressed',
-                    color: Color(0xFF16866B),
-                    compact: true,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
             Text(
-              gap.description,
-              style: TextStyle(
-                color: resolved ? scheme.onSurfaceVariant : scheme.onSurface,
-                decoration: resolved ? TextDecoration.lineThrough : null,
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
-            if (notes != null && notes.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              CoverWiseInfoPanel(
-                icon: Icons.note_outlined,
-                title: 'Your note',
-                body: notes,
-                color: const Color(0xFF16866B),
+            const SizedBox(height: 4),
+            Text(
+              displayValue,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-            if (gap.recommendation != null) ...[
-              const SizedBox(height: 10),
-              CoverWiseInfoPanel(
-                icon: Icons.lightbulb_outline_rounded,
-                title: 'What to review',
-                body: gap.recommendation!,
-                color: color,
-              ),
-            ],
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: resolved
-                  ? TextButton.icon(
-                      onPressed: () => state._toggleResolved(gap, color),
-                      icon: const Icon(Icons.undo, size: 16),
-                      label: const Text('Reopen'),
-                    )
-                  : FilledButton.tonalIcon(
-                      onPressed: () => state._toggleResolved(gap, color),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Mark Addressed'),
+            ),
+            if (lowConfidence) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 14,
+                    color: colorScheme.tertiary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Lower confidence (${(fieldConfidence * 100).round()}%)',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.tertiary,
                     ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.menu_book_outlined,
+                    size: 14,
+                    color: colorScheme.onSecondaryContainer,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    citeString,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSecondaryContainer,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
