@@ -150,6 +150,13 @@ The system has 3 trust tiers, ordered from highest to lowest:
 - **The migration from per-device key to principal key is per-box** (each Hive box is migrated on the user's first login after the change). The migration is idempotent. The follow-up session migrates each existing box.
 - **The salt is per-user, stored in `flutter_secure_storage`.** If the user uninstalls and reinstalls, a new salt is generated and the local data is lost (the new salt makes the old data undecryptable). This is the cost of "no server-stored key."
 
+### Tier 5: server-side append-only consent ledger
+
+- **The user's consent record is server-side, in `public.consent_ledger`**, a Postgres table with a trigger that raises an exception on UPDATE and DELETE for ALL roles, including service_role. The Flutter app's local Hive box is a cache, not the source of truth. See [`supabase/migrations/2026_07_19_consent_ledger.sql`](../../../supabase/migrations/2026_07_19_consent_ledger.sql) and ADR-2026-07-19-07.
+- **The compliance posture: DPDP Act 2023, GDPR if applicable.** A local Hive box is not auditable. The server-side append-only ledger is. The pattern is the same as Stripe's `events` table and GitHub's audit log.
+- **A revocation is a new row with `granted=false`**; the "current" state for a (user_id, consent_type) is the most recent row, read via the `v_current_consent` view.
+- **The Flutter app calls `POST /consent`** to record events; the user_id is extracted from the Supabase Auth token (not from the body) to prevent spoofing. The local cache is updated after the server confirms.
+
 ### Cross-tier boundaries
 
 - **The mobile app cannot reach the service_role tier.** The publishable key is in the app; the service_role key is not. The app's only path to write to the substrate is through the FastAPI service (which is service-role).
@@ -252,6 +259,7 @@ medpiper/insurance_app/
 | ADR-2026-07-19-04 | Coverage-gap + claim-assistance = thin slice from existing 7 substrate fields | [link](../decisions/ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md) |
 | ADR-2026-07-19-05 | Canonical architecture doc = `docs/architecture/coverwise_canonical_architecture.md` (this file) | [link](../decisions/ADR-2026-07-19-05-canonical-architecture-doc-location.md) |
 | ADR-2026-07-19-06 | Security Phase 1 = principal-scoped encrypted local storage (JWT-derived key) | [link](../decisions/ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md) |
+| ADR-2026-07-19-07 | Security Phase 2 = server-side append-only consent ledger (Postgres table with trigger-enforced append-only) | [link](../decisions/ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md) |
 
 Plus 9 retroactive decision records (for Phase 0, RevOps R1, payment provider, operator auth, scaffold, substrate design, LLM honesty, contextual retrieval, LLM client fix) listed in [`docs/decisions/README.md`](../decisions/README.md).
 
@@ -276,7 +284,7 @@ Per the ADRs and the launch playbook, the following are deferred to follow-up se
 - **Embedding model switch** (ADR-2026-07-19-03): the default is `text-embedding-3-small`; the 30-day benchmark may recommend switching to `voyage-3`.
 - **Coverage-gap + claim-assistance full features** (ADR-2026-07-19-04): the thin slice is shipped; the full features require 5-7 new parser extractors.
 - **Security Phase 1 migration** (ADR-2026-07-19-06): the KDF + Hive re-encryption API is shipped. The per-box migration (each existing Hive box migrated to the new principal key) is a follow-up session.
-- **Security Phase 2** (server-side append-only consent ledger).
+- **Security Phase 2 migration** (ADR-2026-07-19-07): the server-side consent ledger + trigger-enforced append-only + FastAPI endpoint + Flutter client are shipped. The Flutter cache invalidation (the local Hive box becomes a cache, with the server as the source of truth) is a follow-up session.
 - **Security Phase 3** (durable deletion job with retries + tombstone; `delete_account` returns 202 + per-stage status but the back-end job is Phase 3).
 
 These are tracked in [`docs/planning/coverwise_audit_task_classification_2026-07-18.md`](../planning/coverwise_audit_task_classification_2026-07-18.md) (Bucket 5 + Bucket 6 + Bucket 7) and the launch playbook's "Out of scope" section.

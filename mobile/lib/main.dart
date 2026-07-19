@@ -238,7 +238,14 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/emergency': (context) => const EmergencyScreen(),
         '/claims': (context) => const ClaimsAssistantScreen(),
         '/renewals': (context) => const RenewalCalendarScreen(),
-        '/coverage-gaps': (context) => const CoverageGapScreen(),
+        '/coverage-gaps': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
+          return CoverageGapScreen(
+            documentId: args?['documentId'] as String? ?? '',
+            citations: (args?['citations'] as List?)?.cast() ?? const [],
+          );
+        },
         '/compare': (context) => const PolicyComparisonScreen(),
         '/settings': (context) => const SettingsScreen(),
         '/help': (context) => const HelpSupportScreen(),
