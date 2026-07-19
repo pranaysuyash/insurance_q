@@ -18,6 +18,8 @@ is broken; stop and fix before proceeding.
 > load-bearing (Supabase apply → secrets → deploy → verify → APK).
 > Re-arranging steps will produce a half-broken system.
 
+**For a system-level overview** (what the components are, what the async paths are, what the trust boundary is), read [`docs/architecture/coverwise_canonical_architecture.md`](../../architecture/coverwise_canonical_architecture.md) first. It is the canonical map of the system. This playbook is the operational plan to go live; the canonical doc is the reference for what you are deploying.
+
 ---
 
 ## Step 1: Apply SQL migrations to Supabase (~10 minutes)

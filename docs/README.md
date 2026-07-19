@@ -4,21 +4,17 @@ This is the comprehensive documentation for CoverWise, the insurance companion t
 surfaces the details that matter, and answers grounded questions in plain language. The documentation is
 organized in a logical directory structure to improve navigation and accessibility.
 
+## Canonical architecture
+
+The canonical CoverWise architecture document is [`docs/architecture/coverwise_canonical_architecture.md`](architecture/coverwise_canonical_architecture.md). It is the **single source of truth** for "how does the system work end-to-end." Read it first.
+
+The decision to place the canonical doc at that location is recorded in [ADR-2026-07-19-05](decisions/ADR-2026-07-19-05-canonical-architecture-doc-location.md).
+
 ## Current source of truth
 
-For the solo launch, read [`docs/planning/coverwise_long_term_platform_decision_2026-07-12.md`](planning/coverwise_long_term_platform_decision_2026-07-12.md) first.
-It is the canonical platform decision: one Cloud Run FastAPI service, one Supabase project,
-Supabase Postgres with `pgvector`, and Supabase Storage. Older AWS, Railway, and Firestore
-proposals remain preserved and explicitly marked historical or superseded; do not use them as
-implementation instructions for new work.
+The dated planning docs in [`docs/planning/`](planning/) are **historical inputs** to the canonical architecture doc, not the source of truth. They were the canonical doc's predecessors; the canonical doc now supersedes them. If a planning doc disagrees with the canonical doc, the canonical doc is right.
 
-For the commercial and responsible-data direction, read [`docs/planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md`](planning/coverwise_monetization_ads_responsible_data_research_2026-07-16.md). It records the subscription-first monetization thesis, rejection of behavioral ads in trusted workflows, regulated-distribution boundary, and opt-in model-contribution architecture. The corresponding idea and research branches live in [`docs/review/exploration_map.md`](review/exploration_map.md).
-
-For account ownership and authentication, read [`docs/planning/coverwise_auth_architecture_2026-07-16.md`](planning/coverwise_auth_architecture_2026-07-16.md). It documents the Supabase Auth decision, anonymous-session compatibility, owner transfer, configuration contract, and production verification gate.
-
-The current long-term platform baseline is [`docs/planning/coverwise_supabase_canonical_plan_2026-07-16.md`](planning/coverwise_supabase_canonical_plan_2026-07-16.md). It is the source of truth for Postgres/pgvector retrieval, policy data, provenance, future training readiness, and production cutover planning.
-
-The corresponding implementation audit is [`docs/review/coverwise_supabase_gap_register_2026-07-16.md`](review/coverwise_supabase_gap_register_2026-07-16.md). It lists the remaining P0/P1/P2 gaps and their closure criteria.
+For the operator-facing read order: canonical architecture → decisions → audits → launch playbook.
 
 ## Key Technical Documents
 

@@ -123,7 +123,7 @@ These are the audit items where the choice is yours, not a code edit.
 | 19 | Arch ADR-03: Durable work queue | ✅ Decision recorded: Supabase outbox (commit 70da5e3, ADR-2026-07-19-01). Migration of 5 existing async paths deferred per ADR-2026-07-19-02. |
 | 20 | Arch ADR-06: Embedding model | ✅ Decision recorded: `text-embedding-3-small` default, 30-day benchmark for `voyage-3` (ADR-2026-07-19-03). Benchmark script: `tools/benchmark_embedding_models.py`. |
 | 21 | Arch ADR-09: Coverage-gap + claim-assistance | ✅ Thin slice shipped in commit a7166ff; full features deferred per ADR-2026-07-19-04 |
-| 22 | Arch ADR-10: Canonical architecture doc location | `docs/CANONICAL_SYSTEM.md` or `docs/planning/coverwise_canonical_architecture_<date>.md` |
+| 22 | Arch ADR-10: Canonical architecture doc location | ✅ Shipped: `docs/architecture/coverwise_canonical_architecture.md` per ADR-2026-07-19-05 |
 | 23 | Security Phase 1: Principal-scoped encrypted local storage | Build now or defer? Affects every Hive box. |
 | 24 | Security Phase 2: Server-side append-only consent ledger | Build now or defer? Required for compliance. |
 
