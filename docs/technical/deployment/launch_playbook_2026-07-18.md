@@ -434,9 +434,14 @@ of "go live":
   is empty and the policy detail screen continues to show the
   "Not yet verified" scaffold (which is the correct behavior
   per the Phase 0 trust fix).
-- **Security Phase 1** — principal-scoped encrypted local storage.
-  Hive boxes are currently device-scoped. Acceptable for solo
-  founder, flagged for Phase 1.
+- **Security Phase 1 migration** — the principal-scoped encryption
+  contract is shipped in commit `0704eb5` (well, the most recent
+  security commit) per
+  [ADR-2026-07-19-06](../../decisions/ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md).
+  The KDF + Hive re-encryption API is in
+  `mobile/lib/services/principal_key_service.dart`. The per-box
+  migration (each existing Hive box migrated to the new principal
+  key) is a follow-up session.
 - **Security Phase 3** — durable deletion job. `delete_account`
   returns 202 + per-stage status; the actual back-end retry /
   tombstone job is Phase 3.

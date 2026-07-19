@@ -58,6 +58,9 @@ dependencies:
   timezone: ^0.10.1
   google_mlkit_text_recognition: ^0.16.0
   app_links: ^6.4.1
+  # Trust + security Phase 1 (ADR-2026-07-19-06): PBKDF2-HMAC-SHA256
+  # for the principal-scoped Hive encryption key.
+  crypto: ^3.0.3
   supabase_flutter: ^2.15.4
   google_sign_in: ^6.2.1
 

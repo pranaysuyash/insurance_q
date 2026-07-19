@@ -143,6 +143,13 @@ The system has 3 trust tiers, ordered from highest to lowest:
 - **Fail-closed if the env var is missing.** The deployment must set `OPERATOR_DASHBOARD_TOKEN` or the operator dashboard endpoints return 401/403.
 - **Long-term, this becomes RBAC via `profiles.role='operator'`** (Security Phase 1, deferred per ADR-2026-07-19-04's #23).
 
+### Tier 4: principal-scoped encryption (local device)
+
+- **The Hive boxes on the device are encrypted with a key derived from the user's Supabase Auth JWT** via PBKDF2-HMAC-SHA256 (100,000 iterations, 32-byte output, per-user salt). The key is held in memory only and never written to disk. See [`mobile/lib/services/principal_key_service.dart`](../../mobile/lib/services/principal_key_service.dart) and ADR-2026-07-19-06.
+- **The threat model: lost phone, stolen phone, forensics on a wiped device, a malicious app on the same device.** The principal key addresses each: a wiped device has no key, a live device with a login has the key from the JWT, a malicious app without the JWT cannot derive the key.
+- **The migration from per-device key to principal key is per-box** (each Hive box is migrated on the user's first login after the change). The migration is idempotent. The follow-up session migrates each existing box.
+- **The salt is per-user, stored in `flutter_secure_storage`.** If the user uninstalls and reinstalls, a new salt is generated and the local data is lost (the new salt makes the old data undecryptable). This is the cost of "no server-stored key."
+
 ### Cross-tier boundaries
 
 - **The mobile app cannot reach the service_role tier.** The publishable key is in the app; the service_role key is not. The app's only path to write to the substrate is through the FastAPI service (which is service-role).
@@ -244,6 +251,7 @@ medpiper/insurance_app/
 | ADR-2026-07-19-03 | Embedding model = `text-embedding-3-small` (default) | [link](../decisions/ADR-2026-07-19-03-embedding-model-text-embedding-3-small-default.md) |
 | ADR-2026-07-19-04 | Coverage-gap + claim-assistance = thin slice from existing 7 substrate fields | [link](../decisions/ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md) |
 | ADR-2026-07-19-05 | Canonical architecture doc = `docs/architecture/coverwise_canonical_architecture.md` (this file) | [link](../decisions/ADR-2026-07-19-05-canonical-architecture-doc-location.md) |
+| ADR-2026-07-19-06 | Security Phase 1 = principal-scoped encrypted local storage (JWT-derived key) | [link](../decisions/ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md) |
 
 Plus 9 retroactive decision records (for Phase 0, RevOps R1, payment provider, operator auth, scaffold, substrate design, LLM honesty, contextual retrieval, LLM client fix) listed in [`docs/decisions/README.md`](../decisions/README.md).
 
@@ -267,7 +275,7 @@ Per the ADRs and the launch playbook, the following are deferred to follow-up se
 - **Outbox migration of the 5 existing async paths** (ADR-2026-07-19-02): the contract is shipped; the consumer adoption follows.
 - **Embedding model switch** (ADR-2026-07-19-03): the default is `text-embedding-3-small`; the 30-day benchmark may recommend switching to `voyage-3`.
 - **Coverage-gap + claim-assistance full features** (ADR-2026-07-19-04): the thin slice is shipped; the full features require 5-7 new parser extractors.
-- **Security Phase 1** (principal-scoped encrypted local storage): Hive boxes are currently device-scoped.
+- **Security Phase 1 migration** (ADR-2026-07-19-06): the KDF + Hive re-encryption API is shipped. The per-box migration (each existing Hive box migrated to the new principal key) is a follow-up session.
 - **Security Phase 2** (server-side append-only consent ledger).
 - **Security Phase 3** (durable deletion job with retries + tombstone; `delete_account` returns 202 + per-stage status but the back-end job is Phase 3).
 
