@@ -65,6 +65,19 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   }
 
   Future<void> _saveField(String field, String value) async {
+    // Validate date fields before saving.
+    if (field == 'start_date' || field == 'end_date') {
+      if (!_isValidDate(value)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid date (DD/MM/YYYY, MM/DD/YYYY, or DD-MM-YYYY)'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
     final extracted = _extractedValue(field);
     await _overridesStore.setOverride(
       documentId: widget.documentId,
@@ -326,6 +339,78 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   }
 
   String _formatDate(DateTime dt) => '${dt.day}/${dt.month}/${dt.year}';
+
+/// Validates that a string is a plausible date in common formats:
+/// DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY, MM-DD-YYYY, or DD.MM.YYYY.
+/// Accepts 1 or 2-digit day/month and 2 or 4-digit year.
+bool _isValidDate(String value) {
+  final trimmed = value.trim();
+  final dateRegex = RegExp(
+    r'^(0?[1-9]|[12]\d|3[01])[/\-\.](0?[1-9]|1[0-2])[/\-\.]\d{2,4}$'
+    r'|^(0?[1-9]|1[0-2])[/\-\.](0?[1-9]|[12]\d|3[01])[/\-\.]\d{2,4}$',
+  );
+  if (!dateRegex.hasMatch(trimmed)) return false;
+  final parts = trimmed.split(RegExp(r'[/\-\.]'));
+  if (parts.length != 3) return false;
+  int day, month, year;
+  final first = int.tryParse(parts[0]) ?? 0;
+  final second = int.tryParse(parts[1]) ?? 0;
+  if (first > 12 && second <= 12) {
+    day = first; month = second;
+  } else if (second > 12 && first <= 12) {
+    month = first; day = second;
+  } else {
+    day = first; month = second;
+  }
+  year = int.tryParse(parts[2]) ?? 0;
+  if (year < 100) year += 2000;
+  try {
+    final dt = DateTime(year, month, day);
+    return dt.month == month && dt.day == day;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Validates that a string is a plausible date in common formats:
+/// DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY, MM-DD-YYYY, or DD.MM.YYYY.
+/// Accepts 1 or 2-digit day/month and 2 or 4-digit year.
+bool _isValidDate(String value) {
+  final trimmed = value.trim();
+  final dateRegex = RegExp(
+    r'^(0?[1-9]|[12]\d|3[01])[/\-\.](0?[1-9]|1[0-2])[/\-\.]\d{2,4}$'
+    r'|^(0?[1-9]|1[0-2])[/\-\.](0?[1-9]|[12]\d|3[01])[/\-\.]\d{2,4}$',
+  );
+  if (!dateRegex.hasMatch(trimmed)) return false;
+  final parts = trimmed.split(RegExp(r'[/\-\.]'));
+  if (parts.length != 3) return false;
+  int day, month, year;
+  final first = int.tryParse(parts[0]) ?? 0;
+  final second = int.tryParse(parts[1]) ?? 0;
+  if (first > 12 && second <= 12) {
+    day = first; month = second;
+  } else if (second > 12 && first <= 12) {
+    month = first; day = second;
+  } else {
+    day = first; month = second;
+  }
+  year = int.tryParse(parts[2]) ?? 0;
+  if (year < 100) year += 2000;
+  try {
+    final dt = DateTime(year, month, day);
+    return dt.month == month && dt.day == day;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Validates that a string is a plausible date in common formats:
+/// DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY, MM-DD-YYYY, or DD.MM.YYYY.
+/// Accepts 1 or 2-digit day/month and 2 or 4-digit year.
+
+/// Validates that a string is a plausible date in common formats:
+/// DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY, MM-DD-YYYY, or DD.MM.YYYY.
+/// Accepts 1 or 2-digit day/month and 2 or 4-digit year.
 
   void _openDocumentPreview(BuildContext context, WidgetRef ref) {
     final documents = ref.read(documentsProvider).valueOrNull;
