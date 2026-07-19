@@ -5,11 +5,12 @@ Handles the complete pipeline: Document Upload → OCR → Structured Extraction
 import os
 import re
 import asyncio
-import uuid
 import logging
+import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import tempfile
+from uuid import UUID
 from src.utils.pdf_access import PdfPasswordError, unlock_pdf
 
 # OCR imports
@@ -279,6 +280,66 @@ class DocumentProcessingService:
                     "status": "skipped", 
                     "reason": "RAG pipeline not available"
                 }
+
+            # Stage 3.5: Evidence pipeline (Trust Phase 1). Runs
+            # only when the substrate is configured (env var)
+            # and the OCR produced page_texts. The pipeline
+            # writes cited fields to the substrate; the policy
+            # detail screen reads them via GET /evidence/.../
+            # field-citations. Failures are recorded in the
+            # result but do NOT fail the document processing:
+            # the document is honest about the evidence state
+            # (the policy detail screen shows the "Not yet
+            # verified" scaffold when no citations exist).
+            page_texts = (ocr_result or {}).get("page_texts", {}) if 'ocr_result' in locals() else {}
+            if (
+                processing_mode in ["full"]
+                and page_texts
+                and self._evidence_pipeline_enabled()
+            ):
+                await self._update_status(document_id, "extracting_evidence", 80)
+                try:
+                    from src.services.evidence_substrate_service import (
+                        EvidenceSubstrateService,
+                    )
+                    from src.services.evidence_pipeline import (
+                        EvidencePipeline,
+                    )
+                    substrate = EvidenceSubstrateService.from_env()
+                    pipeline = EvidencePipeline(substrate=substrate)
+                    pipeline_result = await pipeline.run_for_document(
+                        document_id=UUID(document_id),
+                        page_texts=page_texts,
+                    )
+                    result["stages"]["evidence_extraction"] = {
+                        "status": "completed",
+                        "fields_extracted": pipeline_result.fields_extracted,
+                        "fields_cited": pipeline_result.fields_cited,
+                        "fields_rejected": pipeline_result.fields_rejected,
+                        "total_cost_usd": pipeline_result.total_cost_usd,
+                        "parser_version": pipeline_result.parser_version,
+                    }
+                except Exception as e:
+                    logger.warning(
+                        "evidence_extraction_failed document_id=%s error_type=%s",
+                        document_id,
+                        type(e).__name__,
+                    )
+                    result["stages"]["evidence_extraction"] = {
+                        "status": "failed",
+                        "error": "Evidence extraction failed; the document is processed but the substrate is empty.",
+                    }
+            else:
+                if processing_mode in ["full"] and not page_texts:
+                    result["stages"]["evidence_extraction"] = {
+                        "status": "skipped",
+                        "reason": "No page text available (OCR may have failed)",
+                    }
+                elif processing_mode in ["full"] and not self._evidence_pipeline_enabled():
+                    result["stages"]["evidence_extraction"] = {
+                        "status": "skipped",
+                        "reason": "Substrate not configured (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set)",
+                    }
             
             # Stage 4: Completion — derive the terminal state from stage
             # outcomes, do NOT hardcode "completed". The trust audit's
@@ -384,6 +445,7 @@ class DocumentProcessingService:
             if mobile_ocr_text:
                 return {
                     "full_text": mobile_ocr_text,
+                    "page_texts": {1: mobile_ocr_text},
                     "status": "completed",
                     "method": "mobile_mlkit_text_recognition",
                     "provenance": "client_on_device_ocr_sidecar",
@@ -433,10 +495,17 @@ class DocumentProcessingService:
                     }
                 all_text = []
                 image_only_pages = 0
-                for page in doc:
+                # Per-page text for the evidence pipeline. The key
+                # is the 1-based page number; the value is the
+                # page's text. Pages with no text (image-only
+                # pages) are omitted; the evidence pipeline handles
+                # the resulting page-number gaps.
+                page_texts: Dict[int, str] = {}
+                for page_index, page in enumerate(doc, start=1):
                     text = page.get_text()
                     if text and text.strip():
                         all_text.append(text.strip())
+                        page_texts[page_index] = text.strip()
                     else:
                         image_only_pages += 1
                 doc.close()
@@ -453,6 +522,7 @@ class DocumentProcessingService:
                         )
                     return {
                         "full_text": full_text,
+                        "page_texts": page_texts,
                         "status": "completed",
                         "method": method,
                     }
@@ -460,6 +530,7 @@ class DocumentProcessingService:
                 if mobile_ocr_text:
                     return {
                         "full_text": mobile_ocr_text,
+                        "page_texts": {1: mobile_ocr_text},
                         "status": "completed",
                         "method": "mobile_mlkit_text_recognition",
                         "provenance": "client_on_device_ocr_sidecar",
@@ -535,6 +606,7 @@ class DocumentProcessingService:
                 text = f.read()
             return {
                 "full_text": text,
+                "page_texts": {1: text},
                 "status": "completed",
                 "method": "text_fallback",
             }
@@ -679,6 +751,22 @@ class DocumentProcessingService:
         """Run CPU-intensive tasks in executor"""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, func, *args)
+
+    def _evidence_pipeline_enabled(self) -> bool:
+        """True iff the evidence substrate is configured on this
+        deployment. The substrate requires SUPABASE_URL and
+        SUPABASE_SERVICE_ROLE_KEY; if either is missing, the
+        pipeline is disabled and the document processing
+        continues without it.
+
+        The substrate is independent of the main document
+        store: the document is processed regardless, and the
+        policy detail screen shows the "Not yet verified"
+        scaffold when the substrate is empty.
+        """
+        url = os.getenv("SUPABASE_URL", "").strip()
+        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        return bool(url) and bool(key)
     
     async def _update_status(self, document_id: str, stage: str, progress: int, error: str = None):
         """Update processing status"""

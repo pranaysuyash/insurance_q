@@ -136,7 +136,15 @@ class AuthService {
 
   /// Permanently delete the Supabase account and all server-side data.
   /// Local data is NOT cleared here — the caller should handle that.
-  static Future<void> deleteAccount() async {
+  ///
+  /// Returns a [DeleteAccountResult] describing the per-stage
+  /// outcome. The backend returns HTTP 202 (deletion_requested) with
+  /// a per-stage status. The previous version only accepted HTTP 200
+  /// and threw on 202, which left the client in an inconsistent
+  /// state (the server had begun or completed deletion; the client
+  /// threw). Per the 2026-07-19 review, the client must accept 202
+  /// and surface the per-stage status to the UI.
+  static Future<DeleteAccountResult> deleteAccount() async {
     if (!hasAccountSession) {
       throw StateError('No account session to delete');
     }
@@ -148,11 +156,34 @@ class AuthService {
     ));
     dio.interceptors.add(AuthInterceptor(dio));
     final response = await dio.delete('/user/account');
-    if (response.statusCode != 200) {
+    // Per ADR-2026-07-19-05 + audit Phase 0 P0-04: accept both
+    // 200 and 202. The backend returns 202 with a per-stage status.
+    // Throwing on 202 caused the client to leave the user in an
+    // inconsistent state where the server had begun or completed
+    // deletion but the client still believed the account existed.
+    if (response.statusCode != 200 && response.statusCode != 202) {
       throw Exception('Server returned ${response.statusCode}');
     }
-    // Sign out after successful deletion
+    final data = (response.data as Map?)?.cast<String, dynamic>() ?? {};
+    final failedStages = (data['failed_stages'] as List?)
+            ?.cast<String>() ??
+        const <String>[];
+    final result = DeleteAccountResult(
+      status: data['status'] as String? ?? 'unknown',
+      deletedDocuments: (data['deleted_documents'] as int?) ?? 0,
+      deletedStorageFiles: (data['deleted_storage_files'] as int?) ?? 0,
+      storageErrors: (data['storage_errors'] as int?) ?? 0,
+      authUserDeleted: data['auth_user_deleted'] as bool? ?? false,
+      failedStages: failedStages,
+      message: data['message'] as String? ?? '',
+    );
+    // Sign out after a server-confirmed deletion (succeeded or
+    // partial). Even on partial deletion, the local session
+    // is no longer valid because the auth user may be gone or
+    // the durable job is in flight; the user should be signed
+    // out so they don't try to use the account.
     await signOut();
+    return result;
   }
 
   /// Reads only from platform secure storage. A one-time Hive migration avoids
@@ -242,6 +273,51 @@ class AuthService {
     await _box.delete(_tokenKey);
     await _box.delete(_tokenExpiryKey);
   }
+}
+
+/// The per-stage result of [AuthService.deleteAccount]. The
+/// server returns HTTP 202 with a per-stage status; the
+/// client surfaces this to the UI so the user knows what
+/// was deleted, what failed, and what will be retried.
+class DeleteAccountResult {
+  /// 'deletion_succeeded' or 'deletion_partial' (per the
+  /// backend's audit P0-04 contract).
+  final String status;
+
+  /// The number of document metadata rows deleted.
+  final int deletedDocuments;
+
+  /// The number of Supabase Storage files deleted.
+  final int deletedStorageFiles;
+
+  /// The number of storage files that failed to delete.
+  final int storageErrors;
+
+  /// True iff the Supabase auth user was deleted.
+  final bool authUserDeleted;
+
+  /// The list of stages that failed (empty for full success).
+  final List<String> failedStages;
+
+  /// The human-readable message from the backend.
+  final String message;
+
+  const DeleteAccountResult({
+    required this.status,
+    required this.deletedDocuments,
+    required this.deletedStorageFiles,
+    required this.storageErrors,
+    required this.authUserDeleted,
+    required this.failedStages,
+    required this.message,
+  });
+
+  /// True iff the server reported all stages clean.
+  bool get isComplete => status == 'deletion_succeeded';
+
+  /// True iff the user should be told that some stages will
+  /// be retried by the durable deletion job.
+  bool get isPartial => status == 'deletion_partial';
 }
 
 /// Dio interceptor: adds the anonymous auth header, auto-refreshes on 401.

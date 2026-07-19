@@ -92,7 +92,7 @@ void main() {
     await tester.pumpWidget(
       _harness(FieldCitationsCard(citations: citations)),
     );
-    expect(find.textContaining('Lower confidence'), findsOneWidget);
+    expect(find.textContaining('Less reliable'), findsOneWidget);
   });
 
   testWidgets('does not show low-confidence indicator at >= 0.7',

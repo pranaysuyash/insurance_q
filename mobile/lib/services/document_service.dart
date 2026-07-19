@@ -643,6 +643,63 @@ class DocumentService {
       final document = await _localStorageService.getDocumentById(documentId);
       if (document == null) return false;
 
+      // Per the 2026-07-19 review: the previous version was
+      // local-only. Source files, metadata, summaries, and
+      // chunks remained on the server after the user believed
+      // the policy was deleted. The fix: call the backend's
+      // DELETE /documents/{document_id} endpoint FIRST. If
+      // the server-side deletion fails, we do NOT delete
+      // locally; the user is told the deletion failed and
+      // can retry. Only on server-side success do we delete
+      // locally.
+      //
+      // The backend's response is the canonical state. A 200
+      // means the server deleted everything (source, metadata,
+      // summary, chunks). A 5xx means we leave the local
+      // record in place and surface the error.
+      try {
+        final response = await authenticatedDio.delete(
+          '/documents/$documentId',
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          ),
+        );
+        if (response.statusCode == 404) {
+          // The server has no record of this document. The
+          // local record is stale; delete it and return true.
+          debugPrint(
+            'Server returned 404 for document $documentId; '
+            'removing local record only',
+          );
+        } else if (response.statusCode != 200 && response.statusCode != 204) {
+          // Server-side deletion failed (4xx other than 404,
+          // e.g. 503 from the backend). Do NOT delete locally;
+          // the user can retry. Surface the error.
+          debugPrint(
+            'Server-side deletion failed for $documentId: '
+            '${response.statusCode} ${response.data}',
+          );
+          throw Exception(
+            'Server-side deletion failed (${response.statusCode}). '
+            'The document is not deleted. Please retry.',
+          );
+        }
+        // 200/204: server deleted; we delete locally below.
+      } on DioException catch (e) {
+        // Transport-level failure. Do NOT delete locally; the
+        // user can retry.
+        debugPrint(
+          'Server-side deletion network error for $documentId: '
+          '${e.type} ${e.message}',
+        );
+        throw Exception(
+          'Server-side deletion failed (network error). '
+          'The document is not deleted. Please retry.',
+        );
+      }
+
+      // Server confirmed deletion (or 404); safe to delete
+      // locally.
       final deleted = await _localStorageService.deleteDocument(documentId);
       if (deleted) {
         await AppStateRepository.addRecentlyDeletedDocument(document.filename);

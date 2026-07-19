@@ -86,30 +86,31 @@ void main() {
       expect(AnalyticsService.queuedCount, 1);
     });
 
-    test('first launch: events flow immediately (no record defaults to true)',
+    test('first launch: events are dropped (no record defaults to false per security audit P0-10)',
         () async {
       // On first launch, no consent record exists. _checkConsentFresh()
-      // returns true (fail-open) so analytics flow from the start.
+      // returns false (fail-closed) per security audit P0-10. The user
+      // must explicitly grant analytics through the privacy screen.
       final ledger = ConsentLedger();
       expect(ledger.hasConsent(ConsentPurpose.analytics), isFalse);
 
       AnalyticsService.refreshConsentCache();
 
-      // Events should flow immediately — no record defaults to true.
+      // Events should be dropped — no record defaults to false (fail-closed).
       AnalyticsService.track('first_launch_event');
-      expect(AnalyticsService.queuedCount, 1);
+      expect(AnalyticsService.queuedCount, 0);
     });
 
-    test('events flow when ledger is corrupted (fallback to true)', () async {
+    test('events are dropped when ledger is corrupted (fail-closed per P0-10)', () async {
       // Corrupt the consent ledger data.
       await box.put('consent_ledger_v1', 'not-valid-json');
 
-      // _checkConsentFresh catches the error and defaults to true.
+      // _checkConsentFresh catches the error and defaults to false (fail-closed).
       AnalyticsService.refreshConsentCache();
 
-      // Track an event — should flow because fallback is true.
+      // Track an event — should be dropped because fallback is false.
       AnalyticsService.track('corrupted_ledger_event');
-      expect(AnalyticsService.queuedCount, 1);
+      expect(AnalyticsService.queuedCount, 0);
     });
   });
 }

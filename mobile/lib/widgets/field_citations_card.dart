@@ -72,7 +72,7 @@ class FieldCitationsCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 26),
               child: Text(
-                'Each item below is grounded in a specific page of the source document. Tap the page to verify.',
+                'Each item below is taken from a specific page of the source document. Tap to open the source document.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -145,7 +145,7 @@ class _FieldCitationRow extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Lower confidence (${(citation.fieldConfidence * 100).round()}%)',
+                          'Less reliable — verify against your policy',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.tertiary,
                           ),

@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../config/app_config.dart';
 import '../models/field_citation.dart';
+import 'document_service.dart';
 
 /// Reads cited fields from the evidence substrate (Trust Phase 1).
 ///
@@ -16,12 +16,18 @@ import '../models/field_citation.dart';
 /// that have not yet applied the substrate migration. The
 /// policy detail screen must keep the "Not yet verified" scaffold
 /// in that case (the existing Phase 0 P0-0.4 behavior).
+///
+/// IMPORTANT: this service uses [DocumentService.authenticatedDio],
+/// the singleton Dio instance that has the [AuthInterceptor]
+/// attached. The previous version created its own raw Dio without
+/// the interceptor, which meant the protected endpoint was called
+/// without a bearer token and the server returned 401. Per the
+/// 2026-07-19 review, this is one of the critical bugs that
+/// caused the evidence system to be a contract without execution.
 class EvidenceService {
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: AppConfig.baseUrl,
-    connectTimeout: Duration(seconds: AppConfig.connectTimeoutSeconds),
-    receiveTimeout: Duration(seconds: AppConfig.receiveTimeoutSeconds),
-  ));
+  final Dio _dio;
+
+  EvidenceService() : _dio = DocumentService.authenticatedDio;
 
   /// Fetch every cited field for a document. Returns an empty list
   /// on 503 (substrate not configured) or 404 (document not owned
@@ -51,6 +57,12 @@ class EvidenceService {
         // Substrate not configured, or document not owned.
         // The scaffold is the honest UI for both cases.
         debugPrint('evidence substrate not available: $status');
+        return const [];
+      }
+      if (status == 401) {
+        // Unauthenticated: the AuthInterceptor did not attach a
+        // token. This is a configuration error, not a user error.
+        debugPrint('evidence fetch unauthenticated: $status');
         return const [];
       }
       debugPrint('evidence fetch failed: $e');

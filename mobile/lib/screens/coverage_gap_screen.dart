@@ -71,7 +71,7 @@ class CoverageGapScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Text(
-              'Each item below is grounded in a specific page of your policy document.',
+              'Each item below is taken from a specific page of your policy document.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -104,9 +104,8 @@ class CoverageGapScreen extends StatelessWidget {
                 horizontal: 16, vertical: 24,
               ),
               child: Text(
-                'The substrate has not extracted any coverage-gap fields for this document yet. '
-                'This is the honest state when the parser pipeline has not completed, or '
-                'when the document does not contain extractable coverage-gap information.',
+                "We don't have this information for your policy yet. "
+                'For now, check your policy document or contact your insurer.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -188,7 +187,7 @@ class _CoverageGapRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Lower confidence (${(fieldConfidence * 100).round()}%)',
+                    'Less reliable — verify against your policy',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.tertiary,
                     ),

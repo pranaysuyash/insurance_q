@@ -1041,7 +1041,7 @@ class _PolicyActionsRow extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: () => _openCoverageGaps(context),
               icon: const Icon(Icons.help_outline),
-              label: const Text('Coverage gaps'),
+              label: const Text('What your policy covers'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: colorScheme.onSurface,
                 side: BorderSide(color: colorScheme.outlineVariant),
@@ -1054,7 +1054,7 @@ class _PolicyActionsRow extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: () => _openClaimAssistance(context),
               icon: const Icon(Icons.assignment_outlined),
-              label: const Text('Claim assistance'),
+              label: const Text('How to file a claim'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: colorScheme.onSurface,
                 side: BorderSide(color: colorScheme.outlineVariant),

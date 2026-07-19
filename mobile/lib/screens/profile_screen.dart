@@ -168,12 +168,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Deleting account...')),
       );
-      await AuthService.deleteAccount();
+      // Per the 2026-07-19 review: the backend returns HTTP 202
+      // with a per-stage status. The previous UI only handled
+      // HTTP 200 + a single "deleted" message, which lied when
+      // a stage failed. The new UI surfaces the per-stage result
+      // so the user knows what was deleted, what failed, and
+      // what will be retried.
+      final result = await AuthService.deleteAccount();
       if (!mounted) return;
+      // Build the user-facing message from the per-stage
+      // status, not from a single "deleted" claim.
+      final statusColor = result.isComplete ? Colors.green : Colors.orange;
+      final String snackMessage;
+      if (result.isComplete) {
+        snackMessage =
+            'Account deleted. ${result.deletedDocuments} document(s) and '
+            '${result.deletedStorageFiles} storage file(s) removed.';
+      } else if (result.isPartial) {
+        snackMessage =
+            'Account deletion is partially complete. '
+            'Failed stages: ${result.failedStages.join(", ")}. '
+            'A durable deletion job will retry these. '
+            'Local data on this device was not affected and can be '
+            'cleared from the privacy screen.';
+      } else {
+        snackMessage =
+            'Account deletion requested. Status: ${result.status}. '
+            'Check the privacy screen for details.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account deleted. All server data has been removed.'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(snackMessage),
+          backgroundColor: statusColor,
+          duration: const Duration(seconds: 8),
         ),
       );
       setState(() {});

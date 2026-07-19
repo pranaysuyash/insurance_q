@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:app_links/app_links.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -15,6 +16,7 @@ import 'screens/emergency_screen.dart';
 import 'screens/claims_assistant_screen.dart';
 import 'screens/renewal_calendar_screen.dart';
 import 'screens/coverage_gap_screen.dart';
+import 'models/field_citation.dart';
 import 'screens/policy_comparison_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/help_support_screen.dart';
@@ -154,7 +156,24 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       case '/renewals':
         nav.pushNamed('/renewals');
       case '/coverage-gaps':
-        nav.pushNamed('/coverage-gaps');
+        final docId = uri.queryParameters['documentId'] ?? '';
+        final citationsJson = uri.queryParameters['citations'];
+        List<Map<String, dynamic>> citations = [];
+        if (citationsJson != null && citationsJson.isNotEmpty) {
+          try {
+            final decoded = Uri.decodeComponent(citationsJson);
+            final parsed = jsonDecode(decoded);
+            if (parsed is List) {
+              citations = parsed.cast<Map<String, dynamic>>();
+            }
+          } catch (_) {
+            // Malformed citations — render empty
+          }
+        }
+        nav.pushNamed('/coverage-gaps', arguments: {
+          'documentId': docId,
+          'citations': citations,
+        });
       case '/compare':
         nav.pushNamed('/compare');
       case '/qa':
@@ -241,9 +260,26 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/coverage-gaps': (context) {
           final args = ModalRoute.of(context)?.settings.arguments
               as Map<String, dynamic>?;
+          final documentId = args?['documentId'] as String?;
+          if (documentId == null || documentId.isEmpty) {
+            return const _MissingArgsScreen(
+              title: 'Coverage gaps',
+              message: 'No document was specified. '
+                  'Open coverage gaps from a policy detail screen.',
+            );
+          }
+          // Deep links pass citations as URL-encoded JSON arrays of raw maps,
+          // not pre-deserialized FieldCitation objects. Deserialize them here.
+          final citationsRaw = args?['citations'];
+          final citations = citationsRaw is List
+              ? citationsRaw
+                  .whereType<Map<String, dynamic>>()
+                  .map(FieldCitation.fromJson)
+                  .toList()
+              : const <FieldCitation>[];
           return CoverageGapScreen(
-            documentId: args?['documentId'] as String? ?? '',
-            citations: (args?['citations'] as List?)?.cast() ?? const [],
+            documentId: documentId,
+            citations: citations,
           );
         },
         '/compare': (context) => const PolicyComparisonScreen(),
@@ -270,6 +306,50 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         },
       },
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+/// Fallback screen shown when a deep link arrives without required arguments.
+class _MissingArgsScreen extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _MissingArgsScreen({required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.link_off_rounded,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.tonal(
+                onPressed: () => Navigator.of(context).maybePop(),
+                child: const Text('Go back'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

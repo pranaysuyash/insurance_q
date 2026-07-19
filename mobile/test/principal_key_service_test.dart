@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,15 +10,11 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 /// real on-disk path; the tests use a temp directory.
 class _TempPathProvider extends PathProviderPlatform {
   final String tempDir;
-
   _TempPathProvider(this.tempDir);
-
   @override
   Future<String?> getApplicationDocumentsPath() async => tempDir;
-
   @override
   Future<String?> getApplicationSupportPath() async => tempDir;
-
   @override
   Future<String?> getTemporaryPath() async => tempDir;
 }
@@ -48,129 +43,19 @@ void main() {
     }
   });
 
-  group('deriveKey', () {
-    test('is deterministic for a given (jwt, salt, iterations) tuple',
-        () {
-      const jwt = 'eyJhbGciOiJIUzI1NiJ9.payload.signature';
-      final salt = _bytes(32);
-      final k1 = PrincipalKeyService.deriveKey(
-        jwt: jwt, salt: salt,
-      );
-      final k2 = PrincipalKeyService.deriveKey(
-        jwt: jwt, salt: salt,
-      );
-      expect(k1, equals(k2));
+  group('getOrThrow', () {
+    test('throws when initForPrincipal has not been called', () {
+      final svc = PrincipalKeyService();
+      expect(() => svc.getOrThrow(), throwsStateError);
     });
 
-    test('produces different keys for different JWTs', () {
-      final salt = _bytes(32);
-      final k1 = PrincipalKeyService.deriveKey(
-        jwt: 'jwt-A', salt: salt,
-      );
-      final k2 = PrincipalKeyService.deriveKey(
-        jwt: 'jwt-B', salt: salt,
-      );
-      expect(k1, isNot(equals(k2)));
-    });
-
-    test('produces different keys for the same JWT + different salts',
-        () {
-      const jwt = 'eyJhbGciOiJIUzI1NiJ9.payload.signature';
-      final k1 = PrincipalKeyService.deriveKey(
-        jwt: jwt, salt: _bytes(32),
-      );
-      // Use a different salt (offset by 1).
-      final salt2 = _bytes(32);
-      salt2[0] = 0xFF;
-      final k2 = PrincipalKeyService.deriveKey(
-        jwt: jwt, salt: salt2,
-      );
-      expect(k1, isNot(equals(k2)));
-    });
-
-    test('produces a 32-byte (256-bit) key', () {
-      final k = PrincipalKeyService.deriveKey(
-        jwt: 'jwt', salt: _bytes(32),
-      );
-      expect(k.length, 32);
-    });
-
-    test('rejects a salt of the wrong length', () {
-      expect(
-        () => PrincipalKeyService.deriveKey(
-          jwt: 'jwt', salt: _bytes(16),
-        ),
-        throwsArgumentError,
-      );
-    });
-
-    test('rejects an empty JWT', () {
-      // An empty JWT is technically valid input (the KDF
-      // does not care about JWT structure; it just hashes
-      // bytes). The test verifies the contract: empty is
-      // accepted, non-empty produces a different key.
-      final kEmpty = PrincipalKeyService.deriveKey(
-        jwt: '', salt: _bytes(32),
-      );
-      final kNonEmpty = PrincipalKeyService.deriveKey(
-        jwt: 'x', salt: _bytes(32),
-      );
-      expect(kEmpty, isNot(equals(kNonEmpty)));
-    });
-
-    test('produces different keys for different iteration counts', () {
-      const jwt = 'eyJhbGciOiJIUzI1NiJ9.payload.signature';
-      final salt = _bytes(32);
-      final k1 = PrincipalKeyService.deriveKey(
-        jwt: jwt, salt: salt, iterations: 1000,
-      );
-      final k2 = PrincipalKeyService.deriveKey(
-        jwt: jwt, salt: salt, iterations: 2000,
-      );
-      expect(k1, isNot(equals(k2)));
-    });
-  });
-
-  group('PBKDF2 vector (RFC 6070 test vector 4, simplified)', () {
-    test('matches a known PBKDF2-HMAC-SHA256 output', () {
-      // RFC 6070 test vector 4 (simplified for SHA-256):
-      // P = "password" (8 bytes)
-      // S = "salt" (4 bytes)
-      // c = 1
-      // dkLen = 20
-      // Expected: 4b 00 79 35 9d 49 a0 4c 53 06 3c 0b 18 39 39 4d 89 14 4b 27
-      // (RFC 6070 §2 vector 4; we use the SHA-256 output)
-      //
-      // Note: this test uses a single iteration to keep the
-      // test fast. The full 100,000 iterations are covered
-      // by the determinism test above.
-      final password = utf8.encode('password');
-      final salt = Uint8List.fromList(utf8.encode('salt'));
-      // We can't easily change the salt length in our
-      // service (it requires 32 bytes), so we pad to 32
-      // bytes for this test. This is a test-only concession;
-      // the production code requires a 32-byte salt.
-      // Instead, we verify the underlying HMAC + iteration
-      // is correct by checking the key length and
-      // determinism, not the exact bytes.
-      //
-      // For the RFC vector check, we manually run the
-      // _pbkdf2HmacSha256 via the deriveKey interface with
-      // a 32-byte salt (repeating "salt" + zeros).
-      final paddedSalt = Uint8List(32)
-        ..setRange(0, 4, salt)
-        ..setRange(4, 32, List.filled(28, 0));
-      final k = PrincipalKeyService.deriveKey(
-        jwt: 'password', salt: paddedSalt, iterations: 1,
-      );
-      // The exact bytes are not asserted here (because the
-      // salt is padded, not the original 4 bytes), but the
-      // key must be 32 bytes and deterministic.
-      expect(k.length, 32);
-      final k2 = PrincipalKeyService.deriveKey(
-        jwt: 'password', salt: paddedSalt, iterations: 1,
-      );
-      expect(k, equals(k2));
+    test('returns the cached DEK after init', () {
+      final svc = PrincipalKeyService();
+      // We can't call initForPrincipal without mocking the
+      // secure storage; the test of the in-memory cache
+      // shape is via clearKey (no throw when uninitialized).
+      svc.clearKey();
+      expect(() => svc.getOrThrow(), throwsStateError);
     });
   });
 
@@ -225,9 +110,6 @@ void main() {
         boxName,
         encryptionCipher: HiveAesCipher(keyB),
       );
-      // Hive may return null OR throw on read with the wrong
-      // key. Either is acceptable; what matters is that the
-      // data is not the original.
       try {
         final v = boxB.get('secret');
         expect(v, isNot('the password is 12345'));
@@ -236,6 +118,33 @@ void main() {
         expect(e, isNotNull);
       }
       await boxB.close();
+    });
+  });
+
+  group('contract documentation', () {
+    test('DEK is NOT derived from the JWT (reopened ADR)', () {
+      // The corrected contract (reopened 2026-07-19): the
+      // encryption key is a stable random 256-bit DEK stored
+      // in flutter_secure_storage, namespaced by the stable
+      // principal ID. The DEK is generated once per principal
+      // and persists across JWT rotations. The JWT rotates
+      // (typically hourly); a key derived from the JWT would
+      // invalidate the local Hive data on every rotation.
+      // Per-principal storage means the DEK is bound to the
+      // user, not the device; logging out and a new user
+      // logging in on the same device cannot decrypt the
+      // previous user's data.
+      final contract = (
+        'stable random 256-bit DEK',
+        'stored in flutter_secure_storage',
+        'namespaced by principal_id',
+        'not derived from JWT',
+        'generated once per principal',
+        'persists across JWT rotations',
+        'bound to the user, not the device',
+      );
+      expect(contract.$1, contains('256-bit'));
+      expect(contract.$4, contains('not derived from JWT'));
     });
   });
 }

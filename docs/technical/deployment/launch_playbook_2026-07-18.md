@@ -4,10 +4,10 @@
 current repo state after the Phase 0 commit `fa02854`.)
 
 **Supabase project:** `https://eyumuxwabmsymytjbxoj.supabase.co`
-**Status at last review:** Supabase project created, **7 SQL migrations
+**Status at last review:** Supabase project created, **8 SQL migrations
 pending apply** (3 base + 2 RevOps/analytics + 1 evidence substrate
-+ 1 job outbox). Cloud Run service: not yet deployed. APK: not yet
-built for the post-Phase-0 code.
++ 1 job outbox + 1 consent ledger). Cloud Run service: not yet
+deployed. APK: not yet built for the post-Phase-0 code.
 
 This is the exact step-by-step to go from where the repo is now to a live app.
 Every step has a **Verify** sub-step that you can run to confirm it actually
@@ -66,8 +66,17 @@ schema must be applied first; the RevOps/analytics migrations depend on
    plus `v_outbox_health` and `v_outbox_dead_letter` operator
    views. RLS-enabled, only `service_role` granted. Depends on
    `pgcrypto` (created in step 6's same apply if not already).
+8. **`supabase/migrations/2026_07_19_consent_ledger.sql`** (~120 lines) —
+   Server-side append-only consent ledger per
+   [ADR-2026-07-19-07](../../decisions/ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md).
+   Creates `consent_ledger` (the user's consent events), a
+   `consent_ledger_append_only()` trigger that raises an
+   exception on UPDATE and DELETE for ALL roles, and 2
+   views (`v_current_consent` for the "current state" query,
+   `v_consent_history` for the audit view). RLS-enabled, only
+   `service_role` granted for INSERT and SELECT.
 
-**Verify after applying all 7:**
+**Verify after applying all 8:**
 
 ```sql
 -- Run in Supabase SQL Editor. Must return rows for every object.
@@ -89,18 +98,20 @@ union all select 'source_spans', count(*) from public.source_spans
 union all select 'extracted_fields', count(*) from public.extracted_fields
 union all select 'field_evidence', count(*) from public.field_evidence
 union all select 'evidence_extraction_costs', count(*) from public.evidence_extraction_costs
-union all select 'job_outbox', count(*) from public.job_outbox;
+union all select 'job_outbox', count(*) from public.job_outbox
+union all select 'consent_ledger', count(*) from public.consent_ledger;
 
--- Views must exist (3 RevOps + 1 evidence + 2 outbox = 6).
+-- Views must exist (3 RevOps + 1 evidence + 2 outbox + 2 consent = 8).
 select viewname from pg_views
 where schemaname = 'public'
   and viewname in (
     'v_daily_active_users','v_conversion_funnel','v_cohort_retention',
     'v_field_citations',
-    'v_outbox_health','v_outbox_dead_letter'
+    'v_outbox_health','v_outbox_dead_letter',
+    'v_current_consent','v_consent_history'
   );
 
--- RLS must be enabled on the RevOps + evidence + outbox tables.
+-- RLS must be enabled on the RevOps + evidence + outbox + consent tables.
 select tablename, rowsecurity
 from pg_tables
 where schemaname = 'public'
@@ -111,14 +122,35 @@ where schemaname = 'public'
     'events_unrouted',
     'page_artifacts','source_spans','extracted_fields',
     'field_evidence','evidence_extraction_costs',
-    'job_outbox'
+    'job_outbox',
+    'consent_ledger'
   )
 order by tablename;
+
+-- Append-only enforcement: an UPDATE on consent_ledger must raise an
+-- exception (the trigger in migration #8). The launch playbook's
+-- verify step proves the trigger is in place; this is the contract
+-- for the DPDP Act 2023 compliance posture.
+do $$
+declare
+  has_trigger boolean;
+begin
+  select exists(
+    select 1 from pg_trigger
+    where tgname = 'consent_ledger_append_only_trg'
+      and tgrelid = 'public.consent_ledger'::regclass
+  ) into has_trigger;
+  if not has_trigger then
+    raise exception 'consent_ledger_append_only_trg is missing; migration #8 may not have applied correctly';
+  end if;
+  raise notice 'consent_ledger_append_only_trg is in place';
+end;
+$$;
 ```
 
 Expected: every `count(*)` returns a number (0 is fine for empty tables);
-6 rows from the views query; every RevOps + evidence + outbox table has
-`rowsecurity = t`.
+8 rows from the views query; every RevOps + evidence + outbox + consent
+table has `rowsecurity = t`; the trigger check returns "consent_ledger_append_only_trg is in place."
 
 ---
 
@@ -406,7 +438,7 @@ for it. **Only do this after Step 8 verifies the Cloud Run path.**
 ## Pre-launch checklist (motto v3 §0.4 acceptance contract)
 
 - [ ] OpenAI account funded; new key generated and stored only in GCP Secret Manager
-- [ ] All 7 SQL migrations applied to Supabase; Step 1 verify passes
+- [ ] All 8 SQL migrations applied to Supabase; Step 1 verify passes
 - [ ] Supabase service_role key captured (not the publishable key)
 - [ ] GCP project created with Cloud Run / Secret Manager / Cloud Build APIs enabled
 - [ ] 3 secrets created in Secret Manager; Step 4 verify passes
@@ -442,9 +474,16 @@ of "go live":
   `mobile/lib/services/principal_key_service.dart`. The per-box
   migration (each existing Hive box migrated to the new principal
   key) is a follow-up session.
-- **Security Phase 3** — durable deletion job. `delete_account`
-  returns 202 + per-stage status; the actual back-end retry /
-  tombstone job is Phase 3.
+- **Security Phase 2 migration** — the server-side consent
+  ledger + trigger-enforced append-only + FastAPI endpoint +
+  Flutter client are shipped in
+  [ADR-2026-07-19-07](../../decisions/ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md).
+  The Flutter cache invalidation (the local Hive box
+  becomes a cache, with the server as the source of truth)
+  is a follow-up session.
+- **Security Phase 3** — durable deletion job with retries +
+  tombstone. `delete_account` returns 202 + per-stage status;
+  the actual back-end retry / tombstone job is Phase 3.
 - **Embedding model switch** — the default is `text-embedding-3-small`
   per [ADR-2026-07-19-03](../../decisions/ADR-2026-07-19-03-embedding-model-text-embedding-3-small-default.md).
   The benchmark may recommend switching to `voyage-3`; the

@@ -37,17 +37,35 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
     that exposes a handler must call dispatcher.register() at
     import time.
 
-    v1 of the migration: this is a no-op. The existing async
-    paths still use their in-process poll loops. The outbox
-    is available for new code and for the migration of
-    existing code, which is a follow-up per ADR-2026-07-19-01.
+    Per the 2026-07-19 current-state review: the previous
+    version of this file had the registry empty. The outbox
+    was a contract without execution. This v2 registers the
+    two handlers that are needed for the end-to-end evidence
+    path: document processing (which enqueues substrate
+    extraction in turn) and substrate extraction (the
+    pipeline that produces cited fields). The other 5 job
+    types keep their existing in-process paths until their
+    migration is designed and implemented (per
+    ADR-2026-07-19-02).
     """
-    # TODO(ADR-2026-07-19-01 follow-up): import handler modules
-    # and call dispatcher.register() for each. Examples:
-    #   from src.services.document_processing_handler import handle_document_processing
-    #   dispatcher.register(JobType.DOCUMENT_PROCESSING, handle_document_processing)
-    #   from src.services.evidence_pipeline_handler import handle_substrate_extraction
-    #   dispatcher.register(JobType.SUBSTRATE_EXTRACTION, handle_substrate_extraction)
+    # v1 of the migration: register the two handlers that are
+    # needed for the end-to-end evidence path. The other 5
+    # job types (qa_response, webhook_reconciliation, etc.)
+    # keep their existing in-process paths.
+    from src.models.job_outbox import JobType
+    from src.workers.document_processing_handler import (
+        handle_document_processing,
+    )
+    from src.workers.substrate_extraction_handler import (
+        handle_substrate_extraction,
+    )
+
+    dispatcher.register(JobType.DOCUMENT_PROCESSING, handle_document_processing)
+    dispatcher.register(JobType.SUBSTRATE_EXTRACTION, handle_substrate_extraction)
+    log.info(
+        "registered handlers: %s",
+        [jt.value for jt in dispatcher.registered_types],
+    )
     #   from src.services.webhook_handler import handle_webhook_reconciliation
     #   dispatcher.register(JobType.WEBHOOK_RECONCILIATION, handle_webhook_reconciliation)
     #   from src.services.subscription_handler import handle_subscription_writeback

@@ -16,6 +16,7 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-19-04 | 2026-07-19 | Coverage-gap + claim-assistance = thin slice from the existing 7 substrate fields; full features deferred | Accepted | [link](./ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md) |
 | ADR-2026-07-19-05 | 2026-07-19 | Canonical architecture doc lives at `docs/architecture/coverwise_canonical_architecture.md` | Accepted | [link](./ADR-2026-07-19-05-canonical-architecture-doc-location.md) |
 | ADR-2026-07-19-06 | 2026-07-19 | Security Phase 1 = principal-scoped encrypted local storage (JWT-derived key, Flutter-only change) | Accepted | [link](./ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md) |
+| ADR-2026-07-19-07 | 2026-07-19 | Security Phase 2 = server-side append-only consent ledger (Postgres table with trigger-enforced append-only) | Accepted | [link](./ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md) |
 
 ---
 

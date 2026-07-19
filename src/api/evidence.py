@@ -87,10 +87,14 @@ async def get_field_citations(
     # We use the existing DocumentRepository rather than touching
     # the substrate's documents table; the canonical document
     # store is the source of truth for owner identity.
+    # NOTE: the User model exposes `uid`, not `id`. Using
+    # `current_user.id` here would raise AttributeError at
+    # runtime; the test in tests/test_evidence_api_owner_check.py
+    # pins this contract.
     try:
         from src.services.document_repository import create_document_repository
         repo = create_document_repository()
-        document = repo.get(document_id, current_user.id)
+        document = repo.get(document_id, current_user.uid)
     except Exception as error:  # pragma: no cover - repo construction
         logger.warning("document lookup failed: %s", error)
         raise HTTPException(
