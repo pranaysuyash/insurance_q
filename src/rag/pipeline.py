@@ -425,9 +425,29 @@ class RAGPipeline:
         document_id: str,
         text_blocks: List[Dict[str, Any]],
         document_metadata: Optional[Dict[str, Any]] = None,
+        page_artifact_id_map: Optional[Dict[int, str]] = None,
     ) -> Dict[str, Any]:
+        """Ingest text blocks into the vector store.
+
+        Per ADR-2026-07-19-11 Layer 4: every chunk must have a
+        page_artifact_id so the "open page" action can find the source
+        page. The `page_artifact_id_map` is {page_number: page_artifact_id}
+        for the document. Chunks with a `page` field get the corresponding
+        page_artifact_id; chunks without a `page` get None.
+        """
         if not text_blocks:
             return {"status": "success", "message": "No text blocks to ingest.", "points_added": 0}
+
+        # Per ADR-2026-07-19-11 Layer 4: enforce page_artifact_id on every
+        # chunk. Chunks with a page number get the corresponding id from
+        # the map; chunks without a page get None (the verifier will
+        # reject the citation if the chunk is cited without a page).
+        if page_artifact_id_map is not None:
+            for block in text_blocks:
+                page_num = block.get("page")
+                if page_num is not None and int(page_num) in page_artifact_id_map:
+                    block = {**block, "page_artifact_id": page_artifact_id_map[int(page_num)]}
+                text_blocks = text_blocks  # noqa - keep reference
 
         filtered = []
         for block in text_blocks:

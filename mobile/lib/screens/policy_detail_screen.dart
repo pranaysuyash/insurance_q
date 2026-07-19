@@ -18,6 +18,18 @@ import 'claim_assistance_screen.dart';
 import 'coverage_gap_screen.dart';
 import 'document_preview_screen.dart';
 
+/// Resolve the display value for an editable field, preferring the
+/// user override when present.
+String resolveFieldOverride(
+  Map<String, OverrideRecord> overrides,
+  String field,
+  String? extracted,
+) {
+  final override = overrides[field];
+  if (override != null) return override.value;
+  return extracted ?? '';
+}
+
 /// The core value screen: turns a 40-page policy PDF into one page the user
 /// can actually understand.
 ///
@@ -477,17 +489,11 @@ class _MoneyRow extends StatelessWidget {
     required this.onRevertField,
   });
 
-  String _fieldValue(String field, String? extracted) {
-    final override = overrides[field];
-    if (override != null) return override.value;
-    return extracted ?? '';
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final coverageDisplay = _fieldValue('coverage_amount', summary.formattedCoverageAmount);
-    final premiumDisplay = _fieldValue('premium_amount', summary.formattedPremium);
+    final coverageDisplay = resolveFieldOverride(overrides, 'coverage_amount', summary.formattedCoverageAmount);
+    final premiumDisplay = resolveFieldOverride(overrides, 'premium_amount', summary.formattedPremium);
     
     final items = <_MoneyItem>[
       if (summary.coverageAmount != null || overrides.containsKey('coverage_amount'))
@@ -648,20 +654,17 @@ class _DatesCard extends StatelessWidget {
     required this.onRevertField,
   });
 
-  String _fieldValue(String field, String? extracted) {
-    final override = overrides[field];
-    if (override != null) return override.value;
-    return extracted ?? '';
-  }
-
   @override
   Widget build(BuildContext context) {
     if (summary.startDate == null && summary.endDate == null) {
       return const SizedBox.shrink();
     }
 
-    final startDisplay = _fieldValue('start_date', summary.formattedStartDate);
-    final endDisplay = _fieldValue('end_date', summary.formattedExpiryDate);
+    // Note (v2): if summary.startDate is null but user has an override
+    // for 'start_date', this card still hides because of the null check.
+    // Acceptable for v1 since you can't correct a field that doesn't exist.
+    final startDisplay = resolveFieldOverride(overrides, 'start_date', summary.formattedStartDate);
+    final endDisplay = resolveFieldOverride(overrides, 'end_date', summary.formattedExpiryDate);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),

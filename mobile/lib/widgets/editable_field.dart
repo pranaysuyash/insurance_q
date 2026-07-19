@@ -66,6 +66,8 @@ class _EditableFieldState extends State<EditableField> {
   void _save() {
     final newValue = _controller.text.trim();
     if (newValue.isNotEmpty && newValue != widget.value) {
+      // Fire-and-forget: the parent's setState (after Hive write)
+      // will rebuild with the new override value.
       widget.onSave(newValue);
     }
     setState(() => _editing = false);
