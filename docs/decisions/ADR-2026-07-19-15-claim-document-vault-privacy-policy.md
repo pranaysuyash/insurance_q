@@ -5,7 +5,7 @@
 - **Decision:** **The Claim Document Vault (per ADR-2026-07-19-08 #3) is a privacy-sensitive surface because it stores claim paperwork that may include medical records (discharge summaries, diagnosis information, treatment details, prescriptions, diagnostic reports). The vault's privacy policy is explicit:** (1) a new consent purpose `medical_records` is added to the consent ledger (per ADR-2026-07-19-07) and is required before the user can upload a medical record; (2) the vault's retention period is 7 years (aligned with Indian medical record retention norms and the Indian Medical Council Act); (3) the vault's documents are encrypted at rest using the principal encryption from ADR-2026-07-19-06 (reopened to use a stable random 256-bit DEK, not JWT-derived); (4) the support-operator role (per ADR-2026-07-19-12) can read vault documents only with a reason, the read is audit-logged, and the user is notified by email; (5) the user has a right to export the vault as a PDF and a right to delete the vault (the deletion is durable via the outbox per ADR-2026-07-19-10); (6) the vault is not shared with partners, insurers, or third parties under any circumstances; the product does not train any model on vault contents. The vault is a filing cabinet, not a data source.
 - **Date:** 2026-07-19
 - **Owner / next reviewer:** Pranay (operator).
-- **Status:** Proposed. **Requires operator sign-off before any code change.** This is a decisions-first ADR — no commits will be made until the privacy policy is confirmed.
+- **Status:** **Deferred (operator sign-off, 2026-07-19).** The privacy policy is acceptable as written — the six components (consent, retention, encryption, support-operator access, user's right to export/delete, no-share rule) are the right shape. The implementation is deferred to a later exploration. The operator's reasoning: "I don't want my solo product to be bogged down because of these extra regulatory stuff, we research and get to this again later." The Claim Document Vault surface (per ADR-2026-07-19-08 #3) can ship in the meantime with a simpler privacy stance: local-first, encrypted by the principal encryption (per ADR-06), not shared with anyone by default (the no-share rule), but without the formal `medical_records` consent purpose, the formal 7-year retention enforcement, the formal support-operator access rules, or the formal export-as-PDF. The user is told the vault is private. When the operator revisits this ADR, the six components are the implementation checklist. The launch-claim registry entry "the Claim Document Vault does not share contents with anyone, ever; the user has full control over the vault" still applies even in the deferred state — the no-share rule is a minimum-viable privacy stance. See "Update log" below for the full decision history.
 - **Related artifacts:** [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md) #3 (the Claim Document Vault that this ADR governs), [ADR-2026-07-19-07](./ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md) (the consent ledger that the new purpose is added to), [ADR-2026-07-19-06](./ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md) (the principal encryption that protects the vault at rest), [ADR-2026-07-19-12](./ADR-2026-07-19-12-operator-trust-model.md) (the support-operator access rules), [ADR-2026-07-19-10](./ADR-2026-07-19-10-outbox-only-durable-work-primitive.md) (the durable deletion path), [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md).
 
 ---
@@ -13,6 +13,7 @@
 ## Update log
 
 - **2026-07-19 (original)**: Initial proposal. The Claim Document Vault is a privacy-sensitive surface; the privacy policy defines consent, retention, encryption, support-operator access, user's right to export and delete, and the no-share rule. Status: Proposed.
+- **2026-07-19 (operator sign-off, deferred)**: **Deferred.** The privacy policy is acceptable as written; the six components are the right shape. The implementation is deferred to a later exploration. The operator's reasoning: "I don't want my solo product to be bogged down because of these extra regulatory stuff, we research and get to this again later." The Claim Document Vault surface can ship in the meantime with a simpler privacy stance (local-first, encrypted, no-share, but without the formal consent/retention/access rules). When the operator revisits, the six components are the implementation checklist. The launch-claim registry entry "the Claim Document Vault does not share contents with anyone, ever; the user has full control over the vault" still applies even in the deferred state.
 
 ---
 
@@ -105,34 +106,26 @@ The vault's privacy policy is the engineering answer to these three concerns. Th
 
 ## Chosen path
 
-**Option A: the full privacy policy.** The vault is a privacy-sensitive surface; the privacy policy is the engineering answer.
+**The privacy policy is the right shape. The implementation is deferred.**
 
-**Work to implement:**
+**What ships in the meantime (the "minimum-viable privacy stance" for the Claim Document Vault):**
 
-1. **Consent purpose `medical_records`** — add to the consent ledger schema; add the consent card to the vault's first-open UX. Effort: S. 1-2 days.
-2. **Retention enforcement** — a scheduled outbox job (per ADR-2026-07-19-10) that checks for expired documents and deletes them. Effort: M. 1-2 weeks.
-3. **Per-document encryption** — extend the principal encryption (per ADR-2026-07-19-06 reopened) to per-document DEKs. Each document has its own DEK, encrypted with the principal's master key. Effort: M. 2-3 weeks.
-4. **Support-operator access rules** — the RBAC table (per ADR-2026-07-19-12) gains a `medical_records:read` action with the reason + audit + notification requirements. Effort: M. 1-2 weeks.
-5. **User's right to export** — the export-as-PDF feature. The PDF includes all documents, metadata, and the consent ledger entries. The PDF is encrypted with a user-chosen password. Effort: M. 1-2 weeks.
-6. **User's right to delete** — extend the existing deletion flow (per ADR-2026-07-19-08's account-deletion client contract) to per-vault and per-document deletion. The deletion is durable via the outbox. Effort: S. 1-2 weeks.
-7. **No-share enforcement** — a CI test that scans the production code for any code path that transmits vault contents to a non-user party. The test is the launch-claim registry gate. Effort: S. 0.5 day.
-8. **Launch-claim registry entry** — "the Claim Document Vault does not share contents with anyone, ever; the user has full control over the vault." Effort: S. 0.5 day.
-9. **Canonical doc update** — define the vault's privacy policy as a first-class section of the canonical doc. Effort: S. 0.5 day.
+1. **Local-first storage** — the vault's documents are stored on the user's device, encrypted with the principal encryption (per ADR-2026-07-19-06 reopened, stable random 256-bit DEK).
+2. **No-share rule (absolute)** — the vault's documents are not shared with anyone, ever. Not with insurers. Not with partners. Not with third parties. Not with model training. Not with analytics. The CI test (the launch-claim registry entry) is enforced from day one.
+3. **User's right to delete** — the user can delete the entire vault or individual documents. The deletion is durable via the outbox (per ADR-2026-07-19-10).
+4. **User's right to export (simplified)** — the user can export the vault as a JSON or ZIP (not the full PDF flow). The export is encrypted with a user-chosen password.
+5. **In-app disclosure** — the vault's first-open UX shows a card: "Your documents are private. We don't share them with anyone. You can export or delete them at any time. We may add additional protections in the future (medical-records consent, retention enforcement, etc.) — see ADR-2026-07-19-15 for the full policy."
 
-**Total effort:** L. 4-6 weeks.
+**What is deferred (the six components, when the operator revisits):**
 
-**Sequence:**
+1. Consent purpose `medical_records` + the formal consent card
+2. Retention enforcement (the scheduled outbox job that deletes expired documents after 7 years or less)
+3. Per-document encryption (the vault ships with principal-encryption-at-rest in the meantime; per-document DEKs are a hardening)
+4. Support-operator access rules (the formal RBAC entry, the reason requirement, the audit-logged access, the user notification; the vault ships with no support-operator access in the meantime — the support operator cannot read the vault until the rules are in place)
+5. Export-as-PDF (the vault ships with export-as-JSON-or-ZIP; the PDF flow is a hardening)
+6. Legal review (DPA, DISHA, Indian Medical Council Act) — deferred; the engineering ADR is the foundation
 
-1. Consent purpose + consent card (the legal basis first).
-2. No-share enforcement + launch-claim registry entry (the boundary first).
-3. Per-document encryption (the technical safeguard).
-4. Support-operator access rules (the trust contract).
-5. Retention enforcement (the lifecycle).
-6. User's right to export (the user's agency, part 1).
-7. User's right to delete (the user's agency, part 2).
-8. Canonical doc update (the record).
-
-**Dependency:** the Claim Document Vault surface (per ADR-2026-07-19-08 #3) is unblocked after this ADR is implemented. The vault is a separate workstream that depends on this ADR.
+**When the operator revisits:** the six components are the implementation checklist. The effort is L. 4-6 weeks. The operator (you) decides when to revisit based on the product's growth, the regulatory landscape, and the user's needs.
 
 ---
 

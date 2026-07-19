@@ -110,6 +110,13 @@ class DashboardScreen extends ConsumerWidget {
                         subtitle:
                             'See what is protected, what needs attention, and what to do next.',
                       ),
+                      // Quick Actions + Emergency near the top — most-tapped items
+                      _QuickActions(documents: documents),
+                      const SizedBox(height: 20),
+                      _SearchShortcutButton(
+                        onTap: () => Navigator.pushNamed(context, '/search'),
+                      ),
+                      const SizedBox(height: 20),
                       _WelcomeCard(
                         docCount: documents.length,
                         activePolicies:
@@ -122,12 +129,6 @@ class DashboardScreen extends ConsumerWidget {
                       // Insurance Health Score — at-a-glance coverage check
                       HealthScoreCard(
                         healthScore: ref.watch(healthScoreProvider),
-                      ),
-                      const SizedBox(height: 20),
-                      _QuickActions(documents: documents),
-                      const SizedBox(height: 20),
-                      _SearchShortcutButton(
-                        onTap: () => Navigator.pushNamed(context, '/search'),
                       ),
                       const SizedBox(height: 20),
                       if (policySummaries.isNotEmpty) ...[
@@ -146,6 +147,7 @@ class DashboardScreen extends ConsumerWidget {
                       if (policySummaries.isNotEmpty)
                         _PreventiveTipsSection(summaries: policySummaries),
                       const SizedBox(height: 20),
+                      // Terminology at the bottom — reference content, not actionable
                       _InsuranceTerminologySection(),
                     ]),
                   ),

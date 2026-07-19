@@ -35,14 +35,28 @@ These 5 ADRs are written and **accepted** as of 2026-07-19. The sequence is load
 
 Per the operator's standing rule (2026-07-19), updates to these ADRs are appends to the decision record, not edits. Each ADR has an "Update log" section. The original reasoning stays visible. Revisions record what changed, when, why, and what triggered the change.
 
-**Future ADRs written (per operator's "anything else?" review, 2026-07-19), all Proposed (awaiting sign-off):**
+### Future ADRs flagged in the "anything else?" review, signed off or deferred (2026-07-19)
 
 | ID | Date | Decision | Status | File |
 |---|---|---|---|---|
-| ADR-2026-07-19-13 | 2026-07-19 | What-If Premium = refused as a product capability; three honest options (deep-link, vetted partner, ask your insurer) | Proposed (awaiting sign-off) | [link](./ADR-2026-07-19-13-what-if-premium-refused-as-product-capability.md) |
-| ADR-2026-07-19-14 | 2026-07-19 | Family Coverage Map substrate extension: per-member sum insured, per-member exclusions, dependents-can't-have-policies signal | Proposed (awaiting sign-off) | [link](./ADR-2026-07-19-14-family-coverage-map-substrate-extension.md) |
-| ADR-2026-07-19-15 | 2026-07-19 | Claim Document Vault privacy policy: medical records handled with explicit consent, retention, encryption, support-operator access, user's right to export/delete, no-share rule | Proposed (awaiting sign-off) | [link](./ADR-2026-07-19-15-claim-document-vault-privacy-policy.md) |
-| ADR-2026-07-19-16 | 2026-07-19 | Value-Add Partnerships framework: partner-vetting policy, opt-in mechanism, no-medical-records boundary | Proposed (awaiting sign-off) | [link](./ADR-2026-07-19-16-value-add-partnerships-framework.md) |
+| ADR-2026-07-19-13 | 2026-07-19 | What-If Premium = refused as a product capability; three honest options (deep-link, vetted partner, ask your insurer) | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-13-what-if-premium-refused-as-product-capability.md) |
+| ADR-2026-07-19-14 | 2026-07-19 | Family Coverage Map substrate extension: per-member sum insured, per-member exclusions, dependents-can't-have-policies signal | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-14-family-coverage-map-substrate-extension.md) |
+| ADR-2026-07-19-15 | 2026-07-19 | Claim Document Vault privacy policy: medical records handled with explicit consent, retention, encryption, support-operator access, user's right to export/delete, no-share rule | **Deferred (operator sign-off 2026-07-19, implementation deferred per operator's "I don't want my solo product to be bogged down because of these extra regulatory stuff")** | [link](./ADR-2026-07-19-15-claim-document-vault-privacy-policy.md) |
+| ADR-2026-07-19-16 | 2026-07-19 | Value-Add Partnerships framework: partner-vetting policy, opt-in mechanism, no-medical-records boundary | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-16-value-add-partnerships-framework.md) |
+
+**More future ADRs written (per operator's "anything else?" review, 2026-07-19), all Proposed (awaiting sign-off):**
+
+| ID | Date | Decision | Status | File |
+|---|---|---|---|---|
+| ADR-2026-07-19-17 | 2026-07-19 | Coverage Adequacy substrate extension: 7 per-scenario fields (maternity, dental, OPD, day-care, ICU sublimit, pre-existing disease waiting period, network hospital list) | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-17-coverage-adequacy-substrate-extension.md) |
+| ADR-2026-07-19-18 | 2026-07-19 | Coverage Check-in substrate extension: 4 per-life-event fields (policy age, medical inflation, family size at purchase, current family size) | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-18-coverage-check-in-substrate-extension.md) |
+| ADR-2026-07-19-19 | 2026-07-19 | Claim Document Vault substrate extension: 5 per-document fields (type, date, issuer, amount, claim status) | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-19-claim-document-vault-substrate-extension.md) |
+| ADR-2026-07-19-20 | 2026-07-19 | Family Coverage Map privacy policy: per-member observations handled with the same privacy discipline as the rest of the wedge (minimum-viable stance) | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-20-family-coverage-map-privacy-policy.md) |
+| ADR-2026-07-19-21 | 2026-07-19 | Coverage Check-in privacy policy: life events stored locally on the device, never shared | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-21-coverage-check-in-privacy-policy.md) |
+| ADR-2026-07-19-22 | 2026-07-19 | Coverage Adequacy privacy policy: scenario picks stored locally on the device, never shared | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-22-coverage-adequacy-privacy-policy.md) |
+| ADR-2026-07-19-23 | 2026-07-19 | LLM provider data-handling policy: no training on user data, TLS in transit, no retention beyond request-response cycle | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-23-llm-provider-data-handling-policy.md) |
+| ADR-2026-07-19-24 | 2026-07-19 | Qdrant vector database data-handling policy: embeddings stored in Qdrant, vectors not text, operator's account bound by Qdrant's policy | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-24-qdrant-vector-database-data-handling-policy.md) |
+| ADR-2026-07-19-25 | 2026-07-19 | Supabase Storage data-handling policy: user documents stored in operator's region, encrypted at rest, RLS, no public access | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-25-supabase-storage-data-handling-policy.md) |
 
 ---
 

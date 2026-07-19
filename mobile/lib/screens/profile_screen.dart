@@ -100,8 +100,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // list is always current — no race condition with async provider reads.
     final inFlight = docs.where((d) => _inFlightStates.contains(d.processingState)).toList();
     if (inFlight.isNotEmpty) {
-      if (!mounted) return;
       final names = inFlight.map((d) => d.filename).join(', ');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -114,6 +114,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -157,6 +158,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (confirmed != true || !mounted) return;
 
     // Show a second confirmation with typing requirement
+    if (!mounted) return;
     final doubleConfirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => _DeleteConfirmationDialog(),
@@ -165,6 +167,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     // Perform deletion
     try {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Deleting account...')),
       );
