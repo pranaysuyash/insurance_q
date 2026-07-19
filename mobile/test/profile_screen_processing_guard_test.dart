@@ -43,6 +43,18 @@ class _FakeUser extends User {
   String? get email => 'test@example.com';
 }
 
+/// Pump the tester to settle animations and then resolve any pending
+/// FutureProvider futures. After `pumpAndSettle()`, Riverpod's
+/// [FutureProvider] is still in [AsyncLoading] — an extra `pump()`
+/// drives the microtask that delivers the [AsyncData].
+Future<void> _pumpAndResolve(WidgetTester tester) async {
+  await tester.pumpAndSettle();
+  // Extra pump to resolve FutureProvider's async future from
+  // AsyncLoading → AsyncData. Without this, ref.read(provider)
+  // returns .valueOrNull == null.
+  await tester.pump();
+}
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -79,9 +91,6 @@ void main() {
   });
 
   /// Build a ProfileScreen with overridden providers.
-  ///
-  /// Uses a large viewport so all content is visible without scrolling,
-  /// eliminating scroll-related tap targeting issues.
   Widget buildProfile({
     required List<InsuranceDocument> documents,
     bool hasAccount = true,
@@ -102,7 +111,6 @@ void main() {
     testWidgets(
         'blocks deletion when a document is in "processing" state',
         (tester) async {
-      // Large viewport so all content is visible without scrolling.
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1;
       addTearDown(() {
@@ -114,15 +122,12 @@ void main() {
           _doc('doc-1', filename: 'health.pdf', processingState: 'processing'),
         ],
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
-      // Scroll to the delete account row (below fold in ListView)
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
-      // Tap the delete account row.
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
-      // The guard should show a SnackBar — NOT the confirmation dialog.
       expect(find.textContaining('still processing'), findsOneWidget);
       expect(find.text('health.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
@@ -142,11 +147,11 @@ void main() {
           _doc('doc-1', filename: 'auto.pdf', processingState: 'received'),
         ],
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
       expect(find.text('auto.pdf'), findsOneWidget);
@@ -167,11 +172,11 @@ void main() {
           _doc('doc-1', filename: 'life.pdf', processingState: 'pending'),
         ],
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
       expect(find.text('life.pdf'), findsOneWidget);
@@ -193,11 +198,11 @@ void main() {
           _doc('doc-2', filename: 'auto.pdf', processingState: 'received'),
         ],
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.textContaining('2 documents are still processing'),
           findsOneWidget);
@@ -219,11 +224,11 @@ void main() {
           _doc('doc-1', filename: 'travel.pdf', processingState: 'pending'),
         ],
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.textContaining('1 document is still processing'),
           findsOneWidget);
@@ -244,11 +249,11 @@ void main() {
           _doc('doc-2', filename: 'auto.pdf', processingState: 'ready'),
         ],
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.text('Delete account permanently?'), findsOneWidget);
       expect(find.textContaining('still processing'), findsNothing);
@@ -268,11 +273,11 @@ void main() {
           _doc('doc-1', filename: 'health.pdf', processingState: 'completed'),
         ],
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.text('Delete account permanently?'), findsOneWidget);
       expect(find.textContaining('still processing'), findsNothing);
@@ -288,11 +293,11 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
       await tester.pumpWidget(buildProfile(documents: []));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.text('Delete account permanently?'), findsOneWidget);
       expect(find.textContaining('still processing'), findsNothing);
@@ -314,11 +319,11 @@ void main() {
               processingState: 'processing'),
         ],
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
       expect(find.text('processing.pdf'), findsOneWidget);
@@ -338,11 +343,11 @@ void main() {
         documents: [_doc('doc-1')],
         hasAccount: false,
       ));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       await tester.scrollUntilVisible(find.text('Delete account'), 200);
       await tester.tap(find.text('Delete account'));
-      await tester.pumpAndSettle();
+      await _pumpAndResolve(tester);
 
       expect(find.text('Create an account first to delete it'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);

@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-07-19T03:35:29.348342+00:00",
+  "policy_limit": 50,
+  "query_limit": 20,
+  "decision": "STRONG_KEEP_SMALL",
+  "decision_rationale": "small recall@3 (0.583) exceeds voyage_3 recall@3 (0.417) by 0.167. Recommend keeping small.",
+  "models": {
+    "openai_text_embedding_3_small": {
+      "model_name": "text-embedding-3-small",
+      "dimensions": 1536,
+      "provider": "openai",
+      "queries_total": 12,
+      "queries_with_relevant_in_top_3": 7,
+      "recall_at_3": 0.5833333333333334,
+      "duration_seconds": 0.015002965927124023
+    },
+    "voyage_3": {
+      "model_name": "voyage-3",
+      "dimensions": 1024,
+      "provider": "voyage",
+      "queries_total": 12,
+      "queries_with_relevant_in_top_3": 5,
+      "recall_at_3": 0.4166666666666667,
+      "duration_seconds": 0.009282112121582031
+    }
+  }
+}

@@ -119,9 +119,9 @@ These are the audit items where the choice is yours, not a code edit.
 
 | # | Audit task | Decision needed |
 |---|---|---|
-| 18 | Trust Phase 1: Build evidence substrate (page_artifacts, source_spans, extracted_fields, field_evidence) | Build now (1-2 weeks) or defer? |
-| 19 | Arch ADR-03: Durable work queue | Cloud Tasks vs Supabase outbox |
-| 20 | Arch ADR-06: Embedding model | `text-embedding-3-small` 1536d, Voyage 1024d, or `text-embedding-3-large` 3072d |
+| 18 | Trust Phase 1: Build evidence substrate (page_artifacts, source_spans, extracted_fields, field_evidence) | ✅ Built (commits ecab0ba, 0704eb5, 7a42df8, 7bff4d5) |
+| 19 | Arch ADR-03: Durable work queue | ✅ Decision recorded: Supabase outbox (commit 70da5e3, ADR-2026-07-19-01). Migration of 5 existing async paths deferred per ADR-2026-07-19-02. |
+| 20 | Arch ADR-06: Embedding model | ✅ Decision recorded: `text-embedding-3-small` default, 30-day benchmark for `voyage-3` (ADR-2026-07-19-03). Benchmark script: `tools/benchmark_embedding_models.py`. |
 | 21 | Arch ADR-09: Coverage-gap + claim-assistance | Ship now with disclaimers, or defer until evidence model exists |
 | 22 | Arch ADR-10: Canonical architecture doc location | `docs/CANONICAL_SYSTEM.md` or `docs/planning/coverwise_canonical_architecture_<date>.md` |
 | 23 | Security Phase 1: Principal-scoped encrypted local storage | Build now or defer? Affects every Hive box. |

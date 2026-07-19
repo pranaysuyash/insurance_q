@@ -90,11 +90,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// Documents whose [processingState] is in-flight (not yet settled).
   static const _inFlightStates = {'received', 'processing', 'pending'};
 
-  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDeleteAccount(BuildContext context, List<InsuranceDocument> docs) async {
     // ── Pending-processing guard (§10 item 6) ──
     // Prevent account deletion while documents are still being processed.
     // Processing is fast, so the user can retry in a few seconds.
-    final docs = ref.read(documentsProvider).valueOrNull ?? [];
+    //
+    // docs is passed from build() via ref.watch(documentsProvider) so the
+    // list is always current — no race condition with async provider reads.
     final inFlight = docs.where((d) => _inFlightStates.contains(d.processingState)).toList();
     if (inFlight.isNotEmpty) {
       if (!mounted) return;
@@ -189,6 +191,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     // Reactive auth state — rebuilds automatically when user signs in/out.
     final accountUser = ref.watch(currentUserProvider);
+    final docsAsync = ref.watch(documentsProvider);
+    final documents = docsAsync.valueOrNull ?? const <InsuranceDocument>[];
     final box = Hive.box(AppStateStore.boxName);
     final phone = box.get(AppStateStore.phoneNumberKey) as String?;
     final themeMode = AppStateRepository.getThemeMode();
@@ -322,7 +326,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 title: 'Delete account',
                 subtitle: 'Permanently remove account and all server data',
                 onTap: accountUser != null
-                    ? () => _confirmDeleteAccount(context, ref)
+                    ? () => _confirmDeleteAccount(context, documents)
                     : () => ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Create an account first to delete it'),

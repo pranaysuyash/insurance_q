@@ -120,6 +120,49 @@ Expected: every `count(*)` returns a number (0 is fine for empty tables);
 
 ---
 
+## Step 1.5: Embedding model benchmark (30-day window) — Optional but recommended
+
+Per [ADR-2026-07-19-03](../../decisions/ADR-2026-07-19-03-embedding-model-text-embedding-3-small-default.md), the default embedding model is `text-embedding-3-small`. The benchmark against `voyage-3` runs over 30 days from launch; the operator may skip it for v0 and run it later.
+
+**When to run:** after Step 8 (the real-device end-to-end test) is passing, and at least 50 real policies have been uploaded. The benchmark needs real policy data, not fixtures.
+
+**How to run:**
+
+```bash
+# 1. Create the ground-truth file
+mkdir -p tools/embedding_benchmark
+# Write tools/embedding_benchmark/ground_truth.jsonl: one line
+# per (policy_id, query) pair, with relevant_chunk_indices
+# labeled. See docs/architecture/embedding_model_benchmark_methodology_2026-07-19.md
+# for the format.
+
+# 2. Set the env vars
+export OPENAI_API_KEY=...
+export VOYAGE_API_KEY=...
+export SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=...
+export BENCHMARK_POLICY_LIMIT=50
+export BENCHMARK_QUERY_LIMIT=20
+
+# 3. Run the benchmark
+python tools/benchmark_embedding_models.py
+
+# 4. Read the results
+ls -t tools/embedding_benchmark/results/ | head -1
+cat tools/embedding_benchmark/results/<timestamp>/summary.json
+cat tools/embedding_benchmark/results/<timestamp>/README.md
+```
+
+**Expected output:** a `summary.json` with the recall@3 per model and a decision. The decision rule is in the methodology doc.
+
+**If the decision is SWITCH_TO_VOYAGE_3:** follow the migration plan in ADR-2026-07-19-03. The migration is a separate session; it is not part of the launch.
+
+**If the decision is KEEP_SMALL or STRONG_KEEP_SMALL:** no action. The default stays. Re-run the benchmark every 6 months.
+
+**Cost:** <$0.05 in API calls for one run.
+
+---
+
 ## Step 2: Supabase keys (2 minutes, dashboard)
 
 Dashboard → **Settings** → **API**:
@@ -395,6 +438,11 @@ of "go live":
 - **Security Phase 3** — durable deletion job. `delete_account`
   returns 202 + per-stage status; the actual back-end retry /
   tombstone job is Phase 3.
+- **Embedding model switch** — the default is `text-embedding-3-small`
+  per [ADR-2026-07-19-03](../../decisions/ADR-2026-07-19-03-embedding-model-text-embedding-3-small-default.md).
+  The benchmark may recommend switching to `voyage-3`; the
+  migration is a separate session. Step 1.5 above covers the
+  benchmark; the migration itself is not in this playbook.
 
 ---
 
