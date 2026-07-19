@@ -95,7 +95,7 @@ void main() {
       ),
     );
     expect(
-      find.textContaining('The substrate has not extracted any coverage-gap fields'),
+      find.textContaining("We don't have this information for your policy yet"),
       findsOneWidget,
     );
   });

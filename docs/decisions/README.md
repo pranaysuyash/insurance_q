@@ -17,6 +17,32 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-19-05 | 2026-07-19 | Canonical architecture doc lives at `docs/architecture/coverwise_canonical_architecture.md` | Accepted | [link](./ADR-2026-07-19-05-canonical-architecture-doc-location.md) |
 | ADR-2026-07-19-06 | 2026-07-19 | Security Phase 1 = principal-scoped encrypted local storage (JWT-derived key, Flutter-only change) | Accepted | [link](./ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md) |
 | ADR-2026-07-19-07 | 2026-07-19 | Security Phase 2 = server-side append-only consent ledger (Postgres table with trigger-enforced append-only) | Accepted | [link](./ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md) |
+| ADR-2026-07-19-08 | 2026-07-19 | Cut/keep/finish for 10 half-built features, anchored to the long-term product shape. Revision 2 after operator feedback: 0 cuts, 4 keep-redesign (Health Score → Coverage Check-in, What-If → Coverage Adequacy, old claims → Claim Document Vault, Lead capture → Partnerships framework), 4 finish-properly, 2 unchanged. Wedge widened. | **Accepted (revision 2, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md) |
+| ADR-2026-07-19-09 | 2026-07-19 | "Evidence-backed" = four-face contract (substrate ∧ citation ∧ answer ∧ UI) with a release-claim registry entry | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-09-evidence-backed-release-grade-definition.md) |
+| ADR-2026-07-19-10 | 2026-07-19 | Outbox is the only durable-work primitive; `BackgroundTasks` removed from production path; 3 paths migrated; release guard enforced | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-10-outbox-only-durable-work-primitive.md) |
+| ADR-2026-07-19-11 | 2026-07-19 | Substrate is a primary deliverable (user sees the source text); `source_text` and `retrieval_text` separated at every layer; "open page" action | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-11-substrate-as-primary-deliverable.md) |
+| ADR-2026-07-19-12 | 2026-07-19 | Operator trust model = 6 roles, server-enforced RBAC, audit trail, reason-required, TTL, revocation; OIDC deferred | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-12-operator-trust-model.md) |
+
+### Notes on the 5 Accepted ADRs (2026-07-19)
+
+These 5 ADRs are written and **accepted** as of 2026-07-19. The sequence is load-bearing:
+
+- **ADR-08 (cut/keep/finish, accepted revision 2)** sets the long-term product shape. Every other ADR depends on it.
+- **ADR-09 (evidence-backed, accepted revision 1)** defines the verification contract that the substrate, citation, answer, and UI faces enforce.
+- **ADR-10 (outbox-only, accepted revision 1)** removes `BackgroundTasks` from the production path. The release guard prevents regressions.
+- **ADR-11 (substrate as primary deliverable, accepted revision 1)** makes the page reachable from the citation card. The user can verify.
+- **ADR-12 (operator trust model, accepted revision 1)** replaces the `X-Operator-Token` with 6 roles, an audit trail, and a reason requirement. The privacy policy is enforced.
+
+Per the operator's standing rule (2026-07-19), updates to these ADRs are appends to the decision record, not edits. Each ADR has an "Update log" section. The original reasoning stays visible. Revisions record what changed, when, why, and what triggered the change.
+
+**Future ADRs written (per operator's "anything else?" review, 2026-07-19), all Proposed (awaiting sign-off):**
+
+| ID | Date | Decision | Status | File |
+|---|---|---|---|---|
+| ADR-2026-07-19-13 | 2026-07-19 | What-If Premium = refused as a product capability; three honest options (deep-link, vetted partner, ask your insurer) | Proposed (awaiting sign-off) | [link](./ADR-2026-07-19-13-what-if-premium-refused-as-product-capability.md) |
+| ADR-2026-07-19-14 | 2026-07-19 | Family Coverage Map substrate extension: per-member sum insured, per-member exclusions, dependents-can't-have-policies signal | Proposed (awaiting sign-off) | [link](./ADR-2026-07-19-14-family-coverage-map-substrate-extension.md) |
+| ADR-2026-07-19-15 | 2026-07-19 | Claim Document Vault privacy policy: medical records handled with explicit consent, retention, encryption, support-operator access, user's right to export/delete, no-share rule | Proposed (awaiting sign-off) | [link](./ADR-2026-07-19-15-claim-document-vault-privacy-policy.md) |
+| ADR-2026-07-19-16 | 2026-07-19 | Value-Add Partnerships framework: partner-vetting policy, opt-in mechanism, no-medical-records boundary | Proposed (awaiting sign-off) | [link](./ADR-2026-07-19-16-value-add-partnerships-framework.md) |
 
 ---
 

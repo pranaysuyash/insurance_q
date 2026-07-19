@@ -16,6 +16,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/error_widget.dart';
 import '../widgets/shared/coverwise_scene.dart';
 import '../theme/coverwise_motion.dart';
+import '../theme/coverwise_theme.dart';
 import '../services/preventive_health_service.dart';
 import 'add_family_member_dialog.dart';
 import '../providers/document_providers.dart';
@@ -663,7 +664,7 @@ class _QuickActions extends StatelessWidget {
                 child: _ActionButton(
               icon: Icons.upload_file,
               label: 'Upload Document',
-              color: Colors.blue,
+              color: Theme.of(context).colorScheme.primary,
               onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -677,7 +678,7 @@ class _QuickActions extends StatelessWidget {
                 child: _ActionButton(
               icon: Icons.chat_bubble_outline_rounded,
               label: 'Ask a Question',
-              color: Colors.purple,
+              color: Theme.of(context).colorScheme.secondary,
               onTap: () => Navigator.push(
                   context, MaterialPageRoute(builder: (_) => const QaScreen())),
             )),
@@ -690,7 +691,7 @@ class _QuickActions extends StatelessWidget {
                 child: _ActionButton(
               icon: Icons.compare_arrows,
               label: 'Compare Policies',
-              color: Colors.orange,
+              color: Theme.of(context).colorScheme.tertiary,
               onTap: () => showModalBottomSheet(
                 context: context,
                 isScrollControlled: true,
@@ -703,7 +704,7 @@ class _QuickActions extends StatelessWidget {
                 child: _ActionButton(
               icon: Icons.help_outline,
               label: 'Insurance Terms',
-              color: Colors.teal,
+              color: CoverWiseColors.mint,
               onTap: () => showDialog(
                   context: context, builder: (_) => const TerminologyDialog()),
             )),
@@ -1066,6 +1067,12 @@ class _RecentActivities extends StatelessWidget {
                 title: filename,
                 subtitle: 'Deleted recently',
                 color: Theme.of(context).colorScheme.error,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DocumentsScreen(),
+                  ),
+                ),
               )),
           const SizedBox(height: 8),
         ],
