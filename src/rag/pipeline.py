@@ -431,12 +431,21 @@ class RAGPipeline:
 
         filtered = []
         for block in text_blocks:
-            text = block.get("text", "")
+            # Backward compat: if a chunk only has `text` (legacy), treat
+            # it as `source_text` and initialize `retrieval_text` from it.
+            if "source_text" not in block:
+                block = {**block, "source_text": block.get("text", "")}
+            if "retrieval_text" not in block:
+                block = {**block, "retrieval_text": block["source_text"]}
+            # Embedding uses retrieval_text (the LLM-augmented version, when
+            # contextual retrieval is enabled). source_text is preserved for
+            # citation (per ADR-2026-07-19-11).
+            text = block.get("retrieval_text", "")
             if not text:
                 continue
             if len(text) > 2000:
                 text = text[:2000]
-            filtered.append({**block, "text": text})
+            filtered.append({**block, "retrieval_text": text})
         text_blocks = filtered
 
         # Contextual Retrieval: prepend chunk-specific context to each block
@@ -451,7 +460,10 @@ class RAGPipeline:
             text_blocks = await self._contextualize_chunks(text_blocks, document_metadata or {})
             contextualized = True
 
-        texts = [b["text"] for b in text_blocks]
+        # Embedding uses retrieval_text (the LLM-augmented version when
+        # contextual retrieval is enabled; otherwise equal to source_text).
+        # Per ADR-2026-07-19-11.
+        texts = [b.get("retrieval_text", b.get("source_text", "")) for b in text_blocks]
         if not texts:
             return {"status": "success", "message": "No text content.", "points_added": 0}
 
@@ -481,12 +493,20 @@ class RAGPipeline:
         for i, block in enumerate(text_blocks):
             payload = {
                 "document_id": document_id,
-                "text_content": block["text"],
+                # Embedding uses retrieval_text (the LLM-augmented version);
+                # source_text is preserved separately for citation
+                # (per ADR-2026-07-19-11).
+                "text_content": block.get("retrieval_text", block.get("source_text", "")),
                 "page_number": block.get("page"),
                 "block_id": block.get("id", str(uuid.uuid4())),
                 "bbox": block.get("bbox"),
                 "embedding_model": self.active_embedding_model,
                 "embedding_timestamp": datetime.now().isoformat(),
+                # Per ADR-2026-07-19-11 Layer 4: every chunk must have a
+                # page_artifact_id so the "open page" action can find the page.
+                "page_artifact_id": block.get("page_artifact_id"),
+                # Per ADR-2026-07-19-11: source_text is preserved untouched.
+                "source_text": block.get("source_text", ""),
             }
             for key in ("page", "section", "source", "filename"):
                 if key in block and key not in payload:
@@ -644,11 +664,19 @@ class RAGPipeline:
         return True
 
     def _split_into_sentences(self, text: str) -> List[Dict[str, Any]]:
-        """Split text into sentence-level chunks with position metadata for sentence window retrieval."""
+        """Split text into sentence-level chunks with position metadata for sentence window retrieval.
+
+        Per ADR-2026-07-19-11 (substrate as primary deliverable), every chunk
+        has a `source_text` field (immutable, OCR'd page text) and a
+        `retrieval_text` field (initially equal to `source_text`; the
+        `_contextualize_chunks` method may overwrite `retrieval_text` with
+        LLM-generated context). Citations quote only `source_text`.
+        """
         sentences = re.split(r'(?<=[.!?])\s+', text)
         return [
             {
-                "text": s.strip(),
+                "source_text": s.strip(),
+                "retrieval_text": s.strip(),
                 "id": str(uuid.uuid4()),
                 "sentence_index": i,
                 "chunk_type": "sentence",
@@ -662,10 +690,15 @@ class RAGPipeline:
         """Prepend LLM-generated context to each chunk (Anthropic Contextual Retrieval).
 
         For each chunk, ask the LLM to generate a 1-2 sentence context that situates
-        the chunk within the overall document. This context is prepended to the
-        chunk text before embedding, improving retrieval accuracy by 35%.
+        the chunk within the overall document. This context is written to
+        `retrieval_text`; the original `source_text` is preserved untouched.
 
-        If LLM fails, return blocks unchanged (graceful degradation).
+        Per ADR-2026-07-19-11 (substrate as primary deliverable), citations may
+        quote only `source_text`. The `retrieval_text` is used for embedding
+        (improving retrieval accuracy) but never for citation.
+
+        If LLM fails, `retrieval_text` is left equal to `source_text` (graceful
+        degradation).
         """
         if not self.llm:
             return text_blocks
@@ -680,8 +713,15 @@ class RAGPipeline:
 
         contextualized = []
         for block in text_blocks:
-            text = block.get("text", "")
-            if not text or len(text) < 50:
+            # Backward compat: if a chunk only has `text` (legacy), treat
+            # it as `source_text` and initialize `retrieval_text` from it.
+            if "source_text" not in block:
+                block = {**block, "source_text": block.get("text", "")}
+            if "retrieval_text" not in block:
+                block = {**block, "retrieval_text": block["source_text"]}
+
+            source_text = block.get("source_text", "")
+            if not source_text or len(source_text) < 50:
                 contextualized.append(block)
                 continue
 
@@ -701,7 +741,7 @@ class RAGPipeline:
                             "role": "user",
                             "content": (
                                 f"Document context: {doc_context}\n\n"
-                                f"Chunk:\n{text[:800]}\n\n"
+                                f"Chunk:\n{source_text[:800]}\n\n"
                                 "Provide a short, factual context to situate this chunk "
                                 "within the document for search retrieval purposes."
                             ),
@@ -712,8 +752,9 @@ class RAGPipeline:
                 )
 
                 if context and len(context.strip()) > 10:
-                    # Prepend context to the chunk text
-                    block = {**block, "text": f"{context.strip()}\n\n{text}"}
+                    # Write to retrieval_text ONLY. source_text is preserved.
+                    # Per ADR-2026-07-19-11, citations may quote only source_text.
+                    block = {**block, "retrieval_text": f"{context.strip()}\n\n{source_text}"}
             except Exception as e:
                 logger.warning("Contextualization failed for one chunk: %s", e)
 

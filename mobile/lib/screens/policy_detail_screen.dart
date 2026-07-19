@@ -12,6 +12,8 @@ import '../utils/policy_type.dart';
 import '../widgets/field_citations_card.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
+import '../widgets/editable_field.dart';
+import '../services/field_overrides_store.dart';
 import 'claim_assistance_screen.dart';
 import 'coverage_gap_screen.dart';
 import 'document_preview_screen.dart';
@@ -22,16 +24,72 @@ import 'document_preview_screen.dart';
 /// Displays everything the system extracted: coverage, premium, deductible,
 /// key benefits, exclusions, waiting periods, coverage items, and dates.
 /// Provides quick actions: ask a question, view claim guide, call/email insurer.
-class PolicyDetailScreen extends ConsumerWidget {
+class PolicyDetailScreen extends ConsumerStatefulWidget {
   final String documentId;
 
   const PolicyDetailScreen({super.key, required this.documentId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PolicyDetailScreen> createState() => _PolicyDetailScreenState();
+}
+
+class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
+  final _overridesStore = FieldOverridesStore();
+  Map<String, OverrideRecord> _overrides = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOverrides();
+  }
+
+  Future<void> _loadOverrides() async {
+    final overrides = await _overridesStore.getOverrides(widget.documentId);
+    if (mounted) {
+      setState(() {
+        _overrides = overrides;
+      });
+    }
+  }
+
+  Future<void> _saveField(String field, String value) async {
+    final extracted = _extractedValue(field);
+    await _overridesStore.setOverride(
+      documentId: widget.documentId,
+      field: field,
+      value: value,
+      originalValue: extracted,
+    );
+    await _loadOverrides();
+  }
+
+  Future<void> _revertField(String field) async {
+    await _overridesStore.removeOverride(widget.documentId, field);
+    await _loadOverrides();
+  }
+
+  String _extractedValue(String field) {
+    final summaries = ref.read(policySummariesProvider);
+    final summary = summaries.where((s) => s.documentId == widget.documentId).firstOrNull;
+    if (summary == null) return '';
+    return switch (field) {
+      'insurer' => summary.insurer ?? '',
+      'policy_number' => summary.policyNumber ?? '',
+      // Return formatted strings so revert shows the same display
+      // the user saw originally (e.g. '₹5,00,000' not '500000').
+      'coverage_amount' => summary.formattedCoverageAmount,
+      'premium_amount' => summary.formattedPremium,
+      'start_date' => summary.formattedStartDate,
+      'end_date' => summary.formattedExpiryDate,
+      _ => '',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final summaries = ref.watch(policySummariesProvider);
     final summary =
-        summaries.where((s) => s.documentId == documentId).firstOrNull;
+        summaries.where((s) => s.documentId == widget.documentId).firstOrNull;
 
     if (summary == null) {
       return Scaffold(
@@ -46,7 +104,7 @@ class PolicyDetailScreen extends ConsumerWidget {
           onAction: () => Navigator.pushNamed(
             context,
             '/qa',
-            arguments: documentId,
+            arguments: widget.documentId,
           ),
         ),
       );
@@ -60,7 +118,7 @@ class PolicyDetailScreen extends ConsumerWidget {
     if (!summary.hasMinimumViableEvidence) {
       return _buildUnverifiedSummaryScaffold(
         context: context,
-        documentId: documentId,
+        documentId: widget.documentId,
         reason: summary.missingEvidenceReason ??
             'This summary is missing critical fields and cannot be safely displayed yet.',
       );
@@ -81,7 +139,7 @@ class PolicyDetailScreen extends ConsumerWidget {
             icon: const Icon(Icons.chat_bubble_outline_rounded),
             tooltip: 'Ask a Question',
             onPressed: () =>
-                Navigator.pushNamed(context, '/qa', arguments: documentId),
+                Navigator.pushNamed(context, '/qa', arguments: widget.documentId),
           ),
           IconButton(
             icon: const Icon(Icons.ios_share_rounded),
@@ -105,13 +163,13 @@ class PolicyDetailScreen extends ConsumerWidget {
           // substrate; they re-fetch citations on entry so the
           // navigation is decoupled from the existing
           // _CitedFieldsSection state.
-          _PolicyActionsRow(documentId: documentId),
+          _PolicyActionsRow(documentId: widget.documentId),
           // Trust Phase 1: cited fields from the evidence substrate.
           // Renders nothing when the substrate has no verified data
           // (the Phase 0 P0-0.4 path handles that case above this
           // build method via _buildUnverifiedSummaryScaffold).
           _CitedFieldsSection(
-            documentId: documentId,
+            documentId: widget.documentId,
             onPageTap: (pageNumber) {
               // v1 of the page-level navigation: surface the
               // cited page in a SnackBar and open the source
@@ -128,11 +186,27 @@ class PolicyDetailScreen extends ConsumerWidget {
               _openDocumentPreview(context, ref);
             },
           ),
-          _HeaderCard(summary: summary, policyType: policyType),
+          _HeaderCard(
+            summary: summary,
+            policyType: policyType,
+            overrides: _overrides,
+            onEditField: _saveField,
+            onRevertField: _revertField,
+          ),
           const SizedBox(height: 12),
-          _MoneyRow(summary: summary),
+          _MoneyRow(
+            summary: summary,
+            overrides: _overrides,
+            onEditField: _saveField,
+            onRevertField: _revertField,
+          ),
           const SizedBox(height: 12),
-          _DatesCard(summary: summary),
+          _DatesCard(
+            summary: summary,
+            overrides: _overrides,
+            onEditField: _saveField,
+            onRevertField: _revertField,
+          ),
           const SizedBox(height: 6),
           if (summary.keyBenefits.isNotEmpty) ...[
             const CoverWiseSectionLabel('What this policy covers'),
@@ -222,7 +296,7 @@ class PolicyDetailScreen extends ConsumerWidget {
 
     final doc = documents
         .where(
-          (d) => d.id == documentId || d.remoteId == documentId,
+          (d) => d.id == widget.documentId || d.remoteId == widget.documentId,
         )
         .firstOrNull;
 
@@ -262,8 +336,17 @@ class PolicyDetailScreen extends ConsumerWidget {
 class _HeaderCard extends StatelessWidget {
   final PolicySummary summary;
   final PolicyType policyType;
+  final Map<String, OverrideRecord> overrides;
+  final Future<void> Function(String field, String value) onEditField;
+  final Future<void> Function(String field) onRevertField;
 
-  const _HeaderCard({required this.summary, required this.policyType});
+  const _HeaderCard({
+    required this.summary,
+    required this.policyType,
+    this.overrides = const {},
+    required this.onEditField,
+    required this.onRevertField,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -298,14 +381,14 @@ class _HeaderCard extends StatelessWidget {
                       ),
                       if (summary.insurer != null) ...[
                         const SizedBox(height: 3),
-                        Text(
-                          summary.insurer!,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
+                        EditableField(
+                          label: 'Insurer',
+                          value: overrides['insurer']?.value ?? summary.insurer!,
+                          originalValue: summary.insurer,
+                          hasOverride: overrides.containsKey('insurer'),
+                          onSave: (v) => onEditField('insurer', v),
+                          onRevert: () => onRevertField('insurer'),
+                          hintText: 'Enter insurer name',
                         ),
                       ],
                     ],
@@ -325,11 +408,14 @@ class _HeaderCard extends StatelessWidget {
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  'Policy number  ${summary.policyNumber}',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                child: EditableField(
+                  label: 'Policy number',
+                  value: overrides['policy_number']?.value ?? summary.policyNumber!,
+                  originalValue: summary.policyNumber,
+                  hasOverride: overrides.containsKey('policy_number'),
+                  onSave: (v) => onEditField('policy_number', v),
+                  onRevert: () => onRevertField('policy_number'),
+                  hintText: 'Enter policy number',
                 ),
               ),
             ],
@@ -380,25 +466,53 @@ class _StatusBadge extends StatelessWidget {
 
 class _MoneyRow extends StatelessWidget {
   final PolicySummary summary;
-  const _MoneyRow({required this.summary});
+  final Map<String, OverrideRecord> overrides;
+  final Future<void> Function(String field, String value) onEditField;
+  final Future<void> Function(String field) onRevertField;
+
+  const _MoneyRow({
+    required this.summary,
+    this.overrides = const {},
+    required this.onEditField,
+    required this.onRevertField,
+  });
+
+  String _fieldValue(String field, String? extracted) {
+    final override = overrides[field];
+    if (override != null) return override.value;
+    return extracted ?? '';
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final coverageDisplay = _fieldValue('coverage_amount', summary.formattedCoverageAmount);
+    final premiumDisplay = _fieldValue('premium_amount', summary.formattedPremium);
+    
     final items = <_MoneyItem>[
-      if (summary.coverageAmount != null)
+      if (summary.coverageAmount != null || overrides.containsKey('coverage_amount'))
         _MoneyItem(
           label: 'Sum Insured',
-          value: summary.formattedCoverageAmount,
+          value: coverageDisplay,
           icon: Icons.shield,
           color: scheme.primary,
+          field: 'coverage_amount',
+          originalValue: summary.formattedCoverageAmount,
+          hasOverride: overrides.containsKey('coverage_amount'),
+          onEditField: onEditField,
+          onRevertField: onRevertField,
         ),
-      if (summary.premiumAmount != null)
+      if (summary.premiumAmount != null || overrides.containsKey('premium_amount'))
         _MoneyItem(
           label: 'Premium',
-          value: summary.formattedPremium,
+          value: premiumDisplay,
           icon: Icons.payments,
           color: scheme.primary,
+          field: 'premium_amount',
+          originalValue: summary.formattedPremium,
+          hasOverride: overrides.containsKey('premium_amount'),
+          onEditField: onEditField,
+          onRevertField: onRevertField,
         ),
       if (summary.deductible != null)
         _MoneyItem(
@@ -446,29 +560,42 @@ class _MoneyRow extends StatelessWidget {
                                 size: 38,
                               ),
                               const SizedBox(height: 8),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  item.value,
+                              item.field != null && item.onEditField != null
+                                  ? EditableField(
+                                      label: item.label,
+                                      value: item.value,
+                                      originalValue: item.originalValue,
+                                      hasOverride: item.hasOverride,
+                                      onSave: (v) => item.onEditField!(item.field!, v),
+                                      onRevert: item.hasOverride && item.onRevertField != null
+                                          ? () => item.onRevertField!(item.field!)
+                                          : null,
+                                      hintText: 'Enter ${item.label.toLowerCase()}',
+                                    )
+                                  : FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        item.value,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(fontWeight: FontWeight.w800),
+                                      ),
+                                    ),
+                              const SizedBox(height: 3),
+                              if (item.field == null)
+                                Text(
+                                  item.label,
                                   style: Theme.of(context)
                                       .textTheme
-                                      .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                item.label,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                                textAlign: TextAlign.center,
-                              ),
                             ],
                           ),
                         ),
@@ -489,22 +616,52 @@ class _MoneyItem {
   final String value;
   final IconData icon;
   final Color color;
-  _MoneyItem(
-      {required this.label,
-      required this.value,
-      required this.icon,
-      required this.color});
+  final String? field;
+  final String? originalValue;
+  final bool hasOverride;
+  final Future<void> Function(String field, String value)? onEditField;
+  final Future<void> Function(String field)? onRevertField;
+  
+  _MoneyItem({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.field,
+    this.originalValue,
+    this.hasOverride = false,
+    this.onEditField,
+    this.onRevertField,
+  });
 }
 
 class _DatesCard extends StatelessWidget {
   final PolicySummary summary;
-  const _DatesCard({required this.summary});
+  final Map<String, OverrideRecord> overrides;
+  final Future<void> Function(String field, String value) onEditField;
+  final Future<void> Function(String field) onRevertField;
+  
+  const _DatesCard({
+    required this.summary,
+    this.overrides = const {},
+    required this.onEditField,
+    required this.onRevertField,
+  });
+
+  String _fieldValue(String field, String? extracted) {
+    final override = overrides[field];
+    if (override != null) return override.value;
+    return extracted ?? '';
+  }
 
   @override
   Widget build(BuildContext context) {
     if (summary.startDate == null && summary.endDate == null) {
       return const SizedBox.shrink();
     }
+
+    final startDisplay = _fieldValue('start_date', summary.formattedStartDate);
+    final endDisplay = _fieldValue('end_date', summary.formattedExpiryDate);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -522,15 +679,29 @@ class _DatesCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (summary.startDate != null)
-                    Text(
-                      'Starts ${summary.formattedStartDate}',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    EditableField(
+                      label: 'Start date',
+                      value: startDisplay,
+                      originalValue: summary.formattedStartDate,
+                      hasOverride: overrides.containsKey('start_date'),
+                      onSave: (v) => onEditField('start_date', v),
+                      onRevert: overrides.containsKey('start_date')
+                          ? () => onRevertField('start_date')
+                          : null,
+                      hintText: 'e.g. 01/01/2025',
                     ),
                   if (summary.endDate != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Ends ${summary.formattedExpiryDate}',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    const SizedBox(height: 8),
+                    EditableField(
+                      label: 'End date',
+                      value: endDisplay,
+                      originalValue: summary.formattedExpiryDate,
+                      hasOverride: overrides.containsKey('end_date'),
+                      onSave: (v) => onEditField('end_date', v),
+                      onRevert: overrides.containsKey('end_date')
+                          ? () => onRevertField('end_date')
+                          : null,
+                      hintText: 'e.g. 31/12/2025',
                     ),
                   ],
                   if (summary.isActive || summary.isExpiringSoon) ...[

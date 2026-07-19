@@ -99,6 +99,7 @@ void main() {
       await tester.pumpWidget(buildPolicyDetail(documentId: 'doc-1'));
       await tester.pumpAndSettle();
 
+      // EditableField renders insurer as editable field
       expect(find.text('ICICI Lombard'), findsOneWidget);
     });
 
@@ -106,7 +107,9 @@ void main() {
       await tester.pumpWidget(buildPolicyDetail(documentId: 'doc-1'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Policy number  POL-12345'), findsOneWidget);
+      // EditableField renders label and value as separate Text widgets
+      expect(find.text('Policy number'), findsOneWidget);
+      expect(find.text('POL-12345'), findsOneWidget);
     });
 
     testWidgets('renders active status badge', (tester) async {
@@ -121,6 +124,7 @@ void main() {
       await tester.pumpWidget(buildPolicyDetail(documentId: 'doc-1'));
       await tester.pumpAndSettle();
 
+      // EditableField renders labels and values as separate Text widgets
       expect(find.text('Sum Insured'), findsOneWidget);
       expect(find.text('₹5.0 L'), findsOneWidget);
       expect(find.text('Premium'), findsWidgets);

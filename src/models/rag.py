@@ -1,13 +1,40 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Literal
 
 from pydantic import BaseModel, Field
+
+
+QuoteSource = Literal["source_text", "retrieval_text"]
 
 
 class RAGCitation(BaseModel):
     source_index: int = Field(..., ge=1, description="1-based index of the retrieved source used in the answer.")
     quote: str = Field(..., description="Short supporting quote copied from the retrieved source.")
+    quote_source: QuoteSource = Field(
+        "source_text",
+        description=(
+            "Where the quote was copied from. Per ADR-2026-07-19-11 (substrate as primary "
+            "deliverable), citations may quote only `source_text` (immutable, OCR'd page text). "
+            "Quotes from `retrieval_text` (LLM-augmented contextualized chunk) are rejected "
+            "by the citation verifier (per ADR-2026-07-19-09 face 2)."
+        ),
+    )
+    document_id: str | None = Field(
+        None,
+        description=(
+            "The document the quote was copied from. Per ADR-2026-07-19-11 Layer 3, "
+            "citations belong to the same document as the answer."
+        ),
+    )
+    page_number: int | None = Field(
+        None,
+        ge=1,
+        description=(
+            "The page the quote was copied from. Per ADR-2026-07-19-11 Layer 4, the "
+            "page is reachable from the citation card via the 'open page' action."
+        ),
+    )
 
 
 class RAGAnswer(BaseModel):

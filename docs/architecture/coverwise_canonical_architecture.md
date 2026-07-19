@@ -1,7 +1,7 @@
 # CoverWise Canonical Architecture
 
 **Status:** Living document. Updated when the system changes.
-**Last updated:** 2026-07-19
+**Last updated:** 2026-07-19 (added §5.1 substrate is a primary deliverable, per ADR-2026-07-19-11 Layers 1-3)
 **Maintainer:** Pranay (operator) + every agent/engineer who changes the system
 **Decision record:** [ADR-2026-07-19-05](../decisions/ADR-2026-07-19-05-canonical-architecture-doc-location.md)
 
@@ -204,6 +204,20 @@ Every LLM-extracted field is verified against the source text before the citatio
 - The claim-assistance thin-slice screen shows the `insurer_name` (per ADR-2026-07-19-04).
 - Future Trust Phase 1 features (claim verification, renewal diff) will read the same substrate.
 - Future Q&A enhancement will cite the same substrate chunks (cite the field_evidence, not just the document_chunks).
+
+### 5.1 The substrate is a primary deliverable (per ADR-2026-07-19-11)
+
+Per ADR-2026-07-19-11 (substrate as primary deliverable), the user sees the source text directly. The "open page" action shows the actual OCR'd page. Citations may quote only `source_text` (immutable, OCR'd page text), never `retrieval_text` (LLM-augmented contextualized chunk, used only for embedding).
+
+**The five layers:**
+
+1. **Schema (substrate):** `extracted_fields.value.raw` is the `source_text`. The substrate does not need a separate `retrieval_text` column because the substrate IS the source. The LLM augmentation happens at the chunk layer, not the substrate.
+2. **Chunk model (`src/rag/pipeline.py`):** every chunk has `source_text` (immutable, set at extraction time) and `retrieval_text` (mutable, initially equal to `source_text`, may be overwritten by `_contextualize_chunks`). Embedding uses `retrieval_text`; citation uses `source_text`. The split is the central trust contract.
+3. **Citation model (`src/models/rag.py`):** `RAGCitation` has a `quote_source: Literal["source_text", "retrieval_text"]` field. The default is `source_text`. The `document_id` and `page_number` fields are required so the "open page" action can find the source.
+4. **Citation verifier (`src/services/citation_verifier.py`):** the runtime check (per ADR-2026-07-19-09 face 2). Rejects citations where `quote_source != "source_text"`, where the quote is not a substring of `source_text` (after whitespace normalization), where the `source_index` is out of bounds, where the `document_id` doesn't match the answer, or where the `page_number` is out of bounds.
+5. **UI (`mobile/lib/widgets/field_citations_card.dart` + future "open page" action):** the citation card shows the verification badge (per ADR-2026-07-19-09 face 4) and the "open page" action that navigates to the OCR'd page (per ADR-2026-07-19-11 Layer 5).
+
+**Why this matters:** the trust audit's P0-03 said `_contextualize_chunks` contaminates source text with model output; the citation cannot be verified against generated text. The substrate-as-primary-deliverable fix is the engineering answer: the contamination is contained to `retrieval_text` (used only for embedding), and `source_text` is preserved untouched for citation.
 
 ---
 
