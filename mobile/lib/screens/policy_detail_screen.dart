@@ -169,6 +169,37 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                 ? 'Your policy, translated into the details that matter.'
                 : '${summary.insurer} • Your policy at a glance',
           ),
+          if (_overrides.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.edit_note_rounded,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.onTertiaryContainer,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _overrides.length == 1
+                          ? '1 field corrected'
+                          : '${_overrides.length} fields corrected',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onTertiaryContainer,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           // Trust Phase 1 / Bucket 5 #21 thin slice: navigation
           // to the coverage-gap + claim-assistance screens. The
           // two screens are read-only consumers of the
