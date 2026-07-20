@@ -1,11 +1,37 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_config.dart';
 import '../models/entitlement.dart';
 import '../models/qa_pack.dart';
+import '../services/billing_adapter.dart';
 import '../services/entitlement_service.dart';
 
 /// Provides the EntitlementService singleton.
+/// Both the UI and the BillingAdapter share this same instance,
+/// so billing syncs are immediately visible to the UI.
 final entitlementServiceProvider = Provider<EntitlementService>((ref) {
   return EntitlementService();
+});
+
+/// Provides the BillingAdapter backed by RevenueCat.
+/// Uses the same EntitlementService instance as the UI provider.
+final billingAdapterProvider = Provider<BillingAdapter>((ref) {
+  final entitlementService = ref.watch(entitlementServiceProvider);
+  return BillingAdapter(entitlementService);
+});
+
+/// Initializes RevenueCat billing at app startup.
+///
+/// This provider auto-runs when first read (e.g. by InsuranceApp's build).
+/// It configures the RevenueCat SDK and syncs the customer's entitlement
+/// to the shared EntitlementService so the UI reflects the correct plan.
+final billingInitProvider = FutureProvider<void>((ref) async {
+  if (!AppConfig.hasRevenueCatConfig) return;
+  final billing = ref.watch(billingAdapterProvider);
+  await billing.initialize(apiKey: AppConfig.revenuecatApiKey);
+  await billing.syncEntitlement();
+  // Refresh the Riverpod notifier so the UI picks up the synced state.
+  ref.read(entitlementProvider.notifier).refresh();
 });
 
 /// Exposes the current entitlement state, rebuilds when [EntitlementNotifier]

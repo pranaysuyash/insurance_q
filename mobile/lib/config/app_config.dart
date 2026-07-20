@@ -13,20 +13,22 @@ class AppConfig {
   // provider URL in a store binary—the deployed API is a release contract.
   static const String _configuredBaseUrl =
       String.fromEnvironment('API_BASE_URL', defaultValue: '');
-  static const String privacyPolicyUrl =
-      String.fromEnvironment('PRIVACY_POLICY_URL', defaultValue: '');
-  static const String termsOfServiceUrl =
-      String.fromEnvironment('TERMS_OF_SERVICE_URL', defaultValue: '');
-  static const String supportEmail =
-      String.fromEnvironment('SUPPORT_EMAIL', defaultValue: '');
-  static const String supabaseUrl =
-      String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+  static const String privacyPolicyUrl = String.fromEnvironment('PRIVACY_POLICY_URL', defaultValue: '');
+  static const String termsOfServiceUrl = String.fromEnvironment('TERMS_OF_SERVICE_URL', defaultValue: '');
+  static const String supportEmail = String.fromEnvironment('SUPPORT_EMAIL', defaultValue: '');
+  static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
   static const String supabasePublishableKey = String.fromEnvironment(
       'SUPABASE_PUBLISHABLE_KEY',
       defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''));
-  static const String privacyPolicyVersion =
-      String.fromEnvironment(
-          'PRIVACY_POLICY_VERSION', defaultValue: 'development-unversioned');
+  static const String privacyPolicyVersion = String.fromEnvironment(
+      'PRIVACY_POLICY_VERSION', defaultValue: 'development-unversioned');
+
+  // RevenueCat public API key — platform-specific, injected at build time.
+  // iOS uses SUPABASE_PUBLISHABLE_KEY_*, Android uses SUPABASE_PUBLISHABLE_KEY_*.
+  static const String revenuecatApiKey = String.fromEnvironment(
+    'REVENUECAT_API_KEY',
+    defaultValue: '',
+  );
 
   // Phase 0 P0-0.3 (trust audit, 2026-07-18): confidence badge calibration
   // gate. The trust audit's NO-GO verdict says confidence badges must be
@@ -66,6 +68,7 @@ class AppConfig {
   static String get uploadEndpoint => '$baseUrl/documents/upload';
   static String get usageStatsEndpoint => '$baseUrl/documents/usage-stats';
   static String get docsEndpoint => '$baseUrl/docs';
+  static String get subscriptionSyncEndpoint => '$baseUrl/subscription/sync';
 
   // App configuration
   static const String appName = 'CoverWise';
@@ -126,6 +129,7 @@ class AppConfig {
   static bool get hasSupportEmail => isValidEmail(supportEmail);
   static bool get hasSupabaseAuthConfig =>
       supabaseUrl.startsWith('https://') && supabasePublishableKey.isNotEmpty;
+  static bool get hasRevenueCatConfig => revenuecatApiKey.isNotEmpty;
 
   static void validateReleaseConfiguration() {
     if (!kReleaseMode || !isProduction) return;

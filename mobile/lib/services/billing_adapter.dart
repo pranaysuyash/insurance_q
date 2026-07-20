@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/entitlement.dart';
 import '../models/qa_pack.dart';
 import 'entitlement_service.dart';
@@ -85,8 +86,11 @@ class BillingAdapter {
       final productId = revenueCatEntitlement.productIdentifier;
       final tier = _productTierMap[productId];
       if (tier != null) {
-        // expirationDate is DateTime? in RevenueCat SDK
-        final expiresAt = revenueCatEntitlement.expirationDate as DateTime?;
+        // expirationDate is String? in this SDK version; parse safely.
+        final rawExpiry = revenueCatEntitlement.expirationDate;
+        final expiresAt = rawExpiry != null
+            ? DateTime.tryParse(rawExpiry.toString())
+            : null;
         await _entitlementService.setPlan(
           tier,
           expiresAt: expiresAt,
@@ -129,7 +133,7 @@ class BillingAdapter {
       );
 
       // Initiate purchase
-      final result = await Purchases.purchasePackage(package);
+      final result = await Purchases.purchase(PurchaseParams.package(package));
       await _applyCustomerInfo(result.customerInfo);
 
       debugPrint('BillingAdapter: purchased ${tier.name} (annual=$annual)');
@@ -160,7 +164,7 @@ class BillingAdapter {
         orElse: () => throw StateError('Package not found: $productId'),
       );
 
-      await Purchases.purchasePackage(package);
+      await Purchases.purchase(PurchaseParams.package(package));
 
       // Consumable packs are confirmed — add to entitlement
       await _entitlementService.addPack(pack);
@@ -211,14 +215,21 @@ class BillingAdapter {
   /// Google Play subscriptions.
   Future<bool> manageSubscription() async {
     try {
-      // RevenueCat SDK: open platform subscription management.
-      // On iOS opens App Store, on Android opens Google Play.
-      // Note: showManageSubscriptions may not be available in all SDK versions.
-      // Fallback: the user can manage subscriptions in their platform's settings.
-      debugPrint('BillingAdapter: opened subscription management');
-      return true;
+      // Platform-specific subscription management URLs.
+      final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+      final uri = Uri.parse(
+        isIOS
+            ? 'https://apps.apple.com/account/subscriptions'
+            : 'https://play.google.com/store/account/subscriptions',
+      );
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        debugPrint('BillingAdapter: opened subscription management');
+        return true;
+      }
+      return false;
     } catch (e) {
-      debugPrint('BillingAdapter: manageSubscriptions failed: $e');
+      debugPrint('BillingAdapter: manageSubscription failed: $e');
       return false;
     }
   }

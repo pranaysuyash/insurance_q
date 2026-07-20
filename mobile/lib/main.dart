@@ -34,6 +34,7 @@ import 'screens/what_if_calculator_screen.dart';
 import 'screens/account_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'config/app_config.dart';
+import 'providers/entitlement_provider.dart';
 import 'providers/policy_providers.dart';
 import 'services/local_storage_service.dart';
 import 'services/app_state_store.dart';
@@ -207,6 +208,12 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   Widget build(BuildContext context) {
     // Watch theme changes — rebuilds MaterialApp when user toggles theme.
     final _ = ref.watch(themeModeProvider);
+
+    // Kick off RevenueCat billing init + entitlement sync.
+    // The FutureProvider auto-runs once; its result is cached.
+    if (AppConfig.hasRevenueCatConfig) {
+      ref.watch(billingInitProvider);
+    }
 
     return MaterialApp(
       navigatorKey: _navigatorKey,

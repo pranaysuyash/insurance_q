@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from src.api.user import router as user_router, get_current_user
 from src.api.analytics import router as analytics_router
 from src.api.consent import router as consent_router
+from src.api.subscription import router as subscription_router
 from src.api.evidence import router as evidence_router
 from src.models.user import User
 from src.api.document import (
@@ -256,6 +257,7 @@ app.include_router(document_router)
 app.include_router(analytics_router)
 app.include_router(evidence_router)
 app.include_router(consent_router)
+app.include_router(subscription_router)
 
 @app.get("/healthz")
 async def liveness_check():
