@@ -22,6 +22,7 @@ import '../theme/coverwise_theme.dart';
 import '../models/entitlement.dart';
 import 'notification_preferences_screen.dart';
 import 'qa_packs_screen.dart';
+import 'upgrade_screen.dart';
 
 /// App settings. Currently exposes the backend environment display and a
 /// clear-data action. Kept deliberately small: only settings that actually
@@ -190,22 +191,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         : const Color(0xFF7557D3),
                     title: 'Current plan: ${entitlement.planTier.displayName}',
                     subtitle: entitlement.planTier.tagline,
-                    trailing: entitlement.planTier == PlanTier.free
-                        ? TextButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Upgrade coming soon')),
-                              );
-                            },
-                            child: const Text('Upgrade'),
-                          )
-                        : TextButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Plan management coming soon')),
-                              );
-                            },
-                            child: const Text('Manage'),
+                    trailing: TextButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const UpgradeScreen(),
+                              ),
+                            ),
+                            child: Text(
+                              entitlement.planTier == PlanTier.free
+                                  ? 'Upgrade'
+                                  : 'Manage',
+                            ),
                           ),
                     onTap: null,
                   ),

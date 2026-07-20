@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/qa_pack.dart';
 import '../providers/entitlement_provider.dart';
-import '../services/billing_adapter.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/faq_item.dart';
 import '../theme/coverwise_theme.dart';
-import '../theme/coverwise_motion.dart';
 import '../services/analytics_service.dart';
 
 /// Screen where users can browse and purchase pay-per-Q&A packs.
@@ -114,22 +113,22 @@ class _QaPacksScreenState extends ConsumerState<QaPacksScreen> {
                   ),
             ),
             const SizedBox(height: 8),
-            const _FaqItem(
+            const FaqItem(
               question: 'When are questions deducted?',
               answer: 'A question is deducted each time you submit one. '
                   'Monthly subscription questions are used first, then pack questions.',
             ),
-            const _FaqItem(
+            const FaqItem(
               question: 'Do packs expire?',
               answer: 'Yes, packs are valid for 90 days from purchase. '
                   'Unused questions are lost after expiry.',
             ),
-            const _FaqItem(
+            const FaqItem(
               question: 'Can I have multiple packs?',
               answer: 'Yes! Multiple packs stack. Questions are consumed from '
                   'the earliest-expiring pack first (FIFO).',
             ),
-            const _FaqItem(
+            const FaqItem(
               question: 'What happens if I upgrade to a subscription?',
               answer: 'Your pack questions remain active and are used after '
                   'your monthly subscription quota is exhausted.',
@@ -347,8 +346,7 @@ class _PackCard extends ConsumerWidget {
     });
 
     try {
-      // In production, this would call the real billing SDK
-      final adapter = BillingAdapter(ref.read(entitlementServiceProvider));
+      final adapter = ref.read(billingAdapterProvider);
       final result = await adapter.purchaseQaPack(pack);
 
       if (!context.mounted) return;
@@ -443,68 +441,3 @@ class _ActivePackTile extends StatelessWidget {
   }
 }
 
-/// FAQ item with expandable answer.
-class _FaqItem extends StatefulWidget {
-  final String question;
-  final String answer;
-  const _FaqItem({required this.question, required this.answer});
-
-  @override
-  State<_FaqItem> createState() => _FaqItemState();
-}
-
-class _FaqItemState extends State<_FaqItem> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: () => setState(() => _expanded = !_expanded),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.question,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: CoverWiseMotion.quick,
-                    child: const Icon(Icons.expand_more_rounded),
-                  ),
-                ],
-              ),
-              AnimatedCrossFade(
-                firstChild: const SizedBox.shrink(),
-                secondChild: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    widget.answer,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-                crossFadeState: _expanded
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                duration: CoverWiseMotion.quick,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

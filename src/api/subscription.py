@@ -118,6 +118,25 @@ def sync_subscription(
     """
     _init_subscription_table()
 
+    # Security: log a warning when a non-free plan is synced. The client
+    # is the source of truth for RevenueCat state (no server-side webhook
+    # verification yet — Security Phase 2). Until then, operator monitoring
+    # of these warnings detects client-side plan spoofing.
+    _valid_tiers = ('free', 'plus', 'family')
+    plan_tier = request.plan_tier
+    if plan_tier not in _valid_tiers:
+        logger.warning(
+            "SPOOFING_ATTEMPT user=%s claimed_plan=%s — unknown tier rejected, forced to free",
+            current_user.uid[:8], plan_tier,
+        )
+        plan_tier = 'free'
+    elif plan_tier != 'free':
+        logger.warning(
+            "NON_FREE_PLAN_SYNC user=%s plan=%s product=%s — "
+            "verify against RevenueCat webhook when available",
+            current_user.uid[:8], plan_tier, request.product_id or 'none',
+        )
+
     server_now = datetime.now(timezone.utc).isoformat()
 
     # Deactivate any existing active sync for this user
@@ -131,6 +150,10 @@ def sync_subscription(
         # Insert new sync record
         raw_info = request.raw_customer_info
         if raw_info and len(raw_info) > 4096:
+            logger.warning(
+                "raw_customer_info truncated from %d to 4096 bytes for user %s",
+                len(raw_info), current_user.uid[:8],
+            )
             raw_info = raw_info[:4096]  # Truncate to prevent storage abuse
 
         conn.execute(
@@ -142,7 +165,7 @@ def sync_subscription(
             """,
             (
                 current_user.uid,
-                request.plan_tier,
+                plan_tier,
                 request.product_id,
                 request.expires_at,
                 1 if request.is_active else 0,
@@ -156,7 +179,7 @@ def sync_subscription(
         logger.info(
             "Subscription sync: user=%s plan=%s product=%s active=%s",
             current_user.uid[:8],
-            request.plan_tier,
+            plan_tier,
             request.product_id or "none",
             request.is_active,
         )

@@ -25,6 +25,11 @@ final billingAdapterProvider = Provider<BillingAdapter>((ref) {
 /// This provider auto-runs when first read (e.g. by InsuranceApp's build).
 /// It configures the RevenueCat SDK and syncs the customer's entitlement
 /// to the shared EntitlementService so the UI reflects the correct plan.
+///
+/// Exposes [AsyncValue] so the UI can degrade gracefully:
+/// - [AsyncData] = billing initialized and synced
+/// - [AsyncError] = billing init failed (UI shows "billing unavailable")
+/// - [AsyncLoading] = init in progress (UI can show spinner or proceed)
 final billingInitProvider = FutureProvider<void>((ref) async {
   if (!AppConfig.hasRevenueCatConfig) return;
   final billing = ref.watch(billingAdapterProvider);
@@ -32,6 +37,9 @@ final billingInitProvider = FutureProvider<void>((ref) async {
   await billing.syncEntitlement();
   // Refresh the Riverpod notifier so the UI picks up the synced state.
   ref.read(entitlementProvider.notifier).refresh();
+  // If initialize() or syncEntitlement() throws, FutureProvider captures
+  // it as AsyncError. The UI can check billingInitProvider.value for null
+  // to show "billing unavailable" in settings instead of failing silently.
 });
 
 /// Exposes the current entitlement state, rebuilds when [EntitlementNotifier]
