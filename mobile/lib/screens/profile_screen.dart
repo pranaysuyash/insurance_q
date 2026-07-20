@@ -10,6 +10,7 @@ import '../providers/document_providers.dart';
 import '../config/app_config.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../utils/app_error.dart';
 
 /// Profile / Account Screen — shows device identity, token status, and account health.
 ///
@@ -214,7 +215,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Could not delete account: $e'),
+          content: Text(AppError.contextual(error: e, operation: 'account_deletion')),
           backgroundColor: Colors.red,
         ),
       );

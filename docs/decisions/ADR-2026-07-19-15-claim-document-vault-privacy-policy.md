@@ -272,7 +272,7 @@ The pattern is reusable: any new surface that handles sensitive personal data ge
   - [ADR-2026-07-19-12](./ADR-2026-07-19-12-operator-trust-model.md) (the support-operator access rules)
   - [ADR-2026-07-19-10](./ADR-2026-07-19-10-outbox-only-durable-work-primitive.md) (the durable deletion path)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc update)
-  - `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` (the audit findings on data lifecycle, retention, medical data)
+  - `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` (the audit findings on data lifecycle, retention, medical data)
 - **Related code (current state):**
   - `mobile/lib/services/consent_ledger.dart` (the consent ledger; the new purpose is added here)
   - `src/services/consent_ledger_service.py` (the consent ledger service)

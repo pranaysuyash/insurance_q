@@ -6,7 +6,7 @@
 - **Date:** 2026-07-19
 - **Owner / next reviewer:** Pranay (operator).
 - **Status:** **Accepted (revision 1, operator sign-off 2026-07-19).** The outbox is the only durable-work primitive in the production path. The 3 remaining `BackgroundTasks` paths are migrated; the release guard enforces the contract; the lease heartbeat, reaper, bounded retries, dead-letter state, and operator CLI are added. The wider wedge from ADR-2026-07-19-08 revision 2 (Coverage Check-in, Coverage Adequacy, Family Coverage Map, Claim Document Vault) generates more durable work, but the contract is unchanged — every new durable work path goes through the outbox, and the release guard catches any new `BackgroundTasks` usage. The outbox must scale with the new work volume; the scaling test (per the validation plan) is the gate. See "Update log" below for the full decision history.
-- **Related artifacts:** [ADR-2026-07-19-01](./ADR-2026-07-19-01-durable-work-queue-supabase-outbox.md), [ADR-2026-07-19-02](./ADR-2026-07-19-02-outbox-migration-deferred.md), [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md), `coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-01, P0-02.
+- **Related artifacts:** [ADR-2026-07-19-01](./ADR-2026-07-19-01-durable-work-queue-supabase-outbox.md), [ADR-2026-07-19-02](./ADR-2026-07-19-02-outbox-migration-deferred.md), [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md), `docs/audits/coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-01, P0-02.
 
 ---
 
@@ -65,7 +65,7 @@ The 3 paths that still use `BackgroundTasks`:
 - **Migration:** the upload handler enqueues a `document.processing` event in the outbox. The `OutboxWorker` (already in `src/workers/outbox_worker.py`) dequeues the event and runs `process_document_background` in a worker process. The outbox handler is already wired in bc16e9e (`src/workers/document_processing_handler.py`).
 - **Effort:** S. The outbox handler exists. The migration is a 1-line change in the upload handler (replace `BackgroundTasks.add_task` with `outbox.enqueue`).
 - **Tests:** unit test that asserts the upload handler enqueues the event. Integration test that asserts the outbox worker runs the handler.
-- **Source:** `coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-01.
+- **Source:** `docs/audits/coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-01.
 
 ### Path 2: Evidence extraction (`src/services/document_processing_service.py`)
 
@@ -73,7 +73,7 @@ The 3 paths that still use `BackgroundTasks`:
 - **Migration:** the document processing service enqueues a `substrate.extraction` event in the outbox. The `OutboxWorker` dequeues the event and runs the evidence pipeline in a worker process. The inline call is removed.
 - **Effort:** S. The outbox handler exists. The migration is a 1-line change in the document processing service.
 - **Tests:** unit test that asserts the document processing service enqueues the event. Integration test that asserts the outbox worker runs the evidence pipeline.
-- **Source:** `coverwise_document_intelligence_trust_audit_2026-07-18.md` T-1-18.
+- **Source:** `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` T-1-18.
 
 ### Path 3: Billing webhook handler (future, per ADR-08 #4)
 
@@ -95,21 +95,21 @@ The 3 paths that still use `BackgroundTasks`:
 - **What it is:** the outbox already has lease semantics. This ADR adds a heartbeat (the worker updates the lease every 30s) and a reaper (a periodic job that reclaims leases that have not been heartbeat'd in 15 min).
 - **Where it lives:** `src/workers/outbox_worker.py` (extend). The heartbeat is a SQL update on the lease row. The reaper is a SQL function that runs every 60s.
 - **Effort:** M. 1-2 days.
-- **Source:** `coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-02.
+- **Source:** `docs/audits/coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-02.
 
 ### Bounded retries + dead-letter (T-2-2)
 
 - **What it is:** the outbox already has retry semantics. This ADR adds a maximum retry count (e.g. 5) and a dead-letter state (the event moves to a `job_outbox_dead_letter` table after 5 failures). The operator can re-queue from the dead-letter table.
 - **Where it lives:** `src/workers/outbox_worker.py` (extend). The dead-letter table is a new migration.
 - **Effort:** S. 1 day.
-- **Source:** `coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-02.
+- **Source:** `docs/audits/coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-02.
 
 ### Operator tooling (T-2-9)
 
 - **What it is:** an operator CLI that can list, retry, cancel, and quarantine outbox events. The CLI is the operator's tool for the dead-letter state.
 - **Where it lives:** `tools/outbox_admin.py` (new). A Python script with a CLI.
 - **Effort:** M. 1-2 days.
-- **Source:** `coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-17.
+- **Source:** `docs/audits/coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-17.
 
 ---
 
@@ -257,8 +257,8 @@ The operator CLI is a new tool. The rollback is to not use the CLI; the dead-let
   - [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md) (the billing webhook handler that will land on the outbox)
   - [ADR-2026-07-19-09](./ADR-2026-07-19-09-evidence-backed-release-grade-definition.md) (the evidence-backed contract that depends on the outbox)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc update)
-  - `coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-01, P0-02, P0-17 (the audit findings)
-  - `coverwise_document_intelligence_trust_audit_2026-07-18.md` T-1-18 (the audit's recommendation)
+  - `docs/audits/coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-01, P0-02, P0-17 (the audit findings)
+  - `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` T-1-18 (the audit's recommendation)
 - **Related code (current state):**
   - `src/workers/outbox_worker.py` (the outbox dispatcher)
   - `src/workers/document_processing_handler.py` (the document processing outbox handler, in bc16e9e)

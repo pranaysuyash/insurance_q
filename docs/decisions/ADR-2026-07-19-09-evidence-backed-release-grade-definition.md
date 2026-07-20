@@ -6,7 +6,7 @@
 - **Date:** 2026-07-19
 - **Owner / next reviewer:** Pranay (operator).
 - **Status:** **Accepted (revision 1, operator sign-off 2026-07-19).** The four-face contract is the release-grade definition of "evidence-backed." The implementation work (citation verifier, answer verifier, UI badge, launch-claim registry entries) may begin in dependency order. Implementation order: substrate face tightening → citation face → answer face → UI face → launch-claim registry entries (per surface) → canonical doc update → CI gate. The launch-claim registry gains entries for the new surfaces added in revision 2 of ADR-2026-07-19-08 (Coverage Check-in, Coverage Adequacy, Family Coverage Map, Claim Document Vault descriptions). See "Update log" below for the full decision history.
-- **Related artifacts:** [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md), [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md), [ADR-2026-07-19-04](./ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md), `coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-12, P0-13, P0-15, P1-15.
+- **Related artifacts:** [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md), [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md), [ADR-2026-07-19-04](./ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md), `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-12, P0-13, P0-15, P1-15.
 
 ## Update log
 
@@ -257,8 +257,8 @@ The launch-claim registry entry is updated when a face changes. The CI gate fail
   - [ADR-2026-07-19-04](./ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md) (the "not yet extracted" pattern, the UI face's precedent)
   - [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md) (the cuts and finishes that this ADR depends on)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc update)
-  - `coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-12, P0-13, P0-15, P1-15 (the audit findings)
-  - `coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` §P0-11, T-5-14 (the launch-claim registry)
+  - `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-12, P0-13, P0-15, P1-15 (the audit findings)
+  - `docs/audits/coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` §P0-11, T-5-14 (the launch-claim registry)
 - **Related code (current state):**
   - `src/services/evidence_substrate_service.py` (the substrate face, partial)
   - `src/services/evidence_pipeline.py` (the parser pipeline that produces `evidence_strength`)

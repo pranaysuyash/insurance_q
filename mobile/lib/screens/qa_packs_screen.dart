@@ -6,6 +6,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/faq_item.dart';
 import '../theme/coverwise_theme.dart';
 import '../services/analytics_service.dart';
+import '../utils/app_error.dart';
 
 /// Screen where users can browse and purchase pay-per-Q&A packs.
 ///
@@ -375,9 +376,10 @@ class _PackCard extends ConsumerWidget {
         'pack_type': pack.name,
         'reason': 'error',
       });
+      final msg = AppError.userMessage(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Purchase failed: $e'),
+          content: Text(msg.isEmpty ? 'Purchase was cancelled.' : msg),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

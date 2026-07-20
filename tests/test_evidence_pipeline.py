@@ -173,7 +173,7 @@ class FakeLLM:
     def __init__(self, response_payload: str):
         self.response_payload = response_payload
 
-    async def complete(self, **kwargs):
+    async def generate(self, **kwargs):
         return self.response_payload
 
 
@@ -219,7 +219,7 @@ def test_room_rent_cap_extractor_rejects_hallucinated_clause():
 
 def test_room_rent_cap_extractor_handles_llm_error():
     class BrokenLLM:
-        async def complete(self, **kwargs):
+        async def generate(self, **kwargs):
             raise RuntimeError("rate limited")
     e = RoomRentCapExtractor(llm_client=BrokenLLM())
     r = _run(e.extract(_uuid(), SAMPLE_PAGES))

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query, BackgroundTasks, Request
+from fastapi.responses import Response
 from src.api.user import get_current_user
 from src.models.user import User
 from src.models.document import Document
@@ -683,6 +684,35 @@ async def get_policy_summary(
         raise HTTPException(status_code=404, detail=f"No policy summary found for document {document_id}")
 
     return {"status": "success", "summary": summary}
+
+
+@router.get("/{document_id}/pages/{page_number}")
+async def get_document_page(
+    document_id: str,
+    page_number: int,
+    current_user: User = Depends(get_current_user),
+):
+    """Serve a single page image from the document's page image store.
+
+    Page images are generated during document processing (png, 150 DPI)
+    and stored in the canonical document object store. This endpoint
+    enables the mobile app to display cited pages even when the full
+    source PDF is not available locally on the device.
+
+    Returns 404 if the document does not exist or the page image has
+    not been generated yet (e.g. processing is still in progress).
+    """
+    if not document_repository.get(document_id, current_user.uid):
+        raise HTTPException(status_code=404, detail="Document not found")
+    try:
+        image_bytes = document_object_store.get_page_image(document_id, page_number)
+    except Exception:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Page {page_number} image not available for document {document_id}. "
+                   f"The document may still be processing.",
+        )
+    return Response(content=image_bytes, media_type="image/png")
 
 
 @router.get("/summaries/all")

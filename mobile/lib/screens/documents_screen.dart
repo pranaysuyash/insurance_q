@@ -19,6 +19,7 @@ import '../services/contact_service.dart';
 import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
 import '../theme/coverwise_motion.dart';
+import '../utils/app_error.dart';
 import '../widgets/lead_capture_dialog.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/usage_stats_widget.dart';
@@ -439,7 +440,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Error refreshing document types: $e'),
+            content: Text(AppError.userMessage(e)),
             backgroundColor: Colors.red),
       );
     } finally {

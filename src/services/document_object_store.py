@@ -23,6 +23,12 @@ class DocumentObjectStore:
     def get(self, object_reference: str) -> bytes:
         raise NotImplementedError
 
+    def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
+        raise NotImplementedError
+
+    def get_page_image(self, document_id: str, page_number: int) -> bytes:
+        raise NotImplementedError
+
 
 def _safe_filename(filename: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", filename)[:180] or "document"
@@ -45,6 +51,15 @@ class LocalDocumentObjectStore(DocumentObjectStore):
 
     def get(self, object_reference: str) -> bytes:
         return Path(object_reference).read_bytes()
+
+    def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
+        path = self._directory / "_pages" / document_id / f"{page_number}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(image_bytes)
+
+    def get_page_image(self, document_id: str, page_number: int) -> bytes:
+        path = self._directory / "_pages" / document_id / f"{page_number}.png"
+        return path.read_bytes()
 
 
 class S3DocumentObjectStore(DocumentObjectStore):
@@ -86,6 +101,20 @@ class S3DocumentObjectStore(DocumentObjectStore):
         if not object_reference.startswith(prefix):
             raise ValueError("Object reference does not belong to configured document bucket")
         response = self._client.get_object(Bucket=self._bucket, Key=object_reference.removeprefix(prefix))
+        return response["Body"].read()
+
+    def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
+        key = f"_pages/{document_id}/{page_number}.png"
+        self._client.put_object(
+            Bucket=self._bucket,
+            Key=key,
+            Body=image_bytes,
+            ContentType="image/png",
+        )
+
+    def get_page_image(self, document_id: str, page_number: int) -> bytes:
+        key = f"_pages/{document_id}/{page_number}.png"
+        response = self._client.get_object(Bucket=self._bucket, Key=key)
         return response["Body"].read()
 
 
@@ -132,6 +161,18 @@ class SupabaseDocumentObjectStore(DocumentObjectStore):
         if not object_reference.startswith(prefix):
             raise ValueError("Object reference belongs to a different Supabase bucket")
         return self._client.storage.from_(self._bucket).download(object_reference.removeprefix(prefix))
+
+    def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
+        path = f"_pages/{document_id}/{page_number}.png"
+        self._client.storage.from_(self._bucket).upload(
+            path,
+            image_bytes,
+            {"content-type": "image/png", "upsert": "true"},
+        )
+
+    def get_page_image(self, document_id: str, page_number: int) -> bytes:
+        path = f"_pages/{document_id}/{page_number}.png"
+        return self._client.storage.from_(self._bucket).download(path)
 
 
 def create_document_object_store() -> DocumentObjectStore:

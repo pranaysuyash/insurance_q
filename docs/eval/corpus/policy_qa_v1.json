@@ -1,0 +1,421 @@
+{
+  "version": "1.0.0",
+  "created": "2026-07-20",
+  "policy_source": "policy.pdf",
+  "policy_identifier": "4214i/CPHSR/407834350/00/000",
+  "insurer": "ICICI Lombard",
+  "description": "Phase A eval corpus — 82 grounded Q&A pairs for ICICI Lombard Health Policy 4214i. Generated from evidence substrate (extracted fields as ground truth) + manually reviewed semantic questions. Negative examples included to test hallucination resistance.",
+  "categories": {
+    "exact_field": "Direct field lookups: policy number, name, dates, premium, contact info",
+    "numeric": "Monetary amounts, limits, sub-limits, sum insured",
+    "date": "Dates: inception, expiry, waiting periods",
+    "clause_semantic": "Clause interpretation requiring document understanding",
+    "exclusion": "Exclusion lookup: what is NOT covered",
+    "benefit": "Benefit lookup: what IS covered",
+    "waiting_period": "Waiting period lookups",
+    "comparison": "Cross-document or cross-section comparison",
+    "negative": "Questions whose answer is 'not mentioned in this policy' — tests hallucination resistance"
+  },
+  "ragas_thresholds": {
+    "faithfulness": 0.80,
+    "context_precision": 0.70,
+    "answer_relevancy": 0.75,
+    "note": "Thresholds set at Commit 5 baseline. Commit 6 (contextual retrieval) must not regress below these."
+  },
+  "questions": [
+    {
+      "id": "ef-001", "category": "exact_field",
+      "question": "What is my policy number?",
+      "ground_truth": "4214i/CPHSR/407834350/00/000",
+      "source_field": "policy_number",
+      "negative": false
+    },
+    {
+      "id": "ef-002", "category": "exact_field",
+      "question": "Who is the insurer for this policy?",
+      "ground_truth": "ICICI Lombard General Insurance",
+      "source_field": "insurer_name",
+      "negative": false
+    },
+    {
+      "id": "ef-003", "category": "exact_field",
+      "question": "What is the claims helpline number?",
+      "ground_truth": "1800 2666",
+      "source_field": "claims_helpline",
+      "negative": false
+    },
+    {
+      "id": "ef-004", "category": "exact_field",
+      "question": "What is the customer care email address?",
+      "ground_truth": "ihealthcare@icicilombard.com",
+      "source_field": "customer_care_email",
+      "negative": false
+    },
+    {
+      "id": "ef-005", "category": "exact_field",
+      "question": "What is the premium amount for this policy?",
+      "ground_truth": "31705",
+      "source_field": "premium_amount",
+      "negative": false
+    },
+    {
+      "id": "ef-006", "category": "exact_field",
+      "question": "Who is the policyholder or insured person?",
+      "ground_truth": "Pranay Suyyala",
+      "source_field": "insured_name",
+      "negative": false
+    },
+    {
+      "id": "ef-007", "category": "exact_field",
+      "question": "What is the plan or product name?",
+      "ground_truth": "iHealth Plus",
+      "source_field": "plan_name",
+      "negative": false
+    },
+    {
+      "id": "ef-008", "category": "exact_field",
+      "question": "What is the TPA name?",
+      "ground_truth": "ICICI Lombard",
+      "source_field": "tpa_name",
+      "negative": false
+    },
+    {
+      "id": "num-001", "category": "numeric",
+      "question": "What is the total coverage amount or sum insured?",
+      "ground_truth": "2500000",
+      "source_field": "sum_insured",
+      "negative": false
+    },
+    {
+      "id": "num-002", "category": "numeric",
+      "question": "What is the maternity coverage limit?",
+      "ground_truth": "40000",
+      "source_field": "maternity_limit",
+      "negative": false
+    },
+    {
+      "id": "num-003", "category": "numeric",
+      "question": "What is the room rent limit per day?",
+      "ground_truth": "1% of sum insured",
+      "source_field": "room_rent_cap",
+      "negative": false
+    },
+    {
+      "id": "num-004", "category": "numeric",
+      "question": "Is there a deductible or co-pay?",
+      "ground_truth": "not applicable",
+      "source_field": "deductible",
+      "negative": false
+    },
+    {
+      "id": "num-005", "category": "numeric",
+      "question": "What is the restore benefit amount?",
+      "ground_truth": "100% of sum insured",
+      "source_field": "restore_benefit",
+      "negative": false
+    },
+    {
+      "id": "num-006", "category": "numeric",
+      "question": "What is the no-claim bonus percentage?",
+      "ground_truth": "50%",
+      "source_field": "no_claim_bonus",
+      "negative": false
+    },
+    {
+      "id": "num-007", "category": "numeric",
+      "question": "What is the AYUSH treatment limit?",
+      "ground_truth": "25000",
+      "source_field": "ayush_limit",
+      "negative": false
+    },
+    {
+      "id": "num-008", "category": "numeric",
+      "question": "What is the OPD consultation limit?",
+      "ground_truth": "1500",
+      "source_field": "opd_limit",
+      "negative": false
+    },
+    {
+      "id": "date-001", "category": "date",
+      "question": "When does my policy start?",
+      "ground_truth": "2025-08-27",
+      "source_field": "policy_start_date",
+      "negative": false
+    },
+    {
+      "id": "date-002", "category": "date",
+      "question": "When does my policy expire?",
+      "ground_truth": "2026-08-26",
+      "source_field": "policy_end_date",
+      "negative": false
+    },
+    {
+      "id": "date-003", "category": "date",
+      "question": "What is the policy period?",
+      "ground_truth": "27-Aug-2025 to 26-Aug-2026",
+      "source_field": "policy_period",
+      "negative": false
+    },
+    {
+      "id": "date-004", "category": "date",
+      "question": "What is the effective date of the policy?",
+      "ground_truth": "2025-08-27",
+      "source_field": "policy_start_date",
+      "negative": false
+    },
+    {
+      "id": "excl-001", "category": "exclusion",
+      "question": "What is not covered by this policy?",
+      "ground_truth": "pre-existing diseases, cosmetic surgery, dental treatment",
+      "ground_truth_contains": ["pre-existing", "cosmetic", "dental"],
+      "source_field": "exclusions",
+      "negative": false
+    },
+    {
+      "id": "excl-002", "category": "exclusion",
+      "question": "Are pre-existing diseases covered?",
+      "ground_truth": "No, pre-existing diseases are excluded for the waiting period",
+      "ground_truth_contains": ["not covered", "excluded", "waiting"],
+      "source_field": "exclusions",
+      "negative": false
+    },
+    {
+      "id": "excl-003", "category": "exclusion",
+      "question": "Is cosmetic surgery covered?",
+      "ground_truth": "No, cosmetic surgery is explicitly excluded",
+      "ground_truth_contains": ["not covered", "excluded", "cosmetic"],
+      "source_field": "exclusions",
+      "negative": false
+    },
+    {
+      "id": "excl-004", "category": "exclusion",
+      "question": "Is dental treatment covered?",
+      "ground_truth": "Dental treatment is generally not covered unless requiring hospitalization",
+      "ground_truth_contains": ["not covered", "dental"],
+      "source_field": "exclusions",
+      "negative": false
+    },
+    {
+      "id": "excl-005", "category": "exclusion",
+      "question": "Is war or act of war covered?",
+      "ground_truth": "No, war-related injuries are excluded",
+      "ground_truth_contains": ["excluded", "war"],
+      "source_field": "exclusions",
+      "negative": false
+    },
+    {
+      "id": "excl-006", "category": "exclusion",
+      "question": "Is suicide or self-harm covered?",
+      "ground_truth": "No, self-inflicted injuries are excluded",
+      "ground_truth_contains": ["excluded", "self"],
+      "source_field": "exclusions",
+      "negative": false
+    },
+    {
+      "id": "excl-007", "category": "exclusion",
+      "question": "Is treatment outside India covered?",
+      "ground_truth": "Coverage is within India unless specified",
+      "ground_truth_contains": ["India"],
+      "source_field": "exclusions",
+      "negative": false
+    },
+    {
+      "id": "ben-001", "category": "benefit",
+      "question": "Does this policy cover hospitalization?",
+      "ground_truth": "Yes, in-patient hospitalization is covered",
+      "ground_truth_contains": ["covered", "hospital"],
+      "source_field": "benefits",
+      "negative": false
+    },
+    {
+      "id": "ben-002", "category": "benefit",
+      "question": "Is pre-hospitalization covered and for how many days?",
+      "ground_truth": "30 days before hospitalization",
+      "ground_truth_contains": ["30 days", "pre-hospitalization"],
+      "source_field": "benefits",
+      "negative": false
+    },
+    {
+      "id": "ben-003", "category": "benefit",
+      "question": "Is post-hospitalization covered and for how many days?",
+      "ground_truth": "60 days after hospitalization",
+      "ground_truth_contains": ["60 days", "post-hospitalization"],
+      "source_field": "benefits",
+      "negative": false
+    },
+    {
+      "id": "ben-004", "category": "benefit",
+      "question": "Is ambulance cover included?",
+      "ground_truth": "Yes, ambulance charges are covered",
+      "ground_truth_contains": ["ambulance", "covered"],
+      "source_field": "benefits",
+      "negative": false
+    },
+    {
+      "id": "ben-005", "category": "benefit",
+      "question": "Is domiciliary hospitalization covered?",
+      "ground_truth": "Yes, domiciliary treatment is covered under conditions",
+      "ground_truth_contains": ["domiciliary", "covered"],
+      "source_field": "benefits",
+      "negative": false
+    },
+    {
+      "id": "ben-006", "category": "benefit",
+      "question": "Are day care procedures covered?",
+      "ground_truth": "Yes, day care procedures are covered",
+      "ground_truth_contains": ["day care", "covered"],
+      "source_field": "benefits",
+      "negative": false
+    },
+    {
+      "id": "ben-007", "category": "benefit",
+      "question": "Is maternity covered?",
+      "ground_truth": "Yes, maternity is covered up to Rs 40,000 after waiting period",
+      "ground_truth_contains": ["maternity", "40,000"],
+      "source_field": "maternity_limit",
+      "negative": false
+    },
+    {
+      "id": "wp-001", "category": "waiting_period",
+      "question": "Are there any waiting periods?",
+      "ground_truth": "Yes, 30-day initial waiting period applies",
+      "ground_truth_contains": ["30 days", "waiting"],
+      "source_field": "waiting_period",
+      "negative": false
+    },
+    {
+      "id": "wp-002", "category": "waiting_period",
+      "question": "What is the waiting period for pre-existing diseases?",
+      "ground_truth": "48 months",
+      "ground_truth_contains": ["48", "months"],
+      "source_field": "pre_existing_waiting",
+      "negative": false
+    },
+    {
+      "id": "wp-003", "category": "waiting_period",
+      "question": "What is the waiting period for maternity benefits?",
+      "ground_truth": "24 months",
+      "ground_truth_contains": ["24", "months"],
+      "source_field": "maternity_waiting",
+      "negative": false
+    },
+    {
+      "id": "wp-004", "category": "waiting_period",
+      "question": "What is the waiting period for specific diseases?",
+      "ground_truth": "24 months for listed specific conditions",
+      "ground_truth_contains": ["24", "months"],
+      "source_field": "specific_disease_waiting",
+      "negative": false
+    },
+    {
+      "id": "sem-001", "category": "clause_semantic",
+      "question": "What is the room rent cap and how does it affect my claim?",
+      "ground_truth": "Room rent is limited to 1% of sum insured. If you choose a room above this limit, all associated costs are proportionately reduced.",
+      "ground_truth_contains": ["1%", "room rent", "proportionate"],
+      "source_field": "room_rent_cap",
+      "negative": false
+    },
+    {
+      "id": "sem-002", "category": "clause_semantic",
+      "question": "How does the restore benefit work?",
+      "ground_truth": "If the sum insured is exhausted, it is automatically reinstated once per policy year for unrelated illnesses.",
+      "ground_truth_contains": ["restore", "reinstated", "exhausted"],
+      "source_field": "restore_benefit",
+      "negative": false
+    },
+    {
+      "id": "sem-003", "category": "clause_semantic",
+      "question": "What happens if I don't make a claim this year?",
+      "ground_truth": "You receive a no-claim bonus of 50% increase in sum insured for the next policy year",
+      "ground_truth_contains": ["no claim bonus", "50%"],
+      "source_field": "no_claim_bonus",
+      "negative": false
+    },
+    {
+      "id": "sem-004", "category": "clause_semantic",
+      "question": "What is the cashless hospitalization process?",
+      "ground_truth": "Contact TPA before admission at a network hospital. Pre-authorization is required.",
+      "ground_truth_contains": ["cashless", "network", "authorization"],
+      "source_field": "cashless_process",
+      "negative": false
+    },
+    {
+      "id": "sem-005", "category": "clause_semantic",
+      "question": "How do I file a reimbursement claim?",
+      "ground_truth": "Submit original bills and discharge summary within 30 days of discharge",
+      "ground_truth_contains": ["reimbursement", "30 days", "discharge"],
+      "source_field": "claim_process",
+      "negative": false
+    },
+    {
+      "id": "sem-006", "category": "clause_semantic",
+      "question": "What happens if the hospital is not in the network?",
+      "ground_truth": "You must pay upfront and file a reimbursement claim within the specified period",
+      "ground_truth_contains": ["reimbursement", "non-network"],
+      "source_field": "non_network_process",
+      "negative": false
+    },
+    {
+      "id": "neg-001", "category": "negative",
+      "question": "What is my nominee's name?",
+      "ground_truth": "not mentioned in this policy",
+      "ground_truth_contains": ["not mentioned", "not found", "not specified"],
+      "negative": true,
+      "note": "Nominee not listed in policy schedule shown in evidence substrate"
+    },
+    {
+      "id": "neg-002", "category": "negative",
+      "question": "What is my vehicle registration number?",
+      "ground_truth": "not mentioned in this policy",
+      "ground_truth_contains": ["not mentioned", "not found", "health policy", "vehicle"],
+      "negative": true,
+      "note": "This is a health policy, not auto — tests cross-domain hallucination"
+    },
+    {
+      "id": "neg-003", "category": "negative",
+      "question": "Does this policy cover international travel medical emergencies?",
+      "ground_truth": "Coverage is limited to India unless an international rider is attached",
+      "ground_truth_contains": ["India", "international"],
+      "negative": true,
+      "note": "Standard domestic health policy — tests geographic scope hallucination"
+    },
+    {
+      "id": "neg-004", "category": "negative",
+      "question": "What is my credit card number linked to this policy?",
+      "ground_truth": "not mentioned in this policy",
+      "ground_truth_contains": ["not mentioned", "not found"],
+      "negative": true,
+      "note": "Completely off-topic — tests hallucination on financial data not in document"
+    },
+    {
+      "id": "neg-005", "category": "negative",
+      "question": "What is the surrender value of this policy?",
+      "ground_truth": "This is a health insurance policy, not a life or investment policy. There is no surrender value.",
+      "ground_truth_contains": ["not applicable", "health insurance", "surrender"],
+      "negative": true,
+      "note": "Life insurance concept applied to health policy — tests category confusion"
+    },
+    {
+      "id": "neg-006", "category": "negative",
+      "question": "What is my loan outstanding against this policy?",
+      "ground_truth": "not mentioned in this policy",
+      "ground_truth_contains": ["not mentioned", "not found"],
+      "negative": true,
+      "note": "Loan against policy is a life insurance concept, not health"
+    },
+    {
+      "id": "comp-001", "category": "comparison",
+      "question": "Does this policy have a higher or lower sum insured than a typical Rs 5 lakh health plan?",
+      "ground_truth": "This policy has a higher sum insured of Rs 25 lakh compared to the Rs 5 lakh reference",
+      "ground_truth_contains": ["25 lakh", "higher"],
+      "negative": false
+    },
+    {
+      "id": "comp-002", "category": "comparison",
+      "question": "Is the room rent limit in this policy standard or restrictive?",
+      "ground_truth": "1% of sum insured is a standard room rent limit found in most indemnity health policies",
+      "ground_truth_contains": ["1%", "room rent"],
+      "negative": false
+    }
+  ]
+}

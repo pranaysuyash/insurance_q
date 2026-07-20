@@ -6,7 +6,17 @@ Pytest in this repo is often invoked from the checkout root, so we make sure
 
 from __future__ import annotations
 
+import os
 import sys
+
+if sys.platform == "darwin":
+    _brew_lib = "/opt/homebrew/lib"
+    if os.path.isdir(_brew_lib):
+        os.environ.setdefault("DYLD_LIBRARY_PATH", _brew_lib)
+        # Prepend so it takes effect for ctypes/dlopen even if already set
+        existing = os.environ.get("DYLD_LIBRARY_PATH", "")
+        if _brew_lib not in existing:
+            os.environ["DYLD_LIBRARY_PATH"] = f"{_brew_lib}:{existing}" if existing else _brew_lib
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from pathlib import Path

@@ -174,5 +174,5 @@ If the outbox turns out to be the wrong choice, ADR-2026-07-19-01's rollback sec
 - **Related ADRs / docs:**
   - [ADR-2026-07-19-01](./ADR-2026-07-19-01-durable-work-queue-supabase-outbox.md)
   - `docs/planning/coverwise_audit_task_classification_2026-07-18.md` (Bucket 5 entry for ADR-03)
-  - `coverwise_architecture_audit_2026-07-18.docx` (the source audit)
+  - `docs/audits/coverwise_architecture_audit_2026-07-18.docx` (the source audit)
 - **Motto v3 alignment:** §0.1 (no parallel paths), §0.5 (T1 SQL + T2 service-layer tests verified; T0 real-Supabase deferred to follow-up), §0.7 (claim without verification rejected — the migration requires T0 verification, so it is not shipped in this session), §0.10 (observability is delivery — `v_outbox_health` view shipped), §0.12 (this document).

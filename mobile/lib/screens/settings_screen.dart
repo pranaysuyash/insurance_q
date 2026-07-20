@@ -20,6 +20,7 @@ import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../theme/coverwise_theme.dart';
 import '../models/entitlement.dart';
+import '../utils/app_error.dart';
 import 'notification_preferences_screen.dart';
 import 'qa_packs_screen.dart';
 import 'upgrade_screen.dart';
@@ -156,9 +157,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SnackBar(content: Text('All local data cleared.')),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not clear data: $e')),
+      if (!mounted) return;        ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppError.contextual(error: e, operation: 'clear_data'))),
       );
     }
   }

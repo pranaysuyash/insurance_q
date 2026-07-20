@@ -191,8 +191,8 @@ If the thin slice turns out to be the wrong shape (e.g. the user wanted a single
 - **Related ADRs / docs:**
   - [ADR-2026-07-19-03](./ADR-2026-07-19-03-embedding-model-text-embedding-3-small-default.md) (the same ship-then-defer pattern)
   - [ADR-2026-07-19-02](./ADR-2026-07-19-02-outbox-migration-deferred.md) (the same ship-then-defer pattern)
-  - `coverwise_architecture_audit_2026-07-18.docx` (the source audit, ADR-09)
-  - `coverwise_document_intelligence_trust_audit_2026-07-18.md` (the source audit, Phase 0 P0-0.4 "Not yet verified" scaffold)
+  - `docs/audits/coverwise_architecture_audit_2026-07-18.docx` (the source audit, ADR-09)
+  - `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` (the source audit, Phase 0 P0-0.4 "Not yet verified" scaffold)
 - **Related code:**
   - `src/services/evidence_substrate_service.py` (the substrate's typed access layer)
   - `src/services/evidence_pipeline.py` (the 6 deterministic + 1 LLM extractor that produce the 7 fields)

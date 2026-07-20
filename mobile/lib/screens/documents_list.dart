@@ -15,6 +15,7 @@ import '../utils/document_icons.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_scene.dart';
 import '../widgets/shared/empty_state_widget.dart';
+import '../utils/app_error.dart';
 import '../widgets/shared/error_widget.dart';
 import 'document_preview_screen.dart';
 
@@ -316,7 +317,7 @@ class DocumentsList extends ConsumerWidget {
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error removing from this device: $e')),
+          SnackBar(content: Text(AppError.contextual(error: e, operation: 'delete_document'))),
         );
       }
     }
@@ -468,7 +469,7 @@ class _DocumentReplaceScreenState
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Replacement failed: $e';
+          _error = AppError.userMessage(e);
           _isUploading = false;
         });
       }

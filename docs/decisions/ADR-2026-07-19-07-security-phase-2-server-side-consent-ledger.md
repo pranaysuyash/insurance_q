@@ -216,7 +216,7 @@ If a future audit requires server-managed keys (the Security Phase 1 rollback pa
 - **Related ADRs / docs:**
   - [ADR-2026-07-19-06](./ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md) (the principal-scoped key that encrypts the local cache)
   - [ADR-2026-07-19-01](./ADR-2026-07-19-01-durable-work-queue-supabase-outbox.md) (the outbox pattern; the consent ledger uses the same append-only + RLS-deny-UPDATE-and-DELETE pattern)
-  - `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` (the source audit, Phase 2)
+  - `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` (the source audit, Phase 2)
 - **Related code:**
   - `mobile/lib/services/consent_ledger.dart` (the existing local Hive box; the follow-up session migrates the read path to the server-first + cache-fallback pattern)
   - `src/app/main.py` (the FastAPI app; the new `consent_router` is added to the includes)

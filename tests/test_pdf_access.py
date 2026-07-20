@@ -110,7 +110,7 @@ async def test_upload_rejects_locked_pdf_before_creating_document(tmp_path: Path
         )
 
     assert error.value.status_code == 422
-    assert error.value.detail["code"] == "encrypted_pdf_not_supported"
+    assert error.value.detail["code"] == "pdf_password_required"
     assert repository_calls == []
     assert object_store_calls == []
 

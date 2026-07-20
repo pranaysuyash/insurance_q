@@ -250,8 +250,8 @@ The three-option contract (deep-link, vetted partner, ask the source) is a reusa
   - [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md) #2 (the Coverage Adequacy tool that this ADR complements)
   - [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md) #5 (the Value-Add Partnerships framework that option B depends on)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc update)
-  - `coverwise_document_intelligence_trust_audit_2026-07-18.md` (the audit's NO-GO on fabricated numbers)
-  - `coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` (the product boundary that the What-If Premium question sits on)
+  - `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` (the audit's NO-GO on fabricated numbers)
+  - `docs/audits/coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` (the product boundary that the What-If Premium question sits on)
 - **Related code (current state):**
   - `mobile/lib/screens/claim_assistance_screen.dart:313-341` (the per-insurer URL lookup table, the foundation for option A)
   - `mobile/lib/screens/coverage_adequacy_screen.dart` (the screen that will host options A, B, C; per ADR-08 #2)

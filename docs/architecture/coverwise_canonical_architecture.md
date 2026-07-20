@@ -281,9 +281,9 @@ Plus 9 retroactive decision records (for Phase 0, RevOps R1, payment provider, o
 
 | Audit | Path |
 |---|---|
-| Trust + document intelligence | [`coverwise_document_intelligence_trust_audit_2026-07-18.md`](../../coverwise_document_intelligence_trust_audit_2026-07-18.md) |
-| Security + privacy + identity + data lifecycle | [`coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md`](../../coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md) |
-| Architecture | [`coverwise_architecture_audit_2026-07-18.docx`](../../coverwise_architecture_audit_2026-07-18.docx) |
+| Trust + document intelligence | [`docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md`](../../audits/coverwise_document_intelligence_trust_audit_2026-07-18.md) |
+| Security + privacy + identity + data lifecycle | [`docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md`](../../audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md) |
+| Architecture | [`docs/audits/coverwise_architecture_audit_2026-07-18.docx`](../../audits/coverwise_architecture_audit_2026-07-18.docx) |
 | Policy detail screen | [`docs/audits/policy_detail_screen_audit.md`](../audits/policy_detail_screen_audit.md) |
 
 ## Appendix D: The launch plan

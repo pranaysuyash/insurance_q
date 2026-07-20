@@ -340,6 +340,12 @@ class RoomRentCapExtractor:
     parser_kind = ParserKind.LLM_EXTRACT
 
     def __init__(self, llm_client, model: str = "gpt-4o-mini"):
+        """
+        # Audit note (ADR-26, Top 20 #11): this extractor currently calls
+        # llm_client.generate() with json_object mode. v2 should use
+        # generate_structured() with a typed RoomRentCapResult Pydantic model.
+        # The honesty check below is the compensating control until then.
+        """
         self._llm = llm_client
         self._model = model
 
@@ -352,14 +358,14 @@ class RoomRentCapExtractor:
             page_texts[p] for p in sorted(page_texts)
         )[:30000]
         try:
-            response = await self._llm.complete(
-                model=self._model,
+            response = await self._llm.generate(
                 messages=[
                     {"role": "system", "content": "You extract structured data from insurance policy text. Respond only with JSON."},
                     {"role": "user", "content": _ROOM_RENT_CAP_PROMPT + full_text},
                 ],
                 temperature=0.0,
                 max_tokens=500,
+                response_format={"type": "json_object"},
             )
         except Exception as error:
             log.warning("room_rent_cap LLM call failed: %s", error)
@@ -387,7 +393,7 @@ class RoomRentCapExtractor:
             # LLM cited a clause that isn't on any page. Reject.
             log.warning(
                 "room_rent_cap LLM cited a clause not found in any page; "
-                "rejecting with evidence_strength=0.0"
+                "rejecting with evidence_strength=0.0 (Audit P0-11)"
             )
             evidence_strength = 0.0
             cite_string = ""

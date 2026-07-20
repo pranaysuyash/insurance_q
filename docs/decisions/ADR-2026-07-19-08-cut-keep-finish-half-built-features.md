@@ -54,7 +54,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What is removed:** `mobile/lib/providers/health_score_provider.dart`, `mobile/lib/widgets/health_score_card.dart`, the mount in `mobile/lib/screens/dashboard_screen.dart:121-122`, `mobile/test/health_score_test.dart`, the provider registration, and any docs that describe the feature.
 - **What stays:** the dashboard. The dashboard is a real surface (entry to the wedge). Removing the Health Score card is a 1-line edit.
 - **Effort:** S. 0.5 day.
-- **Source audits:** `coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` P0-01, `coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5`.
+- **Source audits:** `docs/audits/coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` P0-01, `docs/audits/coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5`.
 
 ### 2. What-If Premium Calculator — **CUT. Not part of the long-term product.**
 
@@ -63,7 +63,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What is removed:** `mobile/lib/utils/what_if_calculator.dart`, `mobile/lib/screens/what_if_calculator_screen.dart`, the route `mobile/lib/main.dart:300`, `mobile/test/what_if_calculator_test.dart`, the entry in `more_screen.dart:24`.
 - **What stays:** the More screen. The What-If entry is a 1-line removal.
 - **Effort:** S. 0.5 day.
-- **Source audits:** `coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` P0-03, `coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5`.
+- **Source audits:** `docs/audits/coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` P0-03, `docs/audits/coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5`.
 
 ### 3. Old claims assistant (`claims_assistant_screen.dart`) — **CUT. Reroute `/claims` to the new `claim_assistance_screen.dart`. The new screen is part of the wedge.**
 
@@ -73,7 +73,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What stays:** `mobile/lib/screens/claim_assistance_screen.dart` (the new screen, the per-insurer URL lookup table at lines 313-341, the `_LegalDisclaimerCard`, the `_IRDIAEscalationCard`).
 - **Routing change:** every reference to `/claims` in `more_screen.dart:29` and `policy_detail_screen.dart:15,1094` must point to the new screen. The new screen is already reachable from the policy detail screen; the More screen entry needs to be repointed.
 - **Effort:** S. 1 day.
-- **Source audits:** `coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5`, `docs/CONTENT_AUDIT_2026-07-19.md` (the 14 in-app copy fixes already applied to the new screen).
+- **Source audits:** `docs/audits/coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5`, `docs/CONTENT_AUDIT_2026-07-19.md` (the 14 in-app copy fixes already applied to the new screen).
 
 ### 4. Billing stub / BillingAdapter — **FINISH PROPERLY. The billing surface is core to verified Q&A. Build the real thing.**
 
@@ -90,7 +90,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What is removed:** the current `BillingAdapter` (which is a self-declared skeleton). The current Q&A pack UI's "Buy" buttons and price display. The current entitlement model stays and is extended (it is the math layer).
 - **What is added:** the SDK integration, the server-enforced entitlement, the webhook handler, the receipt verification, the restore flow.
 - **Effort:** L. 2-4 weeks. This is not a side task; it is a product task.
-- **Source audits:** `coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` P0-02, T-4-4, T-4-6; `coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-13.
+- **Source audits:** `docs/audits/coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` P0-02, T-4-4, T-4-6; `docs/audits/coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` P0-13.
 - **Dependency:** the launch playbook's Step 8 (real-device end-to-end) is the validation gate. The release-guard flag prevents the surfaces from being mounted before the integration is real.
 
 ### 5. Lead capture — **CUT. Account contact stays; lead surface is removed.**
@@ -100,7 +100,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What stays:** `mobile/lib/services/contact_service.dart` as the storage primitive for the user's own phone (used by IRDAI escalation and claim contact). The phone lives in settings, with a clear "this is your account contact" framing, not in a first-upload dialog.
 - **Marketing-channel note:** if the operator wants a "join the waitlist" surface, it lives on the marketing site, not in the product. The marketing site is DPDP-compliant by design (separate purpose, separate consent).
 - **Effort:** S. 1 day.
-- **Source audits:** `coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` P0-07, T-4-7; `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` P0-13.
+- **Source audits:** `docs/audits/coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` P0-07, T-4-7; `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` P0-13.
 
 ### 6. Family inventory — **FINISH PROPERLY, SCOPED. Auto-detected members stay; manual additions are removed until identity scope is solved.**
 
@@ -115,7 +115,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What is removed:** `mobile/lib/screens/family_screen.dart` (the standalone screen), `mobile/lib/screens/add_family_member_dialog.dart`, the bottom-nav entry, the `manualFamilyMembersKey` in `mobile/lib/services/app_state_repository.dart:102-136`.
 - **What is added:** the per-document family members surface on the policy detail screen. This is a small extension of the existing policy detail UI.
 - **Effort:** M. 1-2 weeks including a per-document family members widget and tests.
-- **Source audits:** `coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` §P-family, T-3-11; `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` P-family.
+- **Source audits:** `docs/audits/coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` §P-family, T-3-11; `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` P-family.
 
 ### 7. Claim tracker — **FINISH PROPERLY, SCOPED. The surface is renamed to "My claim notes" and is a personal log, not an insurer connection.**
 
@@ -130,7 +130,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What is removed:** the "Claim tracker" name and any "connected to insurer" copy.
 - **What stays:** the local CRUD model `mobile/lib/models/claim_record.dart`. The route. The More-screen entry.
 - **Effort:** M. 1-2 weeks including a renamed screen, the banner, the per-record pointer, and tests.
-- **Source audits:** `coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` §claim-tracker; `docs/FLOW_AND_SCREEN_AUDIT.md:217,229`.
+- **Source audits:** `docs/audits/coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` §claim-tracker; `docs/FLOW_AND_SCREEN_AUDIT.md:217,229`.
 
 ### 8. Insurance cards — **FINISH PROPERLY, SCOPED. The surface is renamed and is a quick-access display, not a verifiable document.**
 
@@ -154,7 +154,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What stays:** the glossary content. The glossary can be rehosted on the marketing site as part of the public content play. The strategy audit's recommendation is "Move to public content later" — the public content site is the right place.
 - **Marketing-site note:** if the operator wants to do an "Insurance 101" surface, it lives on the marketing site. The marketing site is DPDP-compliant (separate purpose, separate consent) and is not the product.
 - **Effort:** S. 0.5 day for the cut. The marketing-site rehost is a separate workstream.
-- **Source audits:** `coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` §literacy; `docs/CUSTOMER_NEEDS_RESEARCH.md:221,269,294,333`; `docs/strategic_assessment_2026-07-17.md:123,168`.
+- **Source audits:** `docs/audits/coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` §literacy; `docs/CUSTOMER_NEEDS_RESEARCH.md:221,269,294,333`; `docs/strategic_assessment_2026-07-17.md:123,168`.
 
 ### 10. Q&A packs — **FINISH PROPERLY (same workstream as #4). The Q&A pack UI is the billing surface for verified Q&A.**
 
@@ -164,7 +164,7 @@ The wedge is the product. The 10 half-built features are the surfaces around the
 - **What is added:** the SDK integration, the server-enforced entitlement, the receipt verification, the restore flow, the real prices (set by the operator), the real "Buy" buttons.
 - **What stays:** the entitlement model `mobile/lib/models/entitlement.dart` (extended, not replaced). The Q&A pack model `mobile/lib/models/qa_pack.dart` (extended, not replaced). The free-tier math.
 - **Effort:** L. Same workstream as #4. 2-4 weeks total for billing + Q&A packs.
-- **Source audits:** `coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` P0-02, T-4-4, T-4-5 (emergency access must not be paywalled), T-4-6 (server-enforced entitlements).
+- **Source audits:** `docs/audits/coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` P0-02, T-4-4, T-4-5 (emergency access must not be paywalled), T-4-6 (server-enforced entitlements).
 - **Dependency:** the launch playbook's Step 8 (real-device end-to-end) is the validation gate. The release-guard flag prevents the surfaces from being mounted before the integration is real.
 
 ---
@@ -287,7 +287,7 @@ This ADR requires updates to:
 - `docs/architecture/coverwise_canonical_architecture.md` §3 (Product surface) gets a "Cut/Keep/Finish" table that mirrors this ADR's per-feature decisions. The doc is the operator-facing map; the table makes the cut/keep/finish state visible at the architecture layer.
 - The doc's §4 (Trust tiers) is unchanged; the cuts/keeps do not change the trust contract.
 - The doc's §5 (Outbox + durable work) is unchanged; the cuts/keeps do not change the work contract.
-- `coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5` (the cut/keep/finish list) is updated to mirror this ADR.
+- `docs/audits/coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5` (the cut/keep/finish list) is updated to mirror this ADR.
 - `docs/CONTENT_AUDIT_2026-07-19.md` is updated with the new copy (e.g. "Quick access" instead of "Insurance cards," "My claim notes" instead of "Claim tracker," the new banners).
 
 The doc update is a separate commit from any code change. The canonical doc + this ADR + the launch playbook are the three places the cut/keep/finish state is recorded.
@@ -497,16 +497,16 @@ The launch happens after the launch playbook's Step 8 (real-device end-to-end) v
   - `docs/architecture/coverwise_canonical_architecture.md` (add cut/keep/finish table)
   - `docs/decisions/README.md` (add this ADR to the index)
   - `docs/CONTENT_AUDIT_2026-07-19.md` (add the cuts and relabels to the audit)
-  - `coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5` (update per-feature call)
+  - `docs/audits/coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5` (update per-feature call)
   - `mobile/test/` (release-guard tests per row)
 - **Related ADRs / docs:**
   - [ADR-2026-07-19-04](./ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md) (precedent for ship-then-defer)
   - [ADR-2026-07-19-06](./ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md) (principal encryption; the precondition for keeping local-state features)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc-update companion)
-  - `coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` (source audit, P0-01 through P0-14)
-  - `coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` (source audit, P0-01 through P0-12)
-  - `coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5` (the cut/keep/finish list)
-  - `coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` (P0-13 cost persistence; the cost that makes #4/#10 real)
+  - `docs/audits/coverwise_product_mobile_experience_accessibility_audit_2026-07-18.md` (source audit, P0-01 through P0-14)
+  - `docs/audits/coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` (source audit, P0-01 through P0-12)
+  - `docs/audits/coverwise_current_state_progress_and_next_moves_review_2026-07-19.md §5` (the cut/keep/finish list)
+  - `docs/audits/coverwise_operations_reliability_observability_performance_cost_audit_2026-07-18.md` (P0-13 cost persistence; the cost that makes #4/#10 real)
 - **Related code (current state):**
   - `mobile/lib/providers/health_score_provider.dart`
   - `mobile/lib/utils/what_if_calculator.dart`

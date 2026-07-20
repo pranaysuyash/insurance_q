@@ -146,8 +146,13 @@ class DocumentProcessingService:
     4. Status tracking and monitoring
     """
     
-    def __init__(self, rag_pipeline: Optional['RAGPipeline'] = None):
+    def __init__(
+        self,
+        rag_pipeline: Optional['RAGPipeline'] = None,
+        document_object_store: Optional[Any] = None,
+    ):
         self.rag_pipeline = rag_pipeline
+        self.document_object_store = document_object_store
         # Share a single OCR pipeline instance across processors
         self._ocr_pipeline = None
         self.pdf_processor = None
@@ -685,6 +690,16 @@ class DocumentProcessingService:
                         if not page_image:
                             continue  # skip pages without rendered image
                         try:
+                            # Layer 5: persist page image to the object store
+                            # before creating the artifact record so the
+                            # image is retrievable when the cited page is
+                            # not available locally.
+                            if self.document_object_store:
+                                self.document_object_store.put_page_image(
+                                    document_id=document_id,
+                                    page_number=page_num,
+                                    image_bytes=page_image,
+                                )
                             pa_id = await substrate.append_page_artifact(
                                 document_id=UUID(document_id),
                                 page_number=page_num,

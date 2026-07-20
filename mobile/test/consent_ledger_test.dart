@@ -3,28 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:coverwise/services/consent_ledger.dart';
 import 'package:coverwise/services/app_state_store.dart';
+import 'helpers/hive_test_helper.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late Box box;
 
+  setUpAll(() async {
+    await HiveTestHelper.setUp();
+  });
+
   setUp(() async {
-    // Initialize Hive for tests if not already done.
-    if (!Hive.isBoxOpen(AppStateStore.boxName)) {
-      Hive.init('test_hive');
-      box = await Hive.openBox(AppStateStore.boxName);
-    } else {
-      box = Hive.box(AppStateStore.boxName);
-    }
-    // Open the consent_ledger box that ConsentLedger uses.
-    if (!Hive.isBoxOpen('consent_ledger')) {
-      await Hive.openBox('consent_ledger');
-    }
+    box = Hive.box(AppStateStore.boxName);
     // Clear the consent ledger before each test.
     await box.delete('consent_ledger_v1');
   });
 
-  tearDown(() async {
-    await box.delete('consent_ledger_v1');
+  tearDownAll(() async {
+    await HiveTestHelper.tearDown();
   });
 
   group('ConsentPurpose', () {

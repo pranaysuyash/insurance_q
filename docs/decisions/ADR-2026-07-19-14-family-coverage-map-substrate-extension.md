@@ -249,8 +249,8 @@ The pattern is reusable: any new surface that requires data the substrate does n
   - [ADR-2026-07-19-11](./ADR-2026-07-19-11-substrate-as-primary-deliverable.md) (the substrate visibility that the Family Coverage Map renders)
   - [ADR-2026-07-19-07](./ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md) (the LLM honesty check that the new extractors use)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc update)
-  - `coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-07 (the evidence-aware field model that the new fields extend)
-  - `coverwise_api_domain_data_consistency_integration_audit_2026-07-18.md` P0-07 (the normalised columns vs JSONB rule)
+  - `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-07 (the evidence-aware field model that the new fields extend)
+  - `docs/audits/coverwise_api_domain_data_consistency_integration_audit_2026-07-18.md` P0-07 (the normalised columns vs JSONB rule)
 - **Related code (current state):**
   - `supabase/migrations/2026_07_18_evidence_substrate.sql` (the substrate table that the new columns extend)
   - `src/services/evidence_pipeline.py` (the parser pipeline that gains the new extractors)

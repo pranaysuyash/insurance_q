@@ -12,6 +12,7 @@ from src.api.document import (
     router as document_router,
     recover_interrupted_document_processing,
     set_processing_service,
+    document_object_store,
 )
 from src.utils.runtime_access import require_nonproduction
 from src.utils.runtime_config import allowed_cors_origins, production_configuration_errors
@@ -111,7 +112,10 @@ async def lifespan(app: FastAPI):
     # Initialize enhanced document processing service
     try:
         from src.services.document_processing_service import DocumentProcessingService
-        document_processing_service = DocumentProcessingService(rag_pipeline=rag_pipeline)
+        document_processing_service = DocumentProcessingService(
+            rag_pipeline=rag_pipeline,
+            document_object_store=document_object_store,
+        )
         logger.info("✅ Enhanced document processing service initialized successfully")
         
         # Configure the document API to use the processing service

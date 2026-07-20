@@ -4,9 +4,9 @@
 
 **Source audits (all from 2026-07-18, total 4):**
 1. `docs/audits/policy_detail_screen_audit.md` — **17 tasks** (2 P0 + 6 P1 + 6 P2 + 3 P3)
-2. `coverwise_architecture_audit_2026-07-18.docx` — **~70 tasks** (14 P0 + 18 P1 + 30 phased + 22 verification + 10 ADRs)
-3. `coverwise_document_intelligence_trust_audit_2026-07-18.md` — **15 P0 + 23 P1 + 7 phases + 6 decisions + 5 evaluation tiers**
-4. `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` — **18 P0 + 38 P1 + 6 phases + 38 tests + 8 release gates**
+2. `docs/audits/coverwise_architecture_audit_2026-07-18.docx` — **~70 tasks** (14 P0 + 18 P1 + 30 phased + 22 verification + 10 ADRs)
+3. `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` — **15 P0 + 23 P1 + 7 phases + 6 decisions + 5 evaluation tiers**
+4. `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` — **18 P0 + 38 P1 + 6 phases + 38 tests + 8 release gates**
 
 **Total: ~140+ explicit/implicit tasks across 4 audits.**
 

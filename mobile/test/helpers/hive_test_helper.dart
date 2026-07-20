@@ -1,0 +1,75 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:coverwise/services/analytics_service.dart';
+import 'package:coverwise/services/app_state_store.dart';
+import 'package:coverwise/services/local_storage_service.dart';
+
+/// Shared Hive test helper that provides consistent initialization and cleanup
+/// for all test files. Eliminates lock contention by ensuring boxes are opened
+/// once per test suite and closed properly in tearDownAll.
+///
+/// Handles:
+/// - Path provider mock (required for Hive.initFlutter in tests)
+/// - Hive initialization with a dedicated temp directory
+/// - Opening all common box names
+/// - Clean teardown
+///
+/// Usage in test files:
+/// ```dart
+/// import 'helpers/hive_test_helper.dart';
+///
+/// void main() {
+///   setUpAll(() async => await HiveTestHelper.setUp());
+///   tearDownAll(() async => await HiveTestHelper.tearDown());
+///   // ... tests
+/// }
+/// ```
+class HiveTestHelper {
+  HiveTestHelper._();
+
+  static const _testDir = '/tmp/coverwise-hive-tests';
+  static const _pathProviderChannel =
+      MethodChannel('plugins.flutter.io/path_provider');
+
+  /// All box names that tests may need.
+  static const _boxNames = <String>[
+    LocalStorageService.documentsBoxName,
+    AppStateStore.boxName,
+    'resolved_gaps',
+    'analytics_events',
+    'consent_ledger',
+  ];
+
+  /// Initialize Hive and open all required boxes.
+  /// Mocks the path_provider channel so Hive.initFlutter works in tests.
+  /// Safe to call multiple times — will skip if already initialized.
+  static Future<void> setUp() async {
+    // Mock path_provider for Hive.initFlutter
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_pathProviderChannel, (call) async {
+      return _testDir;
+    });
+
+    await Directory(_testDir).create(recursive: true);
+    await Hive.initFlutter(_testDir);
+
+    for (final name in _boxNames) {
+      if (!Hive.isBoxOpen(name)) {
+        await Hive.openBox(name);
+      }
+    }
+  }
+
+  /// Close all open Hive boxes and shut down Hive.
+  /// Also cancels the analytics sync timer so the test isolate can exit.
+  /// Safe to call even if boxes aren't open.
+  static Future<void> tearDown() async {
+    AnalyticsService.dispose();
+    try {
+      await Hive.close();
+    } catch (_) {}
+  }
+}

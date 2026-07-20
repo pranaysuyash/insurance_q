@@ -1,6 +1,9 @@
 """
 Tests for the policy extraction service, RRF merge, and cross-encoder reranking.
 """
+import os
+import tempfile
+
 import pytest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -141,10 +144,11 @@ class TestPolicyExtractionService:
     def test_get_all_summaries(self):
         """Should return all stored summaries."""
         mock_llm = MagicMock()
-        service = PolicyExtractionService(mock_llm)
-        service._store_summary("doc-all-1", {"policy_number": "A"})
-        service._store_summary("doc-all-2", {"policy_number": "B"})
-        all_s = service.get_all_summaries()
+        with patch("src.services.policy_extraction_service._SUMMARY_DIR", tempfile.mkdtemp()):
+            service = PolicyExtractionService(mock_llm)
+            service._store_summary("doc-all-1", {"policy_number": "A"})
+            service._store_summary("doc-all-2", {"policy_number": "B"})
+            all_s = service.get_all_summaries()
         assert len(all_s) == 2
         assert "doc-all-1" in all_s
         assert "doc-all-2" in all_s

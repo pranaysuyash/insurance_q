@@ -49,13 +49,13 @@ def validate_upload_content(
             "This document is larger than 50 MB. Upload a smaller policy file.",
         )
     if extension == ".pdf":
-        _validate_pdf(file_content)
+        _validate_pdf(file_content, pdf_password=pdf_password)
     else:
         _validate_image(extension, file_content)
     return extension
 
 
-def _validate_pdf(file_content: bytes) -> None:
+def _validate_pdf(file_content: bytes, *, pdf_password: str | None = None) -> None:
     if not file_content.startswith(b"%PDF-"):
         raise UploadValidationError(
             "file_signature_mismatch",

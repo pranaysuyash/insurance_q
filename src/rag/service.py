@@ -219,6 +219,42 @@ async def health_check() -> APIResponse:
         }
     )
 
+@app.post("/contextual-retrieval/enable", response_model=APIResponse)
+async def enable_contextual_retrieval(
+    collection_name: Optional[str] = None,
+    owner_id: Optional[str] = None,
+    trigger_backfill: bool = True,
+) -> APIResponse:
+    """Enable contextual retrieval feature flag and optionally trigger backfill (ADR-26, Commit 6)."""
+    if not rag_pipeline:
+        raise HTTPException(status_code=503, detail="RAG service not initialized")
+    
+    try:
+        # Set feature flag in pipeline / Redis
+        rag_pipeline._contextual_retrieval_enabled = True
+        if getattr(rag_pipeline, "cache", None):
+            key = f"rag:contextual_retrieval:enabled:{collection_name or 'default'}"
+            rag_pipeline.cache.set(key, "true")
+        
+        backfill_result = None
+        if trigger_backfill:
+            from src.rag.backfill import backfill_contextual_retrieval
+            backfill_result = await backfill_contextual_retrieval(
+                rag_pipeline, collection_name=collection_name, owner_id=owner_id
+            )
+
+        return APIResponse(
+            status="success",
+            result={
+                "contextual_retrieval_enabled": True,
+                "backfill_result": backfill_result,
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to enable contextual retrieval: {e}", exc_info=True)
+        return APIResponse(status="error", error=str(e))
+
+
 # To run this service directly (e.g., for local testing without docker-compose for this specific service)
 # if __name__ == "__main__":
 #     uvicorn.run(

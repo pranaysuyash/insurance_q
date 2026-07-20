@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/consent_ledger.dart';
 import '../services/analytics_service.dart';
 import '../theme/coverwise_theme.dart';
@@ -56,13 +56,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  void _complete({bool openFilePicker = false}) {
+  Future<void> _complete({bool openFilePicker = false}) async {
     // Record both analytics consent and terms acceptance.
     // Analytics: only if user explicitly toggled the switch.
     // Terms: always record — the user must check the box to proceed.
-    _recordConsentState();
-    Hive.box('app_state_box').put('onboarding_complete', true);
-    widget.onComplete(openFilePicker: openFilePicker);
+    await _recordConsentState();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_complete', true);
+    if (mounted) {
+      widget.onComplete(openFilePicker: openFilePicker);
+    }
   }
 
   Future<void> _recordConsentState() async {

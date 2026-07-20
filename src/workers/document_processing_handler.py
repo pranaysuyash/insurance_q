@@ -83,8 +83,10 @@ async def handle_document_processing(job: OutboxJob) -> None:
         # Cloud Run service, so the singleton is the same
         # instance.
         from src.rag.pipeline import RAGPipeline
+        from src.services.document_object_store import create_document_object_store
         rag = RAGPipeline()
-        service = DocumentProcessingService(rag_pipeline=rag)
+        store = create_document_object_store()
+        service = DocumentProcessingService(rag_pipeline=rag, document_object_store=store)
         handle_document_processing._service = service
 
     result: dict[str, Any] = await service.process_document_full(

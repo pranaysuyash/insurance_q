@@ -6,6 +6,7 @@ import '../services/analytics_service.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/faq_item.dart';
 import '../theme/coverwise_theme.dart';
+import '../utils/app_error.dart';
 
 /// Screen showing subscription plan options (Free / Plus / Family).
 ///
@@ -503,10 +504,10 @@ class _PlanCard extends ConsumerWidget {
       AnalyticsService.track('plan_purchase_failed', {
         'plan_tier': tier.name,
         'reason': 'error',
-      });
+      });      final msg = AppError.userMessage(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Purchase failed: $e'),
+          content: Text(msg.isEmpty ? 'Purchase was cancelled.' : msg),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

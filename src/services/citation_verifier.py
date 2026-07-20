@@ -29,6 +29,27 @@ class CitationRejectionReason:
     DOCUMENT_MISMATCH = "document_mismatch"
     PAGE_NOT_FOUND = "page_not_found"
     EMPTY_QUOTE = "empty_quote"
+    APPROXIMATE_MATCH = "approximate_match"
+
+
+def _fuzzy_token_overlap(quote: str, source_text: str, threshold: float = 0.70) -> bool:
+    """Compute fuzzy token overlap between quote and source text."""
+    import string
+    
+    def tokenize(text: str) -> set[str]:
+        # Lowercase, strip punctuation, split by whitespace
+        text = text.lower()
+        for p in string.punctuation:
+            text = text.replace(p, " ")
+        return set(text.split())
+        
+    quote_tokens = tokenize(quote)
+    if not quote_tokens:
+        return False
+        
+    source_tokens = tokenize(source_text)
+    overlap = len(quote_tokens.intersection(source_tokens)) / len(quote_tokens)
+    return overlap >= threshold
 
 
 def _normalize_whitespace(text: str) -> str:
@@ -48,12 +69,12 @@ def verify_citation(
     source_count: Optional[int] = None,
     document_id: Optional[str] = None,
     page_count: Optional[int] = None,
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, Optional[str], str]:
     """Verify a citation against the source text.
 
-    Returns (is_valid, rejection_reason). When `is_valid` is True, the
-    citation is grounded in source_text. When False, `rejection_reason`
-    names the failure (one of CitationRejectionReason's constants).
+    Returns (is_valid, rejection_reason, status). When `is_valid` is True, the
+    citation is grounded in source_text (status 'verified'). When False, `rejection_reason`
+    names the failure, and status may be 'approximate' or 'rejected'.
 
     Per ADR-2026-07-19-11 Layer 3, the quote_source field is checked first.
     If `quote_source == "retrieval_text"`, the citation is rejected
@@ -61,25 +82,25 @@ def verify_citation(
     """
     # Check 1: quote_source must be source_text (per ADR-2026-07-19-11).
     if citation.quote_source != "source_text":
-        return False, CitationRejectionReason.QUOTE_FROM_RETRIEVAL
+        return False, CitationRejectionReason.QUOTE_FROM_RETRIEVAL, "rejected"
 
     # Check 2: quote must be non-empty.
     if not citation.quote or not citation.quote.strip():
-        return False, CitationRejectionReason.EMPTY_QUOTE
+        return False, CitationRejectionReason.EMPTY_QUOTE, "rejected"
 
     # Check 3: source_index must be in bounds.
     if source_count is not None and (citation.source_index < 1 or citation.source_index > source_count):
-        return False, CitationRejectionReason.SOURCE_INDEX_OUT_OF_BOUNDS
+        return False, CitationRejectionReason.SOURCE_INDEX_OUT_OF_BOUNDS, "rejected"
 
     # Check 4: document_id must match (per ADR-2026-07-19-11 Layer 3).
     if document_id is not None and citation.document_id is not None:
         if citation.document_id != document_id:
-            return False, CitationRejectionReason.DOCUMENT_MISMATCH
+            return False, CitationRejectionReason.DOCUMENT_MISMATCH, "rejected"
 
     # Check 5: page_number must be valid (per ADR-2026-07-19-11 Layer 4).
     if page_count is not None and citation.page_number is not None:
         if citation.page_number < 1 or citation.page_number > page_count:
-            return False, CitationRejectionReason.PAGE_NOT_FOUND
+            return False, CitationRejectionReason.PAGE_NOT_FOUND, "rejected"
 
     # Check 6: quote must be a substring of source_text (after whitespace
     # normalization). Per the trust audit's P0-12 acceptance criteria,
@@ -94,7 +115,12 @@ def verify_citation(
         if retrieval_text is not None:
             normalized_retrieval = _normalize_whitespace(retrieval_text)
             if normalized_quote in normalized_retrieval:
-                return False, CitationRejectionReason.QUOTE_FROM_RETRIEVAL
-        return False, CitationRejectionReason.QUOTE_NOT_IN_SOURCE
+                return False, CitationRejectionReason.QUOTE_FROM_RETRIEVAL, "rejected"
+        
+        # Tier 2: Fuzzy match fallback
+        if _fuzzy_token_overlap(citation.quote, source_text):
+            return False, CitationRejectionReason.APPROXIMATE_MATCH, "approximate"
+            
+        return False, CitationRejectionReason.QUOTE_NOT_IN_SOURCE, "rejected"
 
-    return True, None
+    return True, None, "verified"

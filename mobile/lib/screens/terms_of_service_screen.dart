@@ -3,14 +3,28 @@ import 'package:flutter/services.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/legal_content_section.dart';
+import '../services/legal_content_loader.dart';
 
 /// In-app terms of service viewer.
 ///
-/// Displays the terms of service content directly in the app so users
-/// can review the terms without leaving the app. This is shown
-/// during onboarding and from the About screen.
-class TermsOfServiceScreen extends StatelessWidget {
+/// Loads content from `assets/legal/terms_of_service.md` at runtime
+/// via [LegalContentLoader] — the single source of truth.
+/// Copy-to-clipboard uses the same parsed sections.
+class TermsOfServiceScreen extends StatefulWidget {
   const TermsOfServiceScreen({super.key});
+
+  @override
+  State<TermsOfServiceScreen> createState() => _TermsOfServiceScreenState();
+}
+
+class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
+  late Future<LegalDocument> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = LegalContentLoader.loadTermsOfService();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,176 +37,102 @@ class TermsOfServiceScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.copy_rounded),
             tooltip: 'Copy terms text',
-            onPressed: () => _copyTerms(context),
+            onPressed: () async {
+              final doc = await _future;
+              if (!mounted) return;
+              Clipboard.setData(ClipboardData(text: doc.toPlainText()));
+              // ignore: use_build_context_synchronously — guarded by mounted check above
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Terms of service copied to clipboard')),
+              );
+            },
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            CoverWiseSurface(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+      body: FutureBuilder<LegalDocument>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('Failed to load terms of service: ${snapshot.error}'),
+                ],
+              ),
+            );
+          }
+
+          final doc = snapshot.data!;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                CoverWiseSurface(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const CoverWiseIconBadge(
-                          icon: Icons.gavel_outlined,
-                          color: CoverWiseColors.blueDeep,
-                          size: 40,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'CoverWise Terms of Service',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        Row(
+                          children: [
+                            const CoverWiseIconBadge(
+                              icon: Icons.gavel_outlined,
+                              color: CoverWiseColors.blueDeep,
+                              size: 40,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    doc.title,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Effective ${doc.effectiveDate}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                'Effective July 20, 2026',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            // Terms content — uses shared LegalContentSection widget
-            LegalContentSection(
-              title: '1. Acceptance of Terms',
-              content: 'By downloading, installing, or using CoverWise, you agree to these Terms. '
-                  'If you do not agree, do not use the App.',
+                // Sections from parsed markdown
+                for (final section in doc.sections)
+                  LegalContentSection(
+                    title: section.title,
+                    content: section.content,
+                  ),
+
+                const SizedBox(height: 24),
+              ],
             ),
-            LegalContentSection(
-              title: '2. Description of Service',
-              content: 'CoverWise is an **information broker** that helps you understand your '
-                  'insurance policies by extracting key information and answering questions.\n\n'
-                  '**We are not an insurer, insurance agent, broker, or financial advisor.**',
-            ),
-            LegalContentSection(
-              title: '3. Important Disclaimers',
-              content: '**Not Insurance Advice:**\n'
-                  'CoverWise provides general information based on your policy documents. '
-                  'This information:\n'
-                  '• Is not insurance, financial, or legal advice\n'
-                  '• May contain errors or inaccuracies\n'
-                  '• Should always be verified against your actual policy\n'
-                  '• Should always be confirmed with your insurer\n\n'
-                  '**Coverage Decisions:**\n'
-                  '• Coverage is determined by your policy and insurer\n'
-                  '• We do not make coverage decisions or claims determinations\n'
-                  '• Always contact your insurer for official verification\n\n'
-                  '**AI-Generated Content:**\n'
-                  '• Answers are generated by AI based on your policy text\n'
-                  '• AI may misinterpret policy language\n'
-                  '• Cross-reference AI answers with your actual policy',
-            ),
-            LegalContentSection(
-              title: '4. User Responsibilities',
-              content: '**Account Security:**\n'
-                  '• You are responsible for maintaining your credentials\n'
-                  '• Notify us immediately of unauthorized access\n\n'
-                  '**Accurate Information:**\n'
-                  '• Provide accurate policy documents for best results\n'
-                  '• Poor-quality scans may produce inaccurate extractions\n\n'
-                  '**Lawful Use:**\n'
-                  '• Use the App only for lawful purposes\n'
-                  '• Do not circumvent rate limits or security measures',
-            ),
-            LegalContentSection(
-              title: '5. Intellectual Property',
-              content: '**Your Content:**\n'
-                  '• You retain ownership of your policy documents\n'
-                  '• You grant us a limited license to process your content\n'
-                  '• You can delete your content at any time\n\n'
-                  '**Our Technology:**\n'
-                  '• CoverWise and its technology are owned by us\n'
-                  '• These Terms do not grant you rights to our trademarks or technology',
-            ),
-            LegalContentSection(
-              title: '6. Limitation of Liability',
-              content: '**No Warranty:**\n'
-                  'The App is provided "as is" without warranties. We do not warrant that:\n'
-                  '• The App will be error-free or uninterrupted\n'
-                  '• Information extracted will be accurate or complete\n'
-                  '• The App will meet your specific requirements\n\n'
-                  '**Limitation of Damages:**\n'
-                  '• We are not liable for indirect, incidental, or consequential damages\n'
-                  '• Our total liability shall not exceed what you paid for the App\n'
-                  '• We are not liable for losses from reliance on AI information\n\n'
-                  '**Insurance-Related Damages:**\n'
-                  'We are specifically not liable for:\n'
-                  '• Denied claims based on App information\n'
-                  '• Coverage gaps not identified by the App\n'
-                  '• Financial losses from insurance decisions using App information',
-            ),
-            LegalContentSection(
-              title: '7. Contact',
-              content: 'For questions about these Terms:\n'
-                  '• Email: support@coverwise.app\n'
-                  '• In-app: Settings → Help & Support',
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  void _copyTerms(BuildContext context) {
-    final termsText = '''
-CoverWise Terms of Service (Effective July 20, 2026)
-
-1. Acceptance
-By using CoverWise, you agree to these Terms.
-
-2. Service Description
-CoverWise is an information broker that helps you understand insurance policies. We are not an insurer, agent, broker, or financial advisor.
-
-3. Disclaimers
-• Not insurance, financial, or legal advice
-• May contain errors — always verify with your actual policy
-• Coverage determined by your policy and insurer
-• AI-generated content may misinterpret policy language
-
-4. User Responsibilities
-• Maintain account security
-• Provide accurate policy documents
-• Use only for lawful purposes
-
-5. Intellectual Property
-• You own your content
-• We own our technology
-
-6. Limitation of Liability
-• Provided "as is" without warranties
-• Not liable for indirect damages
-• Not liable for insurance-related decisions
-
-Contact: support@coverwise.app
-''';
-
-    Clipboard.setData(ClipboardData(text: termsText));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Terms of service copied to clipboard')),
-    );
-  }
 }

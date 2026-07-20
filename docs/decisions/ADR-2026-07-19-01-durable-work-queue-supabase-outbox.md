@@ -182,7 +182,7 @@ The outbox is the durable substrate; the worker is the delivery layer. They are 
   - `docs/technical/deployment/launch_playbook_2026-07-18.md` (updated to include migration #7)
 - **Related ADRs / docs:**
   - `docs/planning/coverwise_audit_task_classification_2026-07-18.md` (Bucket 5 entry for ADR-03)
-  - `coverwise_architecture_audit_2026-07-18.docx` (the source audit)
+  - `docs/audits/coverwise_architecture_audit_2026-07-18.docx` (the source audit)
 - **Related code:**
   - `infra/supabase/001_coverwise_schema.sql` (existing lease pattern; outbox reuses it)
   - `supabase/migrations/2026_07_18_revops_tables.sql` (existing `processed_webhook_events` and `failed_subscription_writes`; these become aliases in the outbox dispatcher)

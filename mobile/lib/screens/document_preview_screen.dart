@@ -16,12 +16,14 @@ class DocumentPreviewScreen extends StatefulWidget {
   final String filePath;
   final String filename;
   final String? documentId;
+  final int initialPage;
 
   const DocumentPreviewScreen({
     super.key,
     required this.filePath,
     required this.filename,
     this.documentId,
+    this.initialPage = 1,
   });
 
   @override
@@ -71,6 +73,9 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
         await Future.delayed(Duration.zero);
         if (!mounted) return;
         _totalPages = _pdfController!.pagesCount ?? 0;
+        if (widget.initialPage > 1) {
+          _goToPage(widget.initialPage);
+        }
         setState(() => _isLoading = false);
       } catch (e) {
         if (!mounted) return;

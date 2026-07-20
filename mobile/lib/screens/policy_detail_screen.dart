@@ -230,9 +230,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
             onPageTap: (pageNumber) {
               // v1 of the page-level navigation: surface the
               // cited page in a SnackBar and open the source
-              // document preview. v2 of the highlight overlay
-              // (Trust Phase 2 follow-up) will draw the cited
-              // span directly on the page image.
+              // document preview at the cited page. v2 of the
+              // highlight overlay (Trust Phase 2 follow-up) will
+              // draw the cited span directly on the page image.
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
@@ -240,7 +240,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
                   duration: const Duration(seconds: 2),
                 ),
               );
-              _openDocumentPreview(context, ref);
+              _openDocumentPreview(context, ref, initialPage: pageNumber);
             },
           ),
           _HeaderCard(
@@ -352,7 +352,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
 /// DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY, MM-DD-YYYY, or DD.MM.YYYY.
 /// Accepts 1 or 2-digit day/month and 2 or 4-digit year.
 
-  void _openDocumentPreview(BuildContext context, WidgetRef ref) {
+  void _openDocumentPreview(BuildContext context, WidgetRef ref, {int initialPage = 1}) {
     final documents = ref.read(documentsProvider).valueOrNull;
     if (documents == null || documents.isEmpty) {
       if (!context.mounted) return;
@@ -395,6 +395,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
           filePath: doc.localFilePath!,
           filename: doc.filename,
           documentId: doc.id,
+          initialPage: initialPage,
         ),
       ),
     );

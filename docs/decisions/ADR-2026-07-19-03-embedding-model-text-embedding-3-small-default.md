@@ -191,7 +191,7 @@ Same steps in reverse. The `document_chunks.embedding` column is re-populated wi
 - **Related ADRs / docs:**
   - [ADR-2026-07-19-01](./ADR-2026-07-19-01-durable-work-queue-supabase-outbox.md) (the outbox contract; embeddings flow through `document_chunks` which is independent of the substrate)
   - [ADR-2026-07-19-02](./ADR-2026-07-19-02-outbox-migration-deferred.md) (the same ship-then-measure pattern)
-  - `coverwise_architecture_audit_2026-07-18.docx` (the source audit, ADR-06)
+  - `docs/audits/coverwise_architecture_audit_2026-07-18.docx` (the source audit, ADR-06)
 - **Related code:**
   - `infra/supabase/001_coverwise_schema.sql` (the `document_chunks` table with `pgvector` 1536d)
   - `src/rag/pipeline.py` (the embedding call; the model name is read from the `OPENAI_EMBEDDING_MODEL` env var)

@@ -94,10 +94,34 @@ async def test_query_rag_reranks_sources_and_returns_structured_answer(monkeypat
     from src.models.rag import RAGAnswer, RAGCitation
     from src.rag.pipeline import RAGPipeline
 
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("CREATE TABLE IF NOT EXISTS rag_chunks (lex_id INTEGER PRIMARY KEY AUTOINCREMENT, point_id TEXT UNIQUE, document_id TEXT, filename TEXT, page_number INTEGER, section TEXT, text_content TEXT NOT NULL, embedding_model TEXT, updated_at TEXT)")
+    conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts USING fts5(point_id UNINDEXED, search_text)")
+    conn.commit()
+
     pipeline = RAGPipeline.__new__(RAGPipeline)
     pipeline.collection_name = "insurance_documents_v2"
     pipeline.active_embedding_model = "text-embedding-3-small"
     pipeline.embedding_dimensions = 1536
+    pipeline.hybrid_index_enabled = True
+    pipeline.hybrid_index = conn
+    pipeline.vector_backend = "qdrant"
+    pipeline.qdrant_client = MagicMock()
+    pipeline.qdrant_client.search = MagicMock()
+    pipeline.redis = MagicMock()
+    pipeline.cache = False
+    pipeline.openai_chat_model = "gpt-4o"
+    for hit_data in [
+        {"document_id": "doc-1", "filename": "policy.pdf", "page_number": 2, "section": "coverage", "text_content": "Policy Number: POL-12345", "embedding_model": "text-embedding-3-small", "embedding_timestamp": "2026-07-10T00:00:00Z"},
+        {"document_id": "doc-1", "filename": "policy.pdf", "page_number": 1, "section": "overview", "text_content": "General policy overview", "embedding_model": "text-embedding-3-small", "embedding_timestamp": "2026-07-10T00:00:00Z"},
+        {"document_id": "doc-1", "filename": "policy.pdf", "page_number": 3, "section": "deductible", "text_content": "Deductible is 5000", "embedding_model": "text-embedding-3-small", "embedding_timestamp": "2026-07-10T00:00:00Z"},
+    ]:
+        pipeline._upsert_hybrid_index(f"chunk-{hit_data['page_number']}", hit_data)
     pipeline.llm = MagicMock()
     pipeline.llm.generate_structured = AsyncMock(
         return_value=RAGAnswer(
@@ -112,16 +136,16 @@ async def test_query_rag_reranks_sources_and_returns_structured_answer(monkeypat
     pipeline._build_qdrant_filter = MagicMock(return_value=None)
 
     search_hits = [
-        _make_hit("1", 0.92, "General policy overview", document_id="doc-1", page_number=1),
-        _make_hit("2", 0.87, "Policy Number: POL-12345", document_id="doc-1", page_number=2),
+        _make_hit("1", 0.92, "Policy Number: POL-12345", document_id="doc-1", page_number=2),
+        _make_hit("2", 0.87, "General policy overview", document_id="doc-1", page_number=1),
         _make_hit("3", 0.72, "Deductible is 5000", document_id="doc-1", page_number=3),
     ]
     search_mock = MagicMock(return_value=search_hits)
-    pipeline.qdrant_client = MagicMock(search=search_mock)
+    pipeline.qdrant_client.search = search_mock
 
     result = await RAGPipeline.query_rag(
         pipeline,
-        "What is the policy number?",
+        "Summarize the policy coverage",
         top_k=2,
         filters={"document_id": "doc-1"},
     )
@@ -129,7 +153,7 @@ async def test_query_rag_reranks_sources_and_returns_structured_answer(monkeypat
     assert result["status"] == "success"
     assert result["result"]["answer"] == "Policy number is POL-12345."
     assert result["result"]["citations"] == [
-        {"source_index": 1, "quote": "Policy Number: POL-12345"}
+        {"source_index": 1, "quote": "Policy Number: POL-12345", "quote_source": "source_text", "document_id": None, "page_number": None, "citation_status": "verified"}
     ]
     assert result["result"]["retrieval_strategy"] == "dense_plus_local_fts"
     assert result["result"]["sources"][0]["text"] == "Policy Number: POL-12345"

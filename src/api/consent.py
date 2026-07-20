@@ -70,7 +70,7 @@ async def record_consent(
     service = _get_service()
     try:
         new_id = await service.record_consent(
-            user_id=current_user.id,
+            user_id=current_user.uid,
             request=RecordConsentRequest(
                 consent_type=request_body.consent_type,
                 granted=request_body.granted,
@@ -103,7 +103,7 @@ async def get_current_consent_all(
     The Flutter app reads this on app start to populate the
     local cache."""
     service = _get_service()
-    rows = await service.get_current_consent_all(current_user.id)
+    rows = await service.get_current_consent_all(current_user.uid)
     return [_current_consent_to_dict(r) for r in rows]
 
 
@@ -117,7 +117,7 @@ async def get_consent_history(
     The operator dashboard reads v_consent_history for the
     audit view; this endpoint is the user-facing read."""
     service = _get_service()
-    rows = await service.get_history(current_user.id, limit=limit)
+    rows = await service.get_history(current_user.uid, limit=limit)
     return [_consent_record_to_dict(r) for r in rows]
 
 

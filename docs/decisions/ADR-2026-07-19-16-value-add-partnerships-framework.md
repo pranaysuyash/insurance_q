@@ -261,8 +261,8 @@ The pattern is reusable: any third-party integration that handles user data gets
   - [ADR-2026-07-19-07](./ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md) (the consent ledger that the new purpose is added to)
   - [ADR-2026-07-19-15](./ADR-2026-07-19-15-claim-document-vault-privacy-policy.md) (the no-medical-records boundary)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc update)
-  - `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` (the audit findings on third-party data handling)
-  - `coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` (the strategy audit on partnerships and disclosures)
+  - `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` (the audit findings on third-party data handling)
+  - `docs/audits/coverwise_product_strategy_monetization_scope_compliance_marketing_audit_2026-07-18.md` (the strategy audit on partnerships and disclosures)
 - **Related code (current state):**
   - `src/services/consent_ledger_service.py` (the consent ledger; the new purpose is added here)
   - `mobile/lib/services/consent_ledger.dart` (the Flutter consent ledger)

@@ -238,7 +238,7 @@ The KDF parameters are a tuning parameter, not a contract.
   - `docs/planning/coverwise_audit_task_classification_2026-07-18.md` (updated; Bucket 5 #23 marked shipped-contract)
 - **Related ADRs / docs:**
   - [ADR-2026-07-19-02](./ADR-2026-07-19-02-outbox-migration-deferred.md) (the same ship-the-contract / defer-the-consumer pattern)
-  - `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` (the source audit, Phase 1)
+  - `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` (the source audit, Phase 1)
 - **Related code:**
   - `mobile/lib/services/local_storage_service.dart` (the existing per-device-key Hive opener; the per-box migration is the follow-up)
   - `mobile/lib/services/app_state_repository.dart` (the existing Hive consumer; the per-box migration is the follow-up)

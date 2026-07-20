@@ -6,7 +6,7 @@
 - **Date:** 2026-07-19
 - **Owner / next reviewer:** Pranay (operator).
 - **Status:** **Accepted (revision 1, operator sign-off 2026-07-19).** The substrate is a primary deliverable. The user sees the source text directly. The "open page" action shows the actual OCR'd page. Citations may quote only `source_text`. The five layers (schema, chunk, citation, page artifact, UI) enforce the contract. The wider wedge from ADR-2026-07-19-08 revision 2 (Coverage Check-in, Coverage Adequacy, Family Coverage Map, Claim Document Vault) does not change the contract — every new surface renders substrate-grounded content that the user can verify by opening the page. The page artifact coverage is wider (more page types, more citation patterns). The Family Coverage Map depends on a substrate extension (per-member sum insured, exclusions, dependents-cant-have-policies signal); the extension is a future ADR and a prerequisite for the Family surface. The five layers are the contract; the page artifact coverage is the implementation. See "Update log" below for the full decision history.
-- **Related artifacts:** [ADR-2026-07-19-09](./ADR-2026-07-19-09-evidence-backed-release-grade-definition.md), [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md), `coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-02, P0-03, P0-08, P1-15.
+- **Related artifacts:** [ADR-2026-07-19-09](./ADR-2026-07-19-09-evidence-backed-release-grade-definition.md), [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md), `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-02, P0-03, P0-08, P1-15.
 
 ---
 
@@ -269,7 +269,7 @@ The launch-claim registry entry is updated when a layer changes. The CI gate fai
   - [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md) (the cuts and finishes that this ADR depends on)
   - [ADR-2026-07-19-10](./ADR-2026-07-19-10-outbox-only-durable-work-primitive.md) (the outbox that processes the page artifacts)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc update)
-  - `coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-02, P0-03, P0-08, P1-15 (the audit findings)
+  - `docs/audits/coverwise_document_intelligence_trust_audit_2026-07-18.md` P0-02, P0-03, P0-08, P1-15 (the audit findings)
 - **Related code (current state):**
   - `src/services/rag_pipeline.py` (the `Chunk` class and `_contextualize_chunks`)
   - `src/services/document_processing_service.py` (the `_extract_text` that flattens pages)

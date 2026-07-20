@@ -309,10 +309,24 @@ class RAGPipeline:
 
     def _ensure_collection_exists(self):
         try:
-            self.qdrant_client.get_collection(collection_name=self.collection_name)
+            collection = self.qdrant_client.get_collection(collection_name=self.collection_name)
+            # Check dimension if possible
+            existing_dim = None
+            if hasattr(collection, "config") and hasattr(collection.config, "params") and hasattr(collection.config.params, "vectors"):
+                vectors = collection.config.params.vectors
+                if hasattr(vectors, "size"):
+                    existing_dim = vectors.size
+                elif isinstance(vectors, dict) and "" in vectors:
+                    existing_dim = vectors[""].size
+            
+            if existing_dim and existing_dim != self.embedding_dimensions:
+                self.collection_name = f"{settings.qdrant_collection}_{self.embedding_dimensions}d"
+                logger.warning("Collection dimension mismatch. Creating versioned collection %s to prevent data destruction.", self.collection_name)
+                self._ensure_collection_exists()
+                return
         except Exception:
             logger.info("Creating Qdrant collection '%s' (%dd)", self.collection_name, self.embedding_dimensions)
-            self.qdrant_client.recreate_collection(
+            self.qdrant_client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=qdrant_models.VectorParams(
                     size=self.embedding_dimensions, distance=qdrant_models.Distance.COSINE
@@ -388,13 +402,9 @@ class RAGPipeline:
                 self.active_embedding_model = self.ollama_embedding_model
                 self.embedding_dimensions = self.ollama_embedding_dimension
                 if prev_dims != self.embedding_dimensions:
-                    logger.warning("Embedding dims %d→%d, recreating Qdrant collection", prev_dims, self.embedding_dimensions)
-                    self.qdrant_client.recreate_collection(
-                        collection_name=self.collection_name,
-                        vectors_config=qdrant_models.VectorParams(
-                            size=self.embedding_dimensions, distance=qdrant_models.Distance.COSINE
-                        ),
-                    )
+                    self.collection_name = f"{settings.qdrant_collection}_{self.embedding_dimensions}d"
+                    logger.warning("Collection dimension mismatch. Creating versioned collection %s to prevent data destruction.", self.collection_name)
+                    self._ensure_collection_exists()
                 return await self._generate_ollama_embeddings(texts)
             except Exception as e2:
                 logger.warning("Ollama embedding failed: %s", e2)
@@ -407,13 +417,9 @@ class RAGPipeline:
         self.active_embedding_model = self.hf_embedding_model
         self.embedding_dimensions = self.hf_embedding_dimension
         if prev_dims != self.embedding_dimensions:
-            logger.warning("Embedding dims %d→%d, recreating Qdrant collection", prev_dims, self.embedding_dimensions)
-            self.qdrant_client.recreate_collection(
-                collection_name=self.collection_name,
-                vectors_config=qdrant_models.VectorParams(
-                    size=self.embedding_dimensions, distance=qdrant_models.Distance.COSINE
-                ),
-            )
+            self.collection_name = f"{settings.qdrant_collection}_{self.embedding_dimensions}d"
+            logger.warning("Collection dimension mismatch. Creating versioned collection %s to prevent data destruction.", self.collection_name)
+            self._ensure_collection_exists()
         return await self._generate_hf_embeddings(texts)
 
     # ------------------------------------------------------------------
@@ -456,6 +462,11 @@ class RAGPipeline:
                 block = {**block, "source_text": block.get("text", "")}
             if "retrieval_text" not in block:
                 block = {**block, "retrieval_text": block["source_text"]}
+            
+            # Default chunk_type
+            if "chunk_type" not in block:
+                block["chunk_type"] = "paragraph"
+
             # Embedding uses retrieval_text (the LLM-augmented version, when
             # contextual retrieval is enabled). source_text is preserved for
             # citation (per ADR-2026-07-19-11).
@@ -464,7 +475,24 @@ class RAGPipeline:
                 continue
             if len(text) > 2000:
                 text = text[:2000]
-            filtered.append({**block, "retrieval_text": text})
+            
+            block["retrieval_text"] = text
+            filtered.append(block)
+            
+            # Multi-granularity: split paragraph into sentences
+            if block["chunk_type"] == "paragraph":
+                sentences = self._split_into_sentences(text)
+                if len(sentences) >= 2:
+                    for sentence_block in sentences:
+                        new_block = {**block}
+                        new_block["id"] = sentence_block["id"]
+                        new_block["source_text"] = sentence_block["source_text"]
+                        new_block["retrieval_text"] = sentence_block["retrieval_text"]
+                        new_block["chunk_type"] = "sentence"
+                        new_block["parent_chunk_id"] = block.get("id", str(uuid.uuid4()))
+                        new_block["sentence_index"] = sentence_block["sentence_index"]
+                        filtered.append(new_block)
+
         text_blocks = filtered
 
         # Contextual Retrieval: prepend chunk-specific context to each block
@@ -510,12 +538,13 @@ class RAGPipeline:
 
         points = []
         for i, block in enumerate(text_blocks):
+            chunk_text = block.get("retrieval_text", block.get("source_text", ""))
             payload = {
                 "document_id": document_id,
                 # Embedding uses retrieval_text (the LLM-augmented version);
                 # source_text is preserved separately for citation
                 # (per ADR-2026-07-19-11).
-                "text_content": block.get("retrieval_text", block.get("source_text", "")),
+                "text_content": chunk_text,
                 "page_number": block.get("page"),
                 "block_id": block.get("id", str(uuid.uuid4())),
                 "bbox": block.get("bbox"),
@@ -526,6 +555,9 @@ class RAGPipeline:
                 "page_artifact_id": block.get("page_artifact_id"),
                 # Per ADR-2026-07-19-11: source_text is preserved untouched.
                 "source_text": block.get("source_text", ""),
+                "section_type": self._classify_section_type(chunk_text),
+                "chunk_type": block.get("chunk_type", "paragraph"),
+                "parent_chunk_id": block.get("parent_chunk_id"),
             }
             for key in ("page", "section", "source", "filename"):
                 if key in block and key not in payload:
@@ -827,13 +859,46 @@ class RAGPipeline:
         top_k: int = 5,
         filters: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+        import time
+        start_time = time.time()
+        
+        async def _log_and_return(resp: Dict[str, Any], cache_hit: bool = False):
+            if resp.get("status") == "success":
+                res = resp.get("result", {})
+                
+                # Handle both Pydantic models (from some paths) and dicts
+                citations = res.get("citations", [])
+                def get_status(c):
+                    if isinstance(c, dict): return c.get("verification_status")
+                    return getattr(c, "verification_status", None)
+                    
+                trace_data = {
+                    "query_text": user_query,
+                    "owner_id": filters.get("owner_id") if filters else None,
+                    "retrieval_strategy": res.get("retrieval_strategy"),
+                    "top_k": top_k,
+                    "hits_count": len(res.get("sources", [])),
+                    "citations_count": len(citations),
+                    "citations_verified": sum(1 for c in citations if get_status(c) == "verified"),
+                    "citations_approximate": sum(1 for c in citations if get_status(c) == "approximate"),
+                    "citations_rejected": sum(1 for c in citations if get_status(c) == "rejected"),
+                    "confidence": res.get("confidence", 0.0),
+                    "retrieval_confidence": res.get("retrieval_confidence", 0.0),
+                    "llm_used": res.get("llm_used", False),
+                    "llm_model": self.openai_chat_model,
+                    "latency_ms": int((time.time() - start_time) * 1000),
+                    "cache_hit": cache_hit
+                }
+                asyncio.create_task(self._log_query_trace(trace_data))
+            return resp
+
         logger.info("Query: '%s' top_k=%d", user_query, top_k)
 
         cache_key = self._query_cache_key(user_query, top_k, filters)
         cached_response = self._load_cached_query_result(cache_key)
         if cached_response:
             logger.info("Returning cached RAG response for query")
-            return cached_response
+            return await _log_and_return(cached_response, cache_hit=True)
 
         # Adaptive RAG: classify query and adjust retrieval strategy
         query_type = self._classify_query(user_query)
@@ -847,9 +912,14 @@ class RAGPipeline:
         hyde_query = await self._generate_hyde_query(user_query)
         embed_query = hyde_query if hyde_query else user_query
 
+        dense_error: Exception | None = None
+
         # For exact_lookup queries, skip embedding and use FTS only (faster)
         if query_type == "exact_lookup":
-            local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
+            if getattr(self, "vector_backend", "qdrant") == "supabase":
+                local_results = await self._query_hybrid_index_supabase(user_query, limit=max(top_k * 3, top_k), filters=filters)
+            else:
+                local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
             results = local_results
             dense_results = []
         else:
@@ -861,7 +931,6 @@ class RAGPipeline:
                 return {"status": "error", "error": f"Query embedding failed: {e}"}
 
             dense_results = []
-            dense_error = None
             try:
                 if getattr(self, "vector_backend", "qdrant") == "supabase":
                     dense_results = await self.vector_store.search(
@@ -880,7 +949,10 @@ class RAGPipeline:
                 dense_error = e
                 logger.error("Vector search failed: %s", e)
 
-            local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
+            if getattr(self, "vector_backend", "qdrant") == "supabase":
+                local_results = await self._query_hybrid_index_supabase(user_query, limit=max(top_k * 3, top_k), filters=filters)
+            else:
+                local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
 
             # RAG Fusion: also search for each query variant and merge all results
             if len(query_variants) > 1:
@@ -928,10 +1000,13 @@ class RAGPipeline:
                 },
             }
             self._store_cached_query_result(cache_key, response)
-            return response
+            return await _log_and_return(response)
 
         ranked_results = self._rank_results(user_query, results)
         ranked_results = ranked_results[:top_k]
+
+        # Commit 3: expand top-k context with adjacent chunks (ADR-26).
+        ranked_results = await self._expand_with_adjacent_chunks(ranked_results, max_expand=3)
 
         # Retrieval Evaluator: quality gate — if retrieval is too weak, don't hallucinate
         if not self._evaluate_retrieval_quality(user_query, ranked_results):
@@ -953,7 +1028,7 @@ class RAGPipeline:
                 },
             }
             self._store_cached_query_result(cache_key, response)
-            return response
+            return await _log_and_return(response)
 
         contexts = []
         sources = []
@@ -1015,6 +1090,13 @@ class RAGPipeline:
 
         retrieval_confidence = self._estimate_retrieval_confidence(ranked_results, user_query)
         answer_payload.confidence = max(answer_payload.confidence, retrieval_confidence)
+        
+        # Commit 1: Verify citations against source_text (ADR-26, ADR-2026-07-19-09).
+        # Strip rejected citations. Tag approximate citations for UI distinction.
+        if answer_payload and answer_payload.citations:
+            answer_payload.citations = self._verify_citations(
+                answer_payload.citations, sources
+            )
         response = {
             "status": "success",
             "result": {
@@ -1032,7 +1114,21 @@ class RAGPipeline:
             },
         }
         self._store_cached_query_result(cache_key, response)
-        return response
+        return await _log_and_return(response)
+
+    async def _log_query_trace(self, trace_data: Dict[str, Any]) -> None:
+        """Asynchronously log query trace to Supabase or structured JSON."""
+        try:
+            if getattr(self, "vector_backend", "qdrant") == "supabase" and hasattr(self.vector_store, "_client"):
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    None,
+                    lambda: self.vector_store._client.table("rag_query_traces").insert(trace_data).execute()
+                )
+            else:
+                logger.info("Query Trace: %s", json.dumps(trace_data))
+        except Exception as e:
+            logger.warning("Failed to log query trace: %s", e)
 
     async def query_rag_structured(
         self,
@@ -1223,24 +1319,26 @@ class RAGPipeline:
             for term in terms
         )
         sql_filters = []
-        sql_params: List[Any] = [fts_query, limit]
+        filter_params: List[Any] = []
         if filters:
             for key, value in filters.items():
                 if value is None:
                     continue
                 if key == "document_id" and isinstance(value, str):
                     sql_filters.append("c.document_id = ?")
-                    sql_params.append(value)
+                    filter_params.append(value)
                 elif key == "document_ids" and isinstance(value, (list, tuple, set)):
                     sql_filters.append(f"c.document_id IN ({','.join('?' for _ in value)})")
-                    sql_params.extend(list(value))
+                    filter_params.extend(list(value))
                 elif key in {"filename", "section"} and isinstance(value, str):
                     sql_filters.append(f"c.{key} = ?")
-                    sql_params.append(value)
+                    filter_params.append(value)
 
         where_clause = ""
         if sql_filters:
             where_clause = " AND " + " AND ".join(sql_filters)
+
+        sql_params = [fts_query] + filter_params + [limit]
 
         try:
             rows = self.hybrid_index.execute(
@@ -1334,6 +1432,23 @@ class RAGPipeline:
                 )
             )
         return hits
+
+    async def _query_hybrid_index_supabase(
+        self,
+        user_query: str,
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[Any]:
+        try:
+            return await self.vector_store.search_fts(
+                query_text=user_query,
+                limit=limit,
+                filters=filters
+            )
+        except Exception as e:
+            logger.warning("Supabase FTS search failed: %s", e)
+            return []
+
 
     def _merge_hybrid_results(self, dense_results: List[Any], local_results: List[Any]) -> List[Any]:
         """Merge dense and sparse results using Reciprocal Rank Fusion (RRF).
@@ -1437,6 +1552,54 @@ class RAGPipeline:
                 boost += 0.1
         return min(boost, 1.0)
 
+    _SECTION_TYPE_PATTERNS: Dict[str, List[str]] = {
+        'definition': ['means', 'defined as', 'definition', 'interpretation', 'shall mean', 'refers to'],
+        'exclusion': ['not covered', 'excluded', 'exclusion', 'not payable', 'shall not', 'does not cover', 'except'],
+        'benefit': ['covered', 'payable', 'coverage', 'benefit', 'entitled', 'reimbursable', 'we will pay'],
+        'sub_limit': ['limited to', 'maximum of', 'subject to a limit', 'up to', 'capped at', 'not exceeding'],
+        'schedule': ['schedule', 'annexure', 'premium schedule', 'benefit table', 'sum insured table'],
+        'waiting_period': ['waiting period', 'waiting', 'initial waiting', 'pre-existing', 'days from', 'months from inception'],
+        'contact': ['helpline', 'customer care', 'toll free', 'email', 'contact', 'grievance', 'call centre', 'tpa']
+    }
+
+    def _classify_section_type(self, text: str) -> str:
+        if not text:
+            return 'general'
+        text_lower = text.lower()
+        counts = Counter()
+        for section, keywords in self._SECTION_TYPE_PATTERNS.items():
+            for kw in keywords:
+                if kw in text_lower:
+                    counts[section] += 1
+        
+        if not counts:
+            return 'general'
+        
+        return counts.most_common(1)[0][0]
+
+    async def _expand_with_adjacent_chunks(self, hits: List[Any], max_expand: int = 3) -> List[Any]:
+        if self.vector_backend != 'supabase' or not hasattr(self, 'vector_store') or not self.vector_store:
+            return hits
+            
+        try:
+            chunk_ids = [str(hit.id) for hit in hits[:max_expand]]
+            if not chunk_ids:
+                return hits
+                
+            adjacent_hits = await self.vector_store.get_adjacent_chunks(chunk_ids)
+            
+            existing_ids = {str(hit.id) for hit in hits}
+            new_hits = []
+            for ah in adjacent_hits:
+                if str(ah.id) not in existing_ids:
+                    existing_ids.add(str(ah.id))
+                    new_hits.append(ah)
+                    
+            return hits + new_hits
+        except Exception as e:
+            logger.warning(f"Failed to expand with adjacent chunks: {e}")
+            return hits
+
     def _format_context_block(self, index: int, hit: Any, text: str) -> str:
         payload = hit.payload or {}
         parts = [
@@ -1454,8 +1617,18 @@ class RAGPipeline:
         return " | ".join(parts)
 
     def _format_source(self, hit: Any, index: int, text: str) -> Dict[str, Any]:
+        """Format a retrieval hit into a source dict for the query response.
+
+        Returns both source_text (immutable OCR text, per ADR-2026-07-19-11) and
+        retrieval_text (may include generated context) so the citation verifier can
+        check quotes against the immutable substrate, and the mobile client can
+        navigate to the page artifact.
+        """
         payload = hit.payload or {}
-        excerpt = text[:240] + "..." if len(text) > 240 else text
+        text_content = payload.get("text_content", text)
+        source_text = payload.get("source_text", text_content)  # immutable OCR text
+        retrieval_text = payload.get("retrieval_text", text_content)  # may be contextualized
+        excerpt = text_content[:240] + "..." if len(text_content) > 240 else text_content
         return {
             "index": index,
             "id": str(hit.id),
@@ -1463,9 +1636,67 @@ class RAGPipeline:
             "document_id": payload.get("document_id"),
             "filename": payload.get("filename"),
             "page_number": payload.get("page_number"),
+            "page_artifact_id": payload.get("page_artifact_id"),  # for mobile 'open page' action
             "section": payload.get("section"),
+            "section_type": payload.get("section_type"),  # taxonomy: exclusion/benefit/etc.
+            "bbox": payload.get("bbox"),  # bounding box for span highlight overlay
             "text": excerpt,
+            "source_text": source_text,  # immutable, citable (ADR-11 Layer 1)
+            "retrieval_text": retrieval_text,  # may include generated context (ADR-11 Layer 2)
         }
+
+    def _verify_citations(
+        self,
+        citations: List[RAGCitation],
+        sources: List[Dict[str, Any]],
+    ) -> List[RAGCitation]:
+        """Verify each LLM-generated citation against source_text (ADR-2026-07-19-09 + ADR-26).
+
+        Three-tier model:
+        - verified: exact substring match in source_text
+        - approximate: fuzzy token overlap >=70% (shown with 'approximate match' label)
+        - rejected: not found (citation stripped from response)
+
+        Returns only verified + approximate citations (rejected are dropped).
+        Approximate citations carry citation_status='approximate' for the UI to render distinctly.
+        """
+        from src.services.citation_verifier import verify_citation, CitationRejectionReason
+        kept = []
+        for citation in citations:
+            idx = citation.source_index - 1
+            if idx < 0 or idx >= len(sources):
+                logger.warning(
+                    "Citation index %d out of bounds (sources: %d); dropping",
+                    citation.source_index, len(sources),
+                )
+                continue
+            source = sources[idx]
+            source_text = source.get("source_text", source.get("text", ""))
+            retrieval_text = source.get("retrieval_text")
+            document_id = source.get("document_id")
+            page_count = None  # page_count not available at query time; skip page bounds check
+
+            is_valid, reason, status = verify_citation(
+                citation=citation,
+                source_text=source_text,
+                retrieval_text=retrieval_text,
+                source_count=len(sources),
+                document_id=document_id,
+                page_count=page_count,
+            )
+            if is_valid or status == "approximate":
+                kept.append(citation.model_copy(update={"citation_status": status}))
+                if status == "approximate":
+                    logger.info(
+                        "Citation %d approximate match (fuzzy); rendered with label",
+                        citation.source_index,
+                    )
+            else:
+                logger.warning(
+                    "Citation %d rejected: %s; stripping from response",
+                    citation.source_index, reason,
+                )
+        return kept
 
     def _estimate_retrieval_confidence(self, ranked_results: List[Any], user_query: str) -> float:
         if not ranked_results:

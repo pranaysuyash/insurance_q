@@ -202,6 +202,6 @@ The doc itself is not a contract; the schema and the tests are the contract. Mov
   - [ADR-2026-07-19-02](./ADR-2026-07-19-02-outbox-migration-deferred.md)
   - [ADR-2026-07-19-03](./ADR-2026-07-19-03-embedding-model-text-embedding-3-small-default.md)
   - [ADR-2026-07-19-04](./ADR-2026-07-19-04-coverage-gap-claim-assistance-thin-slice.md)
-  - `coverwise_architecture_audit_2026-07-18.docx` (the source audit, ADR-10)
+  - `docs/audits/coverwise_architecture_audit_2026-07-18.docx` (the source audit, ADR-10)
 - **Related code:** the canonical doc cross-references the 7 SQL migrations, the 5 main components, and the 5 async paths. The full code reference is the source tree.
 - **Motto v3 alignment:** §0.1 (no parallel paths; one canonical doc, one location), §0.4 (acceptance contract; the doc is part of the work, not optional polish), §0.5 (evidence tiers; the doc is T1 static evidence, refreshed when the system changes), §0.10 (observability is delivery; the doc is the visible evidence of the system's shape), §0.12 (this document).

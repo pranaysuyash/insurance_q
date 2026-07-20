@@ -35,6 +35,14 @@ class RAGCitation(BaseModel):
             "page is reachable from the citation card via the 'open page' action."
         ),
     )
+    citation_status: Literal["verified", "approximate", "rejected"] = Field(
+        "verified",
+        description=(
+            "Post-generation verification status. 'verified' = exact substring match in source_text. "
+            "'approximate' = fuzzy token overlap >=70% but not exact (shown with 'approximate match' label). "
+            "'rejected' = quote not found in source_text (citation stripped from response)."
+        ),
+    )
 
 
 class RAGAnswer(BaseModel):

@@ -18,6 +18,7 @@ import '../widgets/shared/offline_banner.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
+import '../utils/app_error.dart';
 import '../providers/entitlement_provider.dart';
 import '../models/entitlement.dart';
 import 'document_selection_dialog.dart';
@@ -207,10 +208,10 @@ class QaScreenState extends ConsumerState<QaScreen>
       }
 
       if (result.containsKey('error') && !result.containsKey('answer')) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${result['error']}')),
-        );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not get an answer. ${result['error'] ?? 'Please try again.'}')),
+      );
         return;
       }
 
@@ -273,7 +274,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       ref.read(currentAnswerProvider.notifier).state = fallbackAnswer;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text(AppError.userMessage(e))),
       );
     } finally {
       if (mounted && widget.isActive) {

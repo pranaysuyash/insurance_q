@@ -72,7 +72,6 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
     #   dispatcher.register(JobType.SUBSCRIPTION_WRITEBACK, handle_subscription_writeback)
     #   from src.services.qa_handler import handle_qa_response
     #   dispatcher.register(JobType.QA_RESPONSE, handle_qa_response)
-    log.info("no handlers registered yet; dispatcher is idle")
 
 
 async def _main() -> None:

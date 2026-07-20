@@ -304,10 +304,22 @@ create table if not exists public.profiles (
 alter table public.profiles enable row level security;
 
 -- Users can read their own profile.
-create policy if not exists "Users read own profile"
-  on public.profiles
-  for select
-  using (user_uid = auth.jwt() ->> 'sub');
+-- Postgres does not support CREATE POLICY IF NOT EXISTS, so we guard with a DO block.
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'profiles'
+      and policyname = 'Users read own profile'
+  ) then
+    create policy "Users read own profile"
+      on public.profiles
+      for select
+      using (user_uid = auth.jwt() ->> 'sub');
+  end if;
+end
+$$;
 
 -- Service-role has full access (no policy needed for service_role bypasses RLS by default).
 revoke all on table public.profiles from public, anon, authenticated;

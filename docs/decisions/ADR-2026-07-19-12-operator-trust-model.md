@@ -6,7 +6,7 @@
 - **Date:** 2026-07-19
 - **Owner / next reviewer:** Pranay (operator).
 - **Status:** **Accepted (revision 1, operator sign-off 2026-07-19).** The operator trust model is the 6-role RBAC + audit trail + reason-required + TTL + revocation system. Static token for the launch; OIDC deferred. The wider wedge from ADR-2026-07-19-08 revision 2 (Coverage Check-in, Coverage Adequacy, Family Coverage Map, Claim Document Vault) adds more privileged actions: support reading new-surface content with reason, security auditing partnership opt-ins, the deletion_worker managing the new durable work. The RBAC table grows. The Claim Document Vault is the most sensitive surface — it may contain medical records (discharge summaries, diagnosis info). A future ADR ("Claim Document Vault privacy policy") will define the medical-data handling: consent purpose, retention, encryption at rest, support-operator access rules, user's right to export and delete. The 6 roles still apply; the RBAC table is the implementation. See "Update log" below for the full decision history.
-- **Related artifacts:** [ADR-2026-07-19-09](./ADR-2026-07-19-09-evidence-backed-release-grade-definition.md), [ADR-2026-07-19-11](./ADR-2026-07-19-11-substrate-as-primary-deliverable.md), [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md), `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` §10.6, P0-08, T-8-5, T-8-8.
+- **Related artifacts:** [ADR-2026-07-19-09](./ADR-2026-07-19-09-evidence-backed-release-grade-definition.md), [ADR-2026-07-19-11](./ADR-2026-07-19-11-substrate-as-primary-deliverable.md), [canonical architecture doc](../../architecture/coverwise_canonical_architecture.md), `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` §10.6, P0-08, T-8-5, T-8-8.
 
 ---
 
@@ -351,7 +351,7 @@ The launch-claim registry entry is updated when a component changes. The CI gate
   - [ADR-2026-07-19-10](./ADR-2026-07-19-10-outbox-only-durable-work-primitive.md) (the outbox that the deletion_worker can manage)
   - [ADR-2026-07-19-08](./ADR-2026-07-19-08-cut-keep-finish-half-built-features.md) (the cuts and finishes that this ADR depends on)
   - [Canonical architecture doc](../../architecture/coverwise_canonical_architecture.md) (target of the doc update)
-  - `coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` §10.6, P0-08, P0-17, T-8-1, T-8-5, T-8-8 (the audit findings)
+  - `docs/audits/coverwise_security_privacy_identity_data_lifecycle_audit_2026-07-18.md` §10.6, P0-08, P0-17, T-8-1, T-8-5, T-8-8 (the audit findings)
 - **Related code (current state):**
   - `src/middleware/` (new directory for the operator auth middleware)
   - `src/api/analytics.py` (the `/analytics/*` endpoints that need the middleware)
