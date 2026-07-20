@@ -5,6 +5,7 @@ import '../services/consent_ledger.dart';
 import '../services/analytics_service.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import 'privacy_policy_screen.dart';
 
 /// Privacy & Security: visible copy follows the production data architecture.
 class PrivacySecurityScreen extends StatefulWidget {
@@ -44,10 +45,20 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
     }
   }
 
-  Future<void> _openHostedPolicy() async {
-    final uri = Uri.parse(AppConfig.privacyPolicyUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _openPrivacyPolicy() async {
+    if (!mounted) return;
+    if (AppConfig.hasPrivacyPolicy) {
+      final uri = Uri.parse(AppConfig.privacyPolicyUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const PrivacyPolicyScreen(),
+        ),
+      );
     }
   }
 
@@ -63,15 +74,18 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             subtitle:
                 'See what stays on your device, what is synced for app features, and how to remove it.',
           ),
-          if (AppConfig.hasPrivacyPolicy) ...[
-            CoverWiseSurface(
+          if (AppConfig.hasPrivacyPolicy) ...[              CoverWiseSurface(
               child: CoverWiseActionRow(
                 icon: Icons.privacy_tip_outlined,
                 color: CoverWiseColors.blueDeep,
                 title: 'View full privacy policy',
-                subtitle: 'Opens in your browser',
-                onTap: _openHostedPolicy,
-                trailing: const Icon(Icons.open_in_new_rounded),
+                subtitle: AppConfig.hasPrivacyPolicy
+                    ? 'Opens in your browser'
+                    : 'View in app',
+                onTap: _openPrivacyPolicy,
+                trailing: AppConfig.hasPrivacyPolicy
+                    ? const Icon(Icons.open_in_new_rounded)
+                    : null,
               ),
             ),
           ],

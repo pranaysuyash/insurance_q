@@ -4,6 +4,8 @@ import '../config/app_config.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_mark.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 
 /// About screen: app identity, version, description, disclaimer, and legal links.
 class AboutScreen extends StatelessWidget {
@@ -92,26 +94,49 @@ class AboutScreen extends StatelessWidget {
             CoverWiseSurface(
               child: Column(
                 children: [
-                  if (AppConfig.hasPrivacyPolicy)
-                    CoverWiseActionRow(
-                      icon: Icons.privacy_tip_outlined,
-                      color: CoverWiseColors.blueDeep,
-                      title: 'Privacy policy',
-                      subtitle: 'How CoverWise handles your data',
-                      trailing: const Icon(Icons.open_in_new_rounded),
-                      onTap: () => _openUrl(AppConfig.privacyPolicyUrl),
-                    ),
-                  if (AppConfig.hasPrivacyPolicy && AppConfig.hasTermsOfService)
-                    const Divider(),
-                  if (AppConfig.hasTermsOfService)
-                    CoverWiseActionRow(
-                      icon: Icons.gavel_outlined,
-                      color: Theme.of(context).colorScheme.tertiary,
-                      title: 'Terms of service',
-                      subtitle: 'Terms for using CoverWise',
-                      trailing: const Icon(Icons.open_in_new_rounded),
-                      onTap: () => _openUrl(AppConfig.termsOfServiceUrl),
-                    ),
+                  CoverWiseActionRow(
+                    icon: Icons.privacy_tip_outlined,
+                    color: CoverWiseColors.blueDeep,
+                    title: 'Privacy policy',
+                    subtitle: 'How CoverWise handles your data',
+                    trailing: AppConfig.hasPrivacyPolicy
+                        ? const Icon(Icons.open_in_new_rounded)
+                        : null,
+                    onTap: () {
+                      if (AppConfig.hasPrivacyPolicy) {
+                        _openUrl(AppConfig.privacyPolicyUrl);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PrivacyPolicyScreen(),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  const Divider(),
+                  CoverWiseActionRow(
+                    icon: Icons.gavel_outlined,
+                    color: Theme.of(context).colorScheme.tertiary,
+                    title: 'Terms of service',
+                    subtitle: 'Terms for using CoverWise',
+                    trailing: AppConfig.hasTermsOfService
+                        ? const Icon(Icons.open_in_new_rounded)
+                        : null,
+                    onTap: () {
+                      if (AppConfig.hasTermsOfService) {
+                        _openUrl(AppConfig.termsOfServiceUrl);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TermsOfServiceScreen(),
+                          ),
+                        );
+                      }
+                    },
+                  ),
                 ],
               ),
             ),

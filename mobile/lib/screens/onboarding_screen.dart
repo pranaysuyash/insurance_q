@@ -5,6 +5,8 @@ import '../services/analytics_service.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
 import '../widgets/shared/coverwise_mark.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final void Function({bool openFilePicker}) onComplete;
@@ -155,7 +157,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   const SizedBox(height: 18),
                   // Interactive analytics consent toggle on the last page.
-                  if (isLast)
+                  if (isLast) ...[
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.symmetric(
@@ -208,6 +210,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ],
                       ),
                     ),
+                    // Privacy Policy and Terms of Service links
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PrivacyPolicyScreen(),
+                              ),
+                            ),
+                            child: const Text('Privacy Policy'),
+                          ),
+                          Text(
+                            ' • ',
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const TermsOfServiceScreen(),
+                              ),
+                            ),
+                            child: const Text('Terms of Service'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
