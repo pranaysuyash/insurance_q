@@ -3,6 +3,7 @@ import '../providers/health_score_provider.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
 import 'shared/coverwise_components.dart';
+import '../services/analytics_service.dart';
 
 /// At-a-glance "are we covered?" card shown on the dashboard.
 ///
@@ -105,7 +106,12 @@ class _HealthScoreCardState extends State<HealthScoreCard>
         hint: _expanded ? 'Collapse score details' : 'Show score details',
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => setState(() => _expanded = !_expanded),
+          onTap: () {
+            if (!_expanded) {
+              AnalyticsService.track('dashboard_health_score_expanded', {'current_score': widget.healthScore.score});
+            }
+            setState(() => _expanded = !_expanded);
+          },
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(

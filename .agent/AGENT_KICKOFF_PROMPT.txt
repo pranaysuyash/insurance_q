@@ -2,7 +2,7 @@ Use sources in this order:
 1) $HOME/AGENTS.md (or /Users/pranay/AGENTS.md on this machine)
 2) $HOME/Projects/AGENTS.md (or /Users/pranay/Projects/AGENTS.md on this machine)
 3) medpiper/insurance_app/AGENTS.md or medpiper/insurance_app/CLAUDE.md (if present)
-4) medpiper/insurance_app/motto_v4.md (canonical project operating motto synced from /Users/pranay/Downloads/motto_v3.md, if present)
+4) medpiper/insurance_app/motto_v4.md (canonical project operating motto synced from /Users/pranay/Downloads/motto_v4.md, if present)
 5) Other repo-local agent instructions if present, including QWEN.md, CODEX.md, copilot-instructions.md, .cursorrules, and tool-specific guidance
 7) Project-local docs/prompts/worklogs under medpiper/insurance_app
 8) medpiper/insurance_app/docs/context/AGENT_INTELLIGENCE_GRAPH.md (if present)

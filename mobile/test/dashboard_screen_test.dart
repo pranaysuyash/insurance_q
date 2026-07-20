@@ -140,7 +140,8 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
-      expect(find.text('Your policy hub'), findsOneWidget);
+      // Text is capitalized by CoverWiseSectionLabel
+      expect(find.text('YOUR POLICY HUB'), findsOneWidget);
     });
 
     testWidgets('renders policy cards', (tester) async {
@@ -211,7 +212,8 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
-      expect(find.text('Quick Actions'), findsOneWidget);
+      // Text is capitalized by CoverWiseSectionLabel
+      expect(find.text('QUICK ACTIONS'), findsOneWidget);
       expect(find.text('Upload Document'), findsOneWidget);
       expect(find.text('Ask a Question'), findsOneWidget);
     });
@@ -261,8 +263,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('Your policy hub'), findsNothing);
-      expect(find.text('Quick Actions'), findsNothing);
+      expect(find.text('YOUR POLICY HUB'), findsNothing);
+      expect(find.text('QUICK ACTIONS'), findsNothing);
     });
   });
 

@@ -50,7 +50,8 @@ void main() {
     );
     expect(find.text('Choose policy file'), findsOneWidget);
     expect(find.text('Your cover, at a glance'), findsNothing);
-    expect(find.text('Your policy hub'), findsNothing);
+    // The header is capitalized by CoverWiseSectionLabel
+    expect(find.text('YOUR POLICY HUB'), findsNothing);
     expect(find.text('Coverage health'), findsNothing);
 
     final actionRect = tester.getRect(find.text('Choose policy file'));

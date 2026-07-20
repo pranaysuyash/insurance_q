@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/qa_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -33,6 +34,7 @@ import 'screens/insurance_literacy_screen.dart';
 import 'screens/what_if_calculator_screen.dart';
 import 'screens/account_screen.dart';
 import 'screens/reset_password_screen.dart';
+import 'screens/family_member_detail_screen.dart';
 import 'config/app_config.dart';
 import 'providers/entitlement_provider.dart';
 import 'providers/policy_providers.dart';
@@ -43,6 +45,7 @@ import 'services/notification_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
 import 'services/install_service.dart';
+import 'services/principal_key_service.dart';
 import 'widgets/shared/global_error_boundary.dart';
 import 'theme/coverwise_theme.dart';
 import 'theme/coverwise_motion.dart';
@@ -60,8 +63,6 @@ void main() async {
       debugPrint = (String? message, {int? wrapWidth}) {};
     }
     await Hive.initFlutter();
-    await Hive.openBox<String>(LocalStorageService.documentsBoxName);
-    await Hive.openBox(AppStateStore.boxName);
 
     if (AppConfig.hasSupabaseAuthConfig) {
       await AuthService.initializeAccountClient();
@@ -79,6 +80,32 @@ void main() async {
 
     // Initialize analytics (local-first, batch-syncs to backend)
     AnalyticsService.init();
+
+    // Initialize principal encryption AFTER auth is ready but BEFORE opening encrypted boxes
+    // This ensures we have the principal ID for encryption key derivation
+    if (AuthService.hasAccountSession || AppConfig.hasSupabaseAuthConfig) {
+      // For anonymous sessions, use the anonymous user ID from Supabase
+      // For authenticated sessions, use the account user ID
+      final principalId = AuthService.hasAccountSession
+          ? Supabase.instance.client.auth.currentUser?.id ?? 'anonymous'
+          : (await Supabase.instance.client.auth.signInAnonymously()).user.id;
+      
+      // Initialize PrincipalKeyService with the principal ID
+      await PrincipalKeyService().initForPrincipal(principalId);
+      
+      // Migrate existing Hive boxes from device-key to principal-key encryption
+      await _migrateLegacyHiveBoxes();
+      
+      // Now open encrypted Hive boxes
+      await _openEncryptedHiveBoxes();
+    } else {
+      // Fallback: Initialize with a temporary principal ID for local-only use
+      final tempPrincipalId = 'local-only-${DateTime.now().millisecondsSinceEpoch}';
+      await PrincipalKeyService().initForPrincipal(tempPrincipalId);
+      
+      // Open Hive boxes with encryption
+      await _openEncryptedHiveBoxes();
+    }
 
     // Check if onboarding has been completed
     final prefs = await SharedPreferences.getInstance();
@@ -100,6 +127,98 @@ void main() async {
       debugPrint('==================');
     }
   });
+}
+
+/// Migrates legacy Hive boxes from device-key encryption to principal-scoped DEK encryption
+Future<void> _migrateLegacyHiveBoxes() async {
+  try {
+    // List of Hive boxes that need migration to principal-scoped encryption
+    final boxesToMigrate = [
+      LocalStorageService.documentsBoxName,
+      AppStateStore.boxName,
+      'resolved_gaps',
+      'analytics_events',
+      'consent_ledger',
+      'qa_history',
+      'field_overrides_box',
+      'entitlements',
+    ];
+
+    for (final boxName in boxesToMigrate) {
+      final migrationCompleted = await PrincipalKeyService()
+          .migrateBox(boxName: boxName, boxPath: '');
+      if (migrationCompleted) {
+        debugPrint('Successfully migrated Hive box: $boxName');
+      } else {
+        debugPrint('Migration skipped or already completed for: $boxName');
+      }
+    }
+    
+    // Clear the legacy device-key from secure storage after migration
+    final secureStorage = FlutterSecureStorage();
+    await secureStorage.delete(key: PrincipalKeyService._oldDeviceKeyStorageKey);
+    debugPrint('Legacy device-key cleared from secure storage');
+  } catch (e) {
+    debugPrint('Error during Hive box migration: $e');
+    // Don't throw - allow app to continue with potentially unencrypted boxes
+    // Migration will be retried on next startup
+  }
+}
+
+/// Opens Hive boxes with principal-scoped encryption
+Future<void> _openEncryptedHiveBoxes() async {
+  try {
+    // Get the DEK from PrincipalKeyService
+    final dek = PrincipalKeyService().getOrThrow();
+    final encryptionCipher = HiveAesCipher(dek);
+    
+    // Open boxes with encryption
+    await Hive.openBox<String>(
+      LocalStorageService.documentsBoxName,
+      encryptionCipher: encryptionCipher,
+    );
+    
+    await Hive.openBox(
+      AppStateStore.boxName,
+      encryptionCipher: encryptionCipher,
+    );
+    
+    // Open other sensitive boxes with encryption
+    await Hive.openBox<String>(
+      'resolved_gaps',
+      encryptionCipher: encryptionCipher,
+    );
+    
+    await Hive.openBox<String>(
+      'analytics_events',
+      encryptionCipher: encryptionCipher,
+    );
+    
+    await Hive.openBox<String>(
+      'consent_ledger',
+      encryptionCipher: encryptionCipher,
+    );
+    
+    await Hive.openBox<String>(
+      'qa_history',
+      encryptionCipher: encryptionCipher,
+    );
+    
+    await Hive.openBox<String>(
+      'field_overrides_box',
+      encryptionCipher: encryptionCipher,
+    );
+    
+    await Hive.openBox<String>(
+      'entitlements',
+      encryptionCipher: encryptionCipher,
+    );
+    
+    debugPrint('All Hive boxes opened with principal-scoped encryption');
+  } catch (e) {
+    debugPrint('Error opening encrypted Hive boxes: $e');
+    rethrow; // Fail fast if we can't open encrypted boxes
+  }
 }
 
 Future<void> _warmAnonymousSession() async {
@@ -311,6 +430,12 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
               ModalRoute.of(context)?.settings.arguments as String? ?? '';
           return ResetPasswordScreen(redirectUrl: redirectUrl);
         },
+        '/family-member-detail': (context) {
+          final member = ModalRoute.of(context)?.settings.arguments;
+          // In a real app we'd typecheck this properly with PolicyHolder
+          return FamilyMemberDetailScreen(member: member as dynamic);
+        },
+        '/documents': (context) => const DocumentsScreen(),
       },
       debugShowCheckedModeBanner: false,
     );

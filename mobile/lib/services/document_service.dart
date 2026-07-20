@@ -8,6 +8,7 @@ import 'local_storage_service.dart';
 import 'session_service.dart';
 import 'app_state_repository.dart';
 import 'ml_ocr_service.dart';
+import '../utils/policy_type.dart';
 
 class DocumentService {
   final Dio _dio;
@@ -190,21 +191,30 @@ class DocumentService {
   }
 
   String _inferDocumentType(String filePath) {
-    final fileName = filePath.toLowerCase();
-    if (fileName.contains('health') || fileName.contains('medical')) {
-      return 'Health Insurance';
-    } else if (fileName.contains('auto') ||
-        fileName.contains('car') ||
-        fileName.contains('vehicle')) {
-      return 'Auto Insurance';
-    } else if (fileName.contains('home') ||
-        fileName.contains('property') ||
-        fileName.contains('house')) {
-      return 'Home Insurance';
-    } else if (fileName.contains('life')) {
-      return 'Life Insurance';
-    } else {
-      return 'Insurance Policy';
+    // Use the same keyword classifier as the rest of the app (single source
+    // of truth) instead of a separate, less-complete filename matcher.
+    // This covers Indian product names (Mediclaim, Family Floater, etc.)
+    // and all six canonical types including Travel and Other.
+    return _canonicalTypeName(
+      classifyPolicyType(filePath),
+    );
+  }
+
+  /// Maps a [PolicyType] to the canonical display string used by the backend.
+  String _canonicalTypeName(PolicyType type) {
+    switch (type) {
+      case PolicyType.health:
+        return 'Health Insurance';
+      case PolicyType.auto:
+        return 'Auto Insurance';
+      case PolicyType.life:
+        return 'Life Insurance';
+      case PolicyType.home:
+        return 'Home Insurance';
+      case PolicyType.travel:
+        return 'Travel Insurance';
+      case PolicyType.other:
+        return 'Insurance Policy';
     }
   }
 

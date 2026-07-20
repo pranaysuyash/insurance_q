@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/analytics_service.dart';
+import 'upgrade_screen.dart';
 
 /// Paywall shown when a free-tier user hits a limit.
 ///
@@ -130,21 +131,18 @@ class PaywallScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // CTA — Phase 1: coming soon
+            // CTA — route to the existing UpgradeScreen (RevenueCat-powered)
             FilledButton(
               onPressed: () {
                 AnalyticsService.track('upgrade_tapped', {
                   'limit_type': limitType.name,
-                  'phase': 'coming_soon',
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Paid plans are coming soon. You\'ll be the first to know!'),
-                    duration: Duration(seconds: 3),
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const UpgradeScreen(),
                   ),
                 );
-                Navigator.pop(context);
               },
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),

@@ -20,14 +20,14 @@ void main() {
 
     test('Hive box not open returns restart message', () {
       final msg = AppError.userMessage(
-        Exception('BoxNotOpenError: box not open'),
+        Exception('HiveError: BoxNotOpenError: box not open'),
       );
       expect(msg, contains('restart the app'));
     });
 
     test('Hive corrupted returns clear data message', () {
       final msg = AppError.userMessage(
-        Exception('CriticalError: data corrupted'),
+        Exception('HiveError: CriticalError: data corrupted'),
       );
       expect(msg, contains('Clearing local data'));
     });
@@ -55,7 +55,7 @@ void main() {
 
     test('Billing user cancelled returns empty string', () {
       final msg = AppError.userMessage(
-        Exception('RevenueCat: user_cancelled'),
+        Exception('BillingException: user_cancelled'),
       );
       expect(msg, isEmpty);
     });
@@ -76,35 +76,35 @@ void main() {
 
     test('DioException 401 returns session expired message', () {
       final msg = AppError.userMessage(
-        Exception('DioException [401]: unauthorized'),
+        Exception('DioException: statuscode 401 unauthorized'),
       );
       expect(msg, contains('session has expired'));
     });
 
     test('DioException 429 returns rate limit message', () {
       final msg = AppError.userMessage(
-        Exception('DioException [429]: too many requests'),
+        Exception('DioException: statuscode 429 too many requests'),
       );
       expect(msg, contains('Too many requests'));
     });
 
     test('DioException 500 returns server error message', () {
       final msg = AppError.userMessage(
-        Exception('DioException [500]: internal server error'),
+        Exception('DioException: statuscode 500 internal server error'),
       );
       expect(msg, contains('server encountered an error'));
     });
 
     test('DioException timeout returns timeout message', () {
       final msg = AppError.userMessage(
-        Exception('DioException [connectiontimedout]: connection timed out'),
+        Exception('DioException: connectiontimedout'),
       );
       expect(msg, contains('took too long'));
     });
 
     test('Permission denied returns permission message', () {
       final msg = AppError.userMessage(
-        Exception('PermissionDeniedException: permissiondenied'),
+        Exception('PermissionDeniedException'),
       );
       expect(msg, contains('Permission denied'));
     });

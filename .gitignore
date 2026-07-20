@@ -125,4 +125,9 @@ mobile/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/
 
 # Temporary files
 temp/
-temp_migration/ 
+temp_migration/
+
+# Hive test caches
+*.hive
+*.hive.lock
+mobile/test_*_hive/

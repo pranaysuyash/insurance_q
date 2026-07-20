@@ -18,6 +18,7 @@ import '../services/consent_ledger.dart';
 import '../services/contact_service.dart';
 import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
+import 'paywall_screen.dart';
 import '../theme/coverwise_motion.dart';
 import '../utils/app_error.dart';
 import '../widgets/lead_capture_dialog.dart';
@@ -49,6 +50,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   Map<String, dynamic>? _ocrResult;
   bool _showUploadDetails = false;
   bool _demoPolicyPreloaded = false;
+  int? _selectedFileSize;
 
   @override
   void initState() {
@@ -93,9 +95,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       try {
         final file = await _loadBundledDemoPolicyFile();
         if (!mounted) return;
+        final size = await file.length();
+        if (!mounted) return;
         setState(() {
           _selectedFile = file;
           _selectedWebFile = null;
+          _selectedFileSize = size;
           _useOnDeviceOcr = false;
           _showUploadDetails = true;
         });
@@ -129,9 +134,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
     final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
     if (file != null && mounted) {
+      final size = await File(file.path).length();
+      if (!mounted) return;
       setState(() {
         _selectedFile = File(file.path);
         _selectedWebFile = null;
+        _selectedFileSize = size;
         final selectedPath = file.path.toLowerCase();
         _useOnDeviceOcr = selectedPath.endsWith('.png') ||
             selectedPath.endsWith('.jpg') ||
@@ -288,14 +296,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
         if (result['error'] == 'storage_limit_reached') {
           setState(() {
-            _uploadError = result['message'] ??
-                'You have reached the document storage limit.';
             _isUploading = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(_uploadError!), backgroundColor: Colors.orange),
-          );
+          // Show the paywall instead of a bare snackbar
+          if (!mounted) return;
+          PaywallScreen.show(context,
+              limitType: PaywallLimitType.documents);
           return;
         }
 
@@ -408,10 +414,18 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     }
   }
 
+  String _formatFileSize(int bytes) {
+    if (bytes > 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / 1024).toStringAsFixed(0)} KB';
+  }
+
   void _clearSelection() {
     setState(() {
       _selectedFile = null;
       _selectedWebFile = null;
+      _selectedFileSize = null;
       _useOnDeviceOcr = false;
       _ocrResult = null;
       _uploadError = null;
@@ -519,10 +533,23 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              _selectedWebFile?.name ??
-                                  _selectedFile!.path.split('/').last,
-                              overflow: TextOverflow.ellipsis,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _selectedWebFile?.name ??
+                                      _selectedFile!.path.split('/').last,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                if (_selectedFileSize != null)
+                                  Text(
+                                    _formatFileSize(_selectedFileSize!),
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ],
@@ -590,12 +617,29 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const CircularProgressIndicator(),
-                                        if (_isReadingOnDevice) ...[
-                                          const SizedBox(height: 10),
-                                          const Text(
-                                              'Reading pages on this device…'),
-                                        ],
+                                        const LinearProgressIndicator(),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              _isReadingOnDevice
+                                                  ? Icons.document_scanner_outlined
+                                                  : Icons.cloud_upload_outlined,
+                                              size: 16,
+                                              color: Theme.of(context).colorScheme.primary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              _isReadingOnDevice
+                                                  ? 'Reading pages on this device…'
+                                                  : 'Uploading to CoverWise…',
+                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ],
                                     ),
                                   )

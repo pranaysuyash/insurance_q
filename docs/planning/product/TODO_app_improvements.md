@@ -23,19 +23,19 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [ ] Test on a variety of device dimensions
   - [ ] Ensure keyboard appearance doesn't cause overflow issues
   
-- [ ] **P0-04: Add Privacy Policy and Terms of Service**
-  - [ ] Create and link privacy policy and terms of service documents
-  - [ ] Add clear information about how user data is handled
-  - [ ] Implement disclosure of data retention policies
-  - [ ] Add consent mechanism for document processing and storage
+- [x] **P0-04: Add Privacy Policy and Terms of Service** ✅ DONE
+  - [x] Create and link privacy policy and terms of service documents
+  - [x] Add clear information about how user data is handled
+  - [x] Implement disclosure of data retention policies
+  - [x] Add consent mechanism for document processing and storage
 
 ## High Priority Issues
 
-- [ ] **P1-01: Improve Upload Feedback**
-  - [ ] Add a clear progress indicator during document upload and processing
-  - [ ] Implement status updates during the OCR process
+- [x] **P1-01: Improve Upload Feedback** ✅ DONE
+  - [x] Add a clear progress indicator during document upload and processing
+  - [x] Implement status updates during the OCR process
   - [ ] Show estimated time remaining for larger documents
-  - [ ] Provide success/failure notifications with clear next steps
+  - [x] Provide success/failure notifications with clear next steps
   
 - [x] **P1-02: Prevent Duplicate Document Uploads**
   - [x] Implement document detection to identify duplicates (June 2025)
@@ -43,9 +43,9 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [x] Offer options: "Cancel", "Replace" or "Keep Both" (June 2025)
   - [x] Implement smart filename comparison that handles version numbers and timestamps (June 2025)
   
-- [ ] **P1-03: Implement User-Friendly Error Messages**
-  - [ ] Replace technical error messages with actionable, friendly messages
-  - [ ] Create standardized error handling across all app screens
+- [x] **P1-03: Implement User-Friendly Error Messages** ✅ DONE
+  - [x] Replace technical error messages with actionable, friendly messages
+  - [x] Create standardized error handling across all app screens
   - [ ] Add help links for common errors
   - [ ] Implement error reporting to help resolve issues
 

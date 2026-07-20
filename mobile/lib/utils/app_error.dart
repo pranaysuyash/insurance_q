@@ -41,27 +41,26 @@ class AppError {
       }
       if (message.contains('connectiontimedout') ||
           message.contains('sendtimedout') ||
-          message.contains('receivetimedout')) {
+          message.contains('receivetimedout') ||
+          message.contains('timed out')) {
         return 'The request took too long. Please check your connection and try again.';
       }
-      if (message.contains('badresponse') || message.contains('statuscode')) {
-        if (message.contains('401') || message.contains('unauthorized')) {
-          return 'Your session has expired. Please sign in again.';
-        }
-        if (message.contains('403') || message.contains('forbidden')) {
-          return 'You don\'t have permission for this action.';
-        }
-        if (message.contains('404') || message.contains('not found')) {
-          return 'The requested resource was not found.';
-        }
-        if (message.contains('429') || message.contains('too many')) {
-          return 'Too many requests. Please wait a moment and try again.';
-        }
-        if (message.contains('500') ||
-            message.contains('502') ||
-            message.contains('503')) {
-          return 'The server encountered an error. Please try again later.';
-        }
+      if (message.contains('401') || message.contains('unauthorized')) {
+        return 'Your session has expired. Please sign in again.';
+      }
+      if (message.contains('403') || message.contains('forbidden')) {
+        return 'You don\'t have permission for this action.';
+      }
+      if (message.contains('404') || message.contains('not found')) {
+        return 'The requested resource was not found.';
+      }
+      if (message.contains('429') || message.contains('too many')) {
+        return 'Too many requests. Please wait a moment and try again.';
+      }
+      if (message.contains('500') ||
+          message.contains('502') ||
+          message.contains('503')) {
+        return 'The server encountered an error. Please try again later.';
       }
       if (message.contains('canceled')) {
         return 'The request was cancelled. Please try again.';
@@ -107,7 +106,7 @@ class AppError {
     }
 
     // ── Auth errors ──
-    if (message.contains('auth') || message.contains('login') || message.contains('sign')) {
+    if (message.contains('authentication') || message.contains('authexception') || message.contains('login') || message.contains('sign in') || message.contains('sign_up')) {
       if (message.contains('invalid') || message.contains('wrong password')) {
         return 'Incorrect email or password. Please try again.';
       }
@@ -130,7 +129,7 @@ class AppError {
 
     // ── Billing / purchase errors ──
     if (message.contains('billing') || message.contains('purchase') || message.contains('revenuecat')) {
-      if (message.contains('user cancelled') || message.contains('user_canceled')) {
+      if (message.contains('user cancelled') || message.contains('user_canceled') || message.contains('user_cancelled')) {
         return ''; // Silent — user deliberately cancelled. Callers should check for empty.
       }
       if (message.contains('not available') || message.contains('store not available')) {
@@ -171,6 +170,18 @@ class AppError {
     // that doesn't leak technical details but still acknowledges
     // the error happened.
     return 'Something went wrong. Please try again. If the problem persists, contact support.';
+  }
+
+  /// Returns true when the error is a user-initiated cancellation
+  /// (e.g. closing a purchase dialog). Callers should silently
+  /// ignore these rather than showing an error message.
+  static bool isCancelled(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('user cancelled') ||
+        message.contains('user_canceled') ||
+        message.contains('user_cancelled') ||
+        message.contains('canceled') ||
+        message.contains('cancelled');
   }
 
   /// Returns a user-friendly message for a specific error context.
