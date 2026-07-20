@@ -98,11 +98,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     //
     // docs is passed from build() via ref.watch(documentsProvider) so the
     // list is always current — no race condition with async provider reads.
+    //
+    // Capture ScaffoldMessenger early to avoid use_build_context_synchronously
+    // lint warnings after async gaps (the messenger is safe across gaps).
+    final messenger = ScaffoldMessenger.of(context);
     final inFlight = docs.where((d) => _inFlightStates.contains(d.processingState)).toList();
     if (inFlight.isNotEmpty) {
       final names = inFlight.map((d) => d.filename).join(', ');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             '${inFlight.length} document${inFlight.length == 1 ? ' is' : 's are'} still processing: $names. '
@@ -158,7 +161,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (confirmed != true || !mounted) return;
 
     // Show a second confirmation with typing requirement
-    if (!mounted) return;
+    if (!context.mounted) return;
     final doubleConfirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => _DeleteConfirmationDialog(),
@@ -168,7 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Perform deletion
     try {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Deleting account...')),
       );
       // Per the 2026-07-19 review: the backend returns HTTP 202
@@ -199,7 +202,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             'Account deletion requested. Status: ${result.status}. '
             'Check the privacy screen for details.';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(snackMessage),
           backgroundColor: statusColor,
@@ -209,7 +212,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() {});
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text('Could not delete account: $e'),
           backgroundColor: Colors.red,
