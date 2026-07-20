@@ -15,6 +15,10 @@ void main() {
     } else {
       box = Hive.box(AppStateStore.boxName);
     }
+    // Open the consent_ledger box that ConsentLedger uses.
+    if (!Hive.isBoxOpen('consent_ledger')) {
+      await Hive.openBox('consent_ledger');
+    }
     // Clear the consent ledger before each test.
     await box.delete('consent_ledger_v1');
   });

@@ -461,8 +461,8 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | ~~M13~~ | ~~Emergency Shortcut~~ | ✅ DONE |
 | ~~M14~~ | ~~Notification Preferences~~ | ✅ DONE |
 | ~~M15~~ | ~~Processing Status Stages~~ | ✅ DONE |
-| M16 | Real billing integration (RevenueCat) | 🔲 Stub only — needs SDK |
-| M17 | Backend subscription sync endpoint | 🔲 Not started |
+| ~~M16~~ | ~~Real billing integration (RevenueCat)~~ | ✅ DONE |
+| ~~M17~~ | ~~Backend subscription sync endpoint~~ | ✅ DONE |
 | M18 | Cost attribution per operation | 🔲 Not started |
 
 ### Brainstorm Features (Info Broker)
@@ -561,3 +561,7 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | 2026-07-18 | Added Flow 12 (Account Auth) and Flow 13 (Account Deletion) to flow mapping | Buffy |
 | 2026-07-18 | Added Gaps 6.5–6.9 (auth gaps) as RESOLVED in critical gaps section | Buffy |
 | 2026-07-18 | Updated priority stack: 6 auth items marked DONE (A1–A6) | Buffy |
+| 2026-07-20 | Marked M16 (RevenueCat billing integration) as DONE | Buffy |
+| 2026-07-20 | Marked M17 (Backend subscription sync endpoint) as DONE | Buffy |
+| 2026-07-20 | P0-04: Added privacy policy + terms of service documents, in-app viewers, consent checkbox, shared LegalContentSection widget | Buffy |
+| 2026-07-20 | Added ConsentPurpose.termsAccepted enum value, fixed non-exhaustive switch errors in settings_screen | Buffy |

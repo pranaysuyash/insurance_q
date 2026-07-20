@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/legal_content_section.dart';
 
 /// In-app privacy policy viewer.
 ///
@@ -74,8 +75,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Policy content
-            _PolicySection(
+            // Policy content — uses shared LegalContentSection widget
+            LegalContentSection(
               title: 'Introduction',
               content: 'CoverWise ("we," "our," or "us") helps you understand your insurance policies '
                   'by extracting key information and answering your questions in plain language. '
@@ -83,7 +84,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   'We are an **information broker** — we help you understand your policies. '
                   'We do not sell insurance, provide financial advice, or act as an insurer.',
             ),
-            _PolicySection(
+            LegalContentSection(
               title: 'What We Collect',
               content: '**Data You Provide:**\n'
                   '• Policy documents (PDFs and images you upload)\n'
@@ -99,35 +100,35 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   '• Location data\n'
                   '• Contact lists',
             ),
-            _PolicySection(
+            LegalContentSection(
               title: 'How We Use Your Data',
               content: '**Policy Processing:** Documents stored in encrypted Supabase Storage\n\n'
                   '**Q&A Answers:** Questions processed temporarily, not stored server-side\n\n'
                   '**Search Functionality:** Vector embeddings in private pgvector index\n\n'
                   '**App Improvement:** Anonymous event counts (opt-in, 30-day retention)',
             ),
-            _PolicySection(
+            LegalContentSection(
               title: 'Data Retention',
               content: '**Local Data:** Stored on your device until you delete it\n\n'
                   '**Server Data:** Retained until account deletion (best-effort)\n\n'
                   '**Analytics:** Automatically purged after 30 days\n\n'
                   '**Account Data:** Deleted within 30 days of deletion request',
             ),
-            _PolicySection(
+            LegalContentSection(
               title: 'Your Rights',
               content: '**Access:** View all data in the app\n\n'
                   '**Correction:** Edit extracted information directly\n\n'
                   '**Deletion:** Delete local data anytime; request account deletion\n\n'
                   '**Consent:** Toggle analytics consent in Settings → Privacy',
             ),
-            _PolicySection(
+            LegalContentSection(
               title: 'Security',
               content: '• All communication encrypted via HTTPS/TLS\n'
                   '• API keys stored as environment variables\n'
                   '• Rate limiting prevents abuse\n'
                   '• Anonymous device identity protects documents',
             ),
-            _PolicySection(
+            LegalContentSection(
               title: 'Contact',
               content: 'For privacy questions or data requests:\n'
                   '• Email: support@coverwise.app\n'
@@ -181,44 +182,6 @@ Contact: support@coverwise.app
     Clipboard.setData(ClipboardData(text: policyText));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Privacy policy copied to clipboard')),
-    );
-  }
-}
-
-class _PolicySection extends StatelessWidget {
-  final String title;
-  final String content;
-
-  const _PolicySection({required this.title, required this.content});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return CoverWiseSurface(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              content,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.5,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

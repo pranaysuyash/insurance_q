@@ -443,11 +443,10 @@ class RAGPipeline:
         # the map; chunks without a page get None (the verifier will
         # reject the citation if the chunk is cited without a page).
         if page_artifact_id_map is not None:
-            for block in text_blocks:
+            for i, block in enumerate(text_blocks):
                 page_num = block.get("page")
                 if page_num is not None and int(page_num) in page_artifact_id_map:
-                    block = {**block, "page_artifact_id": page_artifact_id_map[int(page_num)]}
-                text_blocks = text_blocks  # noqa - keep reference
+                    text_blocks[i] = {**block, "page_artifact_id": page_artifact_id_map[int(page_num)]}
 
         filtered = []
         for block in text_blocks:

@@ -50,9 +50,11 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
     if (AppConfig.hasPrivacyPolicy) {
       final uri = Uri.parse(AppConfig.privacyPolicyUrl);
       if (await canLaunchUrl(uri)) {
+        if (!mounted) return;
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } else {
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(

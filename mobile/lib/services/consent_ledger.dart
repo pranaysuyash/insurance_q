@@ -1,9 +1,7 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:hive/hive.dart';
-import '../services/app_state_store.dart';
 
-/// Purpose-specific consent types tracked by CoverWise.
+/// The purpose for which consent was granted or revoked.
 enum ConsentPurpose {
   /// Core document processing — OCR, extraction, RAG indexing.
   documentProcessing('document_processing'),
@@ -12,7 +10,10 @@ enum ConsentPurpose {
   analytics('analytics'),
 
   /// Lead capture — storing email/phone for follow-up.
-  leadCapture('lead_capture');
+  leadCapture('lead_capture'),
+
+  /// Terms of Service acceptance during onboarding.
+  termsAccepted('terms_accepted');
 
   final String value;
   const ConsentPurpose(this.value);
@@ -25,7 +26,7 @@ enum ConsentPurpose {
   }
 }
 
-/// A single consent record in the ledger.
+/// A single consent record stored in the ledger.
 class ConsentRecord {
   final ConsentPurpose purpose;
   final String version;
@@ -41,7 +42,10 @@ class ConsentRecord {
     this.revokedAt,
   });
 
-  bool get isActive => granted && revokedAt == null;
+  /// Whether this consent record is currently active (granted and not revoked).
+  bool get isActive => granted && !isRevoked;
+
+  /// Whether this consent has been revoked.
   bool get isRevoked => revokedAt != null;
 
   Map<String, dynamic> toJson() => {
@@ -49,126 +53,125 @@ class ConsentRecord {
         'version': version,
         'granted': granted,
         'timestamp': timestamp.toIso8601String(),
-        if (revokedAt != null) 'revoked_at': revokedAt!.toIso8601String(),
+        'revoked_at': revokedAt?.toIso8601String(),
       };
 
   factory ConsentRecord.fromJson(Map<String, dynamic> json) {
+    final purpose =
+        ConsentPurpose.fromString(json['purpose'] ?? '') ??
+            ConsentPurpose.documentProcessing;
     return ConsentRecord(
-      purpose: ConsentPurpose.fromString(json['purpose'] ?? '') ??
-          ConsentPurpose.documentProcessing,
-      version: json['version'] ?? 'unknown',
-      granted: json['granted'] ?? false,
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      purpose: purpose,
+      version: json['version'] as String? ?? 'unknown',
+      granted: json['granted'] as bool? ?? false,
+      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ??
+          DateTime.now(),
       revokedAt: json['revoked_at'] != null
-          ? DateTime.tryParse(json['revoked_at'])
+          ? DateTime.tryParse(json['revoked_at'] as String)
           : null,
     );
   }
 }
 
-/// Purpose-specific consent ledger stored in Hive.
+/// Append-only ledger of consent grants and revocations.
 ///
-/// Unlike the single `processing_consent_version` key, this ledger tracks
-/// consent per-purpose with grant/revoke timestamps for auditability.
+/// Stored in a Hive box named `consent_ledger`. Each record is a JSON map
+/// appended to the box's values list. The latest record for a given
+/// [ConsentPurpose] determines the current consent state.
 class ConsentLedger {
-  static const _boxKey = 'consent_ledger_v1';
-  Box get _box => Hive.box(AppStateStore.boxName);
+  static const String _boxName = 'consent_ledger';
 
-  /// Record a consent grant or revoke for a specific purpose.
+  Box<dynamic>? get _box {
+    try {
+      return Hive.box<dynamic>(_boxName);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Record a consent grant or revocation.
   Future<void> recordConsent({
     required ConsentPurpose purpose,
     required String version,
     required bool granted,
   }) async {
-    final records = _loadRecords();
-    records.add(ConsentRecord(
+    final record = ConsentRecord(
       purpose: purpose,
       version: version,
       granted: granted,
       timestamp: DateTime.now(),
-    ));
-    await _saveRecords(records);
-    debugPrint(
-        'ConsentLedger: ${granted ? "granted" : "revoked"} ${purpose.value} v$version');
+    );
+    await _box?.add(record.toJson());
   }
 
-  /// Revoke consent for a specific purpose.
+  /// Revoke consent for a given purpose by marking the latest active record
+  /// as revoked.
   Future<void> revokeConsent(ConsentPurpose purpose) async {
-    final records = _loadRecords();
-    // Find the latest active record for this purpose and mark it revoked.
-    ConsentRecord? latestActive;
-    int? latestIndex;
-    for (var i = records.length - 1; i >= 0; i--) {
-      if (records[i].purpose == purpose && records[i].isActive) {
-        latestActive = records[i];
-        latestIndex = i;
-        break;
-      }
-    }
-    if (latestIndex != null) {
-      records[latestIndex] = ConsentRecord(
-        purpose: latestActive!.purpose,
-        version: latestActive.version,
-        granted: latestActive.granted,
-        timestamp: latestActive.timestamp,
-        revokedAt: DateTime.now(),
-      );
-      await _saveRecords(records);
-      debugPrint('ConsentLedger: revoked ${purpose.value}');
-    }
+    final latest = getLatestRecord(purpose);
+    if (latest == null || latest.isRevoked) return;
+
+    final revokedRecord = ConsentRecord(
+      purpose: latest.purpose,
+      version: latest.version,
+      granted: false,
+      timestamp: latest.timestamp,
+      revokedAt: DateTime.now(),
+    );
+    await _box?.add(revokedRecord.toJson());
   }
 
-  /// Check if consent is currently active for a given purpose.
+  /// Check if consent is currently granted for a given purpose.
+  ///
+  /// Looks at the latest record for this purpose. If no record exists
+  /// or the latest is revoked, returns `false` (default deny).
   bool hasConsent(ConsentPurpose purpose) {
-    final records = _loadRecords();
-    for (var i = records.length - 1; i >= 0; i--) {
-      if (records[i].purpose == purpose) {
-        return records[i].isActive;
-      }
-    }
-    return false;
+    final record = getLatestRecord(purpose);
+    return record?.isActive ?? false;
   }
 
-  /// Get the latest consent record for a purpose.
+  /// Get the latest consent record for a given purpose.
   ConsentRecord? getLatestRecord(ConsentPurpose purpose) {
-    final records = _loadRecords();
-    for (var i = records.length - 1; i >= 0; i--) {
-      if (records[i].purpose == purpose) {
-        return records[i];
+    if (_box == null) return null;
+
+    ConsentRecord? latest;
+    for (final value in _box!.values) {
+      try {
+        final record =
+            ConsentRecord.fromJson(Map<String, dynamic>.from(value));
+        if (record.purpose == purpose) {
+          if (latest == null || record.timestamp.isAfter(latest.timestamp)) {
+            latest = record;
+          }
+        }
+      } catch (_) {
+        // Skip malformed records.
       }
     }
-    return null;
+    return latest;
   }
 
-  /// Get all consent records (for settings / audit display).
-  List<ConsentRecord> getAllRecords() => _loadRecords();
+  /// Get all consent records, optionally filtered by purpose.
+  List<ConsentRecord> getAllRecords({ConsentPurpose? purpose}) {
+    if (_box == null) return [];
 
-  /// Clear all consent records (used on clear-data).
+    final records = <ConsentRecord>[];
+    for (final value in _box!.values) {
+      try {
+        final record =
+            ConsentRecord.fromJson(Map<String, dynamic>.from(value));
+        if (purpose == null || record.purpose == purpose) {
+          records.add(record);
+        }
+      } catch (_) {
+        // Skip malformed records.
+      }
+    }
+    records.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return records;
+  }
+
+  /// Clear all consent records.
   Future<void> clear() async {
-    await _box.delete(_boxKey);
-    debugPrint('ConsentLedger: cleared all records');
-  }
-
-  List<ConsentRecord> _loadRecords() {
-    try {
-      final raw = _box.get(_boxKey);
-      if (raw == null || raw is! String) return [];
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return [];
-      return decoded
-          .map((e) => ConsentRecord.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      debugPrint('ConsentLedger: failed to load records: $e');
-      return [];
-    }
-  }
-
-  Future<void> _saveRecords(List<ConsentRecord> records) async {
-    try {
-      await _box.put(_boxKey, jsonEncode(records.map((r) => r.toJson()).toList()));
-    } catch (e) {
-      debugPrint('ConsentLedger: failed to save records: $e');
-    }
+    await _box?.clear();
   }
 }

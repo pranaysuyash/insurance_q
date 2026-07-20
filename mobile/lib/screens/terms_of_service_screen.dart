@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/legal_content_section.dart';
 
 /// In-app terms of service viewer.
 ///
@@ -74,19 +75,19 @@ class TermsOfServiceScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Terms content
-            _TermsSection(
+            // Terms content — uses shared LegalContentSection widget
+            LegalContentSection(
               title: '1. Acceptance of Terms',
               content: 'By downloading, installing, or using CoverWise, you agree to these Terms. '
                   'If you do not agree, do not use the App.',
             ),
-            _TermsSection(
+            LegalContentSection(
               title: '2. Description of Service',
               content: 'CoverWise is an **information broker** that helps you understand your '
                   'insurance policies by extracting key information and answering questions.\n\n'
                   '**We are not an insurer, insurance agent, broker, or financial advisor.**',
             ),
-            _TermsSection(
+            LegalContentSection(
               title: '3. Important Disclaimers',
               content: '**Not Insurance Advice:**\n'
                   'CoverWise provides general information based on your policy documents. '
@@ -104,7 +105,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                   '• AI may misinterpret policy language\n'
                   '• Cross-reference AI answers with your actual policy',
             ),
-            _TermsSection(
+            LegalContentSection(
               title: '4. User Responsibilities',
               content: '**Account Security:**\n'
                   '• You are responsible for maintaining your credentials\n'
@@ -116,7 +117,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                   '• Use the App only for lawful purposes\n'
                   '• Do not circumvent rate limits or security measures',
             ),
-            _TermsSection(
+            LegalContentSection(
               title: '5. Intellectual Property',
               content: '**Your Content:**\n'
                   '• You retain ownership of your policy documents\n'
@@ -126,7 +127,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                   '• CoverWise and its technology are owned by us\n'
                   '• These Terms do not grant you rights to our trademarks or technology',
             ),
-            _TermsSection(
+            LegalContentSection(
               title: '6. Limitation of Liability',
               content: '**No Warranty:**\n'
                   'The App is provided "as is" without warranties. We do not warrant that:\n'
@@ -143,7 +144,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                   '• Coverage gaps not identified by the App\n'
                   '• Financial losses from insurance decisions using App information',
             ),
-            _TermsSection(
+            LegalContentSection(
               title: '7. Contact',
               content: 'For questions about these Terms:\n'
                   '• Email: support@coverwise.app\n'
@@ -192,44 +193,6 @@ Contact: support@coverwise.app
     Clipboard.setData(ClipboardData(text: termsText));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Terms of service copied to clipboard')),
-    );
-  }
-}
-
-class _TermsSection extends StatelessWidget {
-  final String title;
-  final String content;
-
-  const _TermsSection({required this.title, required this.content});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return CoverWiseSurface(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              content,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                height: 1.5,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

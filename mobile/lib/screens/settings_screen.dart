@@ -409,6 +409,8 @@ class _ConsentRecordRow extends StatelessWidget {
         return 'Usage analytics';
       case ConsentPurpose.leadCapture:
         return 'Contact capture';
+      case ConsentPurpose.termsAccepted:
+        return 'Terms accepted';
     }
   }
 
@@ -420,6 +422,8 @@ class _ConsentRecordRow extends StatelessWidget {
         return Icons.bar_chart_outlined;
       case ConsentPurpose.leadCapture:
         return Icons.contact_mail_outlined;
+      case ConsentPurpose.termsAccepted:
+        return Icons.rule_outlined;
     }
   }
 

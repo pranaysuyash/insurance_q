@@ -1,6 +1,6 @@
 # Session Context
 
-- Generated: 2026-07-20T05:31:30Z
+- Generated: 2026-07-20T07:06:01Z
 - Project: `medpiper/insurance_app`
 - Provider: `local`
 - Model: `BAAI/bge-m3`
@@ -9,10 +9,10 @@
 
 ## Project Motto
 
-- File: `/Users/pranay/Projects/medpiper/insurance_app/motto_v3.md`
-- Legacy bridge: `/Users/pranay/Projects/medpiper/insurance_app/motto_v2.md`
-- Source: `/Users/pranay/Downloads/motto_v3.md`
-- Sync status: `synced from /Users/pranay/Downloads/motto_v3.md; legacy motto_v2.md symlinked to motto_v3.md`
+- File: `/Users/pranay/Projects/medpiper/insurance_app/motto_v4.md`
+- Legacy bridge: `/Users/pranay/Projects/medpiper/insurance_app/motto_v3.md`
+- Source: `/Users/pranay/Downloads/motto_v4.md`
+- Sync status: `synced from /Users/pranay/Downloads/motto_v4.md; retired motto_v3.md and motto_v2.md`
 - Guidance: read this before implementation or review on this project.
 
 ## Project-Focused Retrieval

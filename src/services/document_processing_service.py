@@ -272,7 +272,9 @@ class DocumentProcessingService:
                     extracted_text = f"Document: {filename}"  # Fallback
                 
                 rag_result = await self._ingest_into_rag(
-                    document_id, extracted_text, filename, owner_id=owner_id
+                    document_id, extracted_text, filename, owner_id=owner_id,
+                    page_texts=ocr_result.get("page_texts"),
+                    page_images=ocr_result.get("page_images"),
                 )
                 result["stages"]["rag_ingestion"] = rag_result
             elif processing_mode in ["full", "rag_only"]:
@@ -501,6 +503,9 @@ class DocumentProcessingService:
                 # pages) are omitted; the evidence pipeline handles
                 # the resulting page-number gaps.
                 page_texts: Dict[int, str] = {}
+                # Per-page rendered image bytes (PNG) for page_artifact
+                # persistence (ADR-2026-07-19-11 Layer 4).
+                page_images: Dict[int, bytes] = {}
                 for page_index, page in enumerate(doc, start=1):
                     text = page.get_text()
                     if text and text.strip():
@@ -508,6 +513,14 @@ class DocumentProcessingService:
                         page_texts[page_index] = text.strip()
                     else:
                         image_only_pages += 1
+                    # Render page as PNG for page_artifact (Layer 4).
+                    # This is needed even for text-only pages so the
+                    # "open page" action can show the original layout.
+                    try:
+                        pix = page.get_pixmap(dpi=150)
+                        page_images[page_index] = pix.tobytes("png")
+                    except Exception:
+                        pass  # rendering failed; page_artifact will lack image
                 doc.close()
 
                 full_text = "\n\n".join(all_text).strip()
@@ -523,6 +536,7 @@ class DocumentProcessingService:
                     return {
                         "full_text": full_text,
                         "page_texts": page_texts,
+                        "page_images": page_images,
                         "status": "completed",
                         "method": method,
                     }
@@ -623,9 +637,19 @@ class DocumentProcessingService:
             }
     
     async def _ingest_into_rag(
-        self, document_id: str, text: str, filename: str, *, owner_id: Optional[str]
+        self, document_id: str, text: str, filename: str, *,
+        owner_id: Optional[str],
+        page_texts: Optional[Dict[int, str]] = None,
+        page_images: Optional[Dict[int, bytes]] = None,
     ) -> Dict[str, Any]:
-        """Ingest document into RAG pipeline with multi-view indexing."""
+        """Ingest document into RAG pipeline with multi-view indexing.
+
+        Per ADR-2026-07-19-11 Layer 4: when page_texts and page_images
+        are provided, page artifacts are created in the substrate before
+        chunking. Every chunk gets a ``page`` field and a corresponding
+        ``page_artifact_id`` so the "open page" action can resolve the
+        source page.
+        """
         try:
             if not text or len(text.strip()) < 10:
                 return {
@@ -642,9 +666,58 @@ class DocumentProcessingService:
             }
             if owner_id:
                 metadata["owner_id"] = owner_id
-            
-            # Split text into chunks for better RAG performance
-            text_blocks = self._split_text_into_blocks(text)
+
+            # Layer 4: create page artifacts and build page_artifact_id_map.
+            page_artifact_id_map: Optional[Dict[int, str]] = None
+            if page_texts and self._evidence_pipeline_enabled():
+                try:
+                    from src.services.evidence_substrate_service import (
+                        EvidenceSubstrateService,
+                    )
+                    substrate = EvidenceSubstrateService()
+                    page_artifact_id_map = {}
+                    for page_num, ocr_text in page_texts.items():
+                        page_image = (
+                            page_images.get(page_num, b"")
+                            if page_images
+                            else b""
+                        )
+                        if not page_image:
+                            continue  # skip pages without rendered image
+                        try:
+                            pa_id = await substrate.append_page_artifact(
+                                document_id=UUID(document_id),
+                                page_number=page_num,
+                                page_image_bytes=page_image,
+                                ocr_text=ocr_text,
+                            )
+                            page_artifact_id_map[page_num] = str(pa_id)
+                        except Exception as pa_err:
+                            logger.warning(
+                                "page_artifact_create_failed document_id=%s "
+                                "page=%d error=%s",
+                                document_id, page_num, pa_err,
+                            )
+                except Exception as sub_err:
+                    logger.warning(
+                        "page_artifact_setup_failed document_id=%s error=%s",
+                        document_id, sub_err,
+                    )
+                    page_artifact_id_map = None
+
+            # Split text into chunks for better RAG performance.
+            # When page_texts is available, split per-page so each
+            # chunk carries a ``page`` field for Layer 4 linkage.
+            if page_texts:
+                text_blocks = []
+                for page_num in sorted(page_texts):
+                    page_text = page_texts[page_num]
+                    page_blocks = self._split_text_into_blocks(page_text)
+                    for block in page_blocks:
+                        block["page"] = page_num
+                    text_blocks.extend(page_blocks)
+            else:
+                text_blocks = self._split_text_into_blocks(text)
 
             # Multi-view indexing: extract entities and add as separate chunk type
             entity_blocks = await self._extract_entity_blocks(text, document_id)
@@ -654,7 +727,8 @@ class DocumentProcessingService:
             ingest_result = await self.rag_pipeline.ingest_document_data(
                 document_id=document_id,
                 text_blocks=all_blocks,
-                document_metadata=metadata
+                document_metadata=metadata,
+                page_artifact_id_map=page_artifact_id_map,
             )
             
             return {
@@ -662,6 +736,7 @@ class DocumentProcessingService:
                 "text_blocks_count": len(text_blocks),
                 "entity_blocks_count": len(entity_blocks),
                 "total_text_length": len(text),
+                "page_artifacts_created": len(page_artifact_id_map) if page_artifact_id_map else 0,
                 "rag_result": ingest_result
             }
             

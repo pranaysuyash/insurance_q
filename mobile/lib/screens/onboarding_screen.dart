@@ -21,6 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _currentPage = 0;
   bool _analyticsConsent = true; // Default ON — matches analytics fail-open.
   bool _consentToggled = false; // Track if user explicitly changed the toggle.
+  bool _acceptedTerms = false; // Must be true to proceed from last page.
 
   static const _pages = [
     _OnboardingData(
@@ -56,25 +57,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _complete({bool openFilePicker = false}) {
-    // Only record consent if the user explicitly toggled it.
-    // If they didn't touch the toggle, the default (ON) stands via
-    // AnalyticsService._checkConsentFresh() fail-open behavior.
-    if (_consentToggled) {
-      _recordAnalyticsConsent();
-    }
+    // Record both analytics consent and terms acceptance.
+    // Analytics: only if user explicitly toggled the switch.
+    // Terms: always record — the user must check the box to proceed.
+    _recordConsentState();
     Hive.box('app_state_box').put('onboarding_complete', true);
     widget.onComplete(openFilePicker: openFilePicker);
   }
 
-  Future<void> _recordAnalyticsConsent() async {
+  Future<void> _recordConsentState() async {
     try {
       final ledger = ConsentLedger();
+      // Record analytics consent only if user explicitly toggled the switch.
+      if (_consentToggled) {
+        await ledger.recordConsent(
+          purpose: ConsentPurpose.analytics,
+          version: 'analytics-v1',
+          granted: _analyticsConsent,
+        );
+        AnalyticsService.refreshConsentCache();
+      }
+      // Always record terms acceptance — the user must check the box.
       await ledger.recordConsent(
-        purpose: ConsentPurpose.analytics,
-        version: 'analytics-v1',
-        granted: _analyticsConsent,
+        purpose: ConsentPurpose.termsAccepted,
+        version: 'terms-v1',
+        granted: _acceptedTerms,
       );
-      AnalyticsService.refreshConsentCache();
     } catch (e) {
       // Best-effort — don't block onboarding.
     }
@@ -243,12 +251,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ],
                       ),
                     ),
+                    // Explicit consent checkbox — required before proceeding
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Checkbox(
+                            value: _acceptedTerms,
+                            onChanged: (value) {
+                              setState(() {
+                                _acceptedTerms = value ?? false;
+                              });
+                            },
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Text(
+                                'I have read and agree to the Privacy Policy '
+                                'and Terms of Service',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: isLast
-                          ? () => _complete(openFilePicker: true)
+                          ? (_acceptedTerms
+                              ? () => _complete(openFilePicker: true)
+                              : null)
                           : () {
                               if (CoverWiseMotion.isReduced(context)) {
                                 _controller.jumpToPage(_currentPage + 1);
