@@ -63,6 +63,13 @@ worktree also contains `insurance_app.db`, SQLite `-shm`/`-wal` files, and
 untracked debug tests. None were deleted or ignored; each requires explicit
 classification before cleanup.
 
+The latest status shows several of these artifacts are already staged:
+`mobile/test/debug_*.dart`, `mobile/test/legal_content_loader_test.dart`,
+`storage/rag_hybrid_index.db-shm`, `storage/rag_hybrid_index.db-wal`, and the
+binary `insurance_app.db` change. Staged does not make an artifact product
+source. Their intended classification and retention decision must be made
+before any commit.
+
 ### Python fallback verification is environment-gated
 
 The fallback suite completed with **39 passed, 15 failed**. Most failures were
@@ -85,6 +92,61 @@ some Tier 2 rendering evidence, not full persistence, synchronization,
 real-document, operator, or restart proof. The journey map correctly keeps
 those broader claims open.
 
+### Documents empty-state overflow is a confirmed, narrowly closed UI defect
+
+The shared `EmptyStateWidget` now scrolls when its composition exceeds the
+available viewport, while preserving centered layout when it fits. The new
+short-viewport regression test passed with the Documents suite. This is a
+focused Tier 2 UI closure; it does not prove all device sizes, text scales, or
+other screens that reuse the widget.
+
+### Analytics view hardening is structurally sound but migration proof is pending
+
+`supabase/migrations/20260721061309_secure_analytics_views.sql` marks the three
+operator analytics views `security_invoker`, revokes client-role access, and
+grants service-role select. The source migration creates the views and already
+restricts the underlying `analytics_events` table. Static review supports the
+decision, but applying the migration and testing role behavior against the
+actual Supabase project remain Tier 3 work.
+
+### Launch status is a snapshot, not current proof
+
+`docs/review/launch_execution_status_2026-07-21.md` reports “No issues found”
+from `flutter analyze` and a complete Flutter suite of 554 passing tests. The
+current rerun reports 37 analyzer diagnostics and the reviewed focused suite
+reports 111 passing tests, so the launch-status claims cannot be reused as
+current evidence without reproducing their exact command, checkout, and
+environment. Its local runtime/Tier 3 claims also remain historical until the
+same runtime path is observed against the current tree.
+
+Disposition: retain the launch record for provenance, but label it as a dated
+snapshot and update it only with reproducible current commands/results.
+
+### Staged doctrine conflicts with the working-tree doctrine
+
+The current worktree has `motto_v4.md` and `docs/context/agent-start/STEP1_ENV.sh`
+pointing at v4, but the index stages `motto_v4.md` and `STEP1_ENV.sh` with v3
+content/source references. `git show HEAD:motto_v4.md` is v4, so the staged
+state would regress the repository’s canonical instruction surface even though
+the working tree is aligned to v4.
+
+Disposition: preservation hazard. Do not commit or stage further work until the
+operator resolves whether the staged v3 rollback is intentional. No unstage,
+reset, checkout, or other Git mutation was performed.
+
+### Splash dependency classification is not yet justified
+
+The unstaged `mobile/pubspec.yaml` change moves `flutter_native_splash` from
+`dev_dependencies` to runtime `dependencies`. The current code search finds no
+Dart import; the package is referenced by the build-time generation command and
+configuration block. Unless the release pipeline invokes package APIs from
+runtime code, the move broadens the production dependency graph without a
+demonstrated product requirement.
+
+Disposition: verify the actual build/release command before retaining the move.
+If generation is build-time only, keep the package as a development dependency
+and document the generation step instead.
+
 ## Verification performed
 
 `flutter analyze`: completed without compile errors; 37 warnings/info findings
@@ -101,6 +163,9 @@ The process exited successfully.
 
 The affected subset (`upgrade_screen_test.dart` and
 `consent_ledger_test.dart`) also passed independently with 50 tests.
+
+The Documents screen suite also passed independently with **8 tests**, including
+the short-viewport overflow regression.
 
 No staging, commit, reset, checkout, branch operation, deletion, or ignore-rule
 change was performed.

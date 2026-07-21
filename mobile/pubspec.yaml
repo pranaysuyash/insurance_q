@@ -64,6 +64,7 @@ dependencies:
   supabase_flutter: ^2.15.4
   google_sign_in: ^6.2.1
   purchases_flutter: ^10.4.2
+  flutter_native_splash: ^2.4.6
 
 dev_dependencies:
   flutter_test:
@@ -76,7 +77,6 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
-  flutter_native_splash: ^2.4.6
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

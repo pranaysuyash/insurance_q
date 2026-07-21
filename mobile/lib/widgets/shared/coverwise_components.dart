@@ -400,6 +400,34 @@ class CoverWiseInfoPanel extends StatelessWidget {
   }
 }
 
+/// Compact badge indicating a feature is not yet available.
+///
+/// Usage: pass as `trailing` to [CoverWiseActionRow] for features
+/// that are planned but not yet implemented.
+class CoverWiseSoonBadge extends StatelessWidget {
+  const CoverWiseSoonBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        'Soon',
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
 /// Reusable selectable card for documents, policies and structured choices.
 class CoverWiseSelectableRow extends StatelessWidget {
   final IconData icon;

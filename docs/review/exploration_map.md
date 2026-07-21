@@ -155,6 +155,8 @@ Confirmed exploration items:
 - account-switch isolation, Hive migration, test teardown, and status language
   still need evidence reconciliation before the dirty diff can be treated as
   launch-complete.
+- the short-viewport Documents overflow has a focused Tier 2 regression proof;
+  analytics view hardening still needs applied-migration role verification.
 
 These are now the next high-priority exploration/implementation gates. They are
 not treated as closed by the presence of migrations, ADRs, or UI states alone.

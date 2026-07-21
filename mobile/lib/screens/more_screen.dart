@@ -76,26 +76,7 @@ class MoreScreen extends StatelessWidget {
                       title: group.items[index].title,
                       subtitle: group.items[index].subtitle,
                       trailing: group.items[index].comingSoon
-                          ? Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Soon',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                              ),
-                            )
+                          ? const CoverWiseSoonBadge()
                           : null,
                       onTap: group.items[index].comingSoon
                           ? null

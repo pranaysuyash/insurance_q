@@ -158,5 +158,21 @@ void main() {
       expect(find.text('Documents'), findsOneWidget);
       expect(find.text('Add policy file'), findsOneWidget);
     });
+
+    testWidgets('does not overflow when the document viewport is short',
+        (tester) async {
+      tester.view.physicalSize = const Size(402, 650);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(buildDocumentsScreen(documents: []));
+      await tester.pump(const Duration(seconds: 2));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('No saved policies yet'), findsOneWidget);
+    });
   });
 }

@@ -27,49 +27,67 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (scene != null)
-              CoverWiseScene(scene: scene!, maxHeight: 176)
-            else
-              _EmptyStateVisual(
-                icon: icon,
-                color: color,
-              ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                subtitle!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      height: 1.45,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Empty states are often placed in an Expanded list below a page
+        // header. Keep the composition centered when it fits, but allow the
+        // content to scroll when a short viewport or larger text scale leaves
+        // less room than the illustration and copy require.
+        final minHeight =
+            constraints.hasBoundedHeight ? constraints.maxHeight : 0.0;
+
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minHeight),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (scene != null)
+                      CoverWiseScene(scene: scene!, maxHeight: 176)
+                    else
+                      _EmptyStateVisual(
+                        icon: icon,
+                        color: color,
+                      ),
+                    const SizedBox(height: 16),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                      textAlign: TextAlign.center,
                     ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        subtitle!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              height: 1.45,
+                            ),
+                      ),
+                    ],
+                    if (actionLabel != null && onAction != null) ...[
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        icon: Icon(actionIcon),
+                        label: Text(actionLabel!),
+                        onPressed: onAction,
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ],
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                icon: Icon(actionIcon),
-                label: Text(actionLabel!),
-                onPressed: onAction,
-              ),
-            ],
-          ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
