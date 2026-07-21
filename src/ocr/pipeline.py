@@ -4,6 +4,7 @@ OCR pipeline implementation using the doctr library for document understanding.
 import os
 import io
 import json
+import hashlib
 from typing import Dict, Any, List, Tuple, Optional
 from PIL import Image
 import fitz  # PyMuPDF
@@ -17,10 +18,6 @@ import numpy as np # For potential doctr input/output
 import sys # Add this at the top of the file
 
 from src.config.settings import settings
-
-# doctr imports
-from doctr.models import ocr_predictor as doctr_ocr_predictor # Renamed to avoid clash if any
-from doctr.io import DocumentFile as DoctrDocumentFile
 
 # Configure logging
 import logging
@@ -51,13 +48,31 @@ def pil_image_to_bytes(image: Image.Image, format="PNG") -> bytes:
 
 class OCRPipeline:
     def __init__(self):
-        """Initialize the OCR pipeline with a local doctr predictor."""
+        """Initialize the local OCR predictor when the OCR path is requested.
+
+        doctr is a local accelerator, not a production import requirement.
+        Keeping this import inside construction allows the API and direct-text
+        PDF path to load in a slim deployment while preserving a clear
+        ImportError when a scan actually requires unavailable OCR.
+        """
         # HF_TOKEN might still be needed for other things (e.g., DocQA if re-enabled, or RAG embedding models)
         # self.hf_token = os.getenv("HF_TOKEN")
         # if not self.hf_token:
         #     logger.warning("HF_TOKEN environment variable not set. This might be an issue if other HF models are used.")
             # raise ValueError("HF_TOKEN environment variable not set.")
         
+        try:
+            from doctr.models import ocr_predictor as doctr_ocr_predictor
+        except (ImportError, OSError) as error:
+            logger.warning(
+                "Local doctr OCR is unavailable error_type=%s",
+                type(error).__name__,
+            )
+            raise ImportError(
+                "Local OCR is unavailable. Install requirements-local.txt or "
+                "use on-device OCR for scanned documents."
+            ) from error
+
         # Initialize doctr OCR predictor
         # Common defaults: db_resnet50 for detection, crnn_vgg16_bn for recognition
         # export_as_straight_boxes=True can simplify downstream processing if you don't need rotated boxes
@@ -109,11 +124,16 @@ class OCRPipeline:
                 ) if hasattr(doc, 'texts') else ""
 
             layout_elements = []
+            page_texts = {}
             if hasattr(doc, 'pages'):
                 for page in doc.pages:
                     page_num = page.page_number if hasattr(page, 'page_number') else 0
+                    page_items = []
                     if hasattr(page, 'items'):
                         for item in page.items:
+                            item_text = item.text if hasattr(item, 'text') else ""
+                            if item_text:
+                                page_items.append(item_text)
                             bbox = None
                             if hasattr(item, 'bbox') and item.bbox:
                                 bbox = [
@@ -124,10 +144,12 @@ class OCRPipeline:
                                 ]
                             layout_elements.append({
                                 "id": str(uuid.uuid4()),
-                                "text": item.text if hasattr(item, 'text') else "",
+                                "text": item_text,
                                 "page": page_num,
                                 "bbox": bbox or [0.0, 0.0, 1.0, 1.0],
                             })
+                    if page_num > 0 and page_items:
+                        page_texts[page_num] = "\n".join(page_items)
 
             logger.info(
                 f"Docling extracted {len(full_text)} chars, "
@@ -136,6 +158,7 @@ class OCRPipeline:
             return {
                 "full_text": full_text,
                 "layout_elements": layout_elements,
+                "page_texts": page_texts,
             }
 
         except Exception as e:
@@ -489,11 +512,24 @@ class OCRPipeline:
                     if docling_result is not None:
                         logger.info(f"Docling processing succeeded for {filename}")
                         processing_time = time.time() - start_time
+                        from src.models.document_intelligence import build_document_cir
+                        source_hash = hashlib.sha256(file_content).hexdigest()
+                        docling_page_texts = docling_result.get("page_texts") or {
+                            1: docling_result["full_text"]
+                        }
+                        docling_cir = build_document_cir(
+                            filename=filename,
+                            source_artifact_sha256=source_hash,
+                            file_type=file_type,
+                            page_texts=docling_page_texts,
+                            parser_profile="docling",
+                            metadata={"processing_time_seconds": round(processing_time, 2)},
+                        )
                         final_result = {
                             "metadata": {
                                 "filename": filename,
                                 "processed_at": datetime.now().isoformat(),
-                                "page_count": 1,
+                                "page_count": len(docling_page_texts),
                                 "ocr_model": "docling",
                                 "doc_qa_model": self.doc_qa_model_name,
                                 "processing_time_seconds": round(processing_time, 2),
@@ -510,6 +546,10 @@ class OCRPipeline:
                                 }
                             ],
                             "layout_elements": docling_result["layout_elements"],
+                            "page_texts": docling_page_texts,
+                            "page_images": {},
+                            "source_artifact_sha256": source_hash,
+                            "cir": docling_cir.model_dump(mode="json"),
                         }
                         return {"status": "success", "result": final_result}
                     logger.info(f"Docling returned None for {filename}, falling back to standard pipeline")
@@ -581,18 +621,53 @@ class OCRPipeline:
             processing_time = time.time() - start_time
             logger.info(f"Finished processing {filename} in {processing_time:.2f} seconds. Total pages: {page_count}.")
 
+            page_texts = {
+                page_data["page_num"]: page_text
+                for page_data, page_text in zip(processed_pages, all_pages_full_text)
+                if page_text.strip()
+            }
+            page_images = {
+                page_data["page_num"]: page_data["image_bytes"]
+                for page_data in processed_pages
+                if page_data.get("image_bytes")
+            }
+            parser_profile = (
+                "native_text"
+                if all("text" in page_data for page_data in processed_pages)
+                else "local_doctr_ocr"
+            )
+            from src.models.document_intelligence import build_document_cir
+            native_nodes = []
+            if file_type.lower() == "pdf":
+                from src.ocr.native_pdf import extract_native_pdf_nodes
+                native_nodes = extract_native_pdf_nodes(file_content)
+            cir = build_document_cir(
+                filename=filename,
+                source_artifact_sha256=hashlib.sha256(file_content).hexdigest(),
+                file_type=file_type,
+                page_texts=page_texts,
+                page_images=page_images,
+                parser_profile=parser_profile,
+                metadata={"processing_time_seconds": round(processing_time, 2)},
+                observed_nodes=native_nodes,
+            )
+
             final_result = {
                 "metadata": {
                     "filename": filename,
                     "processed_at": datetime.now().isoformat(),
                     "page_count": page_count,
-                    "ocr_model": "doctr (local)", # Updated OCR model name
+                    "ocr_model": parser_profile,
                     "doc_qa_model": self.doc_qa_model_name, # Using the renamed variable
                     "processing_time_seconds": round(processing_time, 2)
                 },
                 "full_text": combined_full_text,
                 "text_blocks": all_pages_text_blocks, 
-                "layout_elements": all_pages_layout_elements
+                "layout_elements": all_pages_layout_elements,
+                "page_texts": page_texts,
+                "page_images": page_images,
+                "source_artifact_sha256": hashlib.sha256(file_content).hexdigest(),
+                "cir": cir.model_dump(mode="json"),
             }
             
             return {"status": "success", "result": final_result}

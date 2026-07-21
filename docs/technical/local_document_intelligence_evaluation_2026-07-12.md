@@ -161,6 +161,61 @@ Indian-policy corpus with expected values and page references:
 - [Baidu: Unlimited-OCR technical report](https://arxiv.org/abs/2606.23050)
 - [Docling repository](https://github.com/docling-project/docling)
 
+## Addendum (2026-07-21) — catalog reconciliation and capability-router decision
+
+The attached local catalog was inspected on 2026-07-21: 149 entries across
+full parsers, OCR/layout/table specialists, forms/KVP, formulas, office/web
+formats, recent document models, and a separate general-VLM list. This expands
+the candidate map without changing the local evidence boundary. The only
+CoverWise model results in this file remain the explicitly measured synthetic
+fixture results; workbook/vendor scores are research claims until reproduced on
+the versioned CoverWise corpus.
+
+The capability conclusion is broader than the current launch baseline but more
+disciplined than “pick the best VLM”: retain PyMuPDF/native parsing for digital
+inputs, use OCR/layout recovery for quality-gated scans, add dedicated table,
+form, formula, figure, and handwriting profiles, and normalize all outputs to
+one source-preserving CIR before policy extraction. Docling is the first broad
+local CIR candidate; Surya and PaddleOCR/PP-Structure are scan/layout
+benchmarks; MinerU, Marker, managed providers, and GPU-first VLMs remain
+isolated profiles pending evidence and license/privacy/runtime review.
+
+This addendum also corrects two stale assumptions found during code review:
+`src/ocr/pipeline.py` already performs image preprocessing, and its optional
+Docling/MinerU branches do not yet constitute a full table/figure/formula/
+provenance contract. The same file imports doctr eagerly even though the
+surrounding configuration describes OCR as optional; this is an explicit
+hardening item before claiming that missing OCR dependencies cannot prevent API
+startup.
+
+See `docs/technical/document_intelligence_capability_matrix_2026-07-21.md` for
+the capability matrix and
+`docs/decisions/ADR-2026-07-21-05-document-intelligence-router-and-evidence-contract.md`
+for the derived architecture decision.
+
+## Addendum (2026-07-21) — correction to optional-import status
+
+The earlier sentence in this addendum describing an eager doctr import is now
+historical. `src/ocr/pipeline.py` defers the doctr import until
+`OCRPipeline` construction; module import was verified without doctr, while
+actual scan execution still requires the local OCR dependency or the mobile
+sidecar. The remaining evidence gap is runtime scan behavior, not API module
+startup.
+
+## Addendum (2026-07-21) — CIR/runtime implementation evidence
+
+The first implementation slice is now present in
+`src/models/document_intelligence.py`. Native text, mobile sidecar, Docling,
+and local OCR results can carry a versioned page/text/artifact CIR while legacy
+keys remain available to existing callers. The doctr import is deferred until
+OCR construction, so a slim API can import the pipeline module and return a
+truthful OCR-unavailable state only when a scan actually needs it.
+
+Targeted backend verification passed the CIR/runtime, OCR, mobile, and evidence
+paths. This is Tier 2 evidence. Persisted CIR-to-source-span resolution,
+real multi-page Docling output, and specialist table/formula/form adapters
+remain Tier 3 gates.
+
 ## Addendum (2026-07-12) — current model discovery and encrypted inputs
 
 An authenticated Hugging Face credential was validated from the local machine

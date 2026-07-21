@@ -869,6 +869,44 @@ Web and native document selection now share the same supported extensions and
 20 MB early size gate. The server remains the source of truth for validation;
 browser/device upload and malformed-content tests remain open.
 
+The processing runner now separates classification fallback from normalized
+policy-projection failure and records the latter as an explicit stage state.
+This preserves honest operator recovery semantics; deployed projection failure
+and retry behavior remain open.
+
+The broad Python suite passes 337 tests; 4 unmarked async verification scripts
+remain skipped by pytest and require direct execution or explicit async test
+wrappers. A local endpoint probe reached OCR and RAG health but not the optional
+frontend service. This is useful runtime evidence, not production E2E proof.
+
+The full Flutter suite now passes 588 tests. Mobile's 20 MB early limit and the
+backend's 50 MB safety ceiling are documented as distinct contracts; future
+work should decide whether product policy should converge them, with server
+validation remaining authoritative until then.
+
+The governed dataset executor now finalizes a created model run as failed if
+manifest artifact persistence fails, avoiding orphaned `started` runs. Its
+hash/metric-only result boundary is locally tested; real approved-release and
+operator replay evidence remain open.
+
+## Addendum — retention credential and evidence-status boundary (2026-07-21)
+
+The scheduled retention entry point now normalizes Supabase's server-secret
+alias before invoking analytics and artifact cleanup, and both retention
+services accept that alias at their own boundary. This keeps scheduled cleanup
+aligned with the canonical runtime configuration instead of silently producing
+an empty development result in a valid server deployment.
+
+Contextual retrieval backfill is now bounded to batch sizes 1–1000, ordered for
+stable pagination, and owner-fenced on updates when an owner scope is supplied.
+Q&A citation cards now distinguish verified, failed, and unknown citation
+status; an unverified citation no longer receives a verified icon. Focused
+artifact/outbox/billing checks passed 39 Python tests, Flutter analysis is
+clean, and Q&A/document tests passed 53 tests. Live retention execution,
+backfill replay, and deployed citation rendering remain open. Subscription
+writeback now parses serialized boolean values explicitly; the string
+`"false"` cannot accidentally activate an entitlement.
+
 ## Addendum — retrieval context expansion owner fence (2026-07-21)
 
 Dense and FTS retrieval were owner-scoped, but graph-style adjacent expansion
@@ -909,7 +947,7 @@ operator replay remain research-lane verification work.
 
 ## Addendum — migration-chain count and deployment gate (2026-07-21)
 
-Static inventory found 32 uniquely versioned files under
+Static inventory found 33 uniquely versioned files under
 `supabase/migrations/`. Documentation now points to the complete ordered
 chain rather than a historical fixed count. This does not prove deployment:
 fresh reset, applied-history comparison, duplicate destructive-job preflight,
@@ -951,3 +989,160 @@ the canonical document repository before reading persisted page OCR. This
 closes the handler-boundary cross-owner risk found during the diff sweep.
 Focused tests pass; deployed worker isolation and job-injection testing remain
 open.
+
+## Addendum — platform/CI/mobile diff sweep (2026-07-21)
+
+Android 17/API 37.1 cold-launch evidence was visually inspected: the current
+APK reaches the CoverWise onboarding surface after the native dark splash, and
+the accessibility dump identifies the app package and onboarding actions. This
+is Tier 4 startup/onboarding evidence, not launcher-icon proof; the launcher
+placement limitation remains documented.
+
+The CI change now uses the repository's canonical `tools/run_backend_tests.sh`
+runner instead of duplicating the pytest invocation. The renewal empty state
+had a copy-wiring regression where its CTA label was the explanatory subtitle;
+it now uses `Choose policy file`, with a widget regression test. Flutter
+analysis remains clean and the affected mobile/backend checks pass locally.
+
+The new non-mutating Supabase schema probe was executed against the configured
+remote environment. Auth settings returned HTTP 200 with email enabled and
+anonymous users disabled; all required tables except `model_run_results` were
+queryable, and the probe correctly exited 2. This is Tier 3 read-only drift
+evidence and confirms that the governed-evaluation migration still needs
+remote application before that execution path can be used.
+
+Postgres review also found that the new result migration's `dataset_item_id`
+foreign key lacked a leading index; the existing run/status index could not
+efficiently support parent-item restriction checks. A dedicated
+`model_run_results_dataset_item_idx` was added before remote application.
+
+The Supabase Python dependency graph is now deterministic at the tested pair
+`pydantic==2.13.4` and `pydantic-settings==2.2.1`; a dry-run resolver reported
+no changes and the installed environment passed `uv pip check`.
+
+## Addendum — document-intelligence capability matrix and router (2026-07-21)
+
+The attached local research catalog was inspected and reconciled with the
+current code and primary-source exploration. It catalogs 149 tools and keeps
+specialist document parsers separate from general VLMs. The new canonical
+record is `docs/technical/document_intelligence_capability_matrix_2026-07-21.md`.
+
+The earlier exploration statement that “Docling + LLM extraction covers the
+same ground” is superseded as a product recommendation, while preserved as
+historical context. The current first-principles direction is capability
+routing, not a universal model: native text first; scan OCR/layout recovery;
+dedicated table/formula/form routes; source-preserving figure/chart artifacts;
+bounded VLM annotations; then validated policy extraction and retrieval.
+
+The existing evidence substrate is the correct ownership boundary. A
+parser-specific parallel store or second upload route would create drift. The
+required architecture decision is captured in
+`docs/decisions/ADR-2026-07-21-05-document-intelligence-router-and-evidence-contract.md`:
+introduce a versioned CIR with page/block/cell/figure/formula/field nodes,
+coordinates, reading order, source hashes, parser/model lineage, confidence,
+and evidence references.
+
+Static code evidence also corrected two stale assumptions: preprocessing is
+already implemented in `src/ocr/pipeline.py`, and the optional Docling/MinerU
+branches do not yet provide complete tables/figures/formulas/provenance. The
+eager doctr import is an open runtime-contract gap because the surrounding
+configuration describes OCR as optional. Benchmark and dependency/license
+review must close that gap before a new parser becomes a launch default.
+
+Anything else? The broad catalog is useful as a capability map and research
+inventory; installing every entry would reduce reliability and increase
+privacy/license risk. The highest-leverage next implementation unit is the CIR
+and benchmark harness, not another unvalidated model.
+
+## Addendum — mobile copy contracts and renewal/document review (2026-07-21)
+
+The documents, insurance-card, profile, settings, and renewal surfaces were
+rechecked as one journey cluster. The settings device-data row now uses the
+action-specific `Clear local data` label while retaining its explanatory
+dialog title. Profile storage copy now distinguishes the protected local cache
+from account data that may be securely synchronized, removing an over-broad
+claim that all policy data remains local.
+
+Verification: Flutter analysis passed; the focused profile, documents, and
+renewal suite passed 23 tests; `git diff --check` passed. The broader Flutter
+suite was recorded at 588 passed at that earlier checkpoint; the latest full
+run is 594 passed. This is Tier 2 evidence for the changed
+mobile contracts. Full device-matrix accessibility and authenticated
+production-runtime behavior remain open Tier 3/4 gates.
+
+## Addendum — CIR provenance and optional Docling path (2026-07-21)
+
+The document-intelligence model and OCR integration were audited against the
+new capability-routing decision. The optional Docling path was collapsing
+multi-page output into page 1; it now preserves page-grouped text when the
+adapter exposes page items and reports the resulting page count. If page
+grouping is unavailable, the bounded fallback remains page 1 and is visible
+in the emitted CIR rather than pretending to have stronger provenance.
+
+The CIR contract now has direct tests for deterministic page ordering, source
+and page-image hashes, retrieval/source text separation, and the rule that
+tables/forms/formulas are not inferred from keywords. Verification: 8 focused
+Python tests passed, Python compilation passed, and `git diff --check` passed.
+This is Tier 2 evidence; real Docling multi-page runtime output and persisted
+CIR/evidence resolution remain Tier 3 gates.
+
+Implementation has now started on that canonical path. `src/models/document_intelligence.py`
+defines the first CIR version and conservative capability classifier; existing
+OCR/document-processing outputs carry source hashes, page nodes, text nodes,
+and page-image lineage without a new route or storage system. The doctr import
+is lazy at OCR construction, so a slim API can import the module and report
+truthful OCR unavailability. A known `rag_only` unbound-result bug in the same
+orchestration path was fixed and regression-tested.
+
+Verification: the new CIR/runtime tests and affected OCR/mobile/evidence tests
+pass, and the full backend suite now passes 352 tests with 1 intentional skip.
+The implementation does not yet claim table/formula/figure/form
+extraction; those remain specialist adapters and benchmark gates under the
+same CIR/evidence ownership boundary.
+
+The earlier sentence in this section calling the doctr import eager is now
+historical: the import is deferred until OCR construction. Module import
+without doctr is covered by the CIR/runtime contract test; scanned-document
+runtime execution remains an open Tier 3 gate.
+
+## Addendum — family and Q&A evidence surfaces (2026-07-21)
+
+The remaining behavior-bearing mobile screens were audited. Family removal
+actions and tooltips now use the catalog consistently. Q&A citation cards now
+show verified, rejected, or unknown status distinctly; unknown status is
+explicit rather than silently represented by an icon, and the new evidence and
+missing-information headings use the same localization boundary as the rest
+of the Q&A surface. The existing entitlement gate and inactive-demo guard were
+preserved.
+
+Verification: Flutter analysis passed; the Q&A, pack, profile, documents, and
+renewal suites passed 65 tests; `git diff --check` passed. This is Tier 2
+evidence. Citation rendering against real API payloads and authenticated
+cross-owner evidence remain Tier 3/4 gates.
+
+## Addendum — billing, outbox, and retention execution pass (2026-07-21)
+
+The remaining server-side operational diff was rechecked as one lifecycle:
+RevenueCat webhook intake -> durable outbox -> ordered ledger reconciliation;
+client entitlement writeback -> server-side ledger; and retention fencing ->
+object deletion -> terminal artifact state. The canonical runtime alias for
+the modern Supabase server secret remains normalized at entrypoints, and no
+second webhook or retention path was introduced.
+
+Verification: 44 focused Python tests passed, affected modules compiled, and
+`git diff --check` passed. This is Tier 2 evidence. A real RevenueCat delivery,
+remote retention run, and production operator recovery remain Tier 3/5 gates.
+
+## Addendum — full-suite revalidation and upload-layout hardening (2026-07-21)
+
+The full current verification pass found and closed two mobile issues in the
+new document-upload test path: a 2.7px language-dropdown overflow at the
+402x874 test viewport, and a brittle generic dropdown finder after the switch
+was scrolled into view. The product now uses an expanded dropdown layout; the
+test asserts the typed control and its visible language label.
+
+Verification: the full backend suite passed 350 tests with 1 intentional skip;
+the full Flutter suite passed 594 tests; the focused upload-layout suite passed
+19 tests; and `git diff --check` passed. This is Tier 2 evidence. Device
+matrix, authenticated deployed runtime, and real provider execution remain
+open higher-tier gates.

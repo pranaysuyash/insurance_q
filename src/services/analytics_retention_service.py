@@ -18,7 +18,10 @@ class AnalyticsRetentionService:
     def from_env(cls) -> "AnalyticsRetentionService":
         import os
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        key = (
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            or os.getenv("SUPABASE_SECRET_KEY", "").strip()
+        )
         if not url or not key:
             raise AnalyticsRetentionError("Supabase analytics retention requires server credentials")
         from supabase import create_client

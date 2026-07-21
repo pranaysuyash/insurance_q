@@ -19,6 +19,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
+import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import '../models/entitlement.dart';
 import '../utils/app_error.dart';
@@ -97,13 +98,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear all local data?'),
-        content: const Text(
-          'This permanently removes all locally stored documents, policy '
-          'summaries, Q&A history, family members, and session data from '
-          'this device. Uploaded documents on the server are not affected. '
-          'This cannot be undone.',
-        ),
+        title: Text(S.settingsClearDataTitle),
+        content: Text(S.settingsClearDataContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -114,7 +110,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             style: FilledButton.styleFrom(
               foregroundColor: Colors.red.shade700,
             ),
-            child: const Text('Clear'),
+            child: Text(S.clear),
           ),
         ],
       ),
@@ -154,10 +150,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await AuthService.clearToken();
 
       if (!mounted) return;
-      CoverWiseSnackBar.success(context, 'All local data cleared.');
+      CoverWiseSnackBar.success(context, S.settingsClearDataSuccess);
     } catch (e) {
       if (!mounted) return;
-      CoverWiseSnackBar.error(context, AppError.contextual(error: e, operation: 'clear_data'));
+      CoverWiseSnackBar.error(
+          context, AppError.contextual(error: e, operation: 'clear_data'));
     }
   }
 
@@ -168,15 +165,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final accountUser = ref.watch(currentUserProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(S.settingsTitle)),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          const CoverWisePageHeader(
-            title: 'Your app, your preferences',
-            subtitle: 'Manage access, reminders and what stays on this device.',
+          CoverWisePageHeader(
+            title: S.settingsHeaderTitle,
+            subtitle: S.settingsHeaderSubtitle,
           ),
-          const CoverWiseSectionLabel('Plan'),
+          CoverWiseSectionLabel(S.settingsSectionPlan),
           Consumer(
             builder: (context, ref, _) {
               final entitlement = ref.watch(entitlementProvider);
@@ -187,31 +184,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: entitlement.planTier == PlanTier.free
                         ? const Color(0xFF637083)
                         : const Color(0xFF7557D3),
-                    title: 'Current plan: ${entitlement.planTier.displayName}',
+                    title:
+                        S.settingsCurrentPlan(entitlement.planTier.displayName),
                     subtitle: entitlement.planTier.tagline,
                     trailing: TextButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const UpgradeScreen(),
-                              ),
-                            ),
-                            child: Text(
-                              entitlement.planTier == PlanTier.free
-                                  ? 'Upgrade'
-                                  : 'Manage',
-                            ),
-                          ),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const UpgradeScreen(),
+                        ),
+                      ),
+                      child: Text(
+                        entitlement.planTier == PlanTier.free
+                            ? S.upgrade
+                            : S.manage,
+                      ),
+                    ),
                     onTap: null,
                   ),
                   const Divider(indent: 74),
                   CoverWiseActionRow(
                     icon: Icons.shopping_bag_outlined,
                     color: const Color(0xFFE58726),
-                    title: 'Q&A Packs',
+                    title: S.settingsQaPacks,
                     subtitle: entitlement.hasPackQuestionsRemaining
-                        ? '${entitlement.packQuestionsRemaining} questions in packs'
-                        : 'Buy questions without a subscription',
+                        ? S.settingsQuestionsInPacks(
+                            entitlement.packQuestionsRemaining)
+                        : S.settingsBuyQuestions,
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.push(
                       context,
@@ -225,7 +224,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     CoverWiseActionRow(
                       icon: Icons.calendar_today_rounded,
                       color: const Color(0xFF0F9D84),
-                      title: 'Renews',
+                      title: S.settingsRenews,
                       subtitle: entitlement.expiresAt != null
                           ? '${entitlement.expiresAt!.day}/${entitlement.expiresAt!.month}/${entitlement.expiresAt!.year}'
                           : 'Unknown',
@@ -237,15 +236,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               );
             },
           ),
-          const CoverWiseSectionLabel('Account'),
+          CoverWiseSectionLabel(S.settingsSectionAccount),
           CoverWiseSurface(
             child: Column(children: [
               if (accountUser != null) ...[
                 CoverWiseActionRow(
                   icon: Icons.email_outlined,
                   color: const Color(0xFF0F9D84),
-                  title: accountUser.email ?? 'Signed in',
-                  subtitle: 'Supabase account',
+                  title: accountUser.email ?? S.settingsSignedIn,
+                  subtitle: S.settingsSupabaseAccount,
                   trailing: const SizedBox.shrink(),
                   onTap: null,
                 ),
@@ -258,10 +257,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 color: phone != null
                     ? const Color(0xFF0F9D84)
                     : CoverWiseColors.blue,
-                title: phone != null ? 'Account linked' : 'Link your phone',
+                title: phone != null
+                    ? S.settingsAccountLinked
+                    : S.settingsLinkYourPhone,
                 subtitle: phone != null
-                    ? 'Connected as $phone'
-                    : 'Back up policies and use them on another device',
+                    ? S.settingsConnectedAs(phone)
+                    : S.settingsBackupSubtitle,
                 trailing: TextButton(
                   onPressed: () async {
                     if (phone != null) {
@@ -273,13 +274,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     }
                     if (mounted) setState(() {});
                   },
-                  child: Text(phone != null ? 'Remove' : 'Add'),
+                  child: Text(phone != null ? S.remove : S.add),
                 ),
                 onTap: null,
               ),
             ]),
           ),
-          const CoverWiseSectionLabel('Experience'),
+          CoverWiseSectionLabel(S.settingsSectionExperience),
           CoverWiseSurface(
             child: Column(children: [
               CoverWiseActionRow(
@@ -287,7 +288,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ? Icons.dark_mode_rounded
                     : Icons.light_mode_rounded,
                 color: const Color(0xFF7557D3),
-                title: 'Appearance',
+                title: S.settingsAppearance,
                 subtitle: _themeModeLabel(AppStateRepository.getThemeMode()),
                 onTap: _showThemePicker,
               ),
@@ -295,8 +296,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               CoverWiseActionRow(
                 icon: Icons.notifications_active_outlined,
                 color: const Color(0xFFE58726),
-                title: 'Notifications',
-                subtitle: 'Renewal reminders and quiet hours',
+                title: S.settingsNotifications,
+                subtitle: S.settingsNotificationsSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -305,23 +306,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const Divider(indent: 74),
-              const CoverWiseActionRow(
+              CoverWiseActionRow(
                 icon: Icons.auto_awesome_outlined,
                 color: Color(0xFF7557D3),
-                title: 'Smart Suggestions',
-                subtitle: 'AI-powered coverage recommendations',
+                title: S.settingsSmartSuggestions,
+                subtitle: S.settingsSmartSuggestionsSubtitle,
                 trailing: CoverWiseSoonBadge(),
                 onTap: null,
               ),
             ]),
           ),
-          const CoverWiseSectionLabel('App details'),
+          CoverWiseSectionLabel(S.settingsSectionAppDetails),
           CoverWiseSurface(
             child: Column(children: [
               CoverWiseActionRow(
                 icon: Icons.info_outline_rounded,
                 color: CoverWiseColors.blue,
-                title: 'Version',
+                title: S.version,
                 subtitle: '${AppConfig.appName} ${AppConfig.appVersion}',
                 trailing: const SizedBox.shrink(),
                 onTap: null,
@@ -330,23 +331,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               CoverWiseActionRow(
                 icon: Icons.dns_outlined,
                 color: const Color(0xFF637083),
-                title: 'Service endpoint',
+                title: S.settingsServiceEndpoint,
                 subtitle: _resolvedBaseUrl ?? AppConfig.baseUrl,
                 trailing: const SizedBox.shrink(),
                 onTap: null,
               ),
             ]),
           ),
-          const CoverWiseSectionLabel('Privacy & consent'),
+          CoverWiseSectionLabel(S.settingsSectionPrivacy),
           _ConsentLedgerSection(),
-          const CoverWiseSectionLabel('Device data'),
+          CoverWiseSectionLabel(S.settingsSectionDeviceData),
           CoverWiseSurface(
             child: CoverWiseActionRow(
               icon: Icons.delete_outline_rounded,
               color: const Color(0xFFC43D4B),
-              title: 'Clear local data',
-              subtitle:
-                  'Remove documents, summaries, history and family members',
+              title: S.settingsClearDataAction,
+              subtitle: S.settingsClearDataSubtitle,
               onTap: _confirmClearData,
             ),
           ),
@@ -376,8 +376,8 @@ class _ConsentLedgerSection extends ConsumerWidget {
         child: CoverWiseActionRow(
           icon: Icons.shield_outlined,
           color: const Color(0xFF0F9D84),
-          title: 'No consent records',
-          subtitle: 'Consent is recorded when you upload your first policy',
+          title: S.settingsNoConsentRecords,
+          subtitle: S.settingsConsentRecorded,
           trailing: const SizedBox.shrink(),
           onTap: null,
         ),
@@ -411,13 +411,13 @@ class _ConsentRecordRow extends StatelessWidget {
   String _purposeLabel(ConsentPurpose purpose) {
     switch (purpose) {
       case ConsentPurpose.documentProcessing:
-        return 'Policy processing';
+        return S.settingsConsentPolicyProcessing;
       case ConsentPurpose.analytics:
-        return 'Usage analytics';
+        return S.settingsConsentAnalytics;
       case ConsentPurpose.leadCapture:
-        return 'Contact capture';
+        return S.settingsConsentLeadCapture;
       case ConsentPurpose.termsAccepted:
-        return 'Terms accepted';
+        return S.settingsConsentTermsAccepted;
     }
   }
 
@@ -437,18 +437,20 @@ class _ConsentRecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isActive = record.isActive;
-    final date = '${record.timestamp.day}/${record.timestamp.month}/${record.timestamp.year}';
+    final date =
+        '${record.timestamp.day}/${record.timestamp.month}/${record.timestamp.year}';
 
     return CoverWiseActionRow(
       icon: _purposeIcon(record.purpose),
       color: isActive ? const Color(0xFF0F9D84) : const Color(0xFF637083),
       title: _purposeLabel(record.purpose),
       subtitle: isActive
-          ? 'Granted $date • v${record.version}'
-          : 'Revoked $date',
+          ? S.settingsConsentGranted(date, record.version)
+          : S.settingsConsentRevoked(date),
       trailing: CoverWiseStatusChip(
         icon: isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
-        label: isActive ? 'Active' : 'Revoked',
+        label:
+            isActive ? S.settingsConsentActive : S.settingsConsentRevokedLabel,
         color: isActive ? const Color(0xFF0F9D84) : const Color(0xFF637083),
         compact: true,
       ),

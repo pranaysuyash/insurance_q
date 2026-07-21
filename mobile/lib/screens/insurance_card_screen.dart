@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
+import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import '../utils/document_icons.dart';
 import '../widgets/shared/coverwise_components.dart';
@@ -26,14 +27,13 @@ class InsuranceCardScreen extends ConsumerWidget {
     final summaries = ref.watch(policySummariesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Insurance Cards')),
+      appBar: AppBar(title: Text(S.insuranceCardsTitle)),
       body: summaries.isEmpty
           ? EmptyStateWidget(
               icon: Icons.credit_card_off_outlined,
-              title: 'No insurance cards yet',
-              subtitle:
-                  'Choose a policy file to keep its key details ready on your phone.',
-              actionLabel: 'Choose policy file',
+              title: S.insuranceCardsEmptyTitle,
+              subtitle: S.insuranceCardsEmptySubtitle,
+              actionLabel: S.insuranceCardsChooseFile,
               actionIcon: Icons.upload_file_rounded,
               onAction: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -47,9 +47,8 @@ class InsuranceCardScreen extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 24),
               children: [
                 const CoverWisePageHeader(
-                  title: 'Your cover, ready to carry',
-                  subtitle:
-                      'A quick reference for policy and insurer details. Verify proof requirements with your insurer.',
+                  title: S.insuranceCardsHeaderTitle,
+                  subtitle: S.insuranceCardsHeaderSubtitle,
                   trailing: CoverWiseIconBadge(
                     icon: Icons.wallet_outlined,
                     color: CoverWiseColors.blueDeep,
@@ -146,7 +145,9 @@ class _InsuranceCard extends StatelessWidget {
               // Policy number
               if (summary.policyNumber != null) ...[
                 _CardField(
-                    label: 'Policy Number', value: summary.policyNumber!),
+                  label: S.insuranceCardsPolicyNumber,
+                  value: summary.policyNumber!,
+                ),
                 const SizedBox(height: 12),
               ],
               // Coverage and premium row
@@ -156,12 +157,12 @@ class _InsuranceCard extends StatelessWidget {
                 children: [
                   if (summary.formattedCoverageAmount != 'Unknown')
                     _CardField(
-                      label: 'Coverage',
+                      label: S.insuranceCardsCoverage,
                       value: summary.formattedCoverageAmount,
                     ),
                   if (summary.formattedPremium != 'Unknown')
                     _CardField(
-                      label: 'Premium',
+                      label: S.insuranceCardsPremium,
                       value: summary.formattedPremium,
                     ),
                 ],
@@ -174,12 +175,12 @@ class _InsuranceCard extends StatelessWidget {
                 children: [
                   if (summary.formattedStartDate != 'Unknown')
                     _CardField(
-                      label: 'Valid from',
+                      label: S.insuranceCardsValidFrom,
                       value: summary.formattedStartDate,
                     ),
                   if (summary.formattedExpiryDate != 'Unknown')
                     _CardField(
-                      label: 'Valid until',
+                      label: S.insuranceCardsValidUntil,
                       value: summary.formattedExpiryDate,
                     ),
                 ],
@@ -194,7 +195,7 @@ class _InsuranceCard extends StatelessWidget {
                       width: stack ? double.infinity : null,
                       child: FilledButton.icon(
                         icon: const Icon(Icons.phone_outlined, size: 18),
-                        label: const Text('Call insurer'),
+                        label: Text(S.insuranceCardsCallInsurer),
                         onPressed: () => _callInsurer(context),
                       ),
                     );
@@ -202,7 +203,7 @@ class _InsuranceCard extends StatelessWidget {
                       width: stack ? double.infinity : null,
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.ios_share_rounded, size: 18),
-                        label: const Text('Share card'),
+                        label: Text(S.insuranceCardsShareCard),
                         onPressed: () => _shareCard(context),
                       ),
                     );
@@ -239,31 +240,32 @@ class _InsuranceCard extends StatelessWidget {
       launched = false;
     }
     if (!launched && context.mounted) {
-      CoverWiseSnackBar.error(context, 'Could not open the phone app');
+      CoverWiseSnackBar.error(context, S.insuranceCardsPhoneError);
     }
   }
 
   Future<void> _shareCard(BuildContext context) async {
     final lines = <String>[
-      'CoverWise policy card',
+      S.insuranceCardsShareTitle,
       summary.documentType,
-      if (summary.insurer != null) 'Insurer: ${summary.insurer}',
+      if (summary.insurer != null)
+        '${S.insuranceCardsInsurerPrefix}${summary.insurer}',
       if (summary.policyNumber != null)
-        'Policy number: ${summary.policyNumber}',
+        '${S.insuranceCardsPolicyNumberPrefix}${summary.policyNumber}',
       if (summary.formattedCoverageAmount != 'Unknown')
-        'Coverage: ${summary.formattedCoverageAmount}',
+        '${S.insuranceCardsCoveragePrefix}${summary.formattedCoverageAmount}',
       if (summary.formattedExpiryDate != 'Unknown')
-        'Valid until: ${summary.formattedExpiryDate}',
+        '${S.insuranceCardsValidUntilPrefix}${summary.formattedExpiryDate}',
       if (summary.insurerHelpline != null)
-        'Insurer helpline: ${summary.insurerHelpline}',
+        '${S.insuranceCardsHelplinePrefix}${summary.insurerHelpline}',
       '',
-      'Verify current details with the insurer and the source policy document.',
+      S.insuranceCardsShareFooter,
     ];
     try {
       await SharePlus.instance.share(ShareParams(text: lines.join('\n')));
     } catch (_) {
       if (context.mounted) {
-        CoverWiseSnackBar.error(context, 'Could not open sharing options');
+        CoverWiseSnackBar.error(context, S.insuranceCardsShareError);
       }
     }
   }

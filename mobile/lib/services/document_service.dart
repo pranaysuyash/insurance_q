@@ -669,7 +669,7 @@ class DocumentService {
       // record in place and surface the error.
       try {
         final response = await authenticatedDio.delete(
-          '/documents/$documentId',
+          '/documents/${document.backendId}',
           options: Options(
             validateStatus: (status) => status != null && status < 500,
           ),

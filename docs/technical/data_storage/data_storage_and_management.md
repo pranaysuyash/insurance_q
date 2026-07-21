@@ -1,5 +1,13 @@
 # Data Storage and Management
 
+> **Current-state addendum (2026-07-21):** This document preserves the older
+> storage survey below. The active CoverWise architecture is managed Supabase:
+> Postgres/pgvector, FTS, private Storage, Auth, durable outbox state, and
+> service-role lifecycle tables. Qdrant, Redis, SQLite, Firebase, and local
+> files are development or migration adapters only. Use
+> [`docs/architecture/coverwise_canonical_architecture.md`](../../architecture/coverwise_canonical_architecture.md)
+> and the Supabase cutover report as current sources of truth.
+
 This document outlines the data storage architecture and management strategies for the Insurance Policy Parser & QA App.
 
 ## Overview

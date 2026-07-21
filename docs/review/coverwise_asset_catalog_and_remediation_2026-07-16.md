@@ -379,3 +379,41 @@ this workspace because provisioning Android 16 left only 1.8 GiB of free local
 storage; downloading another system image would risk unrelated work. The Android
 16/API 36 release contract is complete and gated. Android 17 needs a separate
 device/emulator run once build storage is available.
+
+### Addendum — Android 17 retry, 2026-07-21
+
+Android 17/API 37.1's 16 KB Google APIs ARM system image was installed with an
+updated command-line SDK toolchain, and its clean Pixel emulator booted with
+`SDK=37` and `Release=17`. The CoverWise runtime pass remains blocked at the
+artifact handoff: an isolated-cache debug build reaches `mergeDebugNativeLibs`
+but fails with `No space left on device`, while the preserved API 36 test AVD
+also cannot boot at the remaining capacity. No project or pre-existing SDK
+asset was deleted to force this run. The next closure is a fresh APK build on a
+volume with adequate headroom, followed by install, cold launch, splash, and
+themed-icon checks on the already-provisioned API 37 device.
+
+### Addendum — Android 17 runtime closure, 2026-07-21
+
+After storage recovered, the current APK built, installed, and cold-launched on
+the clean API 37.1 device. `dumpsys package` reports `targetSdk=36`; the cold
+launch returned `Status: ok`, `LaunchState: COLD`, and `TotalTime: 3850` in the
+debug emulator. The captured native splash handoff and rendered first onboarding
+screen are retained as `android17-api37-native-splash.png` and
+`android17-api37-cold-launch.png` in the Android platform evidence directory.
+This closes Android 17 startup compatibility at Tier 4; it is correctness
+evidence, not a production startup-latency claim.
+
+### Addendum — Android 17 launcher icon closure, 2026-07-21
+
+The previous Android launcher caveat is now closed. On the same Android
+17/API 37.1 Pixel emulator, I selected and applied **Wallpaper & style → Icons
+→ Minimal**, then inspected the real home screen. CoverWise appears in the
+launcher as the system-rendered single-colour shield/check glyph. The visual
+evidence is
+`docs/review/evidence/android16-platform-qa-2026-07-21/android17-api37-minimal-launcher-coverwise.png`.
+
+Evidence tier: **Tier 4** (manual/runtime visual observation). This complements
+the API 33+ resource and package checks; it is direct launcher rendering proof,
+not an inference from XML. Android 17 names its current icon treatment
+"Minimal", so the older on-device wording "Themed icons" is not expected on
+this system image.

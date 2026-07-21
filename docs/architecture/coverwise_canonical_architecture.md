@@ -78,6 +78,7 @@ CoverWise is built from 5 main components. Each is a small surface with a clear 
   - `supabase/migrations/20260721084800_billing_ledger.sql` — server-side entitlement state and ordered webhook RPC.
   - `supabase/migrations/20260721084857_add_foreign_key_indexes.sql` — indexes for remaining FK join/cascade paths.
   - `supabase/migrations/20260721090703_analytics_event_idempotency.sql` — stable replay identity for canonical analytics ingestion.
+  - `supabase/migrations/20260721100000_model_run_results.sql` — hash/metric-only per-item results for governed evaluation runs.
 
   `infra/supabase/001_*.sql` through `003_*.sql` are retained as SQL-editor-compatible historical snapshots. They are not a second migration runner or an independently editable schema source.
 
@@ -102,7 +103,7 @@ The outbox is the **truth layer for every async path in CoverWise.** It is a sin
 
 **Why it exists:** the architecture audit's ADR-03 said CoverWise needs a durable work queue. The outbox is the choice (see ADR-2026-07-19-01) — Supabase outbox over Cloud Tasks, because durable work must live where the durable state already lives.
 
-**The 8 job types:** `document_processing`, `substrate_extraction`, `qa_response`, `webhook_reconciliation`, `subscription_writeback`, `claim_verification`, `renewal_diff`, `account_deletion`. Document upload now enqueues `document_processing` in production; substrate extraction remains inline, and the remaining job types still require deliberate handler adoption.
+**The 8 job types:** `document_processing`, `substrate_extraction`, `qa_response`, `webhook_reconciliation`, `subscription_writeback`, `claim_verification`, `renewal_diff`, `account_deletion`. Document upload now enqueues `document_processing` in production; substrate extraction is also outbox-backed and reloads persisted page OCR in its worker. RevenueCat reconciliation and subscription writeback have handlers; Q&A, claim verification, and renewal diff still require deliberate product contracts and handler adoption.
 
 ---
 
@@ -313,7 +314,7 @@ Plus 9 retroactive decision records (for Phase 0, RevOps R1, payment provider, o
 
 ## Appendix D: The launch plan
 
-The launch playbook (the operational source of truth for "how to go from where the repo is to a live app") is at [`docs/technical/deployment/launch_playbook_2026-07-18.md`](../technical/deployment/launch_playbook_2026-07-18.md). Its migration step must apply the complete ordered `supabase/migrations/` chain (32 files currently present), not a fixed historical count; fresh-reset and deployed-history verification remain required.
+The launch playbook (the operational source of truth for "how to go from where the repo is to a live app") is at [`docs/technical/deployment/launch_playbook_2026-07-18.md`](../technical/deployment/launch_playbook_2026-07-18.md). Its migration step must apply the complete ordered `supabase/migrations/` chain (33 files currently present), not a fixed historical count; fresh-reset and deployed-history verification remain required.
 
 ## Appendix E: What's deferred (the follow-up backlog)
 

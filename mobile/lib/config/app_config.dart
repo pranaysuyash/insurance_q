@@ -76,6 +76,8 @@ class AppConfig {
 
   // Upload constraints
   static const int maxUploadFileSizeBytes = 20 * 1024 * 1024; // 20 MB
+  static const int maxUploadFileSizeMB =
+      maxUploadFileSizeBytes ~/ (1024 * 1024);
 
   // Rate limiting configuration (should match backend)
   static const int defaultSessionLimit = 5;

@@ -33,6 +33,9 @@ CoverWise is not launch-ready yet. The local API path, local Supabase schema, Su
 - Added authenticated, idempotent RevenueCat webhook ingestion with verified-state precedence over client reconciliation; cancellation preserves access through expiry and expiration/revocation removes the verified entitlement.
 - Fixed evidence substrate construction to use the required environment-backed Supabase client and added macOS Homebrew native-library path configuration for GLib/Pango/Cairo/GDK-Pixbuf/Harfbuzz/Fontconfig/Freetype before optional OCR/PDF imports.
 - Stopped retrying deterministic OpenAI credential failures in the embedding path; configured local fallback remains observable while the invalid credential is replaced.
+- Reconciled the Python dependency contract with `uv`: Supabase 2.31 now has a compatible Pydantic lower bound, the project venv is installed from `requirements-local.txt`, and `tools/run_backend_tests.sh` prevents accidental system-Python test runs.
+- Added a macOS `DYLD_FALLBACK_LIBRARY_PATH` runtime path for Homebrew GLib/Pango/Cairo/GDK-Pixbuf dependencies without overriding the venv's PyTorch libraries.
+- Added `pytest.ini` so standalone verification scripts are not mis-collected as unit tests; the one remaining skip is the intentionally credential/deployment-gated Azure integration test.
 
 ## Evidence captured from code/runtime
 
@@ -41,7 +44,7 @@ CoverWise is not launch-ready yet. The local API path, local Supabase schema, Su
 | `flutter analyze` | No issues found | Tier 1 |
 | Analytics consent gate tests | 5 passed | Tier 2 |
 | Dashboard tests | 16 passed | Tier 2 |
-| Complete Flutter test suite | 573 passed | Tier 2 |
+| Complete Flutter test suite | 594 passed from `mobile/` | Tier 2 |
 | Launch-critical mobile bundle | 132 passed | Tier 2 |
 | Backend targeted tests | 33 passed | Tier 2 |
 | Supabase/backend targeted tests after dependency and schema fixes | 17 passed | Tier 2 |
@@ -65,14 +68,24 @@ CoverWise is not launch-ready yet. The local API path, local Supabase schema, Su
 | Remote-configured iOS simulator | Supabase initialization completed; anonymous-provider-disabled startup is handled by local-principal fallback | Tier 4 |
 | Local identity-link tests | Guest-to-account link retry is idempotent; rebinding to another account is rejected | Tier 2 |
 | Remote identity/analytics schema probe | Remote `identity_aliases` and `analytics_events` are available and queryable with the server key | Tier 3 |
-| Remote migration application | Supabase Management API previously accepted the 25 normalized migrations; the new billing-ledger migration is not applied because the temporary management credential now returns HTTP 403 | Tier 3 mixed |
-| Current full backend pytest suite | 336 passed, 4 skipped; the prior failures were repaired in the OpenAI verification harness, citation test contract, doctr image input shape, deletion repository injection path, subscription webhook coverage, billing-ledger coverage, analytics identity/retention coverage, runtime configuration coverage, and current parallel-work regressions | Tier 2 |
-| Current Flutter analyzer | No issues found with `flutter analyze --no-fatal-infos` | Tier 1 |
+| Remote migration application | Supabase Management API accepted the 33 normalized migrations through `20260721090703`; remote policy, lifecycle, analytics, and billing tables are queryable | Tier 3 |
+| Current full backend pytest suite | 350 passed, 1 intentionally skipped through `tools/run_backend_tests.sh` (`uv` + `.venv`); the prior failures were repaired in the OpenAI verification harness, citation test contract, doctr image input shape, deletion repository injection path, subscription webhook coverage, billing-ledger coverage, analytics identity/retention coverage, runtime configuration coverage, outbox environment-alias coverage, document-intelligence CIR coverage, and current parallel-work regressions | Tier 2 |
+| Current Flutter analyzer | No issues found with `flutter analyze --no-fatal-infos` from `mobile/` | Tier 1 |
 | Current remote-configured API on port 8002 | Latest code running in development/staging mode; `/readyz` returned 200 and a real anonymous profile round-trip preserved the same owner UID | Tier 3 |
 | RevenueCat webhook tests | Authorization, duplicate delivery idempotency, initial purchase, and expiration precedence pass | Tier 2 |
 | Native runtime probe | Homebrew native libraries and WeasyPrint import pass; doctr predictor initializes successfully from the project venv | Tier 2 |
-| Billing-ledger migration validation | New PostgreSQL ledger migration parsed and its purchase, duplicate, stale-event, and expiration behavior passed in an isolated local PostgreSQL database; hosted application remains pending | Tier 3 local |
-| Latest staging API on port 8002 | Started with current billing fail-closed code; `/readyz` 200, anonymous creation 200, subscription status/webhook return 503 until hosted billing tables exist | Tier 3 |
+| Billing-ledger migration validation | New PostgreSQL ledger migration parsed and its purchase, duplicate, stale-event, and expiration behavior passed locally and through the hosted Supabase RPC | Tier 3 |
+| Remote billing-ledger validation | Hosted Supabase RPC passed purchase, duplicate, stale-event, entitlement-state, and synthetic-row cleanup checks; publishable-key reads were denied by RLS | Tier 3 |
+| RevenueCat outbox path | Staging API returned accepted/queued, a real remote `job_outbox` row was created, the worker handler applied the hosted billing RPC, and synthetic queue/ledger rows were removed | Tier 3 |
+| Latest staging API on port 8002 | Started with current billing fail-closed code; `/readyz` 200, anonymous creation 200, remote subscription status/sync/webhook paths returned 200, and synthetic billing rows were removed | Tier 3 |
+
+## Current-state addendum (2026-07-21)
+
+The current process state is `serve-sim` on port 3200 and the staging API on
+port 8002, both returning 200/readiness responses. Docker Desktop was stopped
+after its Docker VM consumed the local disk and made the CLI unresponsive; no
+containers, project files, or session data were deleted. A full local
+Supabase reset therefore remains unverified in the current machine state.
 
 ## Remaining blockers and closure paths
 
@@ -80,9 +93,9 @@ CoverWise is not launch-ready yet. The local API path, local Supabase schema, Su
 2. The local OpenAI key currently receives 401 invalid-key responses. Replace it with a valid production credential or explicitly configure the intended production fallback, then rerun real extraction and question-answer flows.
 3. Production Supabase schema linkage is now applied through the Management API. Authenticated cross-owner isolation and guest-claim tests still need to be run against a real staging account pair.
 4. The Android bundle now compiles, but it used placeholder release defines. Rebuild with real production values and verify install/startup plus authenticated flows before distribution.
-5. The full backend suite is now green at 336 passed and 4 skipped. The skipped async verification scripts still need an async pytest plugin or an explicit separate execution command before those scripts can count as broad integration proof.
+5. The full backend suite is now green at 350 passed and 1 intentionally skipped through the canonical `uv`/`.venv` runner. The remaining skip is `tests/test_azure_api.py`, which requires a real deployed integration base URL and credentials; it is not a dependency or collection failure.
 6. External distribution/deployment was not performed. No deployment destination or production credentials were available, and no commit or push was authorized.
-7. The identity-link and analytics tables are now remotely queryable. The new Supabase entitlement/webhook ledger is implemented and locally verified, but the hosted migration was blocked by HTTP 403 from the temporary management credential; the API therefore fails closed for subscription operations until that migration is applied.
+7. The identity-link, analytics, policy-domain, artifact-lifecycle, and billing-ledger tables are now remotely queryable with service-role access and denied to publishable-key reads. Real RevenueCat sandbox delivery and production webhook-secret configuration remain required before relying on live subscription revenue data.
 
 ## Artifact and workspace state
 

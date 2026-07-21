@@ -979,14 +979,14 @@ production artifact retention or operator replay of a real model run.
 
 ## Migration-chain coherence (2026-07-21)
 
-The timestamped executable chain currently contains **32 uniquely versioned
+The timestamped executable chain currently contains **33 uniquely versioned
 SQL files**, ordered from the base documents schema through processing events.
 Static inspection confirms the new lifecycle, retrieval-audit, artifact, and
 model-lineage tables reference earlier tables/functions in the ordered chain;
 the account-lifecycle trigger uses the previously defined outbox timestamp
 function, and the model registry follows the dataset registry.
 
-This is Tier 1 evidence only. No claim is made that the 32 files are applied to
+This is Tier 1 evidence only. No claim is made that the 33 files are applied to
 the target Supabase project. A clean CLI reset, migration-history comparison,
 duplicate account-deletion payload preflight, and production push are required
 before deployment readiness.
@@ -996,7 +996,7 @@ foreign keys on dataset, retrieval-candidate, and answer-evidence tables. The
 local Supabase database was not running during this pass, so `supabase migration
 list --local` could not connect; SQL execution and advisor output remain open.
 
-The current static inventory has since grown to **32 uniquely versioned SQL
+The current static inventory has since grown to **33 uniquely versioned SQL
 files**, including policy summaries, the FTS source-text contract, and stable
 analytics event identity. This count is repository evidence only; no deployment
 or fresh-reset claim is made.
@@ -1012,6 +1012,25 @@ and prevents distinct same-batch events from colliding on `received_at`.
 `AnalyticsRetentionService` remains the service-role boundary for the
 past-cutoff purge RPC; scheduling, audit reporting, and live Supabase execution
 remain open.
+
+The full Flutter suite now passes **588 tests** after removing a concurrent
+duplicate upload-size constant and making the initial-file widget test pump
+around the intentional indeterminate allowance spinner. Mobile advertises a
+20 MB early UX limit; the backend retains its independent 50 MB authoritative
+safety ceiling, so clients cannot expand server acceptance and server errors
+remain authoritative.
+
+## Governed dataset execution terminal-state fence (2026-07-21)
+
+The approved-manifest execution service now keeps manifest artifact persistence
+inside the model-run terminal-state fence. If artifact storage fails after a
+run is created, the run is finalized as `failed` rather than left indefinitely
+in `started`. Per-item results remain hash/metric-only, and raw evaluator output
+is not persisted.
+
+Verification: dataset execution, model lineage, and registry tests pass **11
+tests**. This is Tier 2 evidence; a real approved release, evaluator/provider
+run, artifact store, and operator replay remain research-lane gates.
 
 Verification: analytics idempotency, retention, error aggregation, production
 anti-abuse startup, and runtime configuration tests pass **24 tests**. This is
@@ -1087,3 +1106,138 @@ enforce the same 20 MB size limit as native uploads, and the browser accept list
 matches the screen's PDF/JPEG/PNG contract. Flutter analysis remains clean and
 the documents-screen suite passes **11 tests**. Server-side validation remains
 authoritative; this is client usability and early-failure evidence only.
+
+Document processing now records policy-domain projection failure separately
+from classifier failure. A successful heuristic/LLM classification no longer
+silently implies that the normalized policy projection succeeded; the stage
+stores only a bounded error type and remains visible in the processing result.
+Focused document/outbox/policy tests pass **13 tests** after this hardening.
+
+The broad Python suite then passed **337 tests**, with 4 skips and 42 dependency
+warnings. The skips are unmarked async verification scripts; they are not
+counted as end-to-end proof. A direct local endpoint probe found OCR and RAG
+health endpoints available, while the optional frontend service on port 8080
+was unavailable. Credentialed model-fallback and full deployed-service probes
+remain open.
+
+## Addendum — remaining diff audit: retention, backfill, and evidence status (2026-07-21)
+
+The final small-diff pass found and closed three boundary gaps:
+
+- scheduled retention now normalizes the modern Supabase server-secret alias,
+  and analytics/artifact retention accept the same canonical fallback as the
+  billing and outbox adapters;
+- contextual retrieval backfill now rejects unsafe batch sizes, orders pages
+  deterministically, and preserves an explicit owner predicate on scoped
+  updates;
+- Q&A citation cards now use verified/error/unknown icons according to the
+  citation status instead of presenting every citation as verified, and long
+  status labels are ellipsized within the card.
+- subscription writeback now validates serialized boolean values explicitly,
+  preventing a string `"false"` from becoming truthy during entitlement sync.
+
+Verification: 39 focused Python tests passed; Flutter analysis passed; the
+Q&A, pack, and document screen suite passed 53 tests. This is Tier 2 evidence
+for local contracts and Tier 1/2 evidence for the UI boundary. Retention
+scheduler execution against Supabase, a real backfill replay, and deployed
+cross-owner/citation rendering remain Tier 3+ gates.
+
+## Addendum — platform, CI, and renewal journey pass (2026-07-21)
+
+The next diff cluster was re-audited against the user journey. Android
+17/API 37.1 cold-launch artifacts were visually inspected and are consistent
+with the recorded package/onboarding accessibility dump; this remains Tier 4
+startup evidence and does not prove launcher icon placement.
+
+The CI workflow now calls the canonical backend test runner, and its trailing
+whitespace regression was removed. The renewal-calendar empty path had an
+incorrect CTA label (`renewalEmptySubtitle`); it now uses the canonical policy
+file action. A new widget test covers the empty renewal state.
+
+Verification: Flutter analysis passed; the affected mobile suite passed 64
+tests; the backend outbox/writeback/retention subset passed 6 tests. Full
+deployment and CI-host execution remain unverified in this environment.
+
+The new `tools/verify_supabase_schema.py` probe was also executed read-only
+against the configured remote project. It returned Auth HTTP 200, confirmed
+email enabled and anonymous users disabled, found the established required
+tables, and exited 2 because `model_run_results` is absent remotely. This is
+Tier 3 schema-drift evidence; no remote write or test account was created.
+
+The Postgres best-practices pass identified and closed a missing leading index
+for the `model_run_results.dataset_item_id` foreign key. The migration now
+indexes that column separately from its `(model_run_id, dataset_item_id)`
+uniqueness index, improving restriction checks and item-level joins.
+
+The dependency contract was also tightened: the tested Pydantic/Pydantic
+Settings pair is now pinned exactly, `uv pip install --dry-run` proposed no
+changes, and `uv pip check` passed. The legacy Firebase package remains
+omitted intentionally because its adapter is a lazy compatibility boundary and
+Supabase Auth is canonical.
+
+## Addendum — mobile copy and state-contract review (2026-07-21)
+
+The documents, insurance-card, profile, settings, and renewal diff cluster was
+reviewed end to end. Two contract issues were corrected: the device-data row
+now says `Clear local data` rather than reusing the confirmation-dialog title,
+and profile storage copy now describes a protected local cache while allowing
+for securely synchronized account data. The renewal empty-state CTA remains
+covered by its dedicated regression test.
+
+Verification: Flutter analysis passed; focused profile/documents/renewal tests
+passed 23 tests; `git diff --check` passed. The full Flutter suite is recorded
+at 588 passed at that earlier checkpoint. The latest full run is 594 passed.
+Remaining gaps are device-matrix/accessibility coverage and
+authenticated deployed-runtime proof.
+
+## Addendum — document-intelligence provenance hardening (2026-07-21)
+
+The optional Docling branch had a concrete multi-page provenance defect: it
+returned the complete document as page 1 and reported a one-page result. The
+adapter now groups exposed page items into page text and derives the page count
+from that grouping, with an explicit page-1 fallback only when grouping is not
+available. The new CIR tests cover ordering, source/image hashes, and the
+non-inference boundary for specialist capabilities.
+
+Verification: 8 focused Python tests passed; Python compilation passed; and
+`git diff --check` passed. Real Docling execution, durable CIR persistence, and
+page-level UI citation resolution remain unverified Tier 3 gates.
+
+## Addendum — family and Q&A surface pass (2026-07-21)
+
+The family and Q&A screens were rechecked after the earlier localization and
+trust-boundary changes. Family removal copy is now fully catalog-backed in the
+changed paths. Q&A answer citations render explicit verified/rejected/unknown
+states, and unknown citations display `Unknown` rather than leaving the user to
+interpret an unlabelled help icon. The entitlement check and stale demo-answer
+fence remain intact.
+
+Verification: Flutter analysis passed; the Q&A, pack, profile, documents, and
+renewal suites passed 65 tests; `git diff --check` passed. Real authenticated
+API citation payloads and deployed runtime remain unverified.
+
+## Addendum — billing, outbox, and retention execution review (2026-07-21)
+
+The server operational cluster was audited end to end. RevenueCat webhooks are
+accepted only after durable queue insertion in remote mode; reconciliation and
+subscription writeback use the server ledger; retention deletes only objects
+already fenced by lifecycle state and records the terminal transition. The
+modern Supabase secret alias is normalized at runtime boundaries, preserving
+one internal credential contract.
+
+Verification: 44 focused Python tests passed; affected modules compiled; and
+`git diff --check` passed. Live RevenueCat, remote retention, and production
+operator-recovery behavior remain unverified.
+
+## Addendum — full-suite revalidation (2026-07-21)
+
+The full current pass exposed a real 2.7px overflow in the on-device OCR
+language dropdown at the fixed mobile test viewport. The dropdown now expands
+to its available width. The associated test also scrolls the switch into view
+and uses a typed widget predicate, removing a false failure caused by hit-test
+and generic-type assumptions.
+
+Verification: backend full suite 350 passed, 1 intentional skip; Flutter full
+suite 594 passed; upload-layout suite 19 passed; and `git diff --check` passed.
+Provider-backed, device-matrix, and authenticated deployed-runtime behavior
+remain unverified.

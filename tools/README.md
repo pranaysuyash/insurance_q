@@ -6,7 +6,7 @@ Checks the canonical Cloud Run + Supabase launch configuration without exposing
 secret values. Run it locally or in CI before a deployment:
 
 ```bash
-ENVIRONMENT=production venv/bin/python tools/validate_production_config.py \
+ENVIRONMENT=production uv run --python .venv/bin/python python tools/validate_production_config.py \
   --env-file /secure/path/coverwise-production.env
 ```
 
@@ -67,7 +67,7 @@ and (optionally) the production CORS allowlist. It neither uploads policy data
 nor prints bearer tokens.
 
 ```bash
-venv/bin/python tools/verify_deployed_launch.py \
+uv run --python .venv/bin/python python tools/verify_deployed_launch.py \
   --base-url https://api.example.com \
   --origin https://www.example.com
 ```
@@ -79,7 +79,7 @@ models on a PDF fixture. It records timing, output size, and exact expected
 token checks without persisting the policy text by default.
 
 ```bash
-venv/bin/python tools/evaluate_local_document_models.py \
+uv run --python .venv/bin/python python tools/evaluate_local_document_models.py \
   tests/test_data/sample_insurance.pdf \
   --models deepseek-ocr:latest gemma3:4b qwen2.5vl:7b \
   --expected 'Insurance Policy' \
@@ -99,5 +99,29 @@ cleanup. It refuses non-local Supabase URLs unless explicitly enabled.
 ```bash
 SERVICE_ROLE_KEY=$(supabase status -o env | awk -F= '/^SERVICE_ROLE_KEY=/{print $2}' | tr -d '"') \
 SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
-venv/bin/python tools/verification/supabase_retrieval_benchmark.py
+uv run --python .venv/bin/python python tools/verification/supabase_retrieval_benchmark.py
+```
+
+## `run_data_retention.py`
+
+Runs the canonical service-role retention pass: purges analytics before the
+configured cutoff, fences expired artifacts, and deletes already-fenced object
+references. Schedule this command from the deployment environment; it does not
+run automatically from API startup.
+
+```bash
+uv run --python .venv/bin/python python tools/run_data_retention.py \
+  --analytics-retention-days 365 \
+  --artifact-limit 100
+```
+
+## `verify_supabase_schema.py`
+
+Runs a non-mutating remote schema/Auth probe with the server key and
+publishable key. It exits `2` when any required table is missing, which makes
+remote migration drift visible in CI or a deployment checklist.
+
+```bash
+set -a; . ./.env; set +a
+uv run --python .venv/bin/python python tools/verify_supabase_schema.py
 ```

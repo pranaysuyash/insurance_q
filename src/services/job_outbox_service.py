@@ -88,7 +88,10 @@ class JobOutboxService:
     @staticmethod
     def from_env() -> "JobOutboxService":
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        key = (
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            or os.getenv("SUPABASE_SECRET_KEY", "").strip()
+        )
         if not url or not key:
             raise JobOutboxUnavailable(
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set"

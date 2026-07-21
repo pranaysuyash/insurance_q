@@ -1,9 +1,11 @@
 from datetime import datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.models.document import Document
-from src.services.document_processing_job import run_document_processing_job
+from src.services.document_processing_job import _apply_classification, run_document_processing_job
 from src.services.document_repository import SQLiteDocumentRepository
 
 
@@ -75,3 +77,43 @@ async def test_runner_does_not_process_a_live_duplicate_claim(tmp_path):
 
     assert result is None
     assert repository.get("doc-2", "owner-1").status == "processing"
+
+
+@pytest.mark.asyncio
+async def test_policy_projection_failure_is_recorded_separately_from_classification():
+    document = Document(
+        id="doc-3",
+        filename="policy.pdf",
+        size=3,
+        upload_date=datetime.utcnow(),
+        user_uid="owner-1",
+        file_path="supabase://bucket/doc-3/policy.pdf",
+    )
+    classifier = MagicMock()
+    classifier.classify_document = AsyncMock(return_value={
+        "document_type": "Health Insurance",
+        "insurer": "Acme",
+        "policy_number": "P-12345",
+        "confidence": 0.9,
+    })
+    service = SimpleNamespace(rag_pipeline=None)
+    result = {
+        "status": "completed",
+        "stages": {
+            "ocr": {"full_text": "health insurance policy text"},
+            "rag_ingestion": {"sections": []},
+        },
+    }
+
+    with (
+        patch("src.utils.document_classifier.get_document_classifier", return_value=classifier),
+        patch(
+            "src.services.policy_domain_service.sync_document",
+            side_effect=RuntimeError("projection unavailable"),
+        ),
+    ):
+        await _apply_classification(document, result, service, "doc-3")
+
+    assert document.document_type == "Health Insurance"
+    assert result["stages"]["policy_domain_projection"]["status"] == "failed"
+    assert document.metadata["policy_domain_projection_error_type"] == "RuntimeError"

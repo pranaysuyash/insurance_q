@@ -132,19 +132,18 @@ gates, see
 git clone <repository-url>
     cd insurance_app
 
-# Backend setup
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# Backend setup (canonical local environment)
+uv venv --python 3.11 .venv
+uv pip install --python .venv/bin/python -r requirements-local.txt
 
 # Frontend setup
 cd mobile
 flutter pub get
 flutter run
 
-# Run tests
+# Run backend tests through uv and the project venv
 cd ..
-pytest tests/
+tools/run_backend_tests.sh tests/
 ```
 
 ### Environment Configuration
@@ -177,16 +176,15 @@ AZURE_SUBSCRIPTION_ID=your_subscription_id
 ## 🧪 Testing
 
 ### Test Coverage
-- **Backend Tests**: 5/11 passing (core functionality)
-- **API Integration**: 6/8 passing (75% success rate)
-- **Flutter Tests**: All critical paths tested
+- **Backend Tests**: 350 passed, 1 deployment-gated integration test skipped
+- **API Integration**: Run through the live staging API and targeted Supabase checks
+- **Flutter Tests**: 594 passed in the current verified suite
 - **Performance**: Response times < 2 seconds
 
 ### Running Tests
    ```bash
 # Backend tests
-export PYTHONPATH=$PYTHONPATH:$(pwd)
-pytest tests/ -v
+tools/run_backend_tests.sh tests/ -v
 
 # API tests
 ./scripts/test_azure_apis.sh

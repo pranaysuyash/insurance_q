@@ -25,6 +25,8 @@ from pydantic import BaseModel, Field
 from src.api.user import get_current_user
 from src.models.user import User
 from src.services.billing_ledger_service import BillingLedger, use_remote_billing
+from src.models.job_outbox import EnqueueRequest, JobType
+from src.services.job_outbox_service import JobOutboxService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/subscription", tags=["subscription"])
@@ -350,17 +352,25 @@ async def revenuecat_webhook(
 
     if use_remote_billing():
         try:
-            return BillingLedger.from_env().process_revenuecat_webhook(
-                event_id=event_id,
-                event_type=event_type,
-                app_user_id=app_user_id,
-                event_timestamp_ms=event_timestamp_ms,
-                product_id=product_id,
-                expires_at=expiry,
+            outbox = JobOutboxService.from_env()
+            await outbox.enqueue(
+                EnqueueRequest(
+                    job_type=JobType.WEBHOOK_RECONCILIATION,
+                    payload={
+                        "event_id": event_id,
+                        "event_type": event_type,
+                        "app_user_id": app_user_id,
+                        "event_timestamp_ms": event_timestamp_ms,
+                        "product_id": product_id,
+                        "expires_at": expiry,
+                    },
+                    max_attempts=8,
+                )
             )
+            return {"status": "accepted", "event_id": event_id, "queued": True}
         except Exception as error:
-            logger.error("Supabase billing webhook unavailable: %s", type(error).__name__)
-            raise HTTPException(status_code=503, detail="Subscription ledger unavailable") from error
+            logger.error("RevenueCat webhook could not be queued: %s", type(error).__name__)
+            raise HTTPException(status_code=503, detail="Webhook queue unavailable") from error
 
     conn = sqlite3.connect(DB_PATH)
     try:

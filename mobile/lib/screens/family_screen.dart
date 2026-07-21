@@ -7,6 +7,7 @@ import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/error_widget.dart';
+import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import 'add_family_member_dialog.dart';
 import 'family_member_detail_screen.dart';
@@ -17,7 +18,7 @@ class FamilyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Family')),
+      appBar: AppBar(title: Text(S.familyTitle)),
       body: const FamilyMembersContent(),
     );
   }
@@ -45,7 +46,7 @@ class FamilyMembersContent extends ConsumerWidget {
     return documentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppErrorView(
-        message: 'Your policy library could not be loaded.',
+        message: S.familyLibraryError,
         icon: Icons.family_restroom_rounded,
         onRetry: () => ref.invalidate(documentsProvider),
       ),
@@ -53,11 +54,9 @@ class FamilyMembersContent extends ConsumerWidget {
         if (documents.isEmpty) {
           return EmptyStateWidget(
             icon: Icons.family_restroom,
-            title: 'No family members yet',
-            subtitle:
-                'Upload insurance documents to auto-detect family members, or '
-                'add one manually.',
-            actionLabel: 'Add Family Member',
+            title: S.familyNoMembersYet,
+            subtitle: S.familyEmptySubtitle,
+            actionLabel: S.familyAddMember,
             actionIcon: Icons.person_add_alt_1_rounded,
             color: const Color(0xFF16866B),
             onAction: () => _addMember(context, ref),
@@ -83,7 +82,7 @@ class _FamilyList extends ConsumerWidget {
     return familyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppErrorView(
-        message: 'Covered family members could not be read from your policies.',
+        message: S.familyMembersReadError,
         icon: Icons.family_restroom_rounded,
         onRetry: () => ref.invalidate(mergedFamilyMembersProvider(documents)),
       ),
@@ -91,11 +90,9 @@ class _FamilyList extends ConsumerWidget {
         if (policyHolders.isEmpty) {
           return EmptyStateWidget(
             icon: Icons.family_restroom,
-            title: 'No family members found',
-            subtitle:
-                'Upload insurance documents to auto-detect family members, or '
-                'add one manually.',
-            actionLabel: 'Add Family Member',
+            title: S.familyNoMembersFound,
+            subtitle: S.familyEmptySubtitle,
+            actionLabel: S.familyAddMember,
             actionIcon: Icons.person_add_alt_1_rounded,
             color: const Color(0xFF16866B),
             onAction: onAdd,
@@ -109,16 +106,15 @@ class _FamilyList extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               CoverWisePageHeader(
-                title: 'People covered',
-                subtitle:
-                    'A clear view of the people found in your policies, plus anyone you add yourself.',
+                title: S.familyPeopleCovered,
+                subtitle: S.familyPeopleSubtitle,
                 trailing: CoverWiseIconBadge(
                   icon: Icons.family_restroom_rounded,
                   color: CoverWiseColors.blueDeep,
                   size: 48,
                 ),
               ),
-              const CoverWiseSectionLabel('Family and insured members'),
+              CoverWiseSectionLabel(S.familySectionLabel),
               ...policyHolders.values.map((holder) => _FamilyMemberCard(
                     holder: holder,
                     documents: documents,
@@ -136,20 +132,19 @@ class _FamilyList extends ConsumerWidget {
                             final confirmed = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text('Remove family member?'),
-                                content: Text(
-                                    'Remove ${holder.name} from your family list? '
-                                    'This does not affect your policy documents.'),
+                                title: Text(S.familyRemoveTitle),
+                                content:
+                                    Text(S.familyRemoveContent(holder.name)),
                                 actions: [
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
+                                    child: Text(S.cancel),
                                   ),
                                   FilledButton.tonal(
                                     onPressed: () =>
                                         Navigator.pop(context, true),
-                                    child: const Text('Remove'),
+                                    child: Text(S.remove),
                                   ),
                                 ],
                               ),
@@ -166,7 +161,7 @@ class _FamilyList extends ConsumerWidget {
                   width: double.infinity,
                   child: FilledButton.icon(
                     icon: const Icon(Icons.person_add_alt_1_rounded),
-                    label: const Text('Add family member'),
+                    label: Text(S.familyAddButton),
                     onPressed: onAdd,
                   ),
                 ),
@@ -256,8 +251,7 @@ class _FamilyMemberCard extends StatelessWidget {
                               ),
                             ),
                             _SourceBadge(isManual: holder.isManual),
-                            if (count > 0)
-                              _PolicyCountBadge(count: count),
+                            if (count > 0) _PolicyCountBadge(count: count),
                           ],
                         ),
                       ],
@@ -266,7 +260,7 @@ class _FamilyMemberCard extends StatelessWidget {
                   if (onDelete != null)
                     IconButton(
                       icon: const Icon(Icons.person_remove_outlined),
-                      tooltip: 'Remove ${holder.name}',
+                      tooltip: S.familyRemoveTooltip(holder.name),
                       onPressed: onDelete,
                     ),
                 ],
@@ -279,7 +273,7 @@ class _FamilyMemberCard extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(width: 8),
                     Text(
-                      'Date of birth: ${holder.dob}',
+                      S.familyDateOfBirth(holder.dob!),
                       style: theme.textTheme.bodyMedium,
                     ),
                   ],
@@ -335,7 +329,7 @@ class _SourceBadge extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
-        isManual ? 'Manual' : 'From document',
+        isManual ? S.familyManualBadge : S.familyFromDocumentBadge,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

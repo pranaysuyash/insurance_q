@@ -48,9 +48,8 @@ While the primary development and execution path is via Docker, you might want a
 The `create_env.py` script can help, or do it manually:
 
 ```bash
-python3.11 -m venv venv
-source venv/bin/activate  # On Windows: venv\\Scripts\\activate
-pip install -r requirements.txt
+uv venv --python 3.11 .venv
+uv pip install --python .venv/bin/python -r requirements-local.txt
 ```
 *Note: Ensure your local Python version matches the one in Docker (`python:3.11-slim`) for consistency.*
 

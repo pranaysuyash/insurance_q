@@ -9,7 +9,10 @@ from typing import Any, Optional, Sequence
 
 def _client() -> Optional[Any]:
     url = os.getenv("SUPABASE_URL", "").strip()
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    key = (
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        or os.getenv("SUPABASE_SECRET_KEY", "").strip()
+    )
     if not url or not key:
         if os.getenv("ENVIRONMENT", "development").lower() == "production":
             raise RuntimeError("Supabase artifact lifecycle is required in production")
@@ -70,3 +73,33 @@ def mark_orphans(*, present_object_references: Sequence[str], actor: str = "orph
 
 def mark_deleted(artifact_id: str, *, actor: str = "storage_worker") -> None:
     _transition(artifact_id, "deleted", "object_deleted", actor)
+
+
+def delete_pending(*, limit: int = 100, actor: str = "retention_worker") -> dict[str, int]:
+    """Delete objects already fenced by a retention/orphan transition.
+
+    State is changed to ``deleting``/``orphaned`` before this function runs;
+    the object store is therefore never the source of truth for eligibility.
+    Failed deletes remain visible in their prior state for the next scheduled
+    attempt and are counted for operator monitoring.
+    """
+    if limit < 1 or limit > 1000:
+        raise ValueError("limit must be between 1 and 1000")
+    client = _client()
+    if client is None:
+        return {"attempted": 0, "deleted": 0, "failed": 0}
+    rows = client.table("document_artifacts").select("id,object_reference,state").in_(
+        "state", ["deleting", "orphaned"]
+    ).order("created_at").limit(limit).execute().data or []
+    from src.services.document_object_store import create_document_object_store
+    store = create_document_object_store()
+    deleted = 0
+    failed = 0
+    for row in rows:
+        try:
+            store.delete(row["object_reference"])
+            if _transition(row["id"], "deleted", "object_deleted", actor):
+                deleted += 1
+        except Exception:
+            failed += 1
+    return {"attempted": len(rows), "deleted": deleted, "failed": failed}

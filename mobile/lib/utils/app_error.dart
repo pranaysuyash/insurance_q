@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../config/app_config.dart';
 
 /// Centralized mapping from exceptions to user-friendly, actionable messages.
 ///
@@ -144,7 +145,7 @@ class AppError {
     // ── Upload / document errors ──
     if (message.contains('upload') || message.contains('document')) {
       if (message.contains('too large') || message.contains('size limit')) {
-        return 'The file is too large. Please upload a smaller document (max 20 MB).';
+        return 'The file is too large. Please upload a smaller document (max ${AppConfig.maxUploadFileSizeMB} MB).';
       }
       if (message.contains('unsupported') || message.contains('invalid format')) {
         return 'This file type is not supported. Please upload a PDF, JPEG, or PNG.';

@@ -39,6 +39,10 @@ class PDFProcessor:
                     "full_text": ocr_result.get("full_text", ""),
                     "text_blocks": ocr_result.get("text_blocks", []),
                     "layout_elements": ocr_result.get("layout_elements", []),
+                    "page_texts": ocr_result.get("page_texts", {}),
+                    "page_images": ocr_result.get("page_images", {}),
+                    "source_artifact_sha256": ocr_result.get("source_artifact_sha256"),
+                    "cir": ocr_result.get("cir"),
                     "metadata": ocr_result.get("metadata", {}),
                     "method": "ocr_pipeline"
                 }

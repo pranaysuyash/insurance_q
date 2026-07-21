@@ -116,8 +116,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     'png',
   };
 
-  /// Maximum file size in bytes (20 MB).
-  static const int _maxFileSizeBytes = 20 * 1024 * 1024;
+
 
   Future<void> _pickFile() async {
     setState(() {
@@ -162,7 +161,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           setState(() => _uploadError = S.fileTypeUnsupported);
           return;
         }
-        if (picked.bytes.length > _maxFileSizeBytes) {
+        if (picked.bytes.length > AppConfig.maxUploadFileSizeBytes) {
           setState(() => _uploadError =
               'This file is too large (${_formatFileSize(picked.bytes.length)}). ${S.fileTypeMaxSize}.');
           return;
@@ -191,7 +190,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       // Validate file size before proceeding.
       final size = await File(file.path).length();
       if (!mounted) return;
-      if (size > _maxFileSizeBytes) {
+      if (size > AppConfig.maxUploadFileSizeBytes) {
         setState(() => _uploadError =
             'This file is too large (${_formatFileSize(size)}). ${S.fileTypeMaxSize}.');
         return;
@@ -645,6 +644,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                             if (_useOnDeviceOcr)
                               DropdownButtonFormField<OnDeviceOcrScript>(
                                 value: _onDeviceOcrScript,
+                                isExpanded: true,
                                 decoration: const InputDecoration(
                                   labelText: 'Document language',
                                   border: OutlineInputBorder(),

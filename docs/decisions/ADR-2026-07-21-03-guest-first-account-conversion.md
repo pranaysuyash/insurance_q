@@ -72,10 +72,16 @@ guest bearer owner rather than maintaining two owner systems.
 
 - The production RevenueCat entitlement/webhook path now has a canonical
   Supabase ledger/RPC; SQLite remains a development compatibility adapter.
-  Execute and concurrency-test the remote migration before production billing
-  scale-up.
+  Hosted migration and transactional RPC checks are complete; real sandbox
+  delivery and concurrency testing remain before production billing scale-up.
 - A real guest-to-account purchase/restore flow has not been exercised against
   a staging account pair. Run the sandbox flow and verify claim, restore,
   expiration, sign-out, and deletion behavior.
 - Production OpenAI and deployment values remain credential-dependent. Keep
   those checks explicit in the launch report.
+
+## Implementation addendum (2026-07-21)
+
+The production entitlement/webhook ledger is now Supabase-backed; SQLite is
+development-only. The webhook route queues through the outbox and the worker
+handler applies the remote RPC. Real provider sandbox delivery remains open.

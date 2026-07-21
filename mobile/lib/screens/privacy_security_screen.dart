@@ -201,27 +201,19 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
           const CoverWiseSectionLabel('Retention and deletion'),
           const _PrivacyItem(
             icon: Icons.timer,
-            title: 'Local storage',
-            body: 'Documents, summaries, and Q&A history are stored on your '
-                'device and persist until you delete them. Use Settings → '
-                'Clear local data to remove everything at any time.',
+            title: 'Local cache',
+            body: 'A protected local cache keeps documents, summaries, and '
+                'Q&A history available on this device. Use Settings → '
+                'Clear local data to remove the local cache at any time.',
           ),
-          // Security audit P0-18 + P0-02 (2026-07-18): the previous
-          // copy said "Deleting a synced policy removes these
-          // server-side records." That was false — the mobile
-          // "Remove from this device" button deletes only the local
-          // copy; the server copy is NOT deleted until the durable
-          // remote deletion lands (Security Phase 3). The honest
-          // version makes that explicit.
           const _PrivacyItem(
             icon: Icons.timer_off,
             title: 'Server storage',
             body: 'Synced policies are retained in private storage, '
-                'metadata, summaries, and the search index. Removing a '
-                'policy from this device does NOT delete the server '
-                'copy yet. Server-side deletion is currently a manual '
-                'request to support; remote-first durable deletion is '
-                'in progress (Security Phase 3).',
+                'metadata, summaries, and the search index. Deleting a '
+                'synced policy requests remote-first deletion; the local '
+                'copy is removed only after the server confirms. Failed '
+                'deletions remain available so you can retry.',
           ),
           _PrivacyItem(
             icon: Icons.delete_outline,

@@ -18,6 +18,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/coverwise_scene.dart';
 import '../widgets/shared/empty_state_widget.dart';
+import '../localization/app_localizations.dart';
 import '../utils/app_error.dart';
 import '../widgets/shared/error_widget.dart';
 import 'document_preview_screen.dart';
@@ -60,8 +61,7 @@ class DocumentsList extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: Semantics(
-                  label:
-                      '${documents.length} of 5 free policy storage slots used',
+                  label: S.docsSlotsUsed(documents.length),
                   child: Row(
                     children: [
                       Icon(
@@ -72,7 +72,7 @@ class DocumentsList extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${documents.length} of 5 free policy slots used',
+                          S.docsSlotsUsed(documents.length),
                           style: Theme.of(context)
                               .textTheme
                               .labelMedium
@@ -147,7 +147,7 @@ class DocumentsList extends ConsumerWidget {
                                     if (doc.localFilePath != null)
                                       TextButton.icon(
                                         icon: const Icon(Icons.visibility),
-                                        label: const Text('Preview'),
+                                        label: Text(S.docsPreview),
                                         onPressed: () {
                                           Navigator.push(
                                             context,
@@ -163,15 +163,15 @@ class DocumentsList extends ConsumerWidget {
                                       ),
                                     TextButton.icon(
                                       icon: const Icon(Icons.category_outlined),
-                                      label: const Text('Change type'),
+                                      label: Text(S.docsChangeType),
                                       onPressed: () => _changeDocumentType(context, ref, doc),
                                     ),
                                     if (doc.localFilePath != null)
                                       TextButton.icon(
                                         icon: const Icon(Icons.forum_outlined),
                                         label: Text(isReady
-                                            ? 'Ask Questions'
-                                            : 'Reading policy'),
+                                            ? S.docsAskQuestions
+                                            : S.docsReadingPolicy),
                                         onPressed: isReady
                                             ? () {
                                                 if (onDocumentSelectedForQA !=
@@ -201,7 +201,7 @@ class DocumentsList extends ConsumerWidget {
                                       child: TextButton.icon(
                                         icon: const Icon(
                                             Icons.find_replace_outlined),
-                                        label: const Text('Replace'),
+                                        label: Text(S.docsReplace),
                                         style: TextButton.styleFrom(
                                           foregroundColor: Theme.of(context)
                                               .colorScheme
@@ -213,14 +213,10 @@ class DocumentsList extends ConsumerWidget {
                                     ),
                                     TextButton.icon(
                                       icon: const Icon(Icons.delete_outline),
-                                      // Security audit P0-02 (2026-07-18):
-                                      // the "Delete" action only removes the
-                                      // local copy. The old copy on the
-                                      // server is not deleted by this
-                                      // button (until remote-first deletion
-                                      // ships in Security Phase 3). Honest
-                                      // copy: "Remove from this device".
-                                      label: const Text('Remove from this device'),
+                                      // Remote-first deletion is canonical:
+                                      // the local record is removed only after
+                                      // the server confirms the deletion.
+                                      label: Text(S.docsDeletePolicy),
                                       style: TextButton.styleFrom(
                                         foregroundColor:
                                             Theme.of(context).colorScheme.error,
@@ -272,7 +268,7 @@ class DocumentsList extends ConsumerWidget {
       await ref.read(documentServiceProvider).updateDocumentType(updated);
       ref.invalidate(documentsProvider);
       if (!context.mounted) return;
-      CoverWiseSnackBar.success(context, 'Type changed to ${canonicalTypeName(newType)}');
+      CoverWiseSnackBar.success(context, '${S.docsTypeChanged} ${canonicalTypeName(newType)}');
     } catch (e) {
       if (!context.mounted) return;
       CoverWiseSnackBar.error(context, AppError.userMessage(e));
@@ -303,22 +299,15 @@ class DocumentsList extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        // Security audit P0-02: honest copy. The action removes the
-        // local copy only; the server copy remains until remote-first
-        // deletion ships in Security Phase 3.
-        title: const Text('Remove from this device?'),
-        content: Text(
-          'This removes "${document.filename}" from this device. '
-          'The copy on CoverWise servers is NOT deleted by this action. '
-          'You can clear the server copy from your account later.',
-        ),
+        title: Text(S.docsDeletePolicyTitle),
+        content: Text(S.docsDeletePolicyContent(document.filename)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(S.cancel)),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Remove from this device')),
+              child: Text(S.docsDeletePolicy)),
         ],
       ),
     );
@@ -347,9 +336,7 @@ class DocumentsList extends ConsumerWidget {
           refreshManualFamilyMembers(ref);
 
           if (!context.mounted) return;
-          // Security audit P0-02: honest copy. The local copy is
-          // removed; the server copy is not.
-          CoverWiseSnackBar.info(context, 'Removed from this device. The server copy was not affected.');
+          CoverWiseSnackBar.info(context, S.docsDeleted);
         }
       } catch (e) {
         if (!context.mounted) return;
@@ -430,7 +417,7 @@ class _DocumentReplaceScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Replace Document?'),
+        title: Text(S.docsReplaceDocumentTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -447,11 +434,11 @@ class _DocumentReplaceScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(S.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Replace'),
+            child: Text(S.docsReplace),
           ),
         ],
       ),
@@ -493,7 +480,7 @@ class _DocumentReplaceScreenState
       ref.invalidate(documentsProvider);
       ref.invalidate(policySummariesProvider);
 
-      CoverWiseSnackBar.success(context, 'Document replaced successfully');
+      CoverWiseSnackBar.success(context, S.docsReplaceSuccess);
 
       Navigator.pop(context);
     } catch (e) {
@@ -510,7 +497,7 @@ class _DocumentReplaceScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Replace Document'),
+        title: Text(S.docsReplaceDocument),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -523,7 +510,7 @@ class _DocumentReplaceScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Current Document',
+                    Text(S.docsCurrentDocument,
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Text(widget.document.filename),
@@ -567,14 +554,14 @@ class _DocumentReplaceScreenState
               ElevatedButton.icon(
                 onPressed: _pickReplacement,
                 icon: const Icon(Icons.file_upload_outlined),
-                label: const Text('Select Replacement File'),
+                label: Text(S.docsSelectReplacement),
               ),
               if (_selectedFile != null) ...[
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: _confirmReplacement,
                   icon: const Icon(Icons.swap_horiz),
-                  label: const Text('Replace Document'),
+                  label: Text(S.docsReplaceDocument),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,

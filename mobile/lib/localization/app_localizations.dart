@@ -98,6 +98,13 @@ class S {
   static const String qaAnswerCopied = 'Answer copied';
   static const String qaShareAnswer = 'Share answer';
   static const String qaAnswerCopiedToClipboard = 'Answer copied to clipboard';
+  static const String qaEvidence = 'Evidence';
+  static const String qaCitationUnknown = 'Unknown';
+  static String qaCitationSource(int index) => 'Source $index';
+  static String qaCitationSourcePage(int index, Object page) =>
+      'Source $index • page $page';
+  static const String qaPolicyDoesNotEstablish =
+      'What the policy does not establish';
   static String qaAnswerReadyFor(String question) => 'Answer ready for $question';
 
   // QA — Snackbar / Errors
@@ -301,6 +308,7 @@ class S {
       'AI-powered coverage recommendations';
   static const String settingsServiceEndpoint = 'Service endpoint';
   static const String settingsClearDataTitle = 'Clear all local data?';
+  static const String settingsClearDataAction = 'Clear local data';
   static const String settingsClearDataContent =
       'This permanently removes all locally stored documents, policy summaries, Q&A history, family members, and session data from this device. Uploaded documents on the server are not affected. This cannot be undone.';
   static const String settingsClearDataSuccess = 'All local data cleared.';
@@ -344,7 +352,7 @@ class S {
   static const String profilePrivacySection = 'Privacy';
   static const String profileDeviceFirstStorage = 'Device-first storage';
   static const String profileDeviceFirstSubtitle =
-      'Your policy workspace and personal details stay local.';
+      'This device keeps a protected local cache; account data may also be stored securely for sync.';
   static const String profileDeleteAccount = 'Delete account';
   static const String profileDeleteAccountSubtitle =
       'Permanently remove account and all server data';
@@ -485,10 +493,27 @@ class S {
   // ─── Documents Screen / List ──────────────────────────────────────
 
   static const String docsTitle = 'Documents';
-  static const String docsSlotsUsed = 'of 5 free policy slots used';
+  static String docsSlotsUsed(int count) => '$count of 5 free policy slots used';
   static const String docsTypeChanged = 'Type changed to';
   static const String docsRemovedLocal = 'Removed from this device. The server copy was not affected.';
   static const String docsReplaceSuccess = 'Document replaced successfully';
+  static const String docsPreview = 'Preview';
+  static const String docsChangeType = 'Change type';
+  static const String docsAskQuestions = 'Ask Questions';
+  static const String docsReadingPolicy = 'Reading policy';
+  static const String docsReplace = 'Replace';
+  static const String docsRemoveFromDevice = 'Remove from this device';
+  static const String docsRemoveFromDeviceTitle = 'Remove from this device?';
+  static const String docsDeletePolicy = 'Delete policy';
+  static const String docsDeletePolicyTitle = 'Delete policy?';
+  static String docsDeletePolicyContent(String filename) =>
+      'This permanently deletes "$filename" from CoverWise and this device. '
+      'If deletion fails, the policy will remain available so you can retry.';
+  static const String docsDeleted = 'Policy deleted';
+  static const String docsReplaceDocumentTitle = 'Replace Document?';
+  static const String docsReplaceDocument = 'Replace Document';
+  static const String docsCurrentDocument = 'Current Document';
+  static const String docsSelectReplacement = 'Select Replacement File';
 
   // ─── Terms of Service Screen ──────────────────────────────────────
 

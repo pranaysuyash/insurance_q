@@ -56,6 +56,7 @@ def test_from_env_raises_when_url_missing(monkeypatch):
 def test_from_env_raises_when_key_missing(monkeypatch):
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    monkeypatch.delenv("SUPABASE_SECRET_KEY", raising=False)
     with pytest.raises(JobOutboxUnavailable):
         JobOutboxService.from_env()
 

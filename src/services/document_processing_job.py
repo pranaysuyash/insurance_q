@@ -97,13 +97,33 @@ async def _apply_classification(
         document.metadata = metadata
         from src.services.policy_domain_service import sync_document
         rag_ingestion = result.get("stages", {}).get("rag_ingestion", {})
-        sync_document(
-            document_id=document_id,
-            owner_id=document.user_uid,
-            source_hash=document.source_hash,
-            metadata=metadata,
-            sections=rag_ingestion.get("sections", []) if isinstance(rag_ingestion, dict) else [],
-        )
+        try:
+            sync_document(
+                document_id=document_id,
+                owner_id=document.user_uid,
+                source_hash=document.source_hash,
+                metadata=metadata,
+                sections=rag_ingestion.get("sections", []) if isinstance(rag_ingestion, dict) else [],
+            )
+            result.setdefault("stages", {})["policy_domain_projection"] = {
+                "status": "completed",
+            }
+        except Exception as error:
+            # Classification success must not hide a failed normalized
+            # projection. Keep processing state honest and retain only the
+            # bounded error class, never service credentials or raw text.
+            result.setdefault("stages", {})["policy_domain_projection"] = {
+                "status": "failed",
+                "error_type": type(error).__name__,
+            }
+            metadata["policy_domain_projection_status"] = "failed"
+            metadata["policy_domain_projection_error_type"] = type(error).__name__
+            document.metadata = metadata
+            log.exception(
+                "policy_domain_projection_failed document_id=%s error_type=%s",
+                document_id,
+                type(error).__name__,
+            )
     except Exception as error:
         log.warning(
             "document_classification_failed document_id=%s error_type=%s",

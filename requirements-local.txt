@@ -1,7 +1,7 @@
 # =============================================================================
 # Local development requirements — extends requirements.txt with heavy ML deps
 #
-# Install with:  pip install -r requirements-local.txt
+# Install with:  uv pip install --python .venv/bin/python -r requirements-local.txt
 #
 # These packages are NOT in the production image (requirements.txt). They add
 # ~2.5 GB (torch + doctr + sentence-transformers) and are used for:

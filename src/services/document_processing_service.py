@@ -10,8 +10,10 @@ import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import tempfile
+from pathlib import Path
 from uuid import UUID
 from src.utils.pdf_access import PdfPasswordError, unlock_pdf
+from src.models.document_intelligence import build_document_cir, sha256_bytes
 
 # OCR imports
 try:
@@ -253,6 +255,7 @@ class DocumentProcessingService:
             
             # Stage 2: OCR Processing (if needed)
             extracted_text = ""
+            ocr_result: Dict[str, Any] = {}
             if processing_mode in ["full", "ocr_only"]:
                 await self._update_status(document_id, "extracting_text", 30)
                 try:
@@ -306,6 +309,7 @@ class DocumentProcessingService:
                     document_id, extracted_text, filename, owner_id=owner_id,
                     page_texts=ocr_result.get("page_texts"),
                     page_images=ocr_result.get("page_images"),
+                    cir=ocr_result.get("cir"),
                 )
                 result["stages"]["rag_ingestion"] = rag_result
             elif processing_mode in ["full", "rag_only"]:
@@ -505,12 +509,20 @@ class DocumentProcessingService:
         # --- Image files: need OCR (not available in slim production image) ---
         if file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp']:
             if mobile_ocr_text:
+                page_texts = {1: mobile_ocr_text}
                 return {
                     "full_text": mobile_ocr_text,
-                    "page_texts": {1: mobile_ocr_text},
+                    "page_texts": page_texts,
                     "status": "completed",
                     "method": "mobile_mlkit_text_recognition",
                     "provenance": "client_on_device_ocr_sidecar",
+                    "cir": build_document_cir(
+                        filename=filename,
+                        source_artifact_sha256=sha256_bytes(Path(file_path).read_bytes()),
+                        file_type=file_extension,
+                        page_texts=page_texts,
+                        parser_profile="mobile_on_device_ocr",
+                    ).model_dump(mode="json"),
                 }
             try:
                 if self._ocr_pipeline is None:
@@ -587,6 +599,9 @@ class DocumentProcessingService:
 
                 if full_text:
                     method = "direct_text"
+                    source_bytes = Path(file_path).read_bytes()
+                    from src.ocr.native_pdf import extract_native_pdf_nodes
+                    native_nodes = extract_native_pdf_nodes(source_bytes)
                     if image_only_pages > 0:
                         # Some pages had text, some didn't — partial extraction
                         logger.info(
@@ -599,15 +614,33 @@ class DocumentProcessingService:
                         "page_images": page_images,
                         "status": "completed",
                         "method": method,
+                        "source_artifact_sha256": sha256_bytes(source_bytes),
+                        "cir": build_document_cir(
+                            filename=filename,
+                            source_artifact_sha256=sha256_bytes(source_bytes),
+                            file_type=file_extension,
+                            page_texts=page_texts,
+                            page_images=page_images,
+                            parser_profile="native_pdf_text",
+                            observed_nodes=native_nodes,
+                        ).model_dump(mode="json"),
                     }
 
                 if mobile_ocr_text:
+                    page_texts = {1: mobile_ocr_text}
                     return {
                         "full_text": mobile_ocr_text,
-                        "page_texts": {1: mobile_ocr_text},
+                        "page_texts": page_texts,
                         "status": "completed",
                         "method": "mobile_mlkit_text_recognition",
                         "provenance": "client_on_device_ocr_sidecar",
+                        "cir": build_document_cir(
+                            filename=filename,
+                            source_artifact_sha256=sha256_bytes(Path(file_path).read_bytes()),
+                            file_type=file_extension,
+                            page_texts=page_texts,
+                            parser_profile="mobile_on_device_ocr",
+                        ).model_dump(mode="json"),
                     }
 
                 # No direct text at all — this is a scanned/image-only PDF
@@ -678,11 +711,21 @@ class DocumentProcessingService:
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 text = f.read()
+            page_texts = {1: text}
+            source_bytes = Path(file_path).read_bytes()
             return {
                 "full_text": text,
-                "page_texts": {1: text},
+                "page_texts": page_texts,
                 "status": "completed",
                 "method": "text_fallback",
+                "source_artifact_sha256": sha256_bytes(source_bytes),
+                "cir": build_document_cir(
+                    filename=filename,
+                    source_artifact_sha256=sha256_bytes(source_bytes),
+                    file_type=file_extension,
+                    page_texts=page_texts,
+                    parser_profile="native_text",
+                ).model_dump(mode="json"),
             }
         except Exception as e:
             logger.error(
@@ -701,6 +744,7 @@ class DocumentProcessingService:
         owner_id: Optional[str],
         page_texts: Optional[Dict[int, str]] = None,
         page_images: Optional[Dict[int, bytes]] = None,
+        cir: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Ingest document into RAG pipeline with multi-view indexing.
 
@@ -740,6 +784,7 @@ class DocumentProcessingService:
                     # cannot silently become an in-memory path.
                     substrate = EvidenceSubstrateService.from_env()
                     page_artifact_id_map = {}
+                    cir_nodes = (cir or {}).get("nodes", [])
                     for page_num, ocr_text in page_texts.items():
                         page_image = (
                             page_images.get(page_num, b"")
@@ -776,6 +821,24 @@ class DocumentProcessingService:
                                 page_number=page_num,
                                 page_image_bytes=page_image,
                                 ocr_text=ocr_text,
+                                layout_json={
+                                    "schema_version": (cir or {}).get(
+                                        "schema_version", "cir.v1"
+                                    ),
+                                    "parser_profile": (cir or {}).get(
+                                        "parser_profile"
+                                    ),
+                                    "parser_version": (cir or {}).get(
+                                        "parser_version"
+                                    ),
+                                    "nodes": [
+                                        node
+                                        for node in cir_nodes
+                                        if int(node.get("page_number", 0)) == page_num
+                                    ],
+                                }
+                                if cir
+                                else None,
                             )
                             page_artifact_id_map[page_num] = str(pa_id)
                         except Exception as pa_err:

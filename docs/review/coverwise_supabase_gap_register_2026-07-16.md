@@ -41,7 +41,7 @@ lint --local`, migration listing, and direct inspection of the created
 tables/functions.
 
 The full repository Python suite was subsequently run with the project
-`venv`: **336 passed, 4 skipped**. The system-Python dependency failures are
+`.venv`: **350 passed, 1 skipped**. The system-Python dependency failures are
 environment noise, not the repository-suite result.
 
 Remaining gaps are narrower and require either application work or configured
@@ -61,13 +61,46 @@ external systems:
   production; local Redis/file storage remains development-only;
 - retrieval benchmark, representative corpus backfill, rollback checkpoint, and
   production backup/restore evidence are not present;
+- the contextual retrieval backfill is now bounded and resumable by page, and
+  updates the durable embedding model/version/dimension columns with each
+  vector. A representative-corpus run and rollback checkpoint are still not
+  present;
 - the legacy Qdrant/SQLite compatibility code remains available and needs a
   measured cutover/retirement decision;
 - source-file links are now part of the export when supported by the private
   object store; derived-object retention, orphan scans, and restore remain
   governed operational follow-ups.
+- the full mobile Flutter test suite now passes: 588 tests passed. This removes
+  the earlier machine-capacity verification gap, but does not substitute for
+  authenticated runtime or staging evidence.
+- approved evaluation releases now have an executable per-item run contract,
+  hash-only result persistence, aggregate metrics, and terminal model lineage;
+  actual provider/model evaluation and training execution remain deployment- and
+  credential-dependent.
+- retention now has one executable maintenance command covering analytics purge
+  and fenced artifact deletion; deployment must still schedule it and prove it
+  against staging.
 
 ### Anything else?
+
+### Addendum — 2026-07-21 verification correction
+
+The earlier local reset/lint evidence above applies to the migration set that
+was available when that check ran. A fresh `supabase db lint --local` rerun on
+the current 33-migration worktree was attempted after the later migrations were
+added, but the local Postgres service was unavailable (`LegacyDbConnectError`).
+The current evidence is therefore the project-venv Python suite, the full
+Flutter suite, targeted contract tests, compilation, diff validation, and the
+previously successful local migration subset—not a fresh full migration reset.
+
+The ignored `.env` was then used for a non-secret remote probe. Supabase Auth
+settings returned HTTP 200 with email enabled, anonymous users disabled, and
+email confirmation required. The service key could read the established
+canonical tables, while `public.model_run_results` was absent from the remote
+schema (`PGRST205`), proving that the new migration still needs to be applied.
+Publishable-key reads of `job_outbox` and `identity_aliases` were denied; an
+empty publishable-key `documents` result was consistent with owner RLS. No
+test account was created and no remote write was attempted.
 
 Yes: the remaining risk is now primarily verification and lifecycle closure,
 not the basic Supabase data/retrieval substrate. Do not cut over until the
@@ -77,17 +110,17 @@ remaining gates above have Tier 3+ evidence.
 
 | Priority | Area | Current state | Gap |
 |---|---|---|---|
-| P0 | Supabase schema | Core schema plus evidence, consent, retrieval, dataset, and policy-domain migrations exist; production answers await durable audit persistence | Full product answer-evidence display/adoption still needs route-level verification |
+| P0 | Supabase schema | Core schema plus evidence, consent, retrieval, dataset, policy-domain, and per-item evaluation-result migrations exist; production answers persist privacy-safe audit lineage | Evidence is rendered in mobile Q&A; non-Q&A claim surfaces and live route-level verification remain |
 | P0 | Production retrieval | Supabase full-text + pgvector RPCs are canonical, owner/document filtered, and return immutable source text for citations | Representative corpus benchmark and backfill/cutover evidence are missing |
 | P0 | Embedding contract | Supabase ingestion fails closed outside the 1536d/model-version contract | A production embedding-provider decision and existing-corpus re-embedding are still unverified |
 | P0 | Processing state | Repository leases and append-only processing events are authoritative; local status is debug-only | Full staging recovery/operator verification remains |
 | P1 | Retrieval auditability | Query traces, candidate lineage, answer hashes, and citation evidence are persisted without raw content; production requests await the audit write | Full live-pipeline audit write/read evidence remains |
-| P1 | Training readiness | Consent-aware registry, draft approval, withdrawal propagation, approved-release lineage, and stable manifest materialization exist | Real training/evaluation executor runs and artifact publication are not yet wired |
+| P1 | Training readiness | Consent-aware registry, draft approval, withdrawal propagation, approved-release lineage, stable manifests, and an executable per-item evaluation contract exist | Credentialed provider evaluation, training execution, and published artifact delivery remain |
 | P1 | Auth lifecycle | Anonymous linking, metadata/source export, and durable deletion request/worker exist locally | No production provider verification or full account-flow evidence |
-| P1 | Analytics/rate limits | Production analytics and upload rate limits use Supabase RPCs; stable event identity and retention purge primitive are explicit | Retention scheduling and multi-instance staging evidence remain |
+| P1 | Analytics/rate limits | Production analytics and upload rate limits use Supabase RPCs; stable event identity, retention purge primitive, and a schedulable maintenance command are explicit | Deployment scheduling and multi-instance staging evidence remain |
 | P1 | Storage lifecycle | Private Storage policies, source and derived artifact inventory/checksums, and audited retention/orphan transitions exist | Scheduled execution, restore, and complete deletion evidence remain |
 | P2 | Migration/cutover | Supabase adapters coexist with Qdrant/SQLite; local contract benchmark and production startup assertions exist | No representative corpus comparison, backfill, rollback checkpoint, or retirement gate |
-| P2 | Tests | Local migration/RPC smoke and synthetic Supabase retrieval benchmark exist | Staging RLS/Auth and representative corpus benchmark remain |
+| P2 | Tests | Local migration/RPC smoke, synthetic Supabase retrieval benchmark, full Python suite, and full Flutter suite exist | Staging RLS/Auth and representative corpus benchmark remain |
 
 ## P0 gaps
 

@@ -152,9 +152,8 @@ class QaScreenState extends ConsumerState<QaScreen>
     // Gate on the canonical entitlement provider. Purchased packs remain
     // usable after a subscription expires; the provider owns that rule.
     final entitlement = ref.read(entitlementProvider);
-    final entitlementReason = ref
-        .read(entitlementProvider.notifier)
-        .checkAction('ask_question');
+    final entitlementReason =
+        ref.read(entitlementProvider.notifier).checkAction('ask_question');
     if (entitlementReason != null) {
       AnalyticsService.track('qa_question_blocked_no_budget', {
         'plan_tier': entitlement.planTier.name,
@@ -213,8 +212,9 @@ class QaScreenState extends ConsumerState<QaScreen>
       }
 
       if (result.containsKey('error') && !result.containsKey('answer')) {
-      if (!mounted) return;
-      CoverWiseSnackBar.error(context, S.qaCouldNotGetAnswer(result['error'] ?? ''));
+        if (!mounted) return;
+        CoverWiseSnackBar.error(
+            context, S.qaCouldNotGetAnswer(result['error'] ?? ''));
         return;
       }
 
@@ -271,8 +271,10 @@ class QaScreenState extends ConsumerState<QaScreen>
           documentId: selectedDoc ?? '',
           question: question,
         );
-        if (mounted && widget.isActive &&
-            (demoGeneration == null || demoGeneration == _demoSequenceGeneration)) {
+        if (mounted &&
+            widget.isActive &&
+            (demoGeneration == null ||
+                demoGeneration == _demoSequenceGeneration)) {
           ref.read(currentAnswerProvider.notifier).state = fallbackAnswer;
         }
       }
@@ -388,11 +390,14 @@ class _QuestionBudgetBanner extends ConsumerWidget {
     final isZero = remaining == 0;
 
     // Show banner for free users always, and for paid users when questions are low
-    if (entitlement.planTier != PlanTier.free && !packState.hasPackQuestions && remaining > 3) {
+    if (entitlement.planTier != PlanTier.free &&
+        !packState.hasPackQuestions &&
+        remaining > 3) {
       return const SizedBox.shrink();
     }
 
-    final subtitle = packState.hasSubscriptionQuestions && packState.hasPackQuestions
+    final subtitle = packState.hasSubscriptionQuestions &&
+            packState.hasPackQuestions
         ? '${packState.subscriptionQuestionsRemaining} monthly + ${packState.packQuestionsRemaining} pack'
         : packState.hasPackQuestions
             ? '${packState.packQuestionsRemaining} questions in ${packState.activePacks.length} pack(s)'
@@ -423,11 +428,14 @@ class _QuestionBudgetBanner extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isZero ? S.qaNoQuestionsRemaining : S.qaQuestionsLeft(remaining),
+                    isZero
+                        ? S.qaNoQuestionsRemaining
+                        : S.qaQuestionsLeft(remaining),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
-                      color: isZero ? Theme.of(context).colorScheme.error : null,
+                      color:
+                          isZero ? Theme.of(context).colorScheme.error : null,
                     ),
                   ),
                   Text(
@@ -821,7 +829,8 @@ class _HistoryTabState extends State<_HistoryTab> {
                       children: [
                         Icon(Icons.search_off_rounded,
                             size: 48,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(height: 12),
                         Text(
                           S.qaNoMatchesFor(_searchQuery),
@@ -842,7 +851,10 @@ class _HistoryTabState extends State<_HistoryTab> {
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                         child: Text(
                           item,
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelLarge
+                              ?.copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -850,12 +862,14 @@ class _HistoryTabState extends State<_HistoryTab> {
                       );
                     }
                     final pair = item as QaPair;
-                    final isExpanded = _expandedQuestions.contains(pair.question);
+                    final isExpanded =
+                        _expandedQuestions.contains(pair.question);
                     final answerText = pair.answer.text;
                     final isLong = answerText.length > 120;
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
                         onTap: () => widget.onSelectAnswer(pair.answer),
@@ -877,12 +891,14 @@ class _HistoryTabState extends State<_HistoryTab> {
                                   Expanded(
                                     child: Text(
                                       pair.question,
-                                      style: const TextStyle(fontWeight: FontWeight.w700),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700),
                                     ),
                                   ),
                                   Text(
                                     '${pair.timestamp.hour}:${pair.timestamp.minute.toString().padLeft(2, '0')}',
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ],
                               ),
@@ -895,17 +911,22 @@ class _HistoryTabState extends State<_HistoryTab> {
                                   curve: Curves.easeInOut,
                                   alignment: Alignment.topLeft,
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         isExpanded || !isLong
                                             ? answerText
                                             : '${answerText.substring(0, 120)}...',
                                         maxLines: isExpanded ? null : 5,
-                                        overflow: isExpanded ? null : TextOverflow.ellipsis,
+                                        overflow: isExpanded
+                                            ? null
+                                            : TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 13,
-                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                           height: 1.4,
                                         ),
                                       ),
@@ -914,20 +935,27 @@ class _HistoryTabState extends State<_HistoryTab> {
                                           onTap: () {
                                             setState(() {
                                               if (isExpanded) {
-                                                _expandedQuestions.remove(pair.question);
+                                                _expandedQuestions
+                                                    .remove(pair.question);
                                               } else {
-                                                _expandedQuestions.add(pair.question);
+                                                _expandedQuestions
+                                                    .add(pair.question);
                                               }
                                             });
                                           },
                                           child: Padding(
-                                            padding: const EdgeInsets.only(top: 4),
+                                            padding:
+                                                const EdgeInsets.only(top: 4),
                                             child: Text(
-                                              isExpanded ? S.commonShowLess : S.commonShowMore,
+                                              isExpanded
+                                                  ? S.commonShowLess
+                                                  : S.commonShowMore,
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
-                                                color: Theme.of(context).colorScheme.primary,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
                                               ),
                                             ),
                                           ),
@@ -1013,7 +1041,8 @@ class _AnswerCardState extends State<_AnswerCard> {
 
     final acknowledgement = ++_copyAcknowledgement;
     setState(() => _copied = true);
-    CoverWiseSnackBar.success(context, 'Answer copied to clipboard', duration: const Duration(seconds: 2));
+    CoverWiseSnackBar.success(context, S.qaAnswerCopiedToClipboard,
+        duration: const Duration(seconds: 2));
 
     await Future<void>.delayed(const Duration(milliseconds: 1600));
     if (mounted && acknowledgement == _copyAcknowledgement) {
@@ -1057,6 +1086,88 @@ class _AnswerCardState extends State<_AnswerCard> {
                     children: [
                       Text('A: ${answer.text}',
                           style: const TextStyle(fontSize: 16)),
+                      if (answer.citations.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text(S.qaEvidence,
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 8),
+                        ...answer.citations.asMap().entries.map((entry) {
+                          final citation = entry.value;
+                          final quote = citation['quote']?.toString().trim();
+                          final page =
+                              citation['page_number'] ?? citation['page'];
+                          final status = citation['status']?.toString() ??
+                              citation['citation_status']?.toString();
+                          final normalizedStatus = status?.toLowerCase();
+                          final citationIcon = normalizedStatus == 'verified' ||
+                                  normalizedStatus == 'accepted' ||
+                                  normalizedStatus == 'grounded'
+                              ? Icons.verified_outlined
+                              : normalizedStatus == 'failed' ||
+                                      normalizedStatus == 'rejected'
+                                  ? Icons.error_outline
+                                  : Icons.help_outline;
+                          final label = page == null
+                              ? S.qaCitationSource(entry.key + 1)
+                              : S.qaCitationSourcePage(entry.key + 1, page);
+                          final displayStatus = status ?? S.qaCitationUnknown;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(citationIcon, size: 16),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(label,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 12)),
+                                        ),
+                                        Flexible(
+                                          child: Text(displayStatus,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  fontSize: 11)),
+                                        ),
+                                      ],
+                                    ),
+                                    if (quote != null && quote.isNotEmpty) ...[
+                                      const SizedBox(height: 5),
+                                      Text('“$quote”',
+                                          style: const TextStyle(fontSize: 13)),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                      if (answer.missingInformation.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Text(S.qaPolicyDoesNotEstablish,
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        ...answer.missingInformation.map((item) => Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text('• $item',
+                                  style: const TextStyle(fontSize: 13)),
+                            )),
+                      ],
                       if (answer.sources.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         Text('Sources (${answer.sources.length}):',
@@ -1161,7 +1272,8 @@ class _SourceCard extends ConsumerWidget {
     final documents = ref.watch(documentsProvider).valueOrNull ?? [];
     final docName = source.documentId.isNotEmpty
         ? documents
-            .where((d) => d.id == source.documentId || d.remoteId == source.documentId)
+            .where((d) =>
+                d.id == source.documentId || d.remoteId == source.documentId)
             .map((d) => d.filename)
             .firstOrNull
         : null;
@@ -1218,12 +1330,12 @@ class FollowUpChips extends ConsumerWidget {
 /// NO-GO verdict because confidence is computed as
 /// `max(model_confidence, retrieval_confidence)` which inflates weak
 /// answers. Until a real benchmark calibrates confidence, the badge  /// must NOT show high/medium/low colours — it must be hidden entirely
-  /// or show a neutral indicator.
-  ///
-  /// When [AppConfig.confidenceCalibrated] is false (the default), the
-  /// badge returns a SizedBox.shrink() so users never see an internal
-  /// confidence label. When true, it shows the legacy high/medium/low
-  /// chip behaviour.
+/// or show a neutral indicator.
+///
+/// When [AppConfig.confidenceCalibrated] is false (the default), the
+/// badge returns a SizedBox.shrink() so users never see an internal
+/// confidence label. When true, it shows the legacy high/medium/low
+/// chip behaviour.
 class ConfidenceBadge extends StatelessWidget {
   final double confidence;
   const ConfidenceBadge({super.key, required this.confidence});

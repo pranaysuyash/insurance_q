@@ -33,6 +33,10 @@ development/migration adapters only.
 - FTS ranks retrieval text but returns immutable source text for citations;
 - normalized policy/version/section projection and deterministic approved
   dataset manifest materialization;
+- executable approved-release evaluation runs with per-item hash/metric results
+  and terminal model-run lineage;
+- answer citations and missing-information disclosures are now rendered in the
+  mobile Q&A answer card;
 - production startup assertions that reject SQLite/local storage/Qdrant
   configuration and skip legacy SQLite anti-abuse initialization.
 
@@ -40,14 +44,15 @@ development/migration adapters only.
 
 | Check | Result | Evidence tier |
 |---|---|---|
-| Python suite (project `venv`) | 336 passed, 4 skipped, 42 warnings | Tier 2 |
-| Local migration reset | All migrations through `20260721079000` replayed before the local Postgres service became unavailable; later migrations through `20260721090703` require a fresh reset; 32 files are currently present | Tier 3 for prior set; new migrations unverified locally |
-| Local schema lint | No schema errors | Tier 2/3 |
+| Python suite (project `.venv`) | 350 passed, 1 skipped | Tier 2 |
+| Local migration reset | All migrations through `20260721079000` replayed before the local Postgres service became unavailable; migrations through `20260721100000` now require a fresh reset | Tier 3 for prior set; later migrations unverified locally |
+| Local schema lint | Prior migration subset had no schema errors; current full rerun is blocked by unavailable local Postgres | Tier 2/3 for prior subset |
 | Retrieval benchmark | FTS and pgvector each returned the owner-scoped expected document; cross-owner row excluded | Tier 3 |
 | Retrieval benchmark artifact | [`supabase-retrieval-benchmark-local.json`](evidence/supabase-retrieval-benchmark-local.json) | Tier 3 |
 | RPC permissions | `anon` denied; `service_role` allowed for retrieval writes/reads as intended | Tier 3 |
-| Mobile Flutter suite | Not executed: compiler failed before test loading with `No space left on device` | Unverified |
-| New domain/lifecycle tests | 9 policy/artifact/model/webhook tests plus 5 billing/temp-storage/substrate tests passed; touched Python modules compile | Tier 2 |
+| Remote Supabase probe | Auth settings HTTP 200; email enabled, anonymous users disabled, confirmation required; established service-role tables queryable; new `model_run_results` table absent; publishable-key protected-table reads denied | Tier 3 partial; migration/auth E2E incomplete |
+| Mobile Flutter suite | `flutter test` completed with 588 tests passed; analyzer clean | Tier 2 |
+| New domain/lifecycle tests | Focused policy/artifact/model/webhook/billing/temp-storage/substrate/retrieval tests passed; touched Python modules compile | Tier 2 |
 
 The benchmark is synthetic and local. It is not representative-corpus or
 production-latency evidence.
@@ -76,14 +81,32 @@ Before a real customer cutover:
 No production cutover, remote migration, backup, restore, or credentialed Auth
 test was performed in this workspace.
 
+### Remote schema closure command
+
+The remote project is reachable through the REST Data API, but this checkout is
+not linked to a Supabase project and no `SUPABASE_ACCESS_TOKEN` or database
+password is available. After an authorized operator supplies those values:
+
+```bash
+supabase link --project-ref <project-ref>
+supabase db push --dry-run --linked
+supabase db push --linked --yes
+set -a; . ./.env; set +a
+venv/bin/python tools/verify_supabase_schema.py
+```
+
+The final verifier must report every required table as `present`, including
+`model_run_results`, before the evaluation contract is considered deployed.
+
 ### Anything else?
 
 The gaps addressed in this pass are locally verified. Policy/version/section
 relational modeling, fenced artifact retention/orphan transitions, a remote
 server-side billing ledger/RPC, and stable approved-release manifest
 materialization are now implemented. Remaining
-code/domain work includes executing released manifests and wiring complete
-product answer-evidence adoption; the larger
-remaining blockers are external evidence gates plus machine capacity for
-Flutter verification. None of these results should be presented as production
-readiness.
+code/domain work includes training execution, complete product answer-evidence
+adoption across non-Q&A surfaces, and the remaining outbox handlers; the larger
+remaining blockers are external evidence gates: credentialed Auth/RLS, staging
+deletion and outbox recovery, representative-corpus retrieval/backfill,
+retention scheduling, and backup/restore rehearsal. None of these results should
+be presented as production readiness.

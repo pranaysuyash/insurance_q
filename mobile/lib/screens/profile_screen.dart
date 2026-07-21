@@ -13,6 +13,7 @@ import '../providers/auth_provider.dart';
 import '../providers/document_providers.dart';
 import '../providers/entitlement_provider.dart';
 import '../config/app_config.dart';
+import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
@@ -48,20 +49,19 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Type DELETE to confirm'),
+      title: Text(S.profileDeleteTypeTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-              'This is your last chance. All data will be permanently erased.'),
+          Text(S.profileDeleteTypeWarning),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Type DELETE',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              hintText: S.profileDeleteTypeHint,
+              border: const OutlineInputBorder(),
             ),
             onChanged: (value) {
               setState(() => _canDelete = value == 'DELETE');
@@ -72,14 +72,14 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
+          child: Text(S.cancel),
         ),
         FilledButton.tonal(
           onPressed: _canDelete ? () => Navigator.pop(context, true) : null,
           style: FilledButton.styleFrom(
             foregroundColor: const Color(0xFFC43D4B),
           ),
-          child: const Text('Delete permanently'),
+          child: Text(S.profileDeletePermanently),
         ),
       ],
     );
@@ -96,61 +96,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       await AuthService.signOut();
     } finally {
-      // Clear services before the workspace is closed and reopened with a new
-      // principal key. This also runs if the remote sign-out reports an error.
       await _clearWorkspaceData();
     }
-
-    // No need for setState — authStateProvider will trigger rebuild.
   }
 
-  /// Clears all local Hive boxes and consent ledger on sign-out.
-  /// This ensures workspace isolation when switching accounts.
   Future<void> _clearWorkspaceData() async {
     try {
       if (AppConfig.hasRevenueCatConfig) {
         await ref.read(billingAdapterProvider).clearAccountIdentity();
       }
-
-      // Clear service-owned state while all boxes are still open.
       await AnalyticsService.clear();
       await ContactService.clearSavedContact();
       AnalyticsService.dispose();
-
-      // Delete the cleared files and reopen an empty workspace with a
-      // principal that is not the signed-out account. The auth listener in
-      // InsuranceApp will replace this with the account key after sign-in.
       await HiveWorkspaceService.resetForPrincipal(
         'local-only-${InstallService.getInstallId()}',
       );
       AnalyticsService.init();
-
       debugPrint('Workspace data cleared on sign-out');
     } catch (e) {
       debugPrint('Error clearing workspace data on sign-out: $e');
     }
   }
 
-  /// Documents whose [processingState] is in-flight (not yet settled).
   static const _inFlightStates = {'received', 'processing', 'pending'};
 
   Future<void> _confirmDeleteAccount(
       BuildContext context, List<InsuranceDocument> docs) async {
-    // ── Pending-processing guard (§10 item 6) ──
-    // Prevent account deletion while documents are still being processed.
-    // Processing is fast, so the user can retry in a few seconds.
-    //
-    // docs is passed from build() via ref.watch(documentsProvider) so the
-    // list is always current — no race condition with async provider reads.
-    //
     final inFlight =
         docs.where((d) => _inFlightStates.contains(d.processingState)).toList();
     if (inFlight.isNotEmpty) {
       final names = inFlight.map((d) => d.filename).join(', ');
       CoverWiseSnackBar.warning(
         context,
-        '${inFlight.length} document${inFlight.length == 1 ? ' is' : 's are'} still processing: $names. '
-        'Please wait for processing to complete before deleting your account.',
+        S.profileInFlightWarning(inFlight.length, names),
       );
       return;
     }
@@ -161,45 +139,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.warning_rounded,
             color: Color(0xFFC43D4B), size: 48),
-        title: const Text('Delete account permanently?'),
-        content: const Column(
+        title: Text(S.profileDeleteConfirmTitle),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'This will permanently delete:',
-              style: TextStyle(fontWeight: FontWeight.w600),
+              S.profileDeleteConfirmHeader,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            SizedBox(height: 8),
-            Text('• Your CoverWise account'),
-            Text('• All uploaded policy documents on our servers'),
-            Text('• All policy summaries and embeddings'),
-            Text('• Your Q&A history on the server'),
-            SizedBox(height: 12),
+            const SizedBox(height: 8),
+            Text(S.profileDeleteItemAccount),
+            Text(S.profileDeleteItemDocs),
+            Text(S.profileDeleteItemSummaries),
+            Text(S.profileDeleteItemHistory),
+            const SizedBox(height: 12),
             Text(
-              'This action cannot be undone. Local data on this device will be cleared separately via Settings → Clear local data.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              S.profileDeleteWarning,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(S.cancel),
           ),
           FilledButton.tonal(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               foregroundColor: const Color(0xFFC43D4B),
             ),
-            child: const Text('Delete everything'),
+            child: Text(S.profileDeleteEverything),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
 
-    // Show a second confirmation with typing requirement
     if (!context.mounted) return;
     final doubleConfirmed = await showDialog<bool>(
       context: context,
@@ -207,36 +184,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
     if (doubleConfirmed != true || !mounted) return;
 
-    // Perform deletion
     try {
       if (!mounted) return;
-      CoverWiseSnackBar.info(this.context, 'Deleting account...');
-      // Per the 2026-07-19 review: the backend returns HTTP 202
-      // with a per-stage status. The previous UI only handled
-      // HTTP 200 + a single "deleted" message, which lied when
-      // a stage failed. The new UI surfaces the per-stage result
-      // so the user knows what was deleted, what failed, and
-      // what will be retried.
+      CoverWiseSnackBar.info(this.context, S.profileDeletingAccount);
       final result = await AuthService.deleteAccount();
       if (!mounted) return;
-      // Build the user-facing message from the per-stage
-      // status, not from a single "deleted" claim.
       final String snackMessage;
       if (result.isComplete) {
         snackMessage =
-            'Account deleted. ${result.deletedDocuments} document(s) and '
-            '${result.deletedStorageFiles} storage file(s) removed.';
+            S.profileDeleteComplete(result.deletedDocuments, result.deletedStorageFiles);
       } else if (result.isPartial) {
-        snackMessage = 'Account deletion is partially complete. '
-            'Failed stages: ${result.failedStages.join(", ")}. '
-            'Do not assume server deletion is complete. '
-            'Local data on this device was not affected and can be '
-            'cleared from the privacy screen.';
+        snackMessage = S.profileDeletePartial(result.failedStages);
       } else {
-        snackMessage = 'Account deletion requested. Status: ${result.status}. '
-            'Check the privacy screen for details.';
+        snackMessage = S.profileDeleteRequested(result.status);
       }
-      // Both success and partial/warning get 8s to match the original UX.
       if (result.isComplete) {
         CoverWiseSnackBar.success(this.context, snackMessage,
             duration: const Duration(seconds: 8));
@@ -254,7 +215,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Reactive auth state — rebuilds automatically when user signs in/out.
     final accountUser = ref.watch(currentUserProvider);
     final docsAsync = ref.watch(documentsProvider);
     final documents = docsAsync.valueOrNull ?? const <InsuranceDocument>[];
@@ -263,15 +223,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final themeMode = AppStateRepository.getThemeMode();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(title: Text(S.profileTitle)),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           CoverWisePageHeader(
-            title: phone ?? 'Your CoverWise profile',
+            title: phone ?? S.profileDefaultHeader,
             subtitle: phone != null
-                ? 'Linked and ready across your devices.'
-                : 'Your policy workspace currently stays on this device.',
+                ? S.profileLinkedHeader
+                : S.profileUnlinkedHeader,
             trailing: CoverWiseIconBadge(
               icon: phone != null
                   ? Icons.verified_user_rounded
@@ -282,18 +242,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               size: 54,
             ),
           ),
-          const CoverWiseSectionLabel('Account'),
+          CoverWiseSectionLabel(S.settingsSectionAccount),
           if (accountUser == null)
             CoverWiseSurface(
               child: ListTile(
                 leading: const Icon(Icons.cloud_sync_rounded),
-                title: const Text('Create a secure account'),
-                subtitle:
-                    const Text('Restore this policy workspace across devices'),
+                title: Text(S.profileCreateAccount),
+                subtitle: Text(S.profileRestoreWorkspace),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () async {
                   await Navigator.pushNamed(context, '/account');
-                  // No manual setState needed — authStateProvider triggers rebuild.
                 },
               ),
             )
@@ -301,11 +259,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             CoverWiseSurface(
               child: ListTile(
                 leading: const Icon(Icons.verified_user_rounded),
-                title: Text(accountUser.email ?? 'Signed-in account'),
-                subtitle: const Text('Workspace is linked to your account'),
+                title: Text(accountUser.email ?? S.profileSignedInAccount),
+                subtitle: Text(S.profileWorkspaceLinked),
                 trailing: TextButton(
                   onPressed: _signOut,
-                  child: const Text('Sign out'),
+                  child: Text(S.signOut),
                 ),
               ),
             ),
@@ -314,46 +272,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               CoverWiseActionRow(
                 icon: Icons.phone_iphone_rounded,
                 color: const Color(0xFF0F9D84),
-                title: 'Phone number',
-                subtitle: phone ?? 'Not linked',
+                title: S.profilePhoneNumber,
+                subtitle: phone ?? S.profileNotLinked,
                 trailing: phone != null
                     ? TextButton(
                         onPressed: () async {
                           await box.delete(AppStateStore.phoneNumberKey);
                           setState(() {});
                         },
-                        child: const Text('Remove'),
+                        child: Text(S.remove),
                       )
                     : const SizedBox.shrink(),
                 onTap: null,
               ),
               const Divider(indent: 74),
-              // Security audit P0-07 (2026-07-18): the bearer token is
-              // never displayed, copied, or exported. The session state is
-              // shown as a single line with no actionable export, rotate,
-              // or revoke controls until Security Phase 1 (rotate/revoke)
-              // lands. The "rotate" and "revoke" actions the audit
-              // recommends are NOT exposed yet — adding them would either
-              // need a real backend endpoint or would be lying.
               CoverWiseActionRow(
                 icon: Icons.key_rounded,
                 color: const Color(0xFF7557D3),
-                title: 'Secure session',
+                title: S.profileSecureSession,
                 subtitle: accountUser != null
-                    ? 'Account session active on this device'
-                    : 'Anonymous session active on this device',
+                    ? S.profileAccountSessionActive
+                    : S.profileAnonymousSessionActive,
                 trailing: const SizedBox.shrink(),
                 onTap: null,
               ),
             ]),
           ),
-          const CoverWiseSectionLabel('App'),
+          CoverWiseSectionLabel(S.profileAppSection),
           CoverWiseSurface(
             child: Column(children: [
               CoverWiseActionRow(
                 icon: Icons.info_outline_rounded,
                 color: CoverWiseColors.blue,
-                title: 'Version',
+                title: S.version,
                 subtitle: '${AppConfig.appName} ${AppConfig.appVersion}',
                 trailing: const SizedBox.shrink(),
                 onTap: null,
@@ -362,7 +313,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               CoverWiseActionRow(
                 icon: Icons.brightness_auto_rounded,
                 color: const Color(0xFFE58726),
-                title: 'Appearance',
+                title: S.settingsAppearance,
                 subtitle: themeMode == 'light'
                     ? 'Light'
                     : themeMode == 'dark'
@@ -373,35 +324,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ]),
           ),
-          const CoverWiseSectionLabel('Privacy'),
+          CoverWiseSectionLabel(S.profilePrivacySection),
           CoverWiseSurface(
             child: Column(children: [
-              const CoverWiseActionRow(
+              CoverWiseActionRow(
                 icon: Icons.phonelink_lock_rounded,
-                color: Color(0xFF0F9D84),
-                title: 'Device-first storage',
-                subtitle:
-                    'Your policy workspace and personal details stay local.',
-                trailing: SizedBox.shrink(),
+                color: const Color(0xFF0F9D84),
+                title: S.profileDeviceFirstStorage,
+                subtitle: S.profileDeviceFirstSubtitle,
+                trailing: const SizedBox.shrink(),
                 onTap: null,
               ),
               const Divider(indent: 74),
               CoverWiseActionRow(
                 icon: Icons.delete_outline_rounded,
                 color: const Color(0xFFC43D4B),
-                title: 'Delete account',
-                subtitle: 'Permanently remove account and all server data',
+                title: S.profileDeleteAccount,
+                subtitle: S.profileDeleteAccountSubtitle,
                 onTap: accountUser != null
                     ? () => _confirmDeleteAccount(context, documents)
                     : () => CoverWiseSnackBar.info(
-                        context, 'Create an account first to delete it'),
+                        context, S.profileCreateAccountFirst),
               ),
             ]),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
             child: Text(
-              'CoverWise helps you understand your policies. It does not sell insurance.',
+              S.profileFooter,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

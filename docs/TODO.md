@@ -138,8 +138,8 @@
     *   **Goal:** Ensure comprehensive and up-to-date `pytest` tests for OCR and RAG services, covering critical paths and functionalities.
     *   **Action:** Run existing tests, identify gaps by reviewing `src/ocr/` and `src/rag/`, write new unit/integration tests. Update `developer_guide.md` with testing instructions.
 
-4.  **Plan and Begin Implementation of a Foundational Missing Feature - User Authentication for Web Frontend:**
-    *   **Goal:** Implement user authentication (login, registration, session management) for the web frontend (`src/frontend/app.py`).
+4.  **Historical item — user authentication for the web frontend:**
+    *   **Status:** Supabase Auth/account lifecycle is implemented for the current mobile/API product. This older web-frontend item remains only as a separately scoped product decision; it is not the current auth gap.
     *   **Action:** Evaluate FastAPI auth libraries, design data models if needed, implement endpoints and basic UI templates. Update `docs/user_guide.md` and `docs/developer_guide.md`.
 
 5.  **Review and Refine Environment Configuration & Secrets Management Strategy:**

@@ -366,3 +366,46 @@ PDF → [Pre-processing: deskew, denoise, binarize, contrast]
 - [Deepchecks: Best RAG Evaluation Tools](https://deepchecks.com/best-rag-evaluation-tools/)
 - [Comet: LLM Evaluation Frameworks](https://www.comet.com/site/blog/llm-evaluation-frameworks/)
 - [Datasumi: RAGAS vs TruLens vs DeepEval](https://www.datasumi.com/blog/rag-evaluation-frameworks)
+
+## Addendum (2026-07-21) — capability coverage, workbook reconciliation, and code correction
+
+The local workbook `/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx`
+was inspected rather than treated as a dependency manifest. It contains 149
+catalog entries and separate guidance for native text, scanned OCR, tables,
+forms/KVP, formulas, office/web/email formats, privacy-first local execution,
+recent document models, and general VLMs. The workbook’s separation of
+specialist document parsers from general VLMs is retained here: a general VLM
+can be useful for bounded review or derived chart descriptions, but its output
+does not guarantee reading order, coordinates, cell fidelity, or semantic
+correctness.
+
+The current code changes the older “current state” in two ways. First,
+`src/ocr/pipeline.py` already has `_preprocess_image`; the earlier statement
+that preprocessing was absent is historical and no longer accurate. Second,
+Docling and MinerU are optional branches, not complete production parsers:
+their current adapters do not preserve a typed table/cell/figure/formula
+representation and full parser provenance in the evidence contract.
+
+The durable recommendation is now recorded in
+`docs/technical/document_intelligence_capability_matrix_2026-07-21.md` and
+`docs/decisions/ADR-2026-07-21-05-document-intelligence-router-and-evidence-contract.md`:
+keep PyMuPDF/native parsing first, route by capability and quality, normalize
+to one source-preserving CIR, then perform policy-field extraction and RAG.
+Benchmark Docling, Surya, PaddleOCR/PP-Structure, and the current doctr path
+against the CoverWise corpus before changing the default. Keep MinerU, Marker,
+managed form services, and GPU-oriented VLMs in isolated profiles until
+license, privacy, platform, cost, and accuracy gates pass.
+
+One code hardening item is explicitly open: `src/ocr/pipeline.py` imports doctr
+eagerly while the production requirements and the surrounding documentation
+describe OCR as optional. Either make the dependency a declared runtime
+requirement or make the import genuinely lazy with an observable, user-safe
+failure state; do not claim optional import resilience until this is resolved.
+
+## Addendum (2026-07-21) — optional-import item resolved
+
+The preceding paragraph is historical and is superseded by the current code:
+the doctr import is now deferred until OCR construction, and a missing local
+OCR dependency produces a bounded import error at scan time. Module import
+without doctr is covered by `tests/test_document_intelligence_contract.py`;
+actual scanned-document execution remains a separate runtime gate.

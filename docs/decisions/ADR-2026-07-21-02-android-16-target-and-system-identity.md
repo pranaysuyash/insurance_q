@@ -49,7 +49,7 @@ principles standard rather than left as an audit caveat.
    selection.
 5. Gate the build contract, Android 12 splash attributes, icon declarations,
    and v33 monochrome resource in `asset_integrity_test.dart`.
-5. Verify on a clean Android 16/API 36 Google APIs Pixel emulator, with a fresh
+6. Verify on a clean Android 16/API 36 Google APIs Pixel emulator, with a fresh
    install, system themed icons enabled, a cold app launch, and native resource
    inspection of the packaged APK.
 
@@ -89,6 +89,15 @@ versions.
 - **2026-07-21 — Completeness correction.** Explicitly set
   `android:roundIcon` to the canonical adaptive launcher resource and covered
   both icon declarations in the asset-integrity gate.
+- **2026-07-21 — Android 17 compatibility infrastructure.** Updated the
+  command-line SDK toolchain alongside the existing one, installed the Android
+  17/API 37.1 16 KB Google APIs ARM image, and booted a clean API 37 emulator.
+  App installation remains blocked by local build-artifact capacity: a fresh
+  debug build reaches `mergeDebugNativeLibs` and then reports no disk space.
+- **2026-07-21 — Android 17 runtime closure.** With storage restored, the
+  current APK built, installed on the clean API 37 device, and cold-launched
+  successfully with `targetSdk=36`. Native splash-to-onboarding transition and
+  rendered onboarding evidence were captured.
 
 ## Anything else?
 
@@ -97,3 +106,30 @@ build storage is available. The current workspace has 1.8 GiB free after
 provisioning the Android 16 emulator, which is insufficient for another system
 image without risking unrelated work. This is a documented environmental limit,
 not a reason to weaken the Android 16 release contract.
+
+## Addendum — Android 17 runtime closure, 2026-07-21
+
+Storage later recovered without deleting project or pre-existing SDK assets.
+The current debug APK built successfully, reports `targetSdk=36`, and cold
+launched on a clean Android 17/API 37.1 16 KB Google APIs ARM Pixel emulator.
+The captured transition shows the native dark CoverWise splash handing off to
+the rendered onboarding surface. Evidence is retained at
+`docs/review/evidence/android16-platform-qa-2026-07-21/android17-api37-*.png`.
+
+This is Tier 4 startup and onboarding evidence on Android 17. Direct launcher
+proof of the tinted CoverWise themed glyph remains an explicit separate limit:
+the emulator launcher does not permit ADB-driven home-screen placement.
+
+## Addendum — Android 17 launcher-icon closure, 2026-07-21
+
+The prior launcher-placement limit is superseded. On the clean Android
+17/API 37.1 Google APIs ARM Pixel emulator, the system's **Wallpaper & style →
+Icons → Minimal** style was selected and applied. CoverWise was then present on
+the actual launcher home screen, where the system rendered its monochrome
+resource as a single-colour shield-and-check glyph. The capture is retained as
+`docs/review/evidence/android16-platform-qa-2026-07-21/android17-api37-minimal-launcher-coverwise.png`.
+
+This is Tier 4 visual evidence of the current launcher rendering, not merely
+manifest or packaged-resource evidence. Android 17 calls this current option
+"Minimal" rather than exposing the older "Themed icons" wording; the test is
+the rendered monochrome adaptive-icon treatment, which the screenshot shows.

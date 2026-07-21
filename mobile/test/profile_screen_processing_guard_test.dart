@@ -114,6 +114,26 @@ void main() {
   }
 
   group('ProfileScreen — pending-processing guard', () {
+    testWidgets('describes local cache without claiming all data stays local',
+        (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(buildProfile(documents: []));
+      await _pumpAndResolve(tester);
+
+      await tester.scrollUntilVisible(find.text('Device-first storage'), 200);
+      expect(
+        find.textContaining('account data may also be stored securely for sync'),
+        findsOneWidget,
+      );
+      expect(find.text('Your policy workspace and personal details stay local.'),
+          findsNothing);
+    });
+
     testWidgets(
         'blocks deletion when a document is in "processing" state',
         (tester) async {

@@ -9,8 +9,9 @@ process jobs from the job_outbox. The worker:
 4. Completes or fails the job based on the handler's result.
 
 Handlers are registered in one dispatcher registry. The production document,
-substrate-extraction, and account-deletion paths use this worker; remaining
-job types are explicit migration work rather than silently assumed support.
+substrate-extraction, RevenueCat reconciliation, and account-deletion paths use
+this worker; remaining job types are explicit migration work rather than
+silently assumed support.
 """
 from __future__ import annotations
 
@@ -19,8 +20,11 @@ import logging
 import os
 import signal
 
+from src.utils.runtime_config import normalize_supabase_environment
 from src.services.job_dispatcher import JobDispatcher
 from src.services.job_outbox_service import JobOutboxService
+
+normalize_supabase_environment()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,10 +49,8 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
     migration is designed and implemented (per
     ADR-2026-07-19-02).
     """
-    # v1 of the migration: register the two handlers that are
-    # needed for the end-to-end evidence path. The other 5
-    # job types (qa_response, webhook_reconciliation, etc.)
-    # keep their existing in-process paths.
+    # Register every durable production path that has a handler. Unregistered
+    # job types fail visibly in the dispatcher instead of disappearing.
     from src.models.job_outbox import JobType
     from src.workers.document_processing_handler import (
         handle_document_processing,
@@ -56,9 +58,17 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
     from src.workers.substrate_extraction_handler import (
         handle_substrate_extraction,
     )
+    from src.workers.revenuecat_webhook_handler import (
+        handle_revenuecat_webhook,
+    )
+    from src.workers.subscription_writeback_handler import (
+        handle_subscription_writeback,
+    )
 
     dispatcher.register(JobType.DOCUMENT_PROCESSING, handle_document_processing)
     dispatcher.register(JobType.SUBSTRATE_EXTRACTION, handle_substrate_extraction)
+    dispatcher.register(JobType.WEBHOOK_RECONCILIATION, handle_revenuecat_webhook)
+    dispatcher.register(JobType.SUBSCRIPTION_WRITEBACK, handle_subscription_writeback)
     from src.services.account_lifecycle_service import process_deletion
 
     async def handle_account_deletion(job):
@@ -69,10 +79,6 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
         "registered handlers: %s",
         [jt.value for jt in dispatcher.registered_types],
     )
-    #   from src.services.webhook_handler import handle_webhook_reconciliation
-    #   dispatcher.register(JobType.WEBHOOK_RECONCILIATION, handle_webhook_reconciliation)
-    #   from src.services.subscription_handler import handle_subscription_writeback
-    #   dispatcher.register(JobType.SUBSCRIPTION_WRITEBACK, handle_subscription_writeback)
     #   from src.services.qa_handler import handle_qa_response
     #   dispatcher.register(JobType.QA_RESPONSE, handle_qa_response)
 

@@ -1,13 +1,33 @@
-import firebase_admin
-from firebase_admin import auth, credentials
-from fastapi import HTTPException
+"""Historical Firebase authentication adapter.
+
+Supabase Auth is the canonical identity provider. This module remains only as
+an explicit migration compatibility boundary and is intentionally lazy-imported
+so the production image does not carry a second auth SDK or identity path.
+"""
+
 import os
 import json
 import base64
-import tempfile
+from fastapi import HTTPException
+
+
+class FirebaseCompatibilityUnavailable(RuntimeError):
+    """Raised when a legacy Firebase path is invoked without its dependency."""
+
+
+def _firebase_modules():
+    try:
+        import firebase_admin
+        from firebase_admin import auth, credentials
+    except ImportError as error:  # pragma: no cover - legacy deployment only
+        raise FirebaseCompatibilityUnavailable(
+            "Firebase is not a production dependency; use Supabase Auth"
+        ) from error
+    return firebase_admin, auth, credentials
 
 # Initialize Firebase app (should be called once in app startup)
 def init_firebase():
+    firebase_admin, _, credentials = _firebase_modules()
     if not firebase_admin._apps:
         # Try base64 encoded service account first (for production)
         firebase_b64 = os.getenv("FIREBASE_SERVICE_ACCOUNT_B64")
@@ -47,6 +67,7 @@ def init_firebase():
 
 # Verify Firebase ID token and return decoded claims
 def verify_firebase_token(id_token: str):
+    _, auth, _ = _firebase_modules()
     try:
         decoded_token = auth.verify_id_token(id_token)
         return decoded_token

@@ -2,12 +2,23 @@
 
 > **Current-state addendum (2026-07-21):** This dated playbook preserves its
 > historical eight-migration launch snapshot. The executable source of truth
-> is now the complete ordered chain under `supabase/migrations/` (32 files as
+> is now the complete ordered chain under `supabase/migrations/` (33 files as
 > of this review), including retrieval contracts, identity/lifecycle,
 > artifact, audit, lineage, processing-event, policy-summary, FTS-contract,
 > billing, and analytics-idempotency migrations. Before any deployment, run a
 > fresh reset/history check and apply the complete chain;
 > do not infer current readiness from the historical migration count below.
+>
+> The current data-lifecycle maintenance command is
+> `venv/bin/python tools/run_data_retention.py`; schedule it outside API
+> startup after staging proves analytics purge, artifact fencing, object
+> deletion, and retry behavior.
+>
+> For the current 33-migration chain, link the project and run
+> `supabase db push --dry-run --linked` followed by
+> `supabase db push --linked --yes`; then run
+> `venv/bin/python tools/verify_supabase_schema.py`. Do not treat the REST
+> table probe alone as proof that migrations are applied.
 
 **Date:** 2026-07-18 (revision 2 — refreshes the 2026-07-18 original to match the
 current repo state after the Phase 0 commit `fa02854`.)

@@ -282,6 +282,14 @@ Q&A/subscription/claim job types still lack registered handlers, and deployed
 worker/object-store/lease/retry evidence remains required before the accepted
 production contract can be called fully verified.
 
+## Implementation-status addendum (2026-07-21, hosted billing/outbox)
+
+The hosted Supabase billing tables and transactional RevenueCat RPC are now
+applied and verified. Production webhook requests enqueue
+`webhook_reconciliation`; the outbox worker handler applies the RPC, so billing
+now follows the durable-work path. A real RevenueCat sandbox delivery and
+deployed-worker proof remain open.
+
 ## Implementation-status addendum (2026-07-21, billing webhook)
 
 The RevenueCat webhook route and event-ID idempotency fence now exist in

@@ -24,6 +24,8 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-19-12 | 2026-07-19 | Operator trust model = 6 roles, server-enforced RBAC, audit trail, reason-required, TTL, revocation; OIDC deferred | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-12-operator-trust-model.md) |
 | ADR-2026-07-21-01 | 2026-07-21 | Canonical CoverWise user journey map separates ideal/current/future/rejected journeys and preserves evidence tiers | Accepted | [link](./ADR-2026-07-21-01-canonical-user-journey-map.md) |
 | ADR-2026-07-21-03 | 2026-07-21 | Value-first guest access with an account conversion boundary; account-first remains an experiment decision | Proposed | [link](./ADR-2026-07-21-03-guest-first-account-conversion.md) |
+| ADR-2026-07-21-04 | 2026-07-21 | Governed evaluation manifests and scheduled retention execution | Accepted for implementation | [link](./ADR-2026-07-21-04-governed-evaluation-and-retention-execution.md) |
+| ADR-2026-07-21-05 | 2026-07-21 | Capability-routed document intelligence with one source-preserving CIR and evidence contract | Proposed for implementation | [link](./ADR-2026-07-21-05-document-intelligence-router-and-evidence-contract.md) |
 
 ### Notes on the 5 Accepted ADRs (2026-07-19)
 

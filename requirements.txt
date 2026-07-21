@@ -14,9 +14,11 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
-pydantic==2.5.0
-pydantic-settings>=2.0.0
-firebase-admin==6.2.0
+# Supabase 2.31's realtime client requires a newer Pydantic contract than the
+# historical 2.5 pin. Keep the tested pair exact so uv does not silently solve
+# a different production/local dependency graph.
+pydantic==2.13.4
+pydantic-settings==2.2.1
 email-validator==2.1.0
 
 # Authentication and security
