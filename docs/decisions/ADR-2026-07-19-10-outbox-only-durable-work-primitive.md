@@ -69,7 +69,7 @@ The 3 paths that still use `BackgroundTasks`:
 
 ### Path 2: Evidence extraction (`src/services/document_processing_service.py`)
 
-- **Current state:** the document processing service calls the evidence pipeline inline (per bc16e9e). This is not technically a `BackgroundTasks` call, but the inline call is synchronous in the same process. The outbox handler exists (`src/workers/substrate_extraction_handler.py`) but is not wired into the document processing flow.
+- **Current state:** production document processing enqueues substrate extraction after page artifacts are persisted. The worker reloads page OCR from `page_artifacts`; raw OCR is not placed in the outbox payload. Local development retains the inline compatibility path. Worker crash/reclaim and staging post-condition evidence remain verification gates.
 - **Migration:** the document processing service enqueues a `substrate.extraction` event in the outbox. The `OutboxWorker` dequeues the event and runs the evidence pipeline in a worker process. The inline call is removed.
 - **Effort:** S. The outbox handler exists. The migration is a 1-line change in the document processing service.
 - **Tests:** unit test that asserts the document processing service enqueues the event. Integration test that asserts the outbox worker runs the evidence pipeline.
@@ -262,6 +262,32 @@ The operator CLI is a new tool. The rollback is to not use the CLI; the dead-let
 - **Related code (current state):**
   - `src/workers/outbox_worker.py` (the outbox dispatcher)
   - `src/workers/document_processing_handler.py` (the document processing outbox handler, in bc16e9e)
-  - `src/workers/substrate_extraction_handler.py` (the evidence extraction outbox handler, in bc16e9e)
-  - `supabase/migrations/2026_07_19_job_outbox.sql` (the outbox table)
+- `src/workers/substrate_extraction_handler.py` (the evidence extraction outbox handler, in bc16e9e)
+- `supabase/migrations/2026_07_19_job_outbox.sql` (the outbox table)
 - **Motto v3 alignment:** §0.1 (no parallel systems; the outbox-only answer removes the parallel `BackgroundTasks`), §0.4 (acceptance contract; the outbox is the contract for durable work), §0.5 (evidence tiers; the outbox write is observable), §0.7 (AI output boundary; the outbox is the engineering answer to the lying UI for evidence-backed claims), §0.10 (observability is delivery; the heartbeat + reaper + dead-letter make the outbox observable), §0.12 (this document).
+
+## Implementation-status addendum (2026-07-21)
+
+Static review found that the accepted decision was ahead of the live wiring:
+the upload route still used `BackgroundTasks`, and the first document handler
+did not share terminal status/classification finalization with the fallback
+path. The first coherent migration stage is now landed: production startup
+requires the outbox, upload jobs carry a canonical source-object reference,
+and both paths use `document_processing_job.run_document_processing_job` for
+owner-scoped claiming and terminal persistence. Development may retain the
+legacy task only when the durable queue is intentionally unavailable.
+
+This does not close the whole ADR. Substrate extraction is still inline,
+Q&A/subscription/claim job types still lack registered handlers, and deployed
+worker/object-store/lease/retry evidence remains required before the accepted
+production contract can be called fully verified.
+
+## Implementation-status addendum (2026-07-21, billing webhook)
+
+The RevenueCat webhook route and event-ID idempotency fence now exist in
+`src/api/subscription.py`, with focused tests for authorization, duplicate
+delivery, ordering, purchase, and expiration. The current implementation uses
+the local SQLite subscription ledger and therefore does not yet satisfy the
+production form of this ADR. Move billing entitlement state and webhook audit
+records to the canonical Supabase durable ledger, then route webhook work
+through the existing outbox before production billing scale-up.

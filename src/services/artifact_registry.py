@@ -41,6 +41,33 @@ def record_source(
     }, on_conflict="document_id,object_reference").execute()
 
 
+def record_derived(
+    document_id: str,
+    owner_id: str,
+    object_reference: str,
+    content: bytes,
+    *,
+    artifact_kind: str = "derived",
+    content_type: str = "application/octet-stream",
+) -> None:
+    """Register a derived object with ownership, size, and checksum."""
+    if artifact_kind not in {"page_image", "derived", "embedding_cache"}:
+        raise ValueError("invalid derived artifact kind")
+    client = _client()
+    if client is None:
+        return
+    client.table("document_artifacts").upsert({
+        "document_id": document_id,
+        "owner_id": owner_id,
+        "object_reference": object_reference,
+        "artifact_kind": artifact_kind,
+        "content_type": content_type,
+        "byte_size": len(content),
+        "checksum_sha256": hashlib.sha256(content).hexdigest(),
+        "state": "active",
+    }, on_conflict="document_id,object_reference").execute()
+
+
 def mark_owner_deleted(owner_id: str) -> int:
     client = _client()
     if client is None:

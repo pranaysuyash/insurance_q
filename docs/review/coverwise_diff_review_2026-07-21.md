@@ -949,3 +949,141 @@ extraction is still invoked inline inside `DocumentProcessingService`, and
 Q&A/subscription/claim job types lack registered handlers. Continue with a
 separate migration stage only after the current document-processing path has
 live evidence.
+
+## RevenueCat webhook ordering fence (2026-07-21)
+
+The new authenticated webhook path had event-ID idempotency, but delivery
+reordering could still let an older expiration/refund overwrite a newer
+renewal. The local compatibility ledger now records `event_timestamp_ms` and
+marks older or equal provider-timestamp events `stale_ignored` without changing
+verified state. Events without a provider timestamp retain arrival-order
+compatibility because no safe ordering signal exists.
+
+Verification: webhook authorization, duplicate delivery, expiration, and
+out-of-order state preservation passed **3 tests**. The endpoint still writes a
+SQLite compatibility ledger and processes inline; provider-backed durable
+storage, outbox delivery, signature rotation, and live RevenueCat replay tests
+remain required for production entitlement authority.
+
+## Model-lineage configuration hash stability (2026-07-21)
+
+Model runs already required an approved, purpose-matching dataset release and
+recorded a configuration hash. The hash previously depended on Python's
+representation of nested dictionaries, so equivalent configurations could
+produce different lineage identities. Hashing now uses canonical JSON with
+sorted keys and stable separators/default string conversion.
+
+Verification: model-lineage, webhook, and retrieval-audit tests passed **7
+tests** in the focused run. This proves deterministic local hashing, not
+production artifact retention or operator replay of a real model run.
+
+## Migration-chain coherence (2026-07-21)
+
+The timestamped executable chain currently contains **32 uniquely versioned
+SQL files**, ordered from the base documents schema through processing events.
+Static inspection confirms the new lifecycle, retrieval-audit, artifact, and
+model-lineage tables reference earlier tables/functions in the ordered chain;
+the account-lifecycle trigger uses the previously defined outbox timestamp
+function, and the model registry follows the dataset registry.
+
+This is Tier 1 evidence only. No claim is made that the 32 files are applied to
+the target Supabase project. A clean CLI reset, migration-history comparison,
+duplicate account-deletion payload preflight, and production push are required
+before deployment readiness.
+
+The new additive migration also adds partial indexes for the remaining nullable
+foreign keys on dataset, retrieval-candidate, and answer-evidence tables. The
+local Supabase database was not running during this pass, so `supabase migration
+list --local` could not connect; SQL execution and advisor output remain open.
+
+The current static inventory has since grown to **32 uniquely versioned SQL
+files**, including policy summaries, the FTS source-text contract, and stable
+analytics event identity. This count is repository evidence only; no deployment
+or fresh-reset claim is made.
+
+## Analytics replay identity and retention boundary (2026-07-21)
+
+The production analytics branch now derives a deterministic `event_id` from
+the authenticated server user, event payload, and client event context. The
+new migration backfills historical rows, removes the timestamp-based unique
+key, and adds a unique stable key. This makes a retried batch safe to replay
+and prevents distinct same-batch events from colliding on `received_at`.
+
+`AnalyticsRetentionService` remains the service-role boundary for the
+past-cutoff purge RPC; scheduling, audit reporting, and live Supabase execution
+remain open.
+
+Verification: analytics idempotency, retention, error aggregation, production
+anti-abuse startup, and runtime configuration tests pass **24 tests**. This is
+Tier 2 evidence; migration execution and deployed replay are not verified.
+
+## Policy projection identity and artifact transition fencing (2026-07-21)
+
+The normalized policy projection now resolves an existing `policy_versions`
+row by `document_id` first and verifies that its policy belongs to the current
+owner. A document without a stable policy number is not allowed to merge into
+an arbitrary owner policy; it creates an independent projection. The projection
+boundary remains intentionally bounded to typed classification metadata and
+section structure, not raw OCR/source text.
+
+Artifact retention and orphan scans now use compare-and-set state transitions.
+Only the worker that successfully changes the expected prior state emits the
+corresponding lifecycle audit event and increments the transition count. The
+physical object deletion worker, retry policy, and live concurrent-worker proof
+remain open.
+
+Verification: policy-domain and artifact-lifecycle focused tests passed **9
+tests** together with model-lineage and webhook checks. This is Tier 2 evidence;
+production Supabase projection, transition races, and object-store deletion are
+not verified in this environment.
+
+## Remote billing ledger concurrency fence (2026-07-21)
+
+Production billing is routed to the server-side Supabase ledger; SQLite remains
+development/test-only. The RevenueCat RPC now takes a per-account advisory
+transaction lock, atomically inserts the event ID, rejects duplicate delivery,
+and applies provider-timestamp ordering before changing entitlement state.
+
+The local Supabase database was unavailable, so the RPC, grants, and migration
+were statically inspected rather than executed. Tier 3 verification still
+requires concurrent webhook delivery, replay, stale-event ordering, provider
+signature handling, entitlement reads after commit, and operator-visible audit
+inspection. Billing remains a high-risk production gate until that evidence
+exists.
+
+## Substrate worker owner binding (2026-07-21)
+
+The durable substrate-extraction job already kept raw OCR out of the queue,
+but its handler initially trusted the payload's `document_id` without checking
+the corresponding `owner_id` through the canonical document repository. The
+handler now requires both fields and rejects a missing or owner-mismatched
+document before loading page artifacts or invoking the evidence pipeline.
+
+Verification: substrate wiring, document runner, and owner-isolation tests pass
+**10 tests** together. This is Tier 2 evidence; a deployed worker and
+cross-principal job-injection test remain Tier 3 operational gates.
+
+## Localization boundary remains partial (2026-07-21)
+
+The new localization catalog is used by the Q&A surface, but the other screens
+in this diff still contain direct user-facing literals. Its source comment now
+describes that scope accurately instead of claiming that all copy is already
+centralized. Complete extraction should be staged by screen with locale tests;
+this pass records the boundary without creating a parallel copy system.
+
+The snackbar helper has the same boundary: migrated screens use the shared
+styling, while claim assistance, policy detail, and document subflows still
+contain legacy raw snackbars. Complete consolidation requires screen-level
+visual checks and accessibility review before removing those calls.
+
+Flutter verification for this mobile cluster is now stronger: `flutter analyze`
+reports no issues, and the focused Q&A, profile deletion guard, documents,
+legal, and upgrade suite passes **69 tests**. This is Tier 2 evidence; device
+matrix, accessibility, and real billing/notification-provider behavior remain
+runtime gates.
+
+The document-picker audit also closed a client-side parity gap: web uploads now
+enforce the same 20 MB size limit as native uploads, and the browser accept list
+matches the screen's PDF/JPEG/PNG contract. Flutter analysis remains clean and
+the documents-screen suite passes **11 tests**. Server-side validation remains
+authoritative; this is client usability and early-failure evidence only.

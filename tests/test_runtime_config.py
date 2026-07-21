@@ -28,7 +28,9 @@ def test_production_preflight_requires_the_canonical_contract():
     errors = production_configuration_errors({"ENVIRONMENT": "production"})
 
     assert "OPENAI_API_KEY is required" in errors
+    assert "REVENUECAT_WEBHOOK_AUTHORIZATION is required" in errors
     assert "DOCUMENT_REPOSITORY_BACKEND must be supabase" in errors
+    assert "BILLING_LEDGER_BACKEND must be supabase" in errors
 
 
 def test_production_preflight_accepts_complete_configuration():
@@ -41,9 +43,11 @@ def test_production_preflight_accepts_complete_configuration():
             "ANONYMOUS_AUTH_SIGNING_KEY": "a" * 32,
             "PUBLIC_SITE_URL": "https://app.coverwise.example",
             "ALLOWED_ORIGINS": "https://app.coverwise.example",
+            "REVENUECAT_WEBHOOK_AUTHORIZATION": "Bearer rc-test",
             "DOCUMENT_REPOSITORY_BACKEND": "supabase",
             "DOCUMENT_OBJECT_STORE_BACKEND": "supabase",
             "RAG_VECTOR_BACKEND": "supabase",
+            "BILLING_LEDGER_BACKEND": "supabase",
             "LOG_LEVEL": "INFO",
         }
     )

@@ -15,6 +15,7 @@ import '../utils/document_icons.dart';
 import '../utils/policy_type.dart';
 import '../widgets/document_type_picker.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/coverwise_scene.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../utils/app_error.dart';
@@ -271,14 +272,10 @@ class DocumentsList extends ConsumerWidget {
       await ref.read(documentServiceProvider).updateDocumentType(updated);
       ref.invalidate(documentsProvider);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Type changed to ${canonicalTypeName(newType)}')),
-      );
+      CoverWiseSnackBar.success(context, 'Type changed to ${canonicalTypeName(newType)}');
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppError.userMessage(e))),
-      );
+      CoverWiseSnackBar.error(context, AppError.userMessage(e));
     }
   }
 
@@ -350,19 +347,13 @@ class DocumentsList extends ConsumerWidget {
           refreshManualFamilyMembers(ref);
 
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            // Security audit P0-02: honest copy. The local copy is
-            // removed; the server copy is not.
-            const SnackBar(
-                content: Text(
-                    'Removed from this device. The server copy was not affected.')),
-          );
+          // Security audit P0-02: honest copy. The local copy is
+          // removed; the server copy is not.
+          CoverWiseSnackBar.info(context, 'Removed from this device. The server copy was not affected.');
         }
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppError.contextual(error: e, operation: 'delete_document'))),
-        );
+        CoverWiseSnackBar.error(context, AppError.contextual(error: e, operation: 'delete_document'));
       }
     }
   }
@@ -502,12 +493,7 @@ class _DocumentReplaceScreenState
       ref.invalidate(documentsProvider);
       ref.invalidate(policySummariesProvider);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Document replaced successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      CoverWiseSnackBar.success(context, 'Document replaced successfully');
 
       Navigator.pop(context);
     } catch (e) {

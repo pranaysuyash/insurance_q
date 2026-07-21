@@ -7,6 +7,7 @@ import '../providers/policy_providers.dart';
 import '../theme/coverwise_theme.dart';
 import '../utils/document_icons.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/policy_type_icon.dart';
 import 'documents_screen.dart';
@@ -238,9 +239,7 @@ class _InsuranceCard extends StatelessWidget {
       launched = false;
     }
     if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the phone app')),
-      );
+      CoverWiseSnackBar.error(context, 'Could not open the phone app');
     }
   }
 
@@ -264,9 +263,7 @@ class _InsuranceCard extends StatelessWidget {
       await SharePlus.instance.share(ShareParams(text: lines.join('\n')));
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open sharing options')),
-        );
+        CoverWiseSnackBar.error(context, 'Could not open sharing options');
       }
     }
   }

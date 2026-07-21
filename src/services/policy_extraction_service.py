@@ -5,10 +5,9 @@ This replaces the mobile app's approach of sending 13 sequential questions to th
 Instead, the backend extracts all fields in one structured LLM call and stores the result.
 The mobile app fetches the summary via a single API call.
 
-Persistence: summaries are stored in Redis (when available) with a file-based fallback on
-disk. This ensures summaries survive across requests and container restarts within the
-same instance. For true multi-instance durability, see the migration note in
-docs/review/go_live_blocking_issues_2026-07-11.md.
+Persistence: production summaries are stored in the canonical Supabase
+`document_policy_summaries` table. Development may use Redis or a local file
+compatibility adapter.
 """
 import json
 import logging
@@ -30,14 +29,32 @@ class PolicyExtractionService:
     def __init__(self, llm_client: LLMClient, redis_client=None):
         self.llm = llm_client
         self._redis = redis_client
-        os.makedirs(_SUMMARY_DIR, exist_ok=True)
+        self._supabase = None
+        if os.getenv("ENVIRONMENT", "development").lower() == "production":
+            url = os.getenv("SUPABASE_URL", "").strip()
+            key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            if not url or not key:
+                raise RuntimeError("Supabase policy-summary storage is required in production")
+            from supabase import create_client
+            self._supabase = create_client(url, key)
+        else:
+            os.makedirs(_SUMMARY_DIR, exist_ok=True)
 
     def _redis_key(self, document_id: str) -> str:
         return f"policy_summary:{document_id}"
 
     def _store_summary(self, document_id: str, summary: Dict[str, Any]) -> None:
-        """Persist summary to Redis (primary) and disk (fallback)."""
+        """Persist summary to the canonical production or local adapter."""
         serialized = json.dumps(summary, default=str)
+        if self._supabase is not None:
+            response = self._supabase.table("document_policy_summaries").upsert({
+                "document_id": document_id,
+                "summary": summary,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }, on_conflict="document_id").execute()
+            if not response.data:
+                raise RuntimeError("policy summary was not persisted")
+            return
         if self._redis:
             try:
                 self._redis.set(self._redis_key(document_id), serialized)
@@ -53,7 +70,12 @@ class PolicyExtractionService:
             logger.warning("Disk write failed for summary %s: %s", document_id, e)
 
     def _load_summary(self, document_id: str) -> Optional[Dict[str, Any]]:
-        """Load summary from Redis (primary) or disk (fallback)."""
+        """Load summary from the canonical production or local adapter."""
+        if self._supabase is not None:
+            response = (self._supabase.table("document_policy_summaries")
+                        .select("summary").eq("document_id", document_id)
+                        .limit(1).execute())
+            return response.data[0]["summary"] if response.data else None
         if self._redis:
             try:
                 raw = self._redis.get(self._redis_key(document_id))
@@ -73,6 +95,11 @@ class PolicyExtractionService:
 
     def _delete_summary(self, document_id: str) -> None:
         """Delete summary from both stores."""
+        if self._supabase is not None:
+            self._supabase.table("document_policy_summaries").delete().eq(
+                "document_id", document_id
+            ).execute()
+            return
         if self._redis:
             try:
                 self._redis.delete(self._redis_key(document_id))
@@ -192,6 +219,14 @@ class PolicyExtractionService:
     def get_all_summaries(self) -> Dict[str, Dict[str, Any]]:
         """Get all stored summaries."""
         summaries: Dict[str, Dict[str, Any]] = {}
+        if self._supabase is not None:
+            response = self._supabase.table("document_policy_summaries").select(
+                "document_id,summary"
+            ).execute()
+            return {
+                row["document_id"]: row["summary"]
+                for row in (response.data or [])
+            }
         # Load from disk
         try:
             for filename in os.listdir(_SUMMARY_DIR):

@@ -63,3 +63,16 @@ def test_revoke_release_persists_reason():
     payload = client.table.return_value.update.call_args.args[0]
     assert payload["status"] == "revoked"
     assert payload["revoked_reason"] == "customer withdrawal"
+
+
+def test_materialize_manifest_requires_approval_and_hashes_active_items():
+    registry, client = _registry()
+    client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+        {"id": "r1", "name": "gold", "version": "v1", "purpose": "evaluation", "status": "approved", "manifest_hash": None}
+    ]
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value.data = [
+        {"id": "i1", "prompt": "Q", "expected_answer": "A", "expected_citations": [], "source_snapshot": {}, "source_document_id": None, "source_chunk_id": None}
+    ]
+    manifest = asyncio.run(registry.materialize_manifest(uuid4()))
+    assert manifest["items"][0]["prompt"] == "Q"
+    assert len(manifest["manifest_hash"]) == 64

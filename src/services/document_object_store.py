@@ -30,6 +30,9 @@ class DocumentObjectStore:
     def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
         raise NotImplementedError
 
+    def page_image_reference(self, document_id: str, page_number: int) -> str:
+        raise NotImplementedError
+
     def get_page_image(self, document_id: str, page_number: int) -> bytes:
         raise NotImplementedError
 
@@ -63,6 +66,9 @@ class LocalDocumentObjectStore(DocumentObjectStore):
         path = self._directory / "_pages" / document_id / f"{page_number}.png"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(image_bytes)
+
+    def page_image_reference(self, document_id: str, page_number: int) -> str:
+        return str(self._directory / "_pages" / document_id / f"{page_number}.png")
 
     def get_page_image(self, document_id: str, page_number: int) -> bytes:
         path = self._directory / "_pages" / document_id / f"{page_number}.png"
@@ -128,6 +134,9 @@ class S3DocumentObjectStore(DocumentObjectStore):
             Body=image_bytes,
             ContentType="image/png",
         )
+
+    def page_image_reference(self, document_id: str, page_number: int) -> str:
+        return f"s3://{self._bucket}/_pages/{document_id}/{page_number}.png"
 
     def get_page_image(self, document_id: str, page_number: int) -> bytes:
         key = f"_pages/{document_id}/{page_number}.png"
@@ -197,6 +206,9 @@ class SupabaseDocumentObjectStore(DocumentObjectStore):
             image_bytes,
             {"content-type": "image/png", "upsert": "true"},
         )
+
+    def page_image_reference(self, document_id: str, page_number: int) -> str:
+        return f"supabase://{self._bucket}/_pages/{document_id}/{page_number}.png"
 
     def get_page_image(self, document_id: str, page_number: int) -> bytes:
         path = f"_pages/{document_id}/{page_number}.png"

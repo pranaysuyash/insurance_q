@@ -106,13 +106,13 @@ However, whether they've been applied to the Supabase project cannot be verified
    `supabase/migrations/` in timestamp order and record the applied versions.
 3. Do not apply both the timestamped chain and the `infra/supabase/` snapshots.
 
-**Tables created by the base migration:**
+**Key tables present in the current canonical migration chain:**
 - `documents` — Policy document metadata
 - `document_chunks` — Chunked text for RAG embedding
 - `analytics_events` — App analytics (Supabase is canonical in production)
-- `dataset_releases`, `dataset_items` — consent-aware evaluation/training registry
+- `dataset_releases`, `dataset_items` — consent-aware evaluation/training registry (later registry migration)
 
-**Verify:** Run `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';` — you should see all three tables.
+**Verify:** Run `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;` — verify the complete chain's tables, not only the base schema.
 
 ---
 

@@ -18,6 +18,7 @@ import '../services/auth_service.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../theme/coverwise_theme.dart';
 import '../models/entitlement.dart';
 import '../utils/app_error.dart';
@@ -153,13 +154,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await AuthService.clearToken();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All local data cleared.')),
-      );
+      CoverWiseSnackBar.success(context, 'All local data cleared.');
     } catch (e) {
-      if (!mounted) return;        ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppError.contextual(error: e, operation: 'clear_data'))),
-      );
+      if (!mounted) return;
+      CoverWiseSnackBar.error(context, AppError.contextual(error: e, operation: 'clear_data'));
     }
   }
 

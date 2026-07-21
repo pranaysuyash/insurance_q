@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import json
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
@@ -115,6 +117,27 @@ class DatasetRegistry:
         }).eq("id", str(release_id)).eq("status", "draft").select("id").execute()
         if not response.data:
             raise DatasetRegistryError("dataset release was not draft or does not exist")
+
+    async def materialize_manifest(self, release_id: UUID) -> dict[str, Any]:
+        """Read an approved release into a stable, hashable execution manifest."""
+        release = (
+            self._client.table("dataset_releases")
+            .select("id,name,version,purpose,status,manifest_hash")
+            .eq("id", str(release_id)).limit(1).execute()
+        )
+        if not release.data or release.data[0]["status"] != "approved":
+            raise DatasetRegistryError("only approved releases can be materialized")
+        header = release.data[0]
+        items = (
+            self._client.table("dataset_items")
+            .select("id,prompt,expected_answer,expected_citations,source_snapshot,source_document_id,source_chunk_id")
+            .eq("release_id", str(release_id)).eq("status", "active")
+            .order("id").execute().data or []
+        )
+        manifest = {"release": header, "items": items}
+        encoded = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+        manifest["manifest_hash"] = hashlib.sha256(encoded).hexdigest()
+        return manifest
 
     async def revoke_release(self, release_id: UUID, reason: str) -> None:
         if not reason.strip():

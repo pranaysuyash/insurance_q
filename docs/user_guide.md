@@ -1,5 +1,10 @@
 # CoverWise User Guide
 
+> **Current architecture (2026-07-21):** CoverWise uses managed Supabase
+> Auth. Firebase references in older material are historical and are not the
+> current setup. Sign-in, recovery, ownership, and document access are
+> mediated by the CoverWise API and Supabase Auth/Postgres/Storage contracts.
+
 Welcome to CoverWise. This guide explains how to use the app to manage your policies, understand what they
 cover, and ask grounded questions about your insurance documents.
 
@@ -34,7 +39,9 @@ CoverWise helps you manage and understand your insurance policies. You can:
 ### Creating an Account / Logging In
 
 - Depending on the application setup, you might need to register an account or log in.
-- If using Firebase authentication (common with the mobile app), you may have options like email/password, Google Sign-In, or phone authentication.
+- The current app uses Supabase Auth. Available providers and confirmation
+  requirements are deployment configuration; use the sign-in and recovery
+  controls shown by the app.
 - Follow the on-screen prompts to sign up or log in.
 
 ## Uploading Insurance Policies
@@ -91,7 +98,7 @@ The system will provide an answer based on the content of your policy document. 
 
 ## Account Management (If Applicable)
 
-- If the application requires user accounts (e.g., via Firebase on mobile, or a custom backend system):
+- Account ownership is managed by Supabase Auth and the CoverWise API:
     - You may have a profile section to manage your user details.
     - Options to change your password or log out.
 

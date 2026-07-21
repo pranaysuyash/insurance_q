@@ -1,5 +1,12 @@
 # Modern Stack Overview & Upgrade Tracker (2024)
 
+> **Historical snapshot.** This 2024 tracker is retained for provenance. The
+> active architecture is documented in
+> [`docs/architecture/coverwise_canonical_architecture.md`](../architecture/coverwise_canonical_architecture.md):
+> managed Supabase Auth/Postgres/pgvector/FTS/private Storage with one FastAPI
+> pipeline. Do not use the Firebase/Qdrant/Redis recommendations below for new
+> production work.
+
 This document serves as the single source of truth for the Insurance Policy Parser & QA App's technical stack, upgrade priorities, and links to detailed documentation for each major component.
 
 ## Key Libraries & Models
@@ -55,4 +62,4 @@ This file should be updated whenever a major stack or architecture change is mad
 # Changelog
 
 - 2024-06-XX: Added mobile-first Flutter app architecture and documentation.
-- 2024-06-XX: Decision: Flutter chosen as the primary mobile framework for cross-platform support and Firebase integration. 
+- 2024-06-XX: Decision: Flutter chosen as the primary mobile framework for cross-platform support and Firebase integration.

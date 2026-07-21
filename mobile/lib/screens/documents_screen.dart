@@ -21,6 +21,7 @@ import '../services/web_file_picker.dart';
 import 'paywall_screen.dart';
 import '../theme/coverwise_motion.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
+import '../localization/app_localizations.dart';
 import '../utils/app_error.dart';
 import '../widgets/lead_capture_dialog.dart';
 import '../widgets/phone_capture_sheet.dart';
@@ -107,6 +108,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     return tempFile;
   }
 
+  /// Supported file types and their extensions.
+  static const Set<String> _supportedExtensions = {
+    'pdf',
+    'jpg',
+    'jpeg',
+    'png',
+  };
+
+  /// Maximum file size in bytes (20 MB).
+  static const int _maxFileSizeBytes = 20 * 1024 * 1024;
+
   Future<void> _pickFile() async {
     setState(() {
       _uploadError = null;
@@ -144,9 +156,21 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     if (kIsWeb) {
       final picked = await WebFilePicker.pickFile();
       if (picked != null && mounted) {
+        // Validate web file type by extension.
+        final ext = picked.name.split('.').last.toLowerCase();
+        if (!_supportedExtensions.contains(ext)) {
+          setState(() => _uploadError = S.fileTypeUnsupported);
+          return;
+        }
+        if (picked.bytes.length > _maxFileSizeBytes) {
+          setState(() => _uploadError =
+              'This file is too large (${_formatFileSize(picked.bytes.length)}). ${S.fileTypeMaxSize}.');
+          return;
+        }
         setState(() {
           _selectedWebFile = picked;
           _selectedFile = null;
+          _selectedFileSize = picked.bytes.length;
           _useOnDeviceOcr = false;
           _showUploadDetails = true;
         });
@@ -156,8 +180,23 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
     final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
     if (file != null && mounted) {
+      // Validate file type before proceeding.
+      final ext = file.path.split('.').last.toLowerCase();
+      if (!_supportedExtensions.contains(ext)) {
+        if (!mounted) return;
+        setState(() => _uploadError = S.fileTypeUnsupported);
+        return;
+      }
+
+      // Validate file size before proceeding.
       final size = await File(file.path).length();
       if (!mounted) return;
+      if (size > _maxFileSizeBytes) {
+        setState(() => _uploadError =
+            'This file is too large (${_formatFileSize(size)}). ${S.fileTypeMaxSize}.');
+        return;
+      }
+
       setState(() {
         _selectedFile = File(file.path);
         _selectedWebFile = null;
@@ -736,15 +775,22 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
-                child: FilledButton.icon(
-                  icon: const Icon(Icons.upload_file_rounded),
-                  label: const Text('Add policy file'),
-                  onPressed: _pickFile,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
-                    textStyle: const TextStyle(fontSize: 16),
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FilledButton.icon(
+                      icon: const Icon(Icons.upload_file_rounded),
+                      label: const Text('Add policy file'),
+                      onPressed: _pickFile,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 16),
+                        textStyle: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const _FileTypeHint(),
+                  ],
                 ),
               ),
             )
@@ -779,6 +825,75 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               onDocumentSelectedForQA: (documentId) {
                 Navigator.pushNamed(context, '/qa', arguments: documentId);
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact hint showing supported file types and size limit.
+class _FileTypeHint extends StatelessWidget {
+  const _FileTypeHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        _HintChip(
+          icon: Icons.picture_as_pdf_outlined,
+          label: 'PDF',
+        ),
+        _HintChip(
+          icon: Icons.image_outlined,
+          label: 'JPEG',
+        ),
+        _HintChip(
+          icon: Icons.image_outlined,
+          label: 'PNG',
+        ),
+        _HintChip(
+          icon: Icons.sd_card_outlined,
+          label: 'Max 20 MB',
+        ),
+      ],
+    );
+  }
+}
+
+class _HintChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HintChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],

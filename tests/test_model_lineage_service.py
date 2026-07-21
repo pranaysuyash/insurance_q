@@ -28,3 +28,23 @@ def test_artifact_checksum_is_recorded():
     row = client.table.return_value.upsert.call_args.args[0]
     assert row["byte_size"] == 3
     assert row["checksum_sha256"].startswith("ba7816bf")
+
+
+def test_config_hash_is_stable_for_nested_key_order():
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+        {"status": "approved", "purpose": "evaluation"}
+    ]
+    client.table.return_value.insert.return_value.execute.return_value.data = [
+        {"id": str(uuid4())}
+    ]
+    service = ModelLineageService("", "", client=client)
+    asyncio.run(service.start_run(
+        uuid4(), "evaluation", "openai", "model", {"nested": {"b": 2, "a": 1}}, "operator"
+    ))
+    first_hash = client.table.return_value.insert.call_args.args[0]["config_hash"]
+    asyncio.run(service.start_run(
+        uuid4(), "evaluation", "openai", "model", {"nested": {"a": 1, "b": 2}}, "operator"
+    ))
+    second_hash = client.table.return_value.insert.call_args.args[0]["config_hash"]
+    assert first_hash == second_hash

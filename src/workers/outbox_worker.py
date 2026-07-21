@@ -8,12 +8,9 @@ process jobs from the job_outbox. The worker:
 3. Dispatches claimed jobs to registered handlers.
 4. Completes or fails the job based on the handler's result.
 
-The current v1 of this file has the registry empty: handlers
-are registered by the existing async-path modules. Each module
-that wants to expose a handler calls `dispatcher.register()` at
-import time. The migration from the existing in-process poll
-loops to outbox-based dispatch is a follow-up per
-ADR-2026-07-19-01; this file is the worker's skeleton.
+Handlers are registered in one dispatcher registry. The production document,
+substrate-extraction, and account-deletion paths use this worker; remaining
+job types are explicit migration work rather than silently assumed support.
 """
 from __future__ import annotations
 

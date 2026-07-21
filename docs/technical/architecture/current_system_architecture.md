@@ -1,5 +1,8 @@
 # Current System Architecture - Insurance Policy Assistant
 
+> **Superseded historical snapshot (2026-07-21).** This document describes the
+> former AWS/Qdrant/Redis deployment. Use [`docs/architecture/coverwise_canonical_architecture.md`](../../architecture/coverwise_canonical_architecture.md) for current production architecture.
+
 **Document Version**: 1.0  
 **Last Updated**: June 19, 2025  
 **Status**: Production Ready on AWS App Runner

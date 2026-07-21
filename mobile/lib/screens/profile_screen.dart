@@ -15,6 +15,7 @@ import '../providers/entitlement_provider.dart';
 import '../config/app_config.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../utils/app_error.dart';
 
 /// Profile / Account Screen — shows device identity, token status, and account health.
@@ -30,7 +31,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _DeleteConfirmationDialog extends StatefulWidget {
   @override
-  State<_DeleteConfirmationDialog> createState() => _DeleteConfirmationDialogState();
+  State<_DeleteConfirmationDialog> createState() =>
+      _DeleteConfirmationDialogState();
 }
 
 class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
@@ -51,7 +53,8 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('This is your last chance. All data will be permanently erased.'),
+          const Text(
+              'This is your last chance. All data will be permanently erased.'),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
@@ -97,10 +100,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // principal key. This also runs if the remote sign-out reports an error.
       await _clearWorkspaceData();
     }
-    
+
     // No need for setState — authStateProvider will trigger rebuild.
   }
-  
+
   /// Clears all local Hive boxes and consent ledger on sign-out.
   /// This ensures workspace isolation when switching accounts.
   Future<void> _clearWorkspaceData() async {
@@ -121,7 +124,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         'local-only-${InstallService.getInstallId()}',
       );
       AnalyticsService.init();
-      
+
       debugPrint('Workspace data cleared on sign-out');
     } catch (e) {
       debugPrint('Error clearing workspace data on sign-out: $e');
@@ -131,7 +134,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// Documents whose [processingState] is in-flight (not yet settled).
   static const _inFlightStates = {'received', 'processing', 'pending'};
 
-  Future<void> _confirmDeleteAccount(BuildContext context, List<InsuranceDocument> docs) async {
+  Future<void> _confirmDeleteAccount(
+      BuildContext context, List<InsuranceDocument> docs) async {
     // ── Pending-processing guard (§10 item 6) ──
     // Prevent account deletion while documents are still being processed.
     // Processing is fast, so the user can retry in a few seconds.
@@ -139,20 +143,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // docs is passed from build() via ref.watch(documentsProvider) so the
     // list is always current — no race condition with async provider reads.
     //
-    // Capture ScaffoldMessenger early to avoid use_build_context_synchronously
-    // lint warnings after async gaps (the messenger is safe across gaps).
-    final messenger = ScaffoldMessenger.of(context);
-    final inFlight = docs.where((d) => _inFlightStates.contains(d.processingState)).toList();
+    final inFlight =
+        docs.where((d) => _inFlightStates.contains(d.processingState)).toList();
     if (inFlight.isNotEmpty) {
       final names = inFlight.map((d) => d.filename).join(', ');
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '${inFlight.length} document${inFlight.length == 1 ? ' is' : 's are'} still processing: $names. '
-            'Please wait for processing to complete before deleting your account.',
-          ),
-          duration: const Duration(seconds: 5),
-        ),
+      CoverWiseSnackBar.warning(
+        context,
+        '${inFlight.length} document${inFlight.length == 1 ? ' is' : 's are'} still processing: $names. '
+        'Please wait for processing to complete before deleting your account.',
       );
       return;
     }
@@ -161,7 +159,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.warning_rounded, color: Color(0xFFC43D4B), size: 48),
+        icon: const Icon(Icons.warning_rounded,
+            color: Color(0xFFC43D4B), size: 48),
         title: const Text('Delete account permanently?'),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
@@ -211,9 +210,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Perform deletion
     try {
       if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Deleting account...')),
-      );
+      CoverWiseSnackBar.info(this.context, 'Deleting account...');
       // Per the 2026-07-19 review: the backend returns HTTP 202
       // with a per-stage status. The previous UI only handled
       // HTTP 200 + a single "deleted" message, which lied when
@@ -224,40 +221,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       // Build the user-facing message from the per-stage
       // status, not from a single "deleted" claim.
-      final statusColor = result.isComplete ? Colors.green : Colors.orange;
       final String snackMessage;
       if (result.isComplete) {
         snackMessage =
             'Account deleted. ${result.deletedDocuments} document(s) and '
             '${result.deletedStorageFiles} storage file(s) removed.';
       } else if (result.isPartial) {
-        snackMessage =
-            'Account deletion is partially complete. '
+        snackMessage = 'Account deletion is partially complete. '
             'Failed stages: ${result.failedStages.join(", ")}. '
             'Do not assume server deletion is complete. '
             'Local data on this device was not affected and can be '
             'cleared from the privacy screen.';
       } else {
-        snackMessage =
-            'Account deletion requested. Status: ${result.status}. '
+        snackMessage = 'Account deletion requested. Status: ${result.status}. '
             'Check the privacy screen for details.';
       }
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(snackMessage),
-          backgroundColor: statusColor,
-          duration: const Duration(seconds: 8),
-        ),
-      );
+      // Both success and partial/warning get 8s to match the original UX.
+      if (result.isComplete) {
+        CoverWiseSnackBar.success(this.context, snackMessage,
+            duration: const Duration(seconds: 8));
+      } else {
+        CoverWiseSnackBar.warning(this.context, snackMessage,
+            duration: const Duration(seconds: 8));
+      }
       setState(() {});
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(AppError.contextual(error: e, operation: 'account_deletion')),
-          backgroundColor: Colors.red,
-        ),
-      );
+      CoverWiseSnackBar.error(this.context,
+          AppError.contextual(error: e, operation: 'account_deletion'));
     }
   }
 
@@ -297,7 +288,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: ListTile(
                 leading: const Icon(Icons.cloud_sync_rounded),
                 title: const Text('Create a secure account'),
-                subtitle: const Text('Restore this policy workspace across devices'),
+                subtitle:
+                    const Text('Restore this policy workspace across devices'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () async {
                   await Navigator.pushNamed(context, '/account');
@@ -401,11 +393,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 subtitle: 'Permanently remove account and all server data',
                 onTap: accountUser != null
                     ? () => _confirmDeleteAccount(context, documents)
-                    : () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Create an account first to delete it'),
-                          ),
-                        ),
+                    : () => CoverWiseSnackBar.info(
+                        context, 'Create an account first to delete it'),
               ),
             ]),
           ),

@@ -4,6 +4,7 @@ import '../services/notification_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 
 /// Screen for managing notification preferences.
 ///
@@ -81,16 +82,13 @@ class _NotificationPreferencesScreenState
             onPressed: _saving
                 ? null
                 : () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final navigator = Navigator.of(context);
                     setState(() => _saving = true);
                     try {
                       await _savePreferences();
                       if (!mounted) return;
-                      messenger.showSnackBar(
-                        const SnackBar(content: Text('Preferences saved')),
-                      );
-                      navigator.pop();
+                      CoverWiseSnackBar.success(
+                          this.context, 'Preferences saved');
+                      Navigator.of(this.context).pop();
                     } finally {
                       if (mounted) setState(() => _saving = false);
                     }

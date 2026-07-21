@@ -1,5 +1,8 @@
 # CoverWise Documentation
 
+> **Canonical-path notice (2026-07-21):** This index contains historical
+> material. The active architecture is [`docs/architecture/coverwise_canonical_architecture.md`](architecture/coverwise_canonical_architecture.md): managed Supabase/Postgres/pgvector/FTS/private Storage/Auth plus one FastAPI pipeline. Older Firebase, Qdrant, Redis, AWS, and local-storage descriptions are preserved as historical research and must not be used for production configuration.
+
 This is the comprehensive documentation for CoverWise, the insurance companion that reads policy documents,
 surfaces the details that matter, and answers grounded questions in plain language. The documentation is
 organized in a logical directory structure to improve navigation and accessibility.

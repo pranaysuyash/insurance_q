@@ -158,10 +158,12 @@ class DocumentProcessingService:
         rag_pipeline: Optional['RAGPipeline'] = None,
         document_object_store: Optional[Any] = None,
         document_repository: Optional[Any] = None,
+        job_outbox_service: Optional[Any] = None,
     ):
         self.rag_pipeline = rag_pipeline
         self.document_object_store = document_object_store
         self.document_repository = document_repository
+        self.job_outbox_service = job_outbox_service
         self.processing_event_service = None
         if os.getenv("SUPABASE_URL", "").strip() and os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip():
             try:
@@ -188,10 +190,9 @@ class DocumentProcessingService:
             except Exception as e:
                 logger.warning("PolicyExtractionService init failed: %s", e)
         
-        # Create storage directories
-        self.storage_dir = "storage/documents"
-        self.temp_dir = "temp"
-        os.makedirs(self.storage_dir, exist_ok=True)
+        # Processing files are ephemeral working data. The durable source is
+        # written by DocumentObjectStore before this service is invoked.
+        self.temp_dir = os.getenv("PROCESSING_TEMP_DIR", "temp")
         os.makedirs(self.temp_dir, exist_ok=True)
         
         logger.info("DocumentProcessingService initialized")
@@ -245,18 +246,24 @@ class DocumentProcessingService:
             await self._update_status(document_id, "validating", 10)
             file_path = await self._save_file(file_content, filename, document_id)
             result["file_path"] = file_path
-            result["stages"]["file_storage"] = {"status": "completed", "file_path": file_path}
+            result["stages"]["file_storage"] = {
+                "status": "completed",
+                "storage": "ephemeral_processing_temp",
+            }
             
             # Stage 2: OCR Processing (if needed)
             extracted_text = ""
             if processing_mode in ["full", "ocr_only"]:
                 await self._update_status(document_id, "extracting_text", 30)
-                ocr_result = await self._extract_text(
-                    file_path,
-                    filename,
-                    pdf_password=pdf_password,
-                    on_device_ocr_text=on_device_ocr_text,
-                )
+                try:
+                    ocr_result = await self._extract_text(
+                        file_path,
+                        filename,
+                        pdf_password=pdf_password,
+                        on_device_ocr_text=on_device_ocr_text,
+                    )
+                finally:
+                    self._cleanup_temp_file(file_path)
                 extracted_text = ocr_result.get("full_text", "")
                 result["stages"]["ocr"] = ocr_result
                 result["extracted_text"] = extracted_text
@@ -324,37 +331,57 @@ class DocumentProcessingService:
                 and self._evidence_pipeline_enabled()
             ):
                 await self._update_status(document_id, "extracting_evidence", 80)
-                try:
-                    from src.services.evidence_substrate_service import (
-                        EvidenceSubstrateService,
-                    )
-                    from src.services.evidence_pipeline import (
-                        EvidencePipeline,
-                    )
-                    substrate = EvidenceSubstrateService.from_env()
-                    pipeline = EvidencePipeline(substrate=substrate)
-                    pipeline_result = await pipeline.run_for_document(
-                        document_id=UUID(document_id),
-                        page_texts=page_texts,
-                    )
-                    result["stages"]["evidence_extraction"] = {
-                        "status": "completed",
-                        "fields_extracted": pipeline_result.fields_extracted,
-                        "fields_cited": pipeline_result.fields_cited,
-                        "fields_rejected": pipeline_result.fields_rejected,
-                        "total_cost_usd": pipeline_result.total_cost_usd,
-                        "parser_version": pipeline_result.parser_version,
-                    }
-                except Exception as e:
-                    logger.warning(
-                        "evidence_extraction_failed document_id=%s error_type=%s",
-                        document_id,
-                        type(e).__name__,
-                    )
-                    result["stages"]["evidence_extraction"] = {
-                        "status": "failed",
-                        "error": "Evidence extraction failed; the document is processed but the substrate is empty.",
-                    }
+                if self.job_outbox_service is not None:
+                    try:
+                        from src.models.job_outbox import EnqueueRequest, JobType
+                        await self.job_outbox_service.enqueue(EnqueueRequest(
+                            job_type=JobType.SUBSTRATE_EXTRACTION,
+                            payload={
+                                "document_id": document_id,
+                                "owner_id": owner_id,
+                            },
+                        ))
+                        result["stages"]["evidence_extraction"] = {
+                            "status": "queued",
+                            "source": "job_outbox",
+                        }
+                    except Exception as error:
+                        logger.error(
+                            "evidence_extraction_enqueue_failed document_id=%s error_type=%s",
+                            document_id, type(error).__name__,
+                        )
+                        if os.getenv("ENVIRONMENT", "development").lower() == "production":
+                            raise RuntimeError("Durable evidence extraction enqueue failed") from error
+                        result["stages"]["evidence_extraction"] = {
+                            "status": "failed",
+                            "error": "Evidence extraction enqueue failed",
+                        }
+                else:
+                    try:
+                        from src.services.evidence_substrate_service import EvidenceSubstrateService
+                        from src.services.evidence_pipeline import EvidencePipeline
+                        substrate = EvidenceSubstrateService.from_env()
+                        pipeline = EvidencePipeline(substrate=substrate)
+                        pipeline_result = await pipeline.run_for_document(
+                            document_id=UUID(document_id), page_texts=page_texts,
+                        )
+                        result["stages"]["evidence_extraction"] = {
+                            "status": "completed",
+                            "fields_extracted": pipeline_result.fields_extracted,
+                            "fields_cited": pipeline_result.fields_cited,
+                            "fields_rejected": pipeline_result.fields_rejected,
+                            "total_cost_usd": pipeline_result.total_cost_usd,
+                            "parser_version": pipeline_result.parser_version,
+                        }
+                    except Exception as error:
+                        logger.warning(
+                            "evidence_extraction_failed document_id=%s error_type=%s",
+                            document_id, type(error).__name__,
+                        )
+                        result["stages"]["evidence_extraction"] = {
+                            "status": "failed",
+                            "error": "Evidence extraction failed; the document is processed but the substrate is empty.",
+                        }
             else:
                 if processing_mode in ["full"] and not page_texts:
                     result["stages"]["evidence_extraction"] = {
@@ -433,16 +460,25 @@ class DocumentProcessingService:
             }
     
     async def _save_file(self, file_content: bytes, filename: str, document_id: str) -> str:
-        """Save uploaded file to storage"""
+        """Write only an ephemeral processing copy; durable storage is upstream."""
         file_extension = os.path.splitext(filename)[1].lower()
-        stored_filename = f"{document_id}_{filename}"
-        file_path = os.path.join(self.storage_dir, stored_filename)
-        
-        with open(file_path, "wb") as f:
-            f.write(file_content)
-        
+        with tempfile.NamedTemporaryFile(
+            mode="wb", suffix=file_extension, prefix=f"{document_id}_",
+            dir=self.temp_dir, delete=False,
+        ) as handle:
+            handle.write(file_content)
+            file_path = handle.name
         logger.info("document_processing_temp_file_saved document_id=%s", document_id)
         return file_path
+
+    @staticmethod
+    def _cleanup_temp_file(file_path: str) -> None:
+        try:
+            os.unlink(file_path)
+        except FileNotFoundError:
+            pass
+        except OSError as error:
+            logger.warning("document_processing_temp_file_cleanup_failed error_type=%s", type(error).__name__)
     
     async def _extract_text(
         self,
@@ -723,6 +759,18 @@ class DocumentProcessingService:
                                     page_number=page_num,
                                     image_bytes=page_image,
                                 )
+                                if owner_id:
+                                    from src.services.artifact_registry import record_derived
+                                    record_derived(
+                                        document_id=document_id,
+                                        owner_id=owner_id,
+                                        object_reference=self.document_object_store.page_image_reference(
+                                            document_id, page_num
+                                        ),
+                                        content=page_image,
+                                        artifact_kind="page_image",
+                                        content_type="image/png",
+                                    )
                             pa_id = await substrate.append_page_artifact(
                                 document_id=UUID(document_id),
                                 page_number=page_num,
@@ -775,6 +823,14 @@ class DocumentProcessingService:
                 "entity_blocks_count": len(entity_blocks),
                 "total_text_length": len(text),
                 "page_artifacts_created": len(page_artifact_id_map) if page_artifact_id_map else 0,
+                "sections": [
+                    {
+                        "section_type": block.get("section_type", "general"),
+                        "page": block.get("page"),
+                        "title": str(block.get("text", "")).splitlines()[0][:160] or None,
+                    }
+                    for block in text_blocks
+                ],
                 "rag_result": ingest_result
             }
             

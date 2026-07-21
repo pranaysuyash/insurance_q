@@ -95,9 +95,27 @@ async def _apply_classification(
             }
         )
         document.metadata = metadata
+        from src.services.policy_domain_service import sync_document
+        rag_ingestion = result.get("stages", {}).get("rag_ingestion", {})
+        sync_document(
+            document_id=document_id,
+            owner_id=document.user_uid,
+            source_hash=document.source_hash,
+            metadata=metadata,
+            sections=rag_ingestion.get("sections", []) if isinstance(rag_ingestion, dict) else [],
+        )
     except Exception as error:
         log.warning(
             "document_classification_failed document_id=%s error_type=%s",
             document_id,
             type(error).__name__,
         )
+        text = text_content.lower()
+        if "health" in text or "medical" in text:
+            document.document_type = "Health Insurance"
+        elif "auto" in text or "vehicle" in text:
+            document.document_type = "Auto Insurance"
+        elif "life" in text:
+            document.document_type = "Life Insurance"
+        else:
+            document.document_type = "Insurance Policy"

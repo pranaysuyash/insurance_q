@@ -5,6 +5,7 @@ import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../utils/document_icons.dart';
 import '../services/notification_service.dart';
@@ -89,13 +90,11 @@ class RenewalCalendarScreen extends ConsumerWidget {
                         );
                       }
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(granted
-                              ? 'Renewal reminders are on.'
-                              : 'Notifications are off. You can enable them in Settings.'),
-                        ),
-                      );
+                      if (granted) {
+                        CoverWiseSnackBar.success(context, 'Renewal reminders are on.');
+                      } else {
+                        CoverWiseSnackBar.warning(context, 'Notifications are off. You can enable them in Settings.');
+                      }
                     },
                     child: const Text('Enable'),
                   ),
@@ -397,9 +396,7 @@ class _RenewNowButton extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open phone dialer')),
-      );
+      CoverWiseSnackBar.error(context, 'Could not open phone dialer');
     }
   }
 
@@ -416,29 +413,21 @@ class _RenewNowButton extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open email client')),
-      );
+      CoverWiseSnackBar.error(context, 'Could not open email client');
     }
   }
 
   void _showNoContactInfo(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Contact info not found for ${summary.insurer ?? "this insurer"}. Check your policy document or call the insurer directly.',
-        ),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'View Policy',
-          onPressed: () {
-            Navigator.of(context).pushNamed(
-              '/policy-detail',
-              arguments: summary.documentId,
-            );
-          },
-        ),
-      ),
+    CoverWiseSnackBar.warning(
+      context,
+      'Contact info not found for ${summary.insurer ?? "this insurer"}. Check your policy document or call the insurer directly.',
+      actionLabel: 'View Policy',
+      onAction: () {
+        Navigator.of(context).pushNamed(
+          '/policy-detail',
+          arguments: summary.documentId,
+        );
+      },
     );
   }
 }

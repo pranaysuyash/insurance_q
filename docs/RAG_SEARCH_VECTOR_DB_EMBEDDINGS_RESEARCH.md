@@ -1,5 +1,11 @@
 # CoverWise — RAG, Search, Vector DB & Embeddings Research
 
+> **Historical research snapshot (2026-07-21).** The current implementation
+> has moved the production lexical path from SQLite FTS to PostgreSQL FTS and
+> keeps Qdrant/local fallback only for development and migration rehearsal.
+> Treat this document as research, not production configuration; the canonical
+> decision is in [`docs/architecture/coverwise_canonical_architecture.md`](architecture/coverwise_canonical_architecture.md).
+
 **Date:** 2026-07-16
 **Purpose:** Comprehensive reference for RAG/search/vector DB/embeddings — methods, models, architectures, and what applies to CoverWise
 **Evidence Tier:** Tier 1 (codebase inspection) + Tier 2 (web research)

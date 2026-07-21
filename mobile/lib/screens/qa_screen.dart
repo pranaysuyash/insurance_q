@@ -17,6 +17,7 @@ import '../widgets/shared/loading_widget.dart';
 import '../widgets/shared/offline_banner.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
+import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
 import '../utils/app_error.dart';
@@ -164,7 +165,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       CoverWiseSnackBar.warning(
         context,
         entitlementReason,
-        actionLabel: 'Get packs',
+        actionLabel: S.getPacks,
         onAction: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const QaPacksScreen()),
         ),
@@ -213,7 +214,7 @@ class QaScreenState extends ConsumerState<QaScreen>
 
       if (result.containsKey('error') && !result.containsKey('answer')) {
       if (!mounted) return;
-      CoverWiseSnackBar.error(context, 'Could not get an answer. ${result['error'] ?? 'Please try again.'}');
+      CoverWiseSnackBar.error(context, S.qaCouldNotGetAnswer(result['error'] ?? ''));
         return;
       }
 
@@ -264,7 +265,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       final previous = ref.read(currentAnswerProvider);
       if (previous == null) {
         final fallbackAnswer = QaAnswer(
-          text: "Sorry, that didn't work. Please try again.",
+          text: S.qaFallbackAnswer,
           sources: [],
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
@@ -311,13 +312,13 @@ class QaScreenState extends ConsumerState<QaScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ask CoverWise'),
+        title: Text(S.qaScreenTitle),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Suggested'),
-            Tab(text: 'Your question'),
-            Tab(text: 'History'),
+            Tab(text: S.qaTabSuggested),
+            Tab(text: S.qaTabYourQuestion),
+            Tab(text: S.qaTabHistory),
           ],
         ),
       ),
@@ -422,7 +423,7 @@ class _QuestionBudgetBanner extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isZero ? 'No questions remaining' : '$remaining questions left',
+                    isZero ? S.qaNoQuestionsRemaining : S.qaQuestionsLeft(remaining),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
@@ -439,7 +440,7 @@ class _QuestionBudgetBanner extends ConsumerWidget {
             if (isZero || isLow)
               TextButton(
                 onPressed: onTapUpgrade,
-                child: const Text('Get more'),
+                child: Text(S.getMore),
               ),
           ],
         ),
@@ -469,14 +470,14 @@ class _DocumentSelector extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
       child: Semantics(
         container: true,
-        label: 'Question source',
+        label: S.qaQuestionSource,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ASK ABOUT',
+                S.qaAskAbout,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: CoverWiseColors.blueDeep,
                       fontWeight: FontWeight.w800,
@@ -490,8 +491,8 @@ class _DocumentSelector extends StatelessWidget {
                     child: ChoiceChip(
                       label: Text(
                         isAllDocuments
-                            ? 'All Documents (${documents.length})'
-                            : 'Single Document',
+                            ? S.qaAllDocuments(documents.length)
+                            : S.qaSingleDocument,
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       selected: isAllDocuments,
@@ -535,7 +536,7 @@ class _DocumentSelector extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.only(top: 8.0),
                   child: Text(
-                    'Search across all your uploaded policies',
+                    S.qaSearchAllPolicies,
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
@@ -647,7 +648,7 @@ class _CustomQuestionTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Ask about cover, exclusions, dates or wording in your policy.',
+            S.qaAskAboutDescription,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   height: 1.4,
@@ -657,9 +658,9 @@ class _CustomQuestionTab extends StatelessWidget {
           TextField(
             controller: controller,
             decoration: InputDecoration(
-              hintText: 'e.g., What is the effective date?',
+              hintText: S.qaHintText,
               suffixIcon: IconButton(
-                tooltip: 'Clear question',
+                tooltip: S.qaClearQuestion,
                 icon: const Icon(Icons.close_rounded),
                 onPressed: () => controller.clear(),
               ),
@@ -674,7 +675,7 @@ class _CustomQuestionTab extends StatelessWidget {
           const SizedBox(height: 16),
           FilledButton.icon(
             icon: const Icon(Icons.arrow_upward_rounded),
-            label: const Text('Ask CoverWise'),
+            label: Text(S.qaScreenTitle),
             onPressed: isLoading || controller.text.trim().isEmpty
                 ? null
                 : () => onAskQuestion(controller.text.trim()),
@@ -732,13 +733,13 @@ class _HistoryTabState extends State<_HistoryTab> {
           item.timestamp.year, item.timestamp.month, item.timestamp.day);
       String label;
       if (!date.isBefore(today)) {
-        label = 'Today';
+        label = S.qaToday;
       } else if (!date.isBefore(yesterday)) {
-        label = 'Yesterday';
+        label = S.qaYesterday;
       } else if (!date.isBefore(weekAgo)) {
-        label = 'This week';
+        label = S.qaThisWeek;
       } else {
-        label = 'Earlier';
+        label = S.qaEarlier;
       }
       groups.putIfAbsent(label, () => []).add(item);
     }
@@ -750,7 +751,7 @@ class _HistoryTabState extends State<_HistoryTab> {
     if (widget.qaHistory.isEmpty) {
       return const EmptyStateWidget(
         icon: Icons.history,
-        title: 'No question history yet',
+        title: S.qaNoHistoryYet,
         color: Color(0xFF6A4BA8),
       );
     }
@@ -776,7 +777,7 @@ class _HistoryTabState extends State<_HistoryTab> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search history...',
+              hintText: S.qaSearchHistory,
               prefixIcon: const Icon(Icons.search, size: 20),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
@@ -823,7 +824,7 @@ class _HistoryTabState extends State<_HistoryTab> {
                             color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(height: 12),
                         Text(
-                          'No matches for "$_searchQuery"',
+                          S.qaNoMatchesFor(_searchQuery),
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ],
@@ -922,7 +923,7 @@ class _HistoryTabState extends State<_HistoryTab> {
                                           child: Padding(
                                             padding: const EdgeInsets.only(top: 4),
                                             child: Text(
-                                              isExpanded ? 'Show less' : 'Show more',
+                                              isExpanded ? S.commonShowLess : S.commonShowMore,
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,

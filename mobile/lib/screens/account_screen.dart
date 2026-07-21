@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -51,7 +52,7 @@ class _AccountScreenState extends State<AccountScreen> {
           : await AuthService.signIn(_email.text, _password.text);
       if (!context.mounted) return;
       if (response.session == null) {
-        _message('Check your email to confirm the account, then sign in.');
+        _message('Check your email to confirm the account, then sign in.', isError: false);
       } else {
         await AuthService.claimAnonymousData();
         if (!context.mounted) return;
@@ -87,7 +88,7 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       await AuthService.resetPassword(_email.text);
       if (!mounted) return;
-      _message('Password reset email sent. Check your inbox.');
+      _message('Password reset email sent. Check your inbox.', isError: false);
     } catch (error) {
       if (!mounted) return;
       _message('Could not send reset email. Check your email and try again.');
@@ -96,8 +97,13 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  void _message(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  void _message(String message, {bool isError = true}) {
+    if (isError) {
+      CoverWiseSnackBar.error(context, message);
+    } else {
+      CoverWiseSnackBar.info(context, message);
+    }
+  }
 
   Future<void> _signInWithGoogle() async {
     if (!AppConfig.hasSupabaseAuthConfig) {
@@ -132,7 +138,7 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       await AuthService.resendEmailVerification(_email.text);
       if (!mounted) return;
-      _message('Verification email sent. Check your inbox.');
+      _message('Verification email sent. Check your inbox.', isError: false);
     } catch (error) {
       if (!mounted) return;
       _message('Could not send verification email. Try again later.');

@@ -849,6 +849,26 @@ without waiting for a subsequent request. Enforcement remains atomic in the
 database RPC; cross-instance and operational dashboard verification remain
 open.
 
+## Addendum — localization migration boundary (2026-07-21)
+
+The catalog is currently adopted by Q&A only; the remaining screens still hold
+direct literals. The catalog comment was corrected to describe this as an
+incremental migration. Complete extraction is a follow-up requiring screen
+coverage, locale/placeholder tests, and accessibility review.
+
+The shared snackbar helper is also incremental; several legacy flows still
+render raw snackbars. Consolidation should follow the same screen-by-screen
+visual and accessibility verification rather than silently changing every
+message surface in one pass.
+
+The affected mobile cluster now has clean Flutter analysis and 69 focused tests
+passing across Q&A, profile, documents, legal, and upgrade flows. Device
+matrix, accessibility, and provider-backed runtime checks remain open.
+
+Web and native document selection now share the same supported extensions and
+20 MB early size gate. The server remains the source of truth for validation;
+browser/device upload and malformed-content tests remain open.
+
 ## Addendum — retrieval context expansion owner fence (2026-07-21)
 
 Dense and FTS retrieval were owner-scoped, but graph-style adjacent expansion
@@ -871,3 +891,63 @@ fails startup when the outbox is unavailable; development fallback is explicit.
 Focused runner/upload tests pass. Keep Tier 3 verification open for deployed
 worker/object-store/lease/retry/UI behavior. Substrate extraction remains an
 inline stage and the unregistered outbox job types remain future adoption areas.
+
+## Addendum — webhook event ordering (2026-07-21)
+
+RevenueCat webhook delivery was authenticated and event-ID idempotent, but an
+older event could regress a newer verified subscription state. Provider event
+timestamps are now persisted in the compatibility ledger and older/equal
+events are recorded as `stale_ignored`. Live provider replay and durable
+outbox-backed reconciliation remain open.
+
+## Addendum — model configuration hash stability (2026-07-21)
+
+Model-run lineage now hashes canonical JSON rather than Python dictionary
+representation, so nested configuration key order does not create false run
+identities. Real dataset-release approval, artifact storage, metrics, and
+operator replay remain research-lane verification work.
+
+## Addendum — migration-chain count and deployment gate (2026-07-21)
+
+Static inventory found 32 uniquely versioned files under
+`supabase/migrations/`. Documentation now points to the complete ordered
+chain rather than a historical fixed count. This does not prove deployment:
+fresh reset, applied-history comparison, duplicate destructive-job preflight,
+and live migration execution remain open.
+
+The latest migration adds partial indexes for nullable foreign-key columns
+that otherwise weaken joins and deletion cascades. Local Supabase execution
+was unavailable, so run the migration against a fresh local Postgres instance
+and inspect advisors before deployment.
+
+## Addendum — analytics replay identity (2026-07-21)
+
+Canonical analytics ingestion now derives a stable event identity from the
+authenticated principal and event payload. The migration backfills historical
+rows, retires the timestamp-based uniqueness key, and adds a unique event key.
+Focused analytics/retention/anti-abuse tests pass; live migration execution,
+scheduler evidence, and deployed replay remain open.
+
+## Addendum — policy projection and artifact transition fencing (2026-07-21)
+
+Policy projection now uses document identity first, verifies owner scope, and
+does not merge documents without a stable policy number into an existing policy.
+Artifact retention/orphan transitions use compare-and-set fencing so only the
+winning worker writes a lifecycle event. Focused tests pass; live Supabase,
+object deletion, and concurrent-worker recovery remain open.
+
+## Addendum — remote billing ledger ordering (2026-07-21)
+
+The production billing path now has a server-side ledger RPC with per-account
+transaction locking, atomic event-ID idempotency, and provider-timestamp
+ordering. SQLite remains a development fallback. The migration and adapter are
+static-only until local or deployed Supabase execution is available; concurrent
+replay and entitlement-read verification remain required.
+
+## Addendum — substrate worker owner binding (2026-07-21)
+
+The substrate outbox handler now verifies `document_id` and `owner_id` through
+the canonical document repository before reading persisted page OCR. This
+closes the handler-boundary cross-owner risk found during the diff sweep.
+Focused tests pass; deployed worker isolation and job-injection testing remain
+open.

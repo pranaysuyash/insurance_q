@@ -966,7 +966,10 @@ class RAGPipeline:
                         "evidence": audit_evidence,
                     },
                 }
-                asyncio.create_task(self._log_query_trace(trace_data))
+                # Audit persistence is part of the production answer
+                # contract. A detached task can be lost on worker shutdown
+                # and would make a customer-visible answer unauditable.
+                await self._log_query_trace(trace_data)
             return resp
 
         logger.info("Query: '%s' top_k=%d", user_query, top_k)
@@ -1246,9 +1249,18 @@ class RAGPipeline:
                     lambda: write_audit(self.vector_store._client, trace_data),
                 )
             else:
-                logger.info("Query Trace: %s", json.dumps(trace_data))
+                logger.info("Query Trace: %s", json.dumps({
+                    key: trace_data.get(key)
+                    for key in (
+                        "query_hash", "query_length", "owner_id", "retrieval_strategy",
+                        "top_k", "hits_count", "citations_count", "latency_ms", "cache_hit",
+                        "embedding_model", "embedding_version", "reranker_model",
+                    )
+                }))
         except Exception as e:
             logger.warning("Failed to log query trace: %s", e)
+            if os.getenv("ENVIRONMENT", "development").lower() == "production":
+                raise RuntimeError("Durable retrieval audit persistence failed") from e
 
     async def query_rag_structured(
         self,

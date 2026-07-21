@@ -16,11 +16,9 @@ this handler. The handler's contract is identical to the
 in-process call: same arguments, same result, same error
 semantics.
 
-The migration is incremental. v1 of the worker registers only
-this handler + the substrate_extraction handler. The other 5
-job types (`qa_response`, `webhook_reconciliation`, etc.) keep
-their existing in-process paths until their migration is
-designed and implemented (per ADR-2026-07-19-02).
+The migration is incremental. This handler, substrate extraction, and account
+deletion are registered today; the remaining job types still lack production
+handlers and must be migrated deliberately.
 """
 from __future__ import annotations
 
@@ -60,6 +58,7 @@ async def handle_document_processing(job: OutboxJob) -> None:
     from src.services.document_processing_service import (
         DocumentProcessingService,
     )
+    from src.services.job_outbox_service import JobOutboxService
     from src.services.document_processing_job import run_document_processing_job
     from src.services.document_object_store import create_document_object_store
     from src.services.document_repository import create_document_repository
@@ -94,6 +93,7 @@ async def handle_document_processing(job: OutboxJob) -> None:
             rag_pipeline=rag,
             document_object_store=store,
             document_repository=repository,
+            job_outbox_service=JobOutboxService.from_env(),
         )
         handle_document_processing._service = service
 

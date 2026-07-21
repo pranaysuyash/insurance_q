@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/legal_content_section.dart';
 import '../services/legal_content_loader.dart';
 import '../widgets/shared/error_widget.dart';
@@ -45,10 +46,7 @@ class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
               if (!mounted || doc == null) return;
               Clipboard.setData(ClipboardData(text: doc.toPlainText()));
               // ignore: use_build_context_synchronously — guarded by mounted check above
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Terms of service copied to clipboard')),
-              );
+              CoverWiseSnackBar.success(context, 'Terms of service copied to clipboard');
             },
           ),
         ],

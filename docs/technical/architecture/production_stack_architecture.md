@@ -1,5 +1,10 @@
 # OCR & RAG Production-Ready Stack
 
+> **Superseded planning snapshot (2026-07-21).** References to Qdrant,
+> SQLite FTS, or provider fallback here are historical. The active production
+> retrieval contract is managed Supabase PostgreSQL FTS + pgvector; see
+> [`docs/architecture/coverwise_canonical_architecture.md`](../../architecture/coverwise_canonical_architecture.md).
+
 Below is a concise architecture and implementation plan you can share directly with Cursor to scaffold a development and production-ready OCR + RAG pipeline.
 
 ---
@@ -190,4 +195,4 @@ Failure to include these can result in `ImportError` messages like `libGL.so.1: 
 > 2. Define JSON schema & vector ingestion
 > 3. Build `/process` and `/query` endpoints
 > 4. Connect Flutter to these endpoints
-> 5. Monitor costs, cache frequent docs, and scale vector store 
+> 5. Monitor costs, cache frequent docs, and scale vector store

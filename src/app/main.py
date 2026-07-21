@@ -93,9 +93,11 @@ async def lifespan(app: FastAPI):
 
     # Durable document processing is mandatory in production. Development may
     # use the legacy in-process compatibility path when Supabase is absent.
+    job_outbox_service = None
     try:
         from src.services.job_outbox_service import JobOutboxService
-        set_job_outbox_service(JobOutboxService.from_env())
+        job_outbox_service = JobOutboxService.from_env()
+        set_job_outbox_service(job_outbox_service)
         logger.info("durable job outbox configured")
     except Exception as error:
         set_job_outbox_service(None)
@@ -103,17 +105,20 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("Production durable job outbox initialization failed") from error
         logger.warning("durable job outbox unavailable in development error_type=%s", type(error).__name__)
 
-    # Initialize anti-abuse system
-    try:
-        from src.utils.database_migration import create_anti_abuse_tables, add_analytics_indexes
-        create_anti_abuse_tables()
-        add_analytics_indexes()
-        logger.info("✅ Anti-abuse system initialized successfully")
-    except Exception as e:
-        logger.error("anti_abuse_initialization_failed error_type=%s", type(e).__name__)
-        if is_production:
-            raise RuntimeError("Production anti-abuse initialization failed") from e
-        print("⚠️ Anti-abuse system init failed; continuing only in development", file=sys.stderr)
+    # SQLite anti-abuse tables are a development compatibility adapter only.
+    # Production rate limits use Supabase RPCs and must not create local
+    # durable state during startup.
+    if not is_production:
+        try:
+            from src.utils.database_migration import create_anti_abuse_tables, add_analytics_indexes
+            create_anti_abuse_tables()
+            add_analytics_indexes()
+            logger.info("✅ Development anti-abuse tables initialized")
+        except Exception as e:
+            logger.error("anti_abuse_initialization_failed error_type=%s", type(e).__name__)
+            print("⚠️ Anti-abuse initialization failed; continuing only in development", file=sys.stderr)
+    else:
+        logger.info("Production anti-abuse uses canonical Supabase rate-limit RPCs")
     
     # Anonymous bearer identity is the launch auth mode. Firebase remains an
     # optional historical integration and is not initialized in the core path.
@@ -136,6 +141,7 @@ async def lifespan(app: FastAPI):
             rag_pipeline=rag_pipeline,
             document_object_store=document_object_store,
             document_repository=document_repository,
+            job_outbox_service=job_outbox_service,
         )
         logger.info("✅ Enhanced document processing service initialized successfully")
         
@@ -147,7 +153,7 @@ async def lifespan(app: FastAPI):
         app.state.rag_pipeline = rag_pipeline
         
     except Exception as e:
-        logger.error("document_processing_initialization_failed error_type=%s", type(e).__name__)
+        logger.exception("document_processing_initialization_failed error_type=%s", type(e).__name__)
         if is_production:
             raise RuntimeError("Production document processing initialization failed") from e
         print("⚠️ Document processing init failed; continuing only in development", file=sys.stderr)
@@ -195,6 +201,10 @@ async def process_existing_documents():
     try:
         import os
         from pathlib import Path
+
+        if os.getenv("ENVIRONMENT", "development").lower() == "production":
+            logger.info("Skipping legacy local-document startup scan in production")
+            return
         
         storage_dir = "storage/documents"
         if not os.path.exists(storage_dir):

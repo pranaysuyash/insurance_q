@@ -1,20 +1,13 @@
 """
 Analytics ingestion endpoint for CoverWise.
 
-Accepts batches of events from the mobile app. Events are stored in SQLite
-(insurance_app.db) for solo-launch simplicity. No PII is stored — only event
-name, timestamp, anonymous UID, and safe properties per the analytics spec
-(docs/review/coverwise_analytics_event_spec.md).
+Accepts batches of safe, non-PII events from the mobile app. Production writes
+to Supabase Postgres as the canonical source. SQLite is a development-only
+compatibility adapter and is not used as a production durability fallback.
+Migration history is preserved in `tools/migrate/` for historical recovery.
 
-Phase R1.4 (2026-07-18): dual-write to Supabase Postgres when
-DUAL_WRITE_ANALYTICS=true. Supabase becomes the canonical source per
-docs/planning/coverwise_supabase_canonical_plan_2026-07-16.md. SQLite is
-retained as a fallback for 30 days of verified parity, then dropped.
-
-Migration tool: tools/migrate/sqlite_analytics_to_supabase.py
-
-Idempotency: events are inserted with ON CONFLICT (received_at, event_name,
-user_uid) DO NOTHING. Safe to replay a batch.
+Idempotency: events carry a deterministic event_id that excludes receive time,
+so retrying a batch is safe.
 """
 import json
 import logging
@@ -28,14 +21,15 @@ from pydantic import BaseModel, Field
 
 from src.api.user import get_current_user
 from src.models.user import User
+from src.services.analytics_identity import stable_event_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 DB_PATH = "insurance_app.db"
 
-# Feature flag: when true, ingest also writes to Supabase Postgres.
-# Set to false during initial rollout if Supabase project is not yet provisioned.
+# Development-only compatibility flag. Production always takes the canonical
+# Supabase branch regardless of this setting.
 DUAL_WRITE_ANALYTICS = os.environ.get(
     "DUAL_WRITE_ANALYTICS",
     "true" if os.environ.get("ENVIRONMENT", "development").lower() == "production" else "false",
@@ -66,6 +60,7 @@ def _supabase_event_rows(client, days: int) -> list[dict[str, Any]]:
     )
     return list(response.data or [])
 
+
 # Cached Supabase client (lazy-init, reused across requests).
 _supabase_client = None
 _supabase_init_attempted = False
@@ -74,8 +69,9 @@ _supabase_init_attempted = False
 def _get_supabase_client():
     """Lazy-init a Supabase service-role client. Returns None if not configured.
 
-    Per motto v3 §0.6: never raise on missing config — fall back to SQLite
-    so events are never lost during the 30-day dual-write window.
+    In development, a missing client means the SQLite compatibility path may
+    be used. Production callers use _production_analytics_client() and fail
+    closed instead of falling back to local state.
     """
     global _supabase_client, _supabase_init_attempted
     if _supabase_init_attempted:
@@ -186,6 +182,24 @@ class AnalyticsBatch(BaseModel):
     events: List[AnalyticsEvent]
 
 
+def analytics_event_id(event: AnalyticsEvent, user_uid: str) -> str:
+    """Derive a stable identity so canonical ingestion is replay-safe.
+
+    ``received_at`` is deliberately excluded: retries happen at a different
+    server time. The authenticated server UID is included instead of the
+    client-claimed UID so two principals cannot share an event identity.
+    """
+    return stable_event_id({
+        "event_name": event.event,
+        "timestamp": event.ts,
+        "user_uid": user_uid,
+        "properties": event.props or None,
+        "install_id": event.install_id,
+        "session_id": event.session_id,
+        "is_reinstall": bool(event.is_reinstall),
+    })
+
+
 def _insert_supabase_batch(client, rows: List[Dict[str, Any]]) -> int:
     """Insert a batch into Supabase with ON CONFLICT DO NOTHING semantics.
 
@@ -216,11 +230,8 @@ async def ingest_events(
     """Accept a batch of analytics events from the mobile app.
 
 
-    Dual-write path (Phase R1.4):
-    1. Always write to SQLite (legacy path, kept for 30-day rollback window).
-    2. If DUAL_WRITE_ANALYTICS=true and Supabase is configured, also write
-       to Supabase. Supabase failure does NOT cause request failure — the
-       SQLite write is the durability guarantee during the dual-write window.
+    Production writes to Supabase only. Development may use the SQLite
+    compatibility path, optionally dual-writing when explicitly configured.
 
     The server-authoritative user_uid overrides any client-claimed uid,
     per the existing convention in this endpoint.
@@ -229,16 +240,20 @@ async def ingest_events(
 
     if canonical_client is not None:
         server_now = datetime.now(timezone.utc).isoformat()
-        rows = [{
-            "event_name": event.event,
-            "timestamp": event.ts,
-            "user_uid": current_user.uid,
-            "properties": event.props or None,
-            "received_at": server_now,
-            "install_id": event.install_id,
-            "session_id": event.session_id,
-            "is_reinstall": bool(event.is_reinstall),
-        } for event in batch.events]
+        rows = [
+            {
+                "event_id": analytics_event_id(event, current_user.uid),
+                "event_name": event.event,
+                "timestamp": event.ts,
+                "user_uid": current_user.uid,
+                "properties": event.props or None,
+                "received_at": server_now,
+                "install_id": event.install_id,
+                "session_id": event.session_id,
+                "is_reinstall": bool(event.is_reinstall),
+            }
+            for event in batch.events
+        ]
         try:
             inserted = _insert_supabase_batch(canonical_client, rows)
         except Exception as error:
@@ -262,10 +277,11 @@ async def ingest_events(
     try:
         for event in batch.events:
             row = {
+                "event_id": analytics_event_id(event, current_user.uid),
                 "event_name": event.event,
                 "timestamp": event.ts,
                 "user_uid": current_user.uid,  # server-enforced, not client-claimed
-                "properties": json.dumps(event.props) if event.props else None,
+                "properties": event.props or None,
                 "received_at": server_now,
                 "install_id": event.install_id,
                 "session_id": event.session_id,
@@ -282,7 +298,7 @@ async def ingest_events(
                         row["event_name"],
                         row["timestamp"],
                         row["user_uid"],
-                        row["properties"],
+                        json.dumps(row["properties"]) if row["properties"] else None,
                         row["received_at"],
                         row["install_id"],
                         row["session_id"],

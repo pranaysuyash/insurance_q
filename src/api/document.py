@@ -353,6 +353,11 @@ async def upload_document(
                     )
                 logger.info("document_processing_enqueued document_id=%s owner=%s", doc_id, session_id[:12])
             elif processing_service:
+                if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Document processing is temporarily unavailable. Please retry.",
+                    )
                 background_tasks.add_task(
                     process_document_background,
                     doc_id,

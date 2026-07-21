@@ -4,6 +4,7 @@ import '../models/entitlement.dart';
 import '../providers/entitlement_provider.dart';
 import '../services/analytics_service.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/faq_item.dart';
 import '../theme/coverwise_theme.dart';
 import '../utils/app_error.dart';
@@ -156,20 +157,14 @@ class _UpgradeScreenState extends ConsumerState<UpgradeScreen> {
     final billingAsync = ref.read(billingInitProvider);
     if (billingAsync is! AsyncData) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Billing is not available yet. Please try again later.')),
-        );
+        CoverWiseSnackBar.info(context, 'Billing is not available yet. Please try again later.');
       }
       return;
     }
     final billing = ref.read(billingAdapterProvider);
     final opened = await billing.manageSubscription();
     if (!opened && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open subscription settings')),
-      );
+      CoverWiseSnackBar.error(context, 'Could not open subscription settings');
     }
   }
 }
@@ -505,13 +500,7 @@ class _PlanCard extends ConsumerWidget {
         });
         ref.read(entitlementProvider.notifier).refresh();
         onSuccess();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Upgraded to ${tier.displayName}! Enjoy your new features.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        CoverWiseSnackBar.success(context, 'Upgraded to ${tier.displayName}! Enjoy your new features.');
       } else {
         AnalyticsService.track('plan_purchase_failed', {
           'plan_tier': tier.name,
@@ -525,12 +514,7 @@ class _PlanCard extends ConsumerWidget {
         'reason': 'error',
       });
       final msg = AppError.userMessage(e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg.isEmpty ? 'Purchase was cancelled.' : msg),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      CoverWiseSnackBar.error(context, msg.isEmpty ? 'Purchase was cancelled.' : msg);
     } finally {
       onEndPurchase();
     }

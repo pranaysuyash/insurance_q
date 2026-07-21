@@ -70,6 +70,14 @@ CoverWise is built from 5 main components. Each is a small surface with a clear 
   - `supabase/migrations/20260721077000_document_artifacts.sql` — source/derived object inventory and deletion state.
   - `supabase/migrations/20260721078000_model_lineage.sql` — approved-release model runs and artifact checksums.
   - `supabase/migrations/20260721079000_processing_events.sql` — append-only processing stage history.
+  - `supabase/migrations/20260721080000_policy_domain_model.sql` — normalized policy identity, versions, and document sections.
+  - `supabase/migrations/20260721081000_artifact_lifecycle_audit.sql` — audited retention and orphan transitions.
+  - `supabase/migrations/20260721082000_analytics_retention.sql` — service-role-only analytics retention purge.
+  - `supabase/migrations/20260721083000_policy_summaries.sql` — durable structured policy-summary projection.
+  - `supabase/migrations/20260721084000_fts_source_text_contract.sql` — FTS retrieval with immutable source-text citations.
+  - `supabase/migrations/20260721084800_billing_ledger.sql` — server-side entitlement state and ordered webhook RPC.
+  - `supabase/migrations/20260721084857_add_foreign_key_indexes.sql` — indexes for remaining FK join/cascade paths.
+  - `supabase/migrations/20260721090703_analytics_event_idempotency.sql` — stable replay identity for canonical analytics ingestion.
 
   `infra/supabase/001_*.sql` through `003_*.sql` are retained as SQL-editor-compatible historical snapshots. They are not a second migration runner or an independently editable schema source.
 
@@ -94,13 +102,13 @@ The outbox is the **truth layer for every async path in CoverWise.** It is a sin
 
 **Why it exists:** the architecture audit's ADR-03 said CoverWise needs a durable work queue. The outbox is the choice (see ADR-2026-07-19-01) — Supabase outbox over Cloud Tasks, because durable work must live where the durable state already lives.
 
-**The 7 job types:** `document_processing`, `substrate_extraction`, `qa_response`, `webhook_reconciliation`, `subscription_writeback`, `claim_verification`, `renewal_diff`. The 5 existing async paths still use their in-process / table-based patterns; the migration to the outbox is a follow-up session per ADR-2026-07-19-02.
+**The 8 job types:** `document_processing`, `substrate_extraction`, `qa_response`, `webhook_reconciliation`, `subscription_writeback`, `claim_verification`, `renewal_diff`, `account_deletion`. Document upload now enqueues `document_processing` in production; substrate extraction remains inline, and the remaining job types still require deliberate handler adoption.
 
 ---
 
 ## 2. What are the 5 async paths?
 
-Every async work in CoverWise falls into one of 5 paths. The outbox is the contract for all of them (per ADR-2026-07-19-01); the 5 paths' current implementations are in-process / table-based; the migration is a follow-up.
+Every durable async work in CoverWise falls into one of 5 paths. The outbox is the contract for all of them (per ADR-2026-07-19-01); document processing, substrate extraction, and account deletion are adopted in production, while the remaining paths still have explicit migration work.
 
 | # | Path | Current implementation | Outbox job_type |
 |---|---|---|---|
@@ -305,13 +313,13 @@ Plus 9 retroactive decision records (for Phase 0, RevOps R1, payment provider, o
 
 ## Appendix D: The launch plan
 
-The launch playbook (the operational source of truth for "how to go from where the repo is to a live app") is at [`docs/technical/deployment/launch_playbook_2026-07-18.md`](../technical/deployment/launch_playbook_2026-07-18.md). 9 steps: apply 7 SQL migrations, create GCP project + secrets, create runtime env, deploy to Cloud Run, build the APK, real-device end-to-end test, tear down the old AWS App Runner.
+The launch playbook (the operational source of truth for "how to go from where the repo is to a live app") is at [`docs/technical/deployment/launch_playbook_2026-07-18.md`](../technical/deployment/launch_playbook_2026-07-18.md). Its migration step must apply the complete ordered `supabase/migrations/` chain (32 files currently present), not a fixed historical count; fresh-reset and deployed-history verification remain required.
 
 ## Appendix E: What's deferred (the follow-up backlog)
 
 Per the ADRs and the launch playbook, the following are deferred to follow-up sessions:
 
-- **Outbox migration of the 5 existing async paths** (ADR-2026-07-19-02): the contract is shipped; the consumer adoption follows.
+- **Outbox migration of the remaining async paths** (ADR-2026-07-19-02): document processing, substrate extraction, and account deletion are adopted; the remaining handlers follow staged live verification.
 - **Embedding model switch** (ADR-2026-07-19-03): the default is `text-embedding-3-small`; the 30-day benchmark may recommend switching to `voyage-3`.
 - **Coverage-gap + claim-assistance full features** (ADR-2026-07-19-04): the thin slice is shipped; the full features require 5-7 new parser extractors.
 - **Security Phase 1 migration** (ADR-2026-07-19-06): the KDF + Hive re-encryption API is shipped. The per-box migration (each existing Hive box migrated to the new principal key) is a follow-up session.

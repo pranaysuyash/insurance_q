@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/document_model.dart';
 import '../providers/family_providers.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../services/app_state_repository.dart';
 import '../utils/document_icons.dart';
 import '../utils/policy_type.dart';
@@ -102,14 +103,10 @@ class _FamilyMemberDetailScreenState
         _isEditing = false;
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Member updated')),
-      );
+      CoverWiseSnackBar.success(context, 'Member updated');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not update member: $e')),
-      );
+      CoverWiseSnackBar.error(context, 'Could not update member: $e');
     }
   }
 

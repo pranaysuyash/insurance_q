@@ -9,7 +9,10 @@ from typing import Any, Dict, List, Optional
 class SupabaseVectorStore:
     """Persist and search chunks through the owner-scoped SQL RPC."""
 
-    def __init__(self, url: str, service_role_key: str):
+    def __init__(self, url: str, service_role_key: str, client: Optional[Any] = None):
+        if client is not None:
+            self._client = client
+            return
         try:
             from supabase import create_client
         except ImportError as error:  # pragma: no cover - deployment dependency

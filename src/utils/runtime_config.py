@@ -46,6 +46,7 @@ def production_configuration_errors(environment: Mapping[str, str]) -> list[str]
         "ANONYMOUS_AUTH_SIGNING_KEY",
         "PUBLIC_SITE_URL",
         "ALLOWED_ORIGINS",
+        "REVENUECAT_WEBHOOK_AUTHORIZATION",
     )
     for name in required:
         value = environment.get(name, "").strip()
@@ -58,6 +59,7 @@ def production_configuration_errors(environment: Mapping[str, str]) -> list[str]
         "DOCUMENT_REPOSITORY_BACKEND": "supabase",
         "DOCUMENT_OBJECT_STORE_BACKEND": "supabase",
         "RAG_VECTOR_BACKEND": "supabase",
+        "BILLING_LEDGER_BACKEND": "supabase",
     }
     for name, value in expected.items():
         if environment.get(name, "").strip().lower() != value:

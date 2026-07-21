@@ -1,5 +1,14 @@
 # CoverWise Launch Playbook — Solo Founder
 
+> **Current-state addendum (2026-07-21):** This dated playbook preserves its
+> historical eight-migration launch snapshot. The executable source of truth
+> is now the complete ordered chain under `supabase/migrations/` (32 files as
+> of this review), including retrieval contracts, identity/lifecycle,
+> artifact, audit, lineage, processing-event, policy-summary, FTS-contract,
+> billing, and analytics-idempotency migrations. Before any deployment, run a
+> fresh reset/history check and apply the complete chain;
+> do not infer current readiness from the historical migration count below.
+
 **Date:** 2026-07-18 (revision 2 — refreshes the 2026-07-18 original to match the
 current repo state after the Phase 0 commit `fa02854`.)
 

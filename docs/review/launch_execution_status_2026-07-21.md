@@ -41,17 +41,17 @@ CoverWise is not launch-ready yet. The local API path, local Supabase schema, Su
 | `flutter analyze` | No issues found | Tier 1 |
 | Analytics consent gate tests | 5 passed | Tier 2 |
 | Dashboard tests | 16 passed | Tier 2 |
-| Complete Flutter test suite | 555 passed | Tier 2 |
+| Complete Flutter test suite | 573 passed | Tier 2 |
 | Launch-critical mobile bundle | 132 passed | Tier 2 |
 | Backend targeted tests | 33 passed | Tier 2 |
 | Supabase/backend targeted tests after dependency and schema fixes | 17 passed | Tier 2 |
-| Full backend pytest suite | 277 passed, 14 failed, 4 skipped; failures are existing OpenAI CLI-argument handling, citation-test contract drift, evidence-test auth stubs, account-deletion test wiring, and image OCR fallback behavior | Tier 2 mixed |
+| Full backend pytest suite (historical baseline) | 277 passed, 14 failed, 4 skipped; retained as the pre-fix baseline | Tier 2 historical |
 | Local backend `/healthz`, `/readyz`, `/health` | All 200 while server was running | Tier 4 |
 | Local deployed-launch verification | Liveness, readiness, anonymous identities, profile isolation, and owner-scoped lists passed | Tier 3 |
 | LLM token compatibility probe | Passed | Tier 2 |
 | OCR imports with project venv + Homebrew dylib path | `PDFProcessor`, `ImageProcessor`, and `OCRPipeline` imported successfully | Tier 2 |
 | Live iOS simulator + serve-sim | App running on iPhone 17 Pro; serve-sim HTTP 200 | Tier 4 |
-| Production config validator against current `.env` | Failed safely with required production variables/backends missing | Tier 1 |
+| Production config validator against current `.env` | Deployment-time production values are still required, including the RevenueCat webhook authorization secret; local `.env` is not treated as production configuration | Tier 1 |
 | Android release build | `build/app/outputs/bundle/release/app-release.aab` built successfully (77.8 MB) with placeholder defines; staging compile proof only | Tier 2 |
 | Local Supabase stack | Docker Desktop running; local Postgres 17.6 and Supabase services healthy | Tier 4 |
 | Local Supabase migration reset | All 13 normalized migrations applied successfully from a fresh local database | Tier 3 |
@@ -65,22 +65,24 @@ CoverWise is not launch-ready yet. The local API path, local Supabase schema, Su
 | Remote-configured iOS simulator | Supabase initialization completed; anonymous-provider-disabled startup is handled by local-principal fallback | Tier 4 |
 | Local identity-link tests | Guest-to-account link retry is idempotent; rebinding to another account is rejected | Tier 2 |
 | Remote identity/analytics schema probe | Remote `identity_aliases` and `analytics_events` are available and queryable with the server key | Tier 3 |
-| Remote migration application | Supabase Management API accepted all 25 normalized migrations; remote core repository tables are queryable | Tier 3 |
-| Current full backend pytest suite | 305 passed, 4 skipped; the prior 12 failures were repaired in the OpenAI verification harness, citation test contract, doctr image input shape, deletion repository injection path, and subscription webhook coverage | Tier 2 |
+| Remote migration application | Supabase Management API previously accepted the 25 normalized migrations; the new billing-ledger migration is not applied because the temporary management credential now returns HTTP 403 | Tier 3 mixed |
+| Current full backend pytest suite | 336 passed, 4 skipped; the prior failures were repaired in the OpenAI verification harness, citation test contract, doctr image input shape, deletion repository injection path, subscription webhook coverage, billing-ledger coverage, analytics identity/retention coverage, runtime configuration coverage, and current parallel-work regressions | Tier 2 |
 | Current Flutter analyzer | No issues found with `flutter analyze --no-fatal-infos` | Tier 1 |
 | Current remote-configured API on port 8002 | Latest code running in development/staging mode; `/readyz` returned 200 and a real anonymous profile round-trip preserved the same owner UID | Tier 3 |
 | RevenueCat webhook tests | Authorization, duplicate delivery idempotency, initial purchase, and expiration precedence pass | Tier 2 |
 | Native runtime probe | Homebrew native libraries and WeasyPrint import pass; doctr predictor initializes successfully from the project venv | Tier 2 |
+| Billing-ledger migration validation | New PostgreSQL ledger migration parsed and its purchase, duplicate, stale-event, and expiration behavior passed in an isolated local PostgreSQL database; hosted application remains pending | Tier 3 local |
+| Latest staging API on port 8002 | Started with current billing fail-closed code; `/readyz` 200, anonymous creation 200, subscription status/webhook return 503 until hosted billing tables exist | Tier 3 |
 
 ## Remaining blockers and closure paths
 
-1. Production environment is incomplete. The remote URL, publishable key, and modern secret key are now present in ignored local env storage, but the remote project has anonymous sign-ins disabled and still needs the approved production anonymous-auth strategy/signing key, public site URL, allowed origins, and backend settings; rerun `tools/validate_production_config.py`.
+1. Production environment is incomplete. The remote URL, publishable key, and modern secret key are now present in ignored local env storage, but the remote project has anonymous sign-ins disabled and still needs the approved production anonymous-auth strategy/signing key, public site URL, allowed origins, backend settings, and RevenueCat webhook authorization; rerun `tools/validate_production_config.py`.
 2. The local OpenAI key currently receives 401 invalid-key responses. Replace it with a valid production credential or explicitly configure the intended production fallback, then rerun real extraction and question-answer flows.
 3. Production Supabase schema linkage is now applied through the Management API. Authenticated cross-owner isolation and guest-claim tests still need to be run against a real staging account pair.
 4. The Android bundle now compiles, but it used placeholder release defines. Rebuild with real production values and verify install/startup plus authenticated flows before distribution.
-5. The full backend suite is now green at 305 passed and 4 skipped. The skipped async verification scripts still need an async pytest plugin or an explicit separate execution command before those scripts can count as broad integration proof.
+5. The full backend suite is now green at 336 passed and 4 skipped. The skipped async verification scripts still need an async pytest plugin or an explicit separate execution command before those scripts can count as broad integration proof.
 6. External distribution/deployment was not performed. No deployment destination or production credentials were available, and no commit or push was authorized.
-7. The identity-link and analytics tables are now remotely queryable. The RevenueCat webhook audit table remains SQLite-backed because the webhook route is currently implemented in the API's local subscription ledger; move that ledger to Supabase before production billing scale-up.
+7. The identity-link and analytics tables are now remotely queryable. The new Supabase entitlement/webhook ledger is implemented and locally verified, but the hosted migration was blocked by HTTP 403 from the temporary management credential; the API therefore fails closed for subscription operations until that migration is applied.
 
 ## Artifact and workspace state
 
@@ -100,14 +102,18 @@ This is an analysis, not a decision that the product must be account-first or an
 - Supabase is currently used for account sessions. The app also attempts `auth.signInAnonymously()` only to derive the local encryption principal; the remote project currently has anonymous sign-ins disabled, and startup falls back to a device-local principal.
 - These are separate identities. `claim-anonymous` moves documents from the custom `anon:<uuid>` owner to the Supabase account `sub`; there is no Supabase-anonymous-to-account claim path.
 - Analytics remain server-attributed to the bearer principal in `src/api/analytics.py`, but the guest-to-account link is now recorded durably when the remote migration is present. The client sends `install_id`, `session_id`, and claim outcome events without raw identity IDs in event properties.
-- `identity_created`, `account_created`, claim lifecycle events, paywall views, and purchase lifecycle events are now instrumented and registered in the mobile schema. Server-confirmed subscription lifecycle webhooks remain open.
-- RevenueCat now receives the Supabase account UID via `PurchasesConfiguration.appUserID` or `Purchases.logIn(accountId)` and the mobile client calls `/subscription/sync`. The endpoint still accepts client-reported entitlement state; this is useful reconciliation telemetry but is not yet production-authoritative until RevenueCat webhook verification is implemented.
+- `identity_created`, `account_created`, claim lifecycle events, paywall views, and purchase lifecycle events are now instrumented and registered in the mobile schema. Server-confirmed subscription lifecycle webhooks are implemented and covered by idempotency tests; a real sandbox delivery is still unverified.
+- RevenueCat now receives the Supabase account UID via `PurchasesConfiguration.appUserID` or `Purchases.logIn(accountId)` and the mobile client calls `/subscription/sync`. Verified webhook events take precedence over client sync; the remaining production gaps are webhook-secret configuration and moving the webhook audit ledger to the canonical remote store.
 
 ### User and business implications
 
 Guest mode can improve the user journey by letting a person upload a policy, receive an extraction or answer, and reach the product's value moment before asking for email/password. It also gives the product a stable server owner for the guest workspace, instead of treating every request as an unauthenticated visitor.
 
-That can improve revenue by increasing the number of users who reach activation and a relevant paywall. It also allows measurement of the full funnel: install -> upload -> successful extraction -> question -> answer -> paywall -> purchase. Account-first can improve recovery, cross-device continuation, email lifecycle, and subscription ownership, but it adds friction before value and can lower top-of-funnel activation. The code does not yet contain an experiment or event completeness sufficient to measure that tradeoff reliably.
+That can improve revenue by increasing the number of users who reach activation and a relevant paywall. It also allows measurement of the full funnel: install -> upload -> successful extraction -> question -> answer -> paywall -> purchase. Account-first can improve recovery, cross-device continuation, email lifecycle, and subscription ownership, but it adds friction before value and can lower top-of-funnel activation.
+
+The revenue upside is not only conversion rate. A durable identity lets the team distinguish a first-time trial from a returning subscriber, prevent duplicate entitlement attribution when a user changes devices, measure paywall reach per activated workspace, and connect purchase/renewal/expiration to the originating activation cohort. The cost is that account creation can reduce the number of users who ever reach the paywall, while an unclaimed guest workspace creates support, refund, and deletion ambiguity. These are measurable tradeoffs, not reasons to assume one onboarding policy.
+
+The current code has the primitives to run that comparison, but not enough verified production data to declare a winner. The missing measurement layer is an explicit experiment assignment plus a stable pre-account-to-account link used consistently by analytics and RevenueCat events; the link and lifecycle events now exist, but the experiment and server-authoritative production ledger remain incomplete.
 
 The analytics benefit is not simply “more data.” It is the ability to measure anonymous activation and then attribute later account creation and purchase to the same journey. With the current separate UIDs, that attribution is incomplete and can double-count people or lose the pre-account funnel.
 
@@ -122,9 +128,9 @@ The durable technical choice should be **one canonical identity pipeline**. Befo
 ### Required work before choosing or enabling the provider path
 
 1. Define the canonical owner ID and identity-alias/claim model for guest -> account conversion, including idempotency, retries, partial transfer, deletion, and recovery.
-2. Align documents, analytics, consent, lifecycle/RevOps, and subscriptions to that canonical identity model.
-3. Make RevenueCat identity transitions explicit and test restore/purchase/upgrade on the guest-to-account path; add server-side verified subscription events before relying on revenue analytics.
-4. Complete the missing funnel and purchase event emissions, register the emitted event names, and add install-to-account attribution without sending PII.
+2. Align documents, analytics, consent, lifecycle/RevOps, and subscriptions to that canonical identity model. The current implementation covers document claim, claim lifecycle events, paywall/purchase lifecycle events, RevenueCat account identification, and verified webhook precedence; remote account-pair E2E proof remains open.
+3. Make RevenueCat identity transitions explicit and test restore/purchase/upgrade on the guest-to-account path. The webhook route and idempotency tests exist; production configuration and a real sandbox delivery are still required before relying on revenue analytics.
+4. Complete the missing funnel and purchase event emissions, register the emitted event names, and add install-to-account attribution without sending PII. Event names are now registered and emitted for current lifecycle points; production analytics volume and attribution quality remain unverified.
 5. Run an experiment comparing guest-first and account-first onboarding using activation, paywall reach, paid conversion, 7/30-day retention, claim/restore success, support burden, and anonymous-orphan/deletion rates.
 6. Only then enable the selected Supabase provider setting and run cross-owner, account-claim, purchase-restore, deletion, and analytics-attribution integration tests against a staging project.
 

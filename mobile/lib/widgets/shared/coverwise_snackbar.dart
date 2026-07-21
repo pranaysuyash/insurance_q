@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 /// Standardized snack bar helper for CoverWise.
 ///
-/// Replaces raw `SnackBar(...)` usages across the app with consistent
-/// styling, auto-dismissal, and manual dismiss options. Ensures snackbars
-/// don't persist across screen changes by using the current context's
-/// ScaffoldMessenger.
+/// Provides consistent styling for migrated snackbar surfaces.
+///
+/// Some legacy screens still use raw `SnackBar` calls; those remain a staged
+/// migration area rather than a second styling contract to expand.
 ///
 /// Usage:
 /// ```dart
@@ -55,14 +55,14 @@ class CoverWiseSnackBar {
   }
 
   /// Shows a warning snackbar with orange background.
-  static void warning(BuildContext context, String message, {String? actionLabel, VoidCallback? onAction}) {
+  static void warning(BuildContext context, String message, {Duration? duration, String? actionLabel, VoidCallback? onAction}) {
     _show(
       context,
       message: message,
       backgroundColor: const Color(0xFFF57C00),
       textColor: Colors.white,
       icon: Icons.warning_amber_rounded,
-      duration: const Duration(seconds: 4),
+      duration: duration ?? const Duration(seconds: 4),
       actionLabel: actionLabel,
       onAction: onAction,
     );

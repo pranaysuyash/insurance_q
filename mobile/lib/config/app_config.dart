@@ -74,6 +74,9 @@ class AppConfig {
   static const String appName = 'CoverWise';
   static const String appVersion = '0.1.2+11';
 
+  // Upload constraints
+  static const int maxUploadFileSizeBytes = 20 * 1024 * 1024; // 20 MB
+
   // Rate limiting configuration (should match backend)
   static const int defaultSessionLimit = 5;
   static const int defaultIpLimit = 10;

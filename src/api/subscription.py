@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from src.api.user import get_current_user
 from src.models.user import User
+from src.services.billing_ledger_service import BillingLedger, use_remote_billing
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/subscription", tags=["subscription"])
@@ -31,14 +32,18 @@ router = APIRouter(prefix="/subscription", tags=["subscription"])
 DB_PATH = "insurance_app.db"
 
 
-def _init_subscription_table():
-    """Create the subscription_sync table if it doesn't exist.
+def _ensure_subscription_schema(conn: sqlite3.Connection) -> None:
+    """Create the local development billing schema on an existing connection.
+
+    Keeping schema initialization on the caller's connection avoids opening a
+    second SQLite connection while a webhook transaction is in progress. The
+    production billing authority is still expected to be moved to the remote
+    ledger before launch; this schema is the explicit non-production fallback.
 
     Indexes:
     - idx_sub_sync_user (user_uid): per-user subscription lookups
     - idx_sub_sync_expires (expires_at): renewal reminder queries
     """
-    conn = sqlite3.connect(DB_PATH)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS subscription_sync (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,14 +81,27 @@ def _init_subscription_table():
             event_id TEXT PRIMARY KEY,
             event_type TEXT NOT NULL,
             app_user_id TEXT NOT NULL,
+            event_timestamp_ms INTEGER,
             received_at TEXT NOT NULL,
             processed_at TEXT,
             processing_result TEXT NOT NULL,
             error_class TEXT
         )
     """)
+    try:
+        conn.execute("ALTER TABLE revenuecat_webhook_events ADD COLUMN event_timestamp_ms INTEGER")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
-    conn.close()
+
+
+def _init_subscription_table() -> None:
+    """Initialize the local fallback billing schema."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        _ensure_subscription_schema(conn)
+    finally:
+        conn.close()
 
 
 class SubscriptionSyncRequest(BaseModel):
@@ -129,16 +147,11 @@ def sync_subscription(
     3. Restore purchases
     4. Subscription expiry detected
 
-    This is a write-only endpoint — the client is the source of truth for
-    RevenueCat state. Server-side verification (RevenueCat webhook) is
-    Security Phase 2.
+    Client sync is reconciliation telemetry. A verified RevenueCat webhook
+    state always takes precedence over it.
     """
-    _init_subscription_table()
-
-    # Security: log a warning when a non-free plan is synced. The client
-    # is the source of truth for RevenueCat state (no server-side webhook
-    # verification yet — Security Phase 2). Until then, operator monitoring
-    # of these warnings detects client-side plan spoofing.
+    # Security: log a warning when a non-free plan is synced. Client sync is
+    # reconciliation telemetry; verified webhook state remains authoritative.
     _valid_tiers = ('free', 'plus', 'family')
     plan_tier = request.plan_tier
     if plan_tier not in _valid_tiers:
@@ -150,11 +163,28 @@ def sync_subscription(
     elif plan_tier != 'free':
         logger.warning(
             "NON_FREE_PLAN_SYNC user=%s plan=%s product=%s — "
-            "verify against RevenueCat webhook when available",
+            "reconcile against RevenueCat webhook state",
             current_user.uid[:8], plan_tier, request.product_id or 'none',
         )
 
     server_now = datetime.now(timezone.utc).isoformat()
+
+    if use_remote_billing():
+        try:
+            return BillingLedger.from_env().record_client_sync(
+                user_uid=current_user.uid,
+                plan_tier=plan_tier,
+                product_id=request.product_id,
+                expires_at=request.expires_at,
+                is_active=request.is_active,
+                revenuecat_app_user_id=request.revenuecat_app_user_id,
+                synced_at=server_now,
+            )
+        except Exception as error:
+            logger.error("Supabase billing client sync unavailable: %s", type(error).__name__)
+            raise HTTPException(status_code=503, detail="Subscription ledger unavailable") from error
+
+    _init_subscription_table()
 
     # A client sync can reconcile a verified record, but it must not replace a
     # paid state established by a RevenueCat webhook.
@@ -262,6 +292,17 @@ def _webhook_expiry(event: dict) -> str | None:
         return None
 
 
+def _webhook_timestamp_ms(event: dict) -> int | None:
+    raw = event.get("event_timestamp_ms")
+    if raw in (None, ""):
+        return None
+    try:
+        value = int(raw)
+        return value if value >= 0 else None
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 @router.post("/webhook")
 async def revenuecat_webhook(
     request: Request,
@@ -290,6 +331,7 @@ async def revenuecat_webhook(
 
     now = datetime.now(timezone.utc).isoformat()
     expiry = _webhook_expiry(event)
+    event_timestamp_ms = _webhook_timestamp_ms(event)
     product_id = event.get("product_id")
     plan_tier = _webhook_plan(product_id)
     active_events = {
@@ -306,17 +348,53 @@ async def revenuecat_webhook(
         # event types without making old deployments retry forever.
         return {"status": "ignored", "event_id": event_id, "event_type": event_type}
 
+    if use_remote_billing():
+        try:
+            return BillingLedger.from_env().process_revenuecat_webhook(
+                event_id=event_id,
+                event_type=event_type,
+                app_user_id=app_user_id,
+                event_timestamp_ms=event_timestamp_ms,
+                product_id=product_id,
+                expires_at=expiry,
+            )
+        except Exception as error:
+            logger.error("Supabase billing webhook unavailable: %s", type(error).__name__)
+            raise HTTPException(status_code=503, detail="Subscription ledger unavailable") from error
+
     conn = sqlite3.connect(DB_PATH)
     try:
-        _init_subscription_table()
+        _ensure_subscription_schema(conn)
         inserted = conn.execute(
             "INSERT OR IGNORE INTO revenuecat_webhook_events "
-            "(event_id, event_type, app_user_id, received_at, processing_result) "
-            "VALUES (?, ?, ?, ?, 'received')",
-            (event_id, event_type, app_user_id, now),
+            "(event_id, event_type, app_user_id, event_timestamp_ms, received_at, processing_result) "
+            "VALUES (?, ?, ?, ?, ?, 'received')",
+            (event_id, event_type, app_user_id, event_timestamp_ms, now),
         ).rowcount
         if not inserted:
             return {"status": "duplicate", "event_id": event_id}
+
+        # RevenueCat retries and delivery reordering are expected. Never let
+        # an older event overwrite a newer verified state for the same app
+        # user. Events without a provider timestamp retain arrival-order
+        # compatibility because there is no safe ordering signal.
+        if event_timestamp_ms is not None:
+            latest = conn.execute(
+                "SELECT MAX(event_timestamp_ms) FROM revenuecat_webhook_events "
+                "WHERE app_user_id = ? AND event_id <> ? AND event_timestamp_ms IS NOT NULL",
+                (app_user_id, event_id),
+            ).fetchone()
+            if latest and latest[0] is not None and event_timestamp_ms <= int(latest[0]):
+                conn.execute(
+                    "UPDATE revenuecat_webhook_events SET processed_at=?, processing_result='stale_ignored' WHERE event_id=?",
+                    (now, event_id),
+                )
+                conn.commit()
+                return {
+                    "status": "stale_ignored",
+                    "event_id": event_id,
+                    "event_type": event_type,
+                }
 
         current_active = event_type in active_events or (
             event_type in {"CANCELLATION", "BILLING_ISSUE"}
@@ -381,6 +459,31 @@ def get_subscription_status(
     Returns the most recent active sync record, or the free-tier default
     if no sync has been recorded.
     """
+    if use_remote_billing():
+        try:
+            row = BillingLedger.from_env().get_status(current_user.uid)
+        except Exception as error:
+            logger.error("Supabase billing status unavailable: %s", type(error).__name__)
+            raise HTTPException(status_code=503, detail="Subscription ledger unavailable") from error
+        if row is None:
+            return {
+                "plan_tier": "free",
+                "is_active": True,
+                "product_id": None,
+                "expires_at": None,
+                "synced_at": None,
+                "source": "default",
+            }
+        return {
+            "plan_tier": row.get("plan_tier", "free"),
+            "is_active": bool(row.get("is_active")),
+            "product_id": row.get("product_id"),
+            "expires_at": row.get("expires_at"),
+            "synced_at": row.get("synced_at"),
+            "source": row.get("source", "client_sync"),
+            "is_expired": not bool(row.get("is_active")),
+        }
+
     _init_subscription_table()
 
     conn = sqlite3.connect(DB_PATH)

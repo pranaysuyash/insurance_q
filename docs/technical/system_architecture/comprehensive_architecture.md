@@ -1,5 +1,13 @@
 # Comprehensive System Architecture (2024)
 
+> **Historical architecture snapshot.** This document contains earlier
+> Firebase, Qdrant, Redis, and Celery proposals and is preserved for context.
+> It is not an implementation authority. Use
+> [`docs/architecture/coverwise_canonical_architecture.md`](../../architecture/coverwise_canonical_architecture.md)
+> for the current managed-Supabase architecture and
+> [`docs/review/coverwise_supabase_gap_register_2026-07-16.md`](../../review/coverwise_supabase_gap_register_2026-07-16.md)
+> for verified gaps.
+
 ## Overview
 
 This document provides a comprehensive overview of the Insurance Policy Parser & QA System's architecture, incorporating modern technologies and best practices as of 2024. The system is designed to be scalable, maintainable, and capable of handling complex insurance document processing tasks.

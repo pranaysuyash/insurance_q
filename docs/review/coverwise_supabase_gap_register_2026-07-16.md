@@ -31,12 +31,18 @@ The following closures are now implemented in the current worktree:
 - A reusable synthetic Supabase retrieval benchmark has passed locally with
   owner isolation, one FTS hit, one pgvector hit, and recorded latency evidence
   at [`supabase-retrieval-benchmark-local.json`](evidence/supabase-retrieval-benchmark-local.json).
+- The complete cutover/rollback evidence boundary is recorded in
+  [`coverwise_supabase_cutover_report_2026-07-21.md`](coverwise_supabase_cutover_report_2026-07-21.md).
 
 Evidence: targeted Python tests (71 passed in the broader retrieval/outbox set,
 18 in the auth/identity set), Python compilation, local PostgreSQL execution of
 the migration set, a clean `supabase db reset --local --no-seed`, `supabase db
 lint --local`, migration listing, and direct inspection of the created
 tables/functions.
+
+The full repository Python suite was subsequently run with the project
+`venv`: **336 passed, 4 skipped**. The system-Python dependency failures are
+environment noise, not the repository-suite result.
 
 Remaining gaps are narrower and require either application work or configured
 external systems:
@@ -46,13 +52,20 @@ external systems:
 - production deletion is now outbox-backed, but real Storage/Auth deletion,
   retry, and post-deletion verification still require a configured staging
   project;
+- substrate extraction is now enqueued from production document processing and
+  reloads persisted page OCR in the worker; worker crash/reclaim and staging
+  post-condition evidence remain open;
+- production startup no longer creates legacy SQLite anti-abuse tables;
+  Supabase rate-limit RPCs are the only production path;
+- structured policy summaries now use the canonical Supabase projection in
+  production; local Redis/file storage remains development-only;
 - retrieval benchmark, representative corpus backfill, rollback checkpoint, and
   production backup/restore evidence are not present;
 - the legacy Qdrant/SQLite compatibility code remains available and needs a
   measured cutover/retirement decision;
-- source-file download export is still separate from the current metadata-only
-  account export; model-run/artifact lineage and derived-object retention need
-  a later governed contract.
+- source-file links are now part of the export when supported by the private
+  object store; derived-object retention, orphan scans, and restore remain
+  governed operational follow-ups.
 
 ### Anything else?
 
@@ -64,15 +77,15 @@ remaining gates above have Tier 3+ evidence.
 
 | Priority | Area | Current state | Gap |
 |---|---|---|---|
-| P0 | Supabase schema | Core schema plus evidence, consent, retrieval, and dataset migrations exist | Policy/version/section normalization and full answer-evidence persistence still need domain-level integration |
-| P0 | Production retrieval | Supabase full-text + pgvector RPCs are canonical and owner/document filtered | Representative corpus benchmark and backfill/cutover evidence are missing |
+| P0 | Supabase schema | Core schema plus evidence, consent, retrieval, dataset, and policy-domain migrations exist; production answers await durable audit persistence | Full product answer-evidence display/adoption still needs route-level verification |
+| P0 | Production retrieval | Supabase full-text + pgvector RPCs are canonical, owner/document filtered, and return immutable source text for citations | Representative corpus benchmark and backfill/cutover evidence are missing |
 | P0 | Embedding contract | Supabase ingestion fails closed outside the 1536d/model-version contract | A production embedding-provider decision and existing-corpus re-embedding are still unverified |
 | P0 | Processing state | Repository leases and append-only processing events are authoritative; local status is debug-only | Full staging recovery/operator verification remains |
-| P1 | Retrieval auditability | Query traces, candidate lineage, answer hashes, and citation evidence are persisted without raw content | Full live-pipeline audit write/read evidence remains |
-| P1 | Training readiness | Consent-aware registry, draft approval, withdrawal propagation, and approved-release model lineage exist | Released-manifest execution and real training/evaluation runs are not yet wired |
+| P1 | Retrieval auditability | Query traces, candidate lineage, answer hashes, and citation evidence are persisted without raw content; production requests await the audit write | Full live-pipeline audit write/read evidence remains |
+| P1 | Training readiness | Consent-aware registry, draft approval, withdrawal propagation, approved-release lineage, and stable manifest materialization exist | Real training/evaluation executor runs and artifact publication are not yet wired |
 | P1 | Auth lifecycle | Anonymous linking, metadata/source export, and durable deletion request/worker exist locally | No production provider verification or full account-flow evidence |
-| P1 | Analytics/rate limits | Production analytics and upload rate limits use Supabase RPCs | Retention policy and multi-instance staging evidence remain |
-| P1 | Storage lifecycle | Private Storage policies and source artifact inventory/checksums exist | Derived-artifact registration, retention jobs, restore, and complete deletion evidence remain |
+| P1 | Analytics/rate limits | Production analytics and upload rate limits use Supabase RPCs; stable event identity and retention purge primitive are explicit | Retention scheduling and multi-instance staging evidence remain |
+| P1 | Storage lifecycle | Private Storage policies, source and derived artifact inventory/checksums, and audited retention/orphan transitions exist | Scheduled execution, restore, and complete deletion evidence remain |
 | P2 | Migration/cutover | Supabase adapters coexist with Qdrant/SQLite; local contract benchmark and production startup assertions exist | No representative corpus comparison, backfill, rollback checkpoint, or retirement gate |
 | P2 | Tests | Local migration/RPC smoke and synthetic Supabase retrieval benchmark exist | Staging RLS/Auth and representative corpus benchmark remain |
 
@@ -247,7 +260,9 @@ historical docs need dated addenda or explicit superseded markers so future
 agents do not select an obsolete path.
 
 Closure criteria: inventory architecture-related docs, add a canonical pointer
-or superseded marker, and do not delete historical material.
+or superseded marker, and do not delete historical material. Key user-facing
+and architecture entry points now meet this requirement; remaining files are
+historical review candidates rather than active production instructions.
 
 ## Recommended execution order
 
@@ -265,8 +280,68 @@ or superseded marker, and do not delete historical material.
 10. Mark Qdrant, SQLite FTS, local disk, and historical Firebase paths as
     compatibility or archived only after evidence exists.
 
+## Addendum (2026-07-21) — policy domain and artifact lifecycle
+
+Migration `20260721080000_policy_domain_model.sql` adds durable `policies`,
+`policy_versions`, and `document_sections`. The processing job projects bounded
+classification and section metadata into this model after classification;
+`src/services/policy_domain_service.py` is idempotent per document and never
+writes OCR or retrieval source text.
+
+Migration `20260721081000_artifact_lifecycle_audit.sql` adds a versioned
+retention-policy field and append-only transition events. The lifecycle service
+can mark expired inventory entries as `deleting`, mark missing storage listings
+as `orphaned`, and record completed deletion. A scheduler, real Storage listing,
+restore test, and staging evidence remain open gates.
+
+Page images written during processing now pass through the object-store
+reference boundary and are registered as `page_image` artifacts with owner,
+size, content type, and checksum. The inventory still requires a real Storage
+listing and restore rehearsal for Tier 3 evidence.
+
+Migration `20260721083000_policy_summaries.sql` and
+`PolicyExtractionService` now make structured summaries durable in Supabase in
+production. The summary route still needs credentialed end-to-end verification
+against a real owner-scoped document.
+
+Migration `20260721084000_fts_source_text_contract.sql` makes FTS rank the
+retrieval representation while returning `source_text` to the API. This closes
+the lexical citation-contamination path; a fresh migration reset and live
+citation traversal remain required for Tier 3 evidence.
+
+`DatasetRegistry.materialize_manifest()` now provides the execution boundary
+for approved releases: only active items are included and the resulting
+manifest is deterministically hashed. It is a release contract, not evidence
+that a model-training job has run; the executor and published model artifact
+remain a separate gated step.
+
+The main user guide, modern stack overview, comprehensive architecture
+snapshot, and TODO checklist now explicitly point to the managed-Supabase
+canonical architecture. Historical Firebase/Qdrant/Redis material remains
+available but is marked non-authoritative.
+
+`20260721082000_analytics_retention.sql` and
+`AnalyticsRetentionService` add the service-role-only retention boundary. The
+function rejects future cutoffs and returns the deleted-row count. A scheduled
+production invocation and observed retention report remain external gates.
+
+Migration `20260721090703_analytics_event_idempotency.sql` is now matched by
+the API's deterministic event identity generation, so retries do not depend on
+`received_at` and duplicate events are safely ignored by the canonical unique
+index.
+
 ## Audit confidence
 
 Evidence tier: **Tier 1 static repository inspection**. This register does not
 claim a live Supabase project, production backup, RLS, retrieval benchmark, or
 cross-instance runtime flow. Those are explicit closure gates above.
+
+## Addendum (2026-07-21) — policy domain projection
+
+Migration `20260721080000_policy_domain_model.sql` adds durable `policies`,
+`policy_versions`, and `document_sections` tables. The processing job now
+projects bounded classification metadata and retrieved section structure into
+that model after classification. The projection is idempotent per document and
+does not persist OCR text or model-generated retrieval text. Production still
+needs a representative staging run to prove the projection against real
+classification output and policy-version supersession behavior.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -47,7 +48,7 @@ class ModelLineageService:
         if release.data[0]["purpose"] != purpose:
             raise ModelLineageError("model-run purpose must match the dataset release purpose")
         config_hash = hashlib.sha256(
-            str(sorted(config.items())).encode("utf-8")
+            json.dumps(config, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
         ).hexdigest()
         response = self._client.table("model_runs").insert({
             "dataset_release_id": str(dataset_release_id),

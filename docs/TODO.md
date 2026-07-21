@@ -1,5 +1,11 @@
 # Project TODO & Status
 
+> **Superseded operational checklist (2026-07-21).** The commands and
+> recommendations in this historical TODO mention Qdrant, Redis, Firebase, and
+> local-only paths. New work must follow the canonical Supabase architecture
+> and the live gap register instead; retain this file only as historical
+> context.
+
 **Last Major Update:** Implemented dashboard/home screen with insurance terminology integration, improved document handling and UI experience. Documentation updated and code pushed to repository.
 
 **Current Status:** Backend services refactored. Mobile app core UI implementation progressing. Ready for full end-to-end testing.
@@ -138,4 +144,4 @@
 
 5.  **Review and Refine Environment Configuration & Secrets Management Strategy:**
     *   **Goal:** Enhance the strategy for managing environment variables and secrets across development, staging, and production.
-    *   **Action:** Review current setup (`.env`, `sample.env`, `set_env_vars.py`, `docker-compose.yml`, `Dockerfile`). Propose best practices (e.g., Docker secrets for prod), refine loading/validation. Update `docs/developer_guide.md`. 
+    *   **Action:** Review current setup (`.env`, `sample.env`, `set_env_vars.py`, `docker-compose.yml`, `Dockerfile`). Propose best practices (e.g., Docker secrets for prod), refine loading/validation. Update `docs/developer_guide.md`.

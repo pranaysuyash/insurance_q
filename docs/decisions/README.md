@@ -23,6 +23,7 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-19-11 | 2026-07-19 | Substrate is a primary deliverable (user sees the source text); `source_text` and `retrieval_text` separated at every layer; "open page" action | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-11-substrate-as-primary-deliverable.md) |
 | ADR-2026-07-19-12 | 2026-07-19 | Operator trust model = 6 roles, server-enforced RBAC, audit trail, reason-required, TTL, revocation; OIDC deferred | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-12-operator-trust-model.md) |
 | ADR-2026-07-21-01 | 2026-07-21 | Canonical CoverWise user journey map separates ideal/current/future/rejected journeys and preserves evidence tiers | Accepted | [link](./ADR-2026-07-21-01-canonical-user-journey-map.md) |
+| ADR-2026-07-21-03 | 2026-07-21 | Value-first guest access with an account conversion boundary; account-first remains an experiment decision | Proposed | [link](./ADR-2026-07-21-03-guest-first-account-conversion.md) |
 
 ### Notes on the 5 Accepted ADRs (2026-07-19)
 

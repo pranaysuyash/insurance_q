@@ -24,7 +24,7 @@ class WebFilePicker {
     final input = web.HTMLInputElement()
       ..type = 'file'
       ..id = 'coverwise-web-file-input'
-      ..accept = '.pdf,.png,.jpg,.jpeg,.tiff,.tif,.webp'
+      ..accept = '.pdf,.png,.jpg,.jpeg'
       ..multiple = false
       ..style.position = 'fixed'
       ..style.left = '-10000px'
