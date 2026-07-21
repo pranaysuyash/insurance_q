@@ -21,8 +21,12 @@ void main() {
         .setMockMethodCallHandler(pathProviderChannel, (call) async {
       return '/tmp/coverwise-qa-tests';
     });
-    await Directory('/tmp/coverwise-qa-tests').create(recursive: true);
-    await Hive.initFlutter('/tmp/coverwise-qa-tests');
+    final dir = Directory('/tmp/coverwise-qa-tests');
+    if (dir.existsSync()) {
+      dir.deleteSync(recursive: true);
+    }
+    await dir.create(recursive: true);
+    await Hive.initFlutter(dir.path);
     if (!Hive.isBoxOpen(LocalStorageService.documentsBoxName)) {
       await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     }
@@ -47,7 +51,6 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.close();
   });
 
   Widget buildQaScreen({

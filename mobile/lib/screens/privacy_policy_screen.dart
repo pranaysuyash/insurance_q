@@ -18,12 +18,14 @@ class PrivacyPolicyScreen extends StatefulWidget {
 }
 
 class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
-  late Future<LegalDocument> _future;
+  Future<LegalDocument>? _future;
 
   @override
-  void initState() {
-    super.initState();
-    _future = LegalContentLoader.loadPrivacyPolicy();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _future ??= LegalContentLoader.loadPrivacyPolicy(
+      bundle: DefaultAssetBundle.of(context),
+    );
   }
 
   @override
@@ -39,7 +41,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
             tooltip: 'Copy policy text',
             onPressed: () async {
               final doc = await _future;
-              if (!mounted) return;
+              if (!mounted || doc == null) return;
               Clipboard.setData(ClipboardData(text: doc.toPlainText()));
               // ignore: use_build_context_synchronously — guarded by mounted check above
               ScaffoldMessenger.of(context).showSnackBar(

@@ -882,6 +882,10 @@ class DocumentService {
     }
   }
 
+  Future<void> updateDocumentType(InsuranceDocument updatedDoc) async {
+    await _localStorageService.updateDocument(updatedDoc);
+  }
+
   Future<void> refreshAllDocumentTypes() async {
     try {
       debugPrint('Refreshing document types for all documents...');

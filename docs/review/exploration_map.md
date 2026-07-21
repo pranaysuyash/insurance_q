@@ -1,5 +1,17 @@
 # System Exploration Map
 
+## Exploration update: canonical user journey map (2026-07-21)
+
+The canonical journey-shaped source of truth is now [`docs/user_experience/coverwise_user_journey_map.md`](../user_experience/coverwise_user_journey_map.md), governed by [ADR-2026-07-21-01](../decisions/ADR-2026-07-21-01-canonical-user-journey-map.md). It inventories ideal, current, future, rejected, optional, alternate, happy, non-happy, privacy, and operator journeys.
+
+This strategic map remains the source of truth for product boundary and exploration direction. The journey map remains the source of truth for end-to-end user flow. The canonical architecture remains the source of truth for system structure. These are complementary artifacts, not competing architecture or flow documents.
+
+The first reconciliation found that the current mobile surface still contains or references several journeys that need neutralization or separate approval: coverage-gap recommendations, premium/what-if guidance, renewal action language, claims handling implications, and optional health-record expansion. Future exploration must preserve the permanent non-regulated boundary below and must state whether a proposed journey is approved, exploratory, or rejected.
+
+### Anything else?
+
+The most important follow-through is evidence closure: a screen existing is not the same as a reliable end-to-end journey. Auth, document processing, evidence citations, Q&A, billing, deletion, and consent need Tier 3+ proof before their journeys can be described as launch-complete.
+
 ## Permanent product boundary (owner decision, 2026-07-16)
 
 CoverWise is a solo, non-regulated personal-information product. It helps users understand and organize policies they already have. It will never sell, solicit, procure, rank, recommend, or renew insurance; represent claims; earn commissions; sell leads; or become insurer/broker infrastructure.
@@ -117,6 +129,35 @@ The current repo shape is strongest when the canonical path stays singular:
 The review found the most important follow-through areas are retiring legacy service paths, collapsing frontend compatibility fallbacks once contracts stabilize, and neutralizing mobile surfaces that still imply recommendation or renewal behavior.
 
 ### Research queue
+
+### 2026-07-21 — J02–J07 implementation deep dive
+
+The onboarding → identity → upload → processing → evidence → Q&A chain was
+traced against current code and migrations. The durable audit is
+`docs/review/coverwise_j02_j07_deep_dive_2026-07-21.md`; the canonical product
+journey remains `docs/user_experience/coverwise_user_journey_map.md`.
+The broader current-diff review is
+`docs/review/coverwise_diff_review_2026-07-21.md`.
+
+Confirmed exploration items:
+
+- consent purpose vocabulary and server/local recording are not one contract;
+- anonymous/account principal migration is not proven across local encrypted
+  state;
+- upload processing still uses in-process `BackgroundTasks` despite the durable
+  outbox decision;
+- account deletion response semantics claim a durable retry path not shown in
+  the inspected route;
+- evidence citation verification is wired into the main RAG path, but fresh
+  real-document proof and weaker extraction-path convergence remain open;
+- `/query` and `/documents/query` are parallel query actions and need a single
+  canonical route plus a deprecation trigger.
+- account-switch isolation, Hive migration, test teardown, and status language
+  still need evidence reconciliation before the dirty diff can be treated as
+  launch-complete.
+
+These are now the next high-priority exploration/implementation gates. They are
+not treated as closed by the presence of migrations, ADRs, or UI states alone.
 
 1. Interview 12-20 households after a real policy summary; test Plus value and annual willingness to pay.
 2. Build bottom-up unit economics from actual OCR, LLM, storage, support, payment, and tax costs.

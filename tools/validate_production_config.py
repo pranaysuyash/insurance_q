@@ -10,6 +10,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# Make the validator runnable exactly as documented from the repository root,
+# without requiring callers to set PYTHONPATH manually.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from src.utils.runtime_config import production_configuration_errors
 
 

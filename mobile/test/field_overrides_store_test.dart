@@ -19,7 +19,6 @@ void main() {
   });
 
   tearDownAll(() {
-    Hive.close();
   });
 
   group('setOverride and getOverride', () {

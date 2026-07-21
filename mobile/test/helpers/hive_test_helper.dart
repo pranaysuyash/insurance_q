@@ -30,7 +30,7 @@ import 'package:coverwise/services/local_storage_service.dart';
 class HiveTestHelper {
   HiveTestHelper._();
 
-  static const _testDir = '/tmp/coverwise-hive-tests';
+  static Directory? _testDirectory;
   static const _pathProviderChannel =
       MethodChannel('plugins.flutter.io/path_provider');
 
@@ -50,11 +50,11 @@ class HiveTestHelper {
     // Mock path_provider for Hive.initFlutter
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_pathProviderChannel, (call) async {
-      return _testDir;
+      return _testDirectory!.path;
     });
 
-    await Directory(_testDir).create(recursive: true);
-    await Hive.initFlutter(_testDir);
+    _testDirectory ??= await Directory.systemTemp.createTemp('coverwise-hive-tests-');
+    await Hive.initFlutter(_testDirectory!.path);
 
     for (final name in _boxNames) {
       if (!Hive.isBoxOpen(name)) {
@@ -69,7 +69,13 @@ class HiveTestHelper {
   static Future<void> tearDown() async {
     AnalyticsService.dispose();
     try {
-      await Hive.close();
+      // Do not close boxes individually, Hive.close() and box.close() are known to hang
+      // in some test environments due to isolate deadlocks. The directory will be cleared on next run anyway.
+      final dir = _testDirectory;
+      if (dir != null && dir.existsSync()) {
+        await dir.delete(recursive: true);
+      }
+      _testDirectory = null;
     } catch (_) {}
   }
 }

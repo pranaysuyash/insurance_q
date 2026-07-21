@@ -1,5 +1,7 @@
 # Insurance Policy Manager - User Experience Flows
 
+> **Current-reference note (2026-07-21):** This is a historical/planning flow document from an earlier “Insurance Policy Manager” framing. For current CoverWise journey truth, use [`docs/user_experience/coverwise_user_journey_map.md`](../../user_experience/coverwise_user_journey_map.md). Preserve this document for provenance; do not use it to reintroduce purchase, recommendation, renewal-transaction, claims-representation, or medical-advice journeys without a new product decision.
+
 ## 1. Introduction
 
 This document maps out the primary user experience flows for the Insurance Policy Manager mobile application. These flows represent the key journeys users will take when interacting with the app, from initial onboarding to complex policy analysis tasks. The purpose of this document is to:

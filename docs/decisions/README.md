@@ -1,6 +1,6 @@
 # Decision Records Index
 
-This file lists every architectural, product, integration, data-pipeline, payment, customer-facing, or operational decision made in CoverWise, with a link to the full decision record. Records follow the `motto_v3.md` §0.12 schema (decision, date, context, options, chosen path, why, tradeoffs, assumptions, risks, validation, rollback, revisit triggers, links).
+This file lists every architectural, product, integration, data-pipeline, payment, customer-facing, or operational decision made in CoverWise, with a link to the full decision record. Records follow the `motto_v4.md` decision-record schema (decision, date, context, options, chosen path, why, tradeoffs, assumptions, risks, validation, rollback, revisit triggers, links).
 
 A decision that is not recorded will be rediscovered and debated again.
 
@@ -22,6 +22,7 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-19-10 | 2026-07-19 | Outbox is the only durable-work primitive; `BackgroundTasks` removed from production path; 3 paths migrated; release guard enforced | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-10-outbox-only-durable-work-primitive.md) |
 | ADR-2026-07-19-11 | 2026-07-19 | Substrate is a primary deliverable (user sees the source text); `source_text` and `retrieval_text` separated at every layer; "open page" action | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-11-substrate-as-primary-deliverable.md) |
 | ADR-2026-07-19-12 | 2026-07-19 | Operator trust model = 6 roles, server-enforced RBAC, audit trail, reason-required, TTL, revocation; OIDC deferred | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-12-operator-trust-model.md) |
+| ADR-2026-07-21-01 | 2026-07-21 | Canonical CoverWise user journey map separates ideal/current/future/rejected journeys and preserves evidence tiers | Accepted | [link](./ADR-2026-07-21-01-canonical-user-journey-map.md) |
 
 ### Notes on the 5 Accepted ADRs (2026-07-19)
 

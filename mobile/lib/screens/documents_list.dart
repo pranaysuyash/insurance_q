@@ -12,6 +12,8 @@ import '../providers/questions_provider.dart';
 import '../services/app_state_repository.dart';
 import '../services/app_state_store.dart';
 import '../utils/document_icons.dart';
+import '../utils/policy_type.dart';
+import '../widgets/document_type_picker.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_scene.dart';
 import '../widgets/shared/empty_state_widget.dart';
@@ -158,6 +160,11 @@ class DocumentsList extends ConsumerWidget {
                                           );
                                         },
                                       ),
+                                    TextButton.icon(
+                                      icon: const Icon(Icons.category_outlined),
+                                      label: const Text('Change type'),
+                                      onPressed: () => _changeDocumentType(context, ref, doc),
+                                    ),
                                     if (doc.localFilePath != null)
                                       TextButton.icon(
                                         icon: const Icon(Icons.forum_outlined),
@@ -236,6 +243,43 @@ class DocumentsList extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _changeDocumentType(
+      BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final currentType = classifyPolicyType(document.documentType);
+    final newType = await showDocumentTypePicker(context, currentType: currentType);
+    if (newType == null || newType == currentType) return;
+    // Persist the corrected type locally so the next getDocuments() call
+    // reflects the user's choice without waiting for a backend re-classify.
+    final updated = InsuranceDocument(
+      id: document.id,
+      remoteId: document.remoteId,
+      filename: document.filename,
+      uploadedOn: document.uploadedOn,
+      documentType: canonicalTypeName(newType),
+      insurer: document.insurer,
+      status: document.status,
+      syncState: document.syncState,
+      processingState: document.processingState,
+      processingCompletedAt: document.processingCompletedAt,
+      size: document.size,
+      localFilePath: document.localFilePath,
+      policyHolders: document.policyHolders,
+    );
+    try {
+      await ref.read(documentServiceProvider).updateDocumentType(updated);
+      ref.invalidate(documentsProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Type changed to ${canonicalTypeName(newType)}')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppError.userMessage(e))),
+      );
+    }
   }
 
   // Security audit P0-03 (2026-07-18): the Replace button is disabled

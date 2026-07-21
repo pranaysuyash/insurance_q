@@ -1,53 +1,20 @@
-import 'dart:io';
-
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/screens/documents_screen.dart';
-import 'package:coverwise/services/app_state_store.dart';
-import 'package:coverwise/services/local_storage_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+
+import 'helpers/hive_test_helper.dart';
 
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    const pathProviderChannel =
-        MethodChannel('plugins.flutter.io/path_provider');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(pathProviderChannel, (call) async {
-      return '/tmp/coverwise-docs-test-final';
-    });
-    // Clean up any leftover lock files
-    final dir = Directory('/tmp/coverwise-docs-test-final');
-    if (await dir.exists()) {
-      await dir.delete(recursive: true);
-    }
-    await dir.create(recursive: true);
-    await Hive.initFlutter('/tmp/coverwise-docs-test-final');
-    if (!Hive.isBoxOpen(LocalStorageService.documentsBoxName)) {
-      await Hive.openBox<String>(LocalStorageService.documentsBoxName);
-    }
-    if (!Hive.isBoxOpen(AppStateStore.boxName)) {
-      await Hive.openBox(AppStateStore.boxName);
-    }
-    if (!Hive.isBoxOpen('resolved_gaps')) {
-      await Hive.openBox('resolved_gaps');
-    }
-    if (!Hive.isBoxOpen('analytics_events')) {
-      await Hive.openBox('analytics_events');
-    }
-    if (!Hive.isBoxOpen('consent_ledger')) {
-      await Hive.openBox('consent_ledger');
-    }
+    await HiveTestHelper.setUp();
   });
 
   tearDownAll(() async {
-    try {
-      await Hive.close();
-    } catch (_) {}
+    await HiveTestHelper.tearDown();
   });
 
   Widget buildDocumentsScreen({

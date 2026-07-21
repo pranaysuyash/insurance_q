@@ -15,6 +15,8 @@ class MoreScreen extends StatelessWidget {
           'Keep digital proof of cover close', '/insurance-cards'),
     ]),
     _MoreGroup('Plan your cover', [
+      _MoreItem(Icons.family_restroom_rounded, Color(0xFF16866B), 'Family',
+          'People covered across your policies', '/family'),
       _MoreItem(Icons.event_available_outlined, Color(0xFF0B8F7D),
           'Renewal calendar', 'Track expiry dates and reminders', '/renewals'),
       _MoreItem(Icons.shield_outlined, Color(0xFF7C5CE7), 'Coverage gaps',
@@ -26,9 +28,11 @@ class MoreScreen extends StatelessWidget {
     ]),
     _MoreGroup('Claims and learning', [
       _MoreItem(Icons.route_outlined, Color(0xFFE07A28), 'Claims info guide',
-          'Understand the usual steps after an incident', '/claims'),
+          'Understand the usual steps after an incident', '/claims',
+          comingSoon: true),
       _MoreItem(Icons.fact_check_outlined, Color(0xFFC85B3A), 'My claims log',
-          'Keep a personal record of filed claims', '/claim-tracker'),
+          'Keep a personal record of filed claims', '/claim-tracker',
+          comingSoon: true),
       _MoreItem(Icons.menu_book_outlined, Color(0xFF079A86), 'Insurance basics',
           'Learn useful terms without the jargon', '/literacy'),
     ]),
@@ -37,6 +41,8 @@ class MoreScreen extends StatelessWidget {
           'Account information and identity', '/profile'),
       _MoreItem(Icons.settings_outlined, Color(0xFF53657A), 'Settings',
           'Appearance, reminders and local data', '/settings'),
+      _MoreItem(Icons.notifications_outlined, Color(0xFF53657A), 'Notifications',
+          'Renewal reminders and quiet hours', '/notifications'),
       _MoreItem(Icons.help_outline_rounded, Color(0xFF53657A), 'Help & support',
           'FAQs and ways to get help', '/help'),
       _MoreItem(Icons.lock_outline_rounded, Color(0xFF53657A),
@@ -69,10 +75,34 @@ class MoreScreen extends StatelessWidget {
                       color: group.items[index].color,
                       title: group.items[index].title,
                       subtitle: group.items[index].subtitle,
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        group.items[index].route,
-                      ),
+                      trailing: group.items[index].comingSoon
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Soon',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                            )
+                          : null,
+                      onTap: group.items[index].comingSoon
+                          ? null
+                          : () => Navigator.pushNamed(
+                                context,
+                                group.items[index].route,
+                              ),
                     ),
                     if (index != group.items.length - 1)
                       const Divider(height: 1, indent: 74),
@@ -99,5 +129,7 @@ class _MoreItem {
   final String title;
   final String subtitle;
   final String route;
-  const _MoreItem(this.icon, this.color, this.title, this.subtitle, this.route);
+  final bool comingSoon;
+  const _MoreItem(this.icon, this.color, this.title, this.subtitle, this.route,
+      {this.comingSoon = false});
 }

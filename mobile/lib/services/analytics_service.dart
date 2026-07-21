@@ -144,19 +144,10 @@ class AnalyticsService {
   static bool _checkConsentFresh() {
     try {
       final ledger = ConsentLedger();
-      final records = ledger.getAllRecords();
-      if (records.isEmpty) {
-        // No consent record — the user has not decided. Fail closed.
-        return false;
-      }
-      // Check the latest analytics consent state.
-      for (var i = records.length - 1; i >= 0; i--) {
-        if (records[i].purpose == ConsentPurpose.analytics) {
-          return records[i].isActive;
-        }
-      }
-      // No analytics record found — fail closed.
-      return false;
+      // ConsentLedger owns the append-only ordering and tie handling. Using
+      // its purpose-specific latest lookup prevents an older grant from
+      // winning after a revoke or re-grant that happens in the same tick.
+      return ledger.getLatestRecord(ConsentPurpose.analytics)?.isActive ?? false;
     } catch (e) {
       // If we can't check consent at all, fail closed (not open).
       // The audit explicitly says missing/corrupt consent must not

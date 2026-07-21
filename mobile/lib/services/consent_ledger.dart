@@ -48,13 +48,18 @@ class ConsentRecord {
   /// Whether this consent has been revoked.
   bool get isRevoked => revokedAt != null;
 
-  Map<String, dynamic> toJson() => {
-        'purpose': purpose.value,
-        'version': version,
-        'granted': granted,
-        'timestamp': timestamp.toIso8601String(),
-        'revoked_at': revokedAt?.toIso8601String(),
-      };
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{
+      'purpose': purpose.value,
+      'version': version,
+      'granted': granted,
+      'timestamp': timestamp.toIso8601String(),
+    };
+    if (revokedAt != null) {
+      map['revoked_at'] = revokedAt!.toIso8601String();
+    }
+    return map;
+  }
 
   factory ConsentRecord.fromJson(Map<String, dynamic> json) {
     final purpose =
@@ -110,12 +115,13 @@ class ConsentLedger {
     final latest = getLatestRecord(purpose);
     if (latest == null || latest.isRevoked) return;
 
+    final revokedAt = DateTime.now();
     final revokedRecord = ConsentRecord(
       purpose: latest.purpose,
       version: latest.version,
       granted: false,
-      timestamp: latest.timestamp,
-      revokedAt: DateTime.now(),
+      timestamp: revokedAt,
+      revokedAt: revokedAt,
     );
     await _box?.add(revokedRecord.toJson());
   }
@@ -139,7 +145,9 @@ class ConsentLedger {
         final record =
             ConsentRecord.fromJson(Map<String, dynamic>.from(value));
         if (record.purpose == purpose) {
-          if (latest == null || record.timestamp.isAfter(latest.timestamp)) {
+          // Ledger insertion order is authoritative when records share a
+          // timestamp (which is common in fast grant/revoke/re-grant flows).
+          if (latest == null || !record.timestamp.isBefore(latest.timestamp)) {
             latest = record;
           }
         }

@@ -1,6 +1,6 @@
 # Session Context
 
-- Generated: 2026-07-20T16:36:59Z
+- Generated: 2026-07-21T06:10:26Z
 - Project: `medpiper/insurance_app`
 - Provider: `local`
 - Model: `BAAI/bge-m3`
@@ -76,3 +76,8 @@ Pranay expects the agent to act as a genuine technical collaborator, not an inst
 - The goal is two engineers reviewing each other's work, not a contractor following a spec
 
 This applies to code review, test quality, naming, architecture boundaries, commit grouping strategy, and anything that would affect the project long-term.
+_Search timed out. Retry when the retrieval store is less busy._
+
+### Prompts and Guidelines
+- Collection: `projects_proj_medpiper_insurance_app`
+- Query: `prompts and guidelines for medpiper/insurance_app`

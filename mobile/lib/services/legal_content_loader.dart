@@ -56,25 +56,29 @@ class LegalContentLoader {
   static LegalDocument? _termsOfService;
 
   /// Load and parse the privacy policy from assets.
-  static Future<LegalDocument> loadPrivacyPolicy() async {
+  static Future<LegalDocument> loadPrivacyPolicy({AssetBundle? bundle}) async {
     if (_privacyPolicy != null) return _privacyPolicy!;
-    final raw = await rootBundle.loadString('assets/legal/privacy_policy.md');
+    final raw = await (bundle ?? rootBundle)
+        .loadString('assets/legal/privacy_policy.md');
     _privacyPolicy = _parseMarkdown(raw, 'CoverWise Privacy Policy');
     return _privacyPolicy!;
   }
 
   /// Load and parse the terms of service from assets.
-  static Future<LegalDocument> loadTermsOfService() async {
+  static Future<LegalDocument> loadTermsOfService({AssetBundle? bundle}) async {
     if (_termsOfService != null) return _termsOfService!;
-    final raw = await rootBundle.loadString('assets/legal/terms_of_service.md');
+    final raw = await (bundle ?? rootBundle)
+        .loadString('assets/legal/terms_of_service.md');
     _termsOfService = _parseMarkdown(raw, 'CoverWise Terms of Service');
     return _termsOfService!;
   }
 
-  /// Clear cached documents (useful for tests).
+  /// Clear cached documents
   static void clearCache() {
-    _privacyPolicy = null;
     _termsOfService = null;
+    _privacyPolicy = null;
+    rootBundle.evict('assets/legal/terms_of_service.md');
+    rootBundle.evict('assets/legal/privacy_policy.md');
   }
 
   /// Expose _parseMarkdown for unit testing.

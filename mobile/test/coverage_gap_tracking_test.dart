@@ -43,7 +43,6 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.box(AppStateStore.boxName).close();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }

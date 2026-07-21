@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/providers/document_providers.dart';
+import 'package:coverwise/providers/family_providers.dart';
 import 'package:coverwise/providers/policy_providers.dart';
 import 'package:coverwise/screens/dashboard_screen.dart';
 import 'package:coverwise/services/app_state_store.dart';
@@ -77,8 +78,12 @@ void main() {
         .setMockMethodCallHandler(pathProviderChannel, (call) async {
       return '/tmp/coverwise-dashboard-tests';
     });
-    await Directory('/tmp/coverwise-dashboard-tests').create(recursive: true);
-    await Hive.initFlutter('/tmp/coverwise-dashboard-tests');
+    final dir = Directory('/tmp/coverwise-dashboard-tests');
+    if (dir.existsSync()) {
+      dir.deleteSync(recursive: true);
+    }
+    await dir.create(recursive: true);
+    await Hive.initFlutter(dir.path);
     if (!Hive.isBoxOpen(LocalStorageService.documentsBoxName)) {
       await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     }
@@ -97,9 +102,7 @@ void main() {
   });
 
   tearDownAll(() async {
-    try {
-      await Hive.close();
-    } catch (_) {}
+    try {} catch (_) {}
   });
 
   Widget buildDashboard({
@@ -109,8 +112,11 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
-        documentsProvider.overrideWith(
-            (ref) async => documents ?? _testDocuments()),
+        documentsProvider
+            .overrideWith((ref) async => documents ?? _testDocuments()),
+        mergedFamilyMembersProvider.overrideWith(
+          (ref, _) async => <String, PolicyHolder>{},
+        ),
         policySummariesProvider.overrideWith(
           (ref) => _FakeSummariesNotifier(summaries ?? _testSummaries()),
         ),
@@ -140,16 +146,15 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
-      // Text is capitalized by CoverWiseSectionLabel
-      expect(find.text('YOUR POLICY HUB'), findsOneWidget);
+      expect(find.text('Your policy hub'), findsOneWidget);
     });
 
     testWidgets('renders policy cards', (tester) async {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(find.text('Your Policies'), 200);
-      expect(find.text('Your Policies'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('YOUR POLICIES'), 200);
+      expect(find.text('YOUR POLICIES'), findsOneWidget);
       expect(find.text('Health Insurance'), findsOneWidget);
       expect(find.text('Auto Insurance'), findsOneWidget);
     });
@@ -168,7 +173,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll to policy cards section to build them, then check ACTIVE badges
-      await tester.scrollUntilVisible(find.text('Your Policies'), 200);
+      await tester.scrollUntilVisible(find.text('YOUR POLICIES'), 200);
       expect(find.text('ACTIVE'), findsWidgets);
     });
 
@@ -230,7 +235,8 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(find.text('Search Across All Policies'), 200);
+      await tester.scrollUntilVisible(
+          find.text('Search Across All Policies'), 200);
       expect(find.text('Search Across All Policies'), findsOneWidget);
     });
 
@@ -238,8 +244,8 @@ void main() {
       await tester.pumpWidget(buildDashboard());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(find.text('Documents by Type'), 200);
-      expect(find.text('Documents by Type'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('DOCUMENTS BY TYPE'), 200);
+      expect(find.text('DOCUMENTS BY TYPE'), findsOneWidget);
     });
   });
 
@@ -269,8 +275,7 @@ void main() {
   });
 
   group('DashboardScreen — error state', () {
-    testWidgets('shows error view when documents fail to load',
-        (tester) async {
+    testWidgets('shows error view when documents fail to load', (tester) async {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           documentsProvider.overrideWith((ref) async {

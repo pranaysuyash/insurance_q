@@ -18,12 +18,14 @@ class TermsOfServiceScreen extends StatefulWidget {
 }
 
 class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
-  late Future<LegalDocument> _future;
+  Future<LegalDocument>? _future;
 
   @override
-  void initState() {
-    super.initState();
-    _future = LegalContentLoader.loadTermsOfService();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _future ??= LegalContentLoader.loadTermsOfService(
+      bundle: DefaultAssetBundle.of(context),
+    );
   }
 
   @override
@@ -39,7 +41,7 @@ class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
             tooltip: 'Copy terms text',
             onPressed: () async {
               final doc = await _future;
-              if (!mounted) return;
+              if (!mounted || doc == null) return;
               Clipboard.setData(ClipboardData(text: doc.toPlainText()));
               // ignore: use_build_context_synchronously — guarded by mounted check above
               ScaffoldMessenger.of(context).showSnackBar(

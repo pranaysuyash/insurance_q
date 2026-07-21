@@ -235,7 +235,18 @@ class LLMClient:
                         kwargs["response_format"] = adapted_rf
 
                     async with self._semaphore:
-                        response = await client.chat.completions.create(**kwargs)
+                        try:
+                            response = await client.chat.completions.create(**kwargs)
+                        except TypeError as error:
+                            # Older OpenAI-compatible SDKs reject the newer
+                            # GPT-5 parameter name at the client boundary.
+                            # Retry once with their legacy spelling; modern
+                            # SDKs/providers keep the first request unchanged.
+                            if "max_completion_tokens" not in str(error):
+                                raise
+                            kwargs.pop("max_completion_tokens", None)
+                            kwargs["max_tokens"] = max_tokens
+                            response = await client.chat.completions.create(**kwargs)
 
                     usage = response.usage
                     if usage:

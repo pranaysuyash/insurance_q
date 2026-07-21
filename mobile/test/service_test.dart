@@ -23,7 +23,6 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.close();
     await hiveDirectory.delete(recursive: true);
   });
 

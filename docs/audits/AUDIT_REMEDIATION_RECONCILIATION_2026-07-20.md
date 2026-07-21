@@ -39,10 +39,10 @@ Each section maps one audit/plan document against codebase reality with statuses
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Principal-scoped encrypted local DB/files | **NOT DONE** | `PrincipalKeyService` exists but is **never imported or called** from app startup, sign-out, or auth transitions |
+| Principal-scoped local DB/files | **DONE** | `PrincipalKeyService` integrated at app startup in `main.dart`; Hive boxes opened with DEK encryption; migration from legacy device-key to principal-key implemented |
 | One server document ID | **DONE** | Consistent UUID throughout |
 | One authenticated API client | **DONE** | `DocumentService.authenticatedDio` with `AuthInterceptor` |
-| Account-switch workspace isolation | **NOT DONE** | Sign-out clears Supabase session only; Hive boxes, files, consent ledger not cleared |
+| Account-switch workspace isolation | **DONE** | Sign-out now clears Hive boxes, files, consent ledger, and principal key cache |
 | Full anonymous-to-account transactional migration | **PARTIAL** | Documents + chunks transferred; evidence, summaries, answers, consent NOT transferred |
 | Anonymous revocation | **NOT DONE** | Old JWT never invalidated |
 | Server library and clean-device restore | **NOT DONE** | No restore flow exists |
@@ -327,7 +327,7 @@ Each section maps one audit/plan document against codebase reality with statuses
 | Category | DONE | NOT DONE | PARTIAL | DONE DIFFERENTLY | DISCARDED | TOTAL |
 |----------|------|----------|---------|------------------|-----------|-------|
 | Master Phase 0 items | 4 | 1 | 0 | 3 | 0 | 8 |
-| Master Phase 1 items | 2 | 4 | 1 | 0 | 0 | 7 |
+| Master Phase 1 items | 4 | 2 | 1 | 0 | 0 | 7 |
 | Master Phase 2 items | 4 | 1 | 4 | 0 | 0 | 9 |
 | Master Phase 3 items | 2 | 5 | 2 | 0 | 0 | 9 |
 | Master Phase 4 items | 1 | 5 | 1 | 0 | 0 | 7 |

@@ -3,33 +3,33 @@ import 'package:hive/hive.dart';
 import 'package:coverwise/services/analytics_service.dart';
 import 'package:coverwise/services/consent_ledger.dart';
 import 'package:coverwise/services/app_state_store.dart';
+import 'helpers/hive_test_helper.dart';
 
 void main() {
-  late Box box;
+  late Box<dynamic> box;
+
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    await HiveTestHelper.setUp();
+  });
 
   setUp(() async {
-    // Initialize Hive for tests.
-    if (!Hive.isBoxOpen(AppStateStore.boxName)) {
-      Hive.init('test_analytics_gate_hive');
-      box = await Hive.openBox(AppStateStore.boxName);
-    } else {
-      box = Hive.box(AppStateStore.boxName);
-    }
+    box = Hive.box<dynamic>(AppStateStore.boxName);
+    final consentBox = Hive.box<dynamic>('consent_ledger');
     // Clear consent and analytics buffer before each test.
-    await box.delete('consent_ledger_v1');
+    await consentBox.clear();
     await box.delete(AppStateStore.analyticsEventsKey);
     AnalyticsService.clear();
+    AnalyticsService.refreshConsentCache();
   });
 
   tearDown(() async {
-    await box.delete('consent_ledger_v1');
+    await Hive.box<dynamic>('consent_ledger').clear();
     await box.delete(AppStateStore.analyticsEventsKey);
     AnalyticsService.dispose();
-    // Close Hive to prevent test pollution across test files.
-    if (Hive.isBoxOpen(AppStateStore.boxName)) {
-      await Hive.close();
-    }
   });
+
+  tearDownAll(HiveTestHelper.tearDown);
 
   group('AnalyticsService track() consent gating', () {
     test('events flow when analytics consent is granted', () async {
@@ -103,7 +103,7 @@ void main() {
 
     test('events are dropped when ledger is corrupted (fail-closed per P0-10)', () async {
       // Corrupt the consent ledger data.
-      await box.put('consent_ledger_v1', 'not-valid-json');
+      await Hive.box<dynamic>('consent_ledger').add('not-valid-json');
 
       // _checkConsentFresh catches the error and defaults to false (fail-closed).
       AnalyticsService.refreshConsentCache();

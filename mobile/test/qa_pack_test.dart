@@ -12,7 +12,6 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.close();
   });
 
   group('QaPackType', () {

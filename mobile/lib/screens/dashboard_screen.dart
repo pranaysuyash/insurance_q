@@ -93,62 +93,56 @@ class DashboardScreen extends ConsumerWidget {
               slivers: [
                 SliverPadding(
                   padding: const EdgeInsets.all(16.0),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final widgets = [
-                          const CoverWisePageHeader(
-                            title: 'Your cover, at a glance',
-                            subtitle:
-                                'See what is protected, what needs attention, and what to do next.',
-                          ),
-                          const SizedBox(height: 16),
-                          QuickActions(documents: documents),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const CoverWisePageHeader(
+                          title: 'Your cover, at a glance',
+                          subtitle:
+                              'See what is protected, what needs attention, and what to do next.',
+                        ),
+                        const SizedBox(height: 16),
+                        QuickActions(documents: documents),
+                        const SizedBox(height: 20),
+                        SearchShortcutButton(
+                          onTap: () => Navigator.pushNamed(context, '/search'),
+                        ),
+                        const SizedBox(height: 20),
+                        HealthScoreCard(
+                          healthScore: ref.watch(healthScoreProvider),
+                        ),
+                        const SizedBox(height: 20),
+                        if (policySummaries.isNotEmpty) ...[
+                          PolicySummaryCards(summaries: policySummaries),
                           const SizedBox(height: 20),
-                          SearchShortcutButton(
-                            onTap: () => Navigator.pushNamed(context, '/search'),
-                          ),
+                        ],
+                        WelcomeCard(
+                          docCount: documents.length,
+                          activePolicies:
+                              policySummaries.where((s) => s.isActive).length,
+                          expiringCount: policySummaries
+                              .where((s) => s.isExpiringSoon)
+                              .length,
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/documents'),
+                        ),
+                        const SizedBox(height: 20),
+                        RecentActivities(
+                          documents: documents,
+                          recentQuestions: recentQuestions,
+                        ),
+                        const SizedBox(height: 20),
+                        FamilySection(documents: documents),
+                        const SizedBox(height: 20),
+                        DocumentSummary(documents: documents),
+                        const SizedBox(height: 20),
+                        if (policySummaries.isNotEmpty) ...[
+                          PreventiveTipsSection(summaries: policySummaries),
                           const SizedBox(height: 20),
-                          HealthScoreCard(
-                            healthScore: ref.watch(healthScoreProvider),
-                          ),
-                          const SizedBox(height: 20),
-                          if (policySummaries.isNotEmpty) ...[
-                            PolicySummaryCards(summaries: policySummaries),
-                            const SizedBox(height: 20),
-                          ],
-                          WelcomeCard(
-                            docCount: documents.length,
-                            activePolicies:
-                                policySummaries.where((s) => s.isActive).length,
-                            expiringCount: policySummaries
-                                .where((s) => s.isExpiringSoon)
-                                .length,
-                            onTap: () => Navigator.pushNamed(context, '/documents'),
-                          ),
-                          const SizedBox(height: 20),
-                          RecentActivities(
-                            documents: documents,
-                            recentQuestions: recentQuestions,
-                          ),
-                          const SizedBox(height: 20),
-                          FamilySection(documents: documents),
-                          const SizedBox(height: 20),
-                          DocumentSummary(documents: documents),
-                          const SizedBox(height: 20),
-                          if (policySummaries.isNotEmpty) ...[
-                            PreventiveTipsSection(summaries: policySummaries),
-                            const SizedBox(height: 20),
-                          ],
-                          const InsuranceTerminologySection(),
-                        ];
-
-                        if (index < widgets.length) {
-                          return widgets[index];
-                        }
-                        return null;
-                      },
-                      childCount: 22, // Approximate child count, updated dynamically in builder
+                        ],
+                        const InsuranceTerminologySection(),
+                      ],
                     ),
                   ),
                 ),

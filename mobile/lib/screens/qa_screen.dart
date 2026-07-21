@@ -172,7 +172,9 @@ class QaScreenState extends ConsumerState<QaScreen>
 
     final selectedDoc = _currentDocumentId();
     ref.read(isLoadingProvider.notifier).state = true;
-    ref.read(currentAnswerProvider.notifier).state = null;
+    // Don't clear currentAnswerProvider here — keep the previous answer
+    // visible while the new question loads. The new answer replaces it
+    // only on success.
 
     AnalyticsService.track('question_submitted', {
       'question_length_bucket': question.length < 30
@@ -256,23 +258,29 @@ class QaScreenState extends ConsumerState<QaScreen>
       }
     } catch (e) {
       debugPrint('Error during question: $e');
-      final fallbackAnswer = QaAnswer(
-        text:
-            'Sorry, I encountered an error while processing your question. Please try again later.',
-        sources: [],
-        timestamp: DateTime.now(),
-        documentId: selectedDoc ?? '',
-        question: question,
-      );
-
+      // Preserve the previous answer if one exists — don't replace it.
+      // Only show a fallback card when there's no previous answer at all
+      // (first question in the session).
+      final previous = ref.read(currentAnswerProvider);
+      if (previous == null) {
+        final fallbackAnswer = QaAnswer(
+          text: "Sorry, that didn't work. Please try again.",
+          sources: [],
+          timestamp: DateTime.now(),
+          documentId: selectedDoc ?? '',
+          question: question,
+        );
+        if (mounted && widget.isActive &&
+            (demoGeneration == null || demoGeneration == _demoSequenceGeneration)) {
+          ref.read(currentAnswerProvider.notifier).state = fallbackAnswer;
+        }
+      }
       if (!mounted || !widget.isActive) {
         return;
       }
       if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
         return;
       }
-      ref.read(currentAnswerProvider.notifier).state = fallbackAnswer;
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppError.userMessage(e))),
       );
@@ -684,15 +692,64 @@ class _CustomQuestionTab extends StatelessWidget {
   }
 }
 
-class _HistoryTab extends StatelessWidget {
+class _HistoryTab extends StatefulWidget {
   final List<QaPair> qaHistory;
   final void Function(QaAnswer) onSelectAnswer;
 
   const _HistoryTab({required this.qaHistory, required this.onSelectAnswer});
 
   @override
+  State<_HistoryTab> createState() => _HistoryTabState();
+}
+
+class _HistoryTabState extends State<_HistoryTab> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  final Set<String> _expandedQuestions = {};
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<QaPair> get _filteredHistory {
+    if (_searchQuery.isEmpty) return widget.qaHistory;
+    final q = _searchQuery.toLowerCase();
+    return widget.qaHistory.where((item) {
+      return item.question.toLowerCase().contains(q) ||
+          item.answer.text.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  Map<String, List<QaPair>> get _groupedByDate {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final weekAgo = today.subtract(const Duration(days: 7));
+
+    final groups = <String, List<QaPair>>{};
+    for (final item in _filteredHistory) {
+      final date = DateTime(
+          item.timestamp.year, item.timestamp.month, item.timestamp.day);
+      String label;
+      if (!date.isBefore(today)) {
+        label = 'Today';
+      } else if (!date.isBefore(yesterday)) {
+        label = 'Yesterday';
+      } else if (!date.isBefore(weekAgo)) {
+        label = 'This week';
+      } else {
+        label = 'Earlier';
+      }
+      groups.putIfAbsent(label, () => []).add(item);
+    }
+    return groups;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (qaHistory.isEmpty) {
+    if (widget.qaHistory.isEmpty) {
       return const EmptyStateWidget(
         icon: Icons.history,
         title: 'No question history yet',
@@ -700,38 +757,195 @@ class _HistoryTab extends StatelessWidget {
       );
     }
 
-    return ListView.builder(
-      itemCount: qaHistory.length,
-      itemBuilder: (context, index) {
-        final item = qaHistory[index];
-        return Card(
-          margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-          child: ListTile(
-            leading: const CoverWiseIconBadge(
-              icon: Icons.history_rounded,
-              color: CoverWiseColors.blue,
-              size: 40,
+    final filtered = _filteredHistory;
+    final grouped = _groupedByDate;
+    final groupLabels = grouped.keys.toList();
+
+    // Build a flat list of items with section headers
+    final List<Object> items = [];
+    for (final label in groupLabels) {
+      items.add(label); // section header
+      for (final pair in grouped[label]!) {
+        items.add(pair); // history item
+      }
+    }
+
+    return Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search history...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            title: Text(item.question,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text(
-              '${item.answer.text.substring(0, item.answer.text.length > 50 ? 50 : item.answer.text.length)}...',
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${item.timestamp.hour}:${item.timestamp.minute.toString().padLeft(2, '0')}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded),
-              ],
-            ),
-            onTap: () => onSelectAnswer(item.answer),
+            onChanged: (v) => setState(() => _searchQuery = v),
           ),
-        );
-      },
+        ),
+        // Results count
+        if (_searchQuery.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${_filteredHistory.length} result${_filteredHistory.length == 1 ? '' : 's'}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          ),
+        // History list
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search_off_rounded,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No matches for "$_searchQuery"',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    if (item is String) {
+                      // Section header
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(
+                          item,
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      );
+                    }
+                    final pair = item as QaPair;
+                    final isExpanded = _expandedQuestions.contains(pair.question);
+                    final answerText = pair.answer.text;
+                    final isLong = answerText.length > 120;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => widget.onSelectAnswer(pair.answer),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Question + time
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const CoverWiseIconBadge(
+                                    icon: Icons.history_rounded,
+                                    color: CoverWiseColors.blue,
+                                    size: 36,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      pair.question,
+                                      style: const TextStyle(fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${pair.timestamp.hour}:${pair.timestamp.minute.toString().padLeft(2, '0')}',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              // Answer preview (expandable with smooth animation)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 46),
+                                child: AnimatedSize(
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeInOut,
+                                  alignment: Alignment.topLeft,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isExpanded || !isLong
+                                            ? answerText
+                                            : '${answerText.substring(0, 120)}...',
+                                        maxLines: isExpanded ? null : 5,
+                                        overflow: isExpanded ? null : TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                      if (isLong)
+                                        GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              if (isExpanded) {
+                                                _expandedQuestions.remove(pair.question);
+                                              } else {
+                                                _expandedQuestions.add(pair.question);
+                                              }
+                                            });
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(top: 4),
+                                            child: Text(
+                                              isExpanded ? 'Show less' : 'Show more',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(context).colorScheme.primary,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }

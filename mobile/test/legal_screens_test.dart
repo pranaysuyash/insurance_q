@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:coverwise/screens/privacy_policy_screen.dart';
@@ -24,30 +25,38 @@ Content for section one.
 Content for section two.
 ''';
 
-/// Channel for mocking rootBundle.loadString.
-const _assetChannel = MethodChannel('flutter/assets');
-
 /// Mock rootBundle to return [content] for .md asset keys.
-/// Used by every test that renders PrivacyPolicyScreen or TermsOfServiceScreen.
+/// Non-.md assets (MaterialApp icons, fonts, etc.) receive empty bytes
+/// so that pumpAndSettle doesn't hang waiting for unresolvable messages.
 void _mockAssets(String content) {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_assetChannel, (call) async {
-    if (call.method == 'loadString') {
-      final key = call.arguments[0] as String;
-      if (key.endsWith('.md')) return content;
+      .setMockMessageHandler('flutter/assets', (ByteData? message) async {
+    if (message != null) {
+      final key = utf8.decode(message.buffer.asUint8List());
+      if (key.endsWith('.md')) {
+        return ByteData.view(Uint8List.fromList(utf8.encode(content)).buffer);
+      }
     }
-    return null;
+    // Return empty bytes for non-.md assets so pumpAndSettle completes.
+    return ByteData.view(Uint8List(0).buffer);
   });
 }
 
-/// Mock rootBundle to throw for all .md asset keys.
+/// Mock rootBundle to fail only for .md asset keys.
+/// Non-.md assets (MaterialApp icons, fonts, etc.) receive empty bytes.
 void _mockAssetsFailing() {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_assetChannel, (call) async {
-    if (call.method == 'loadString') {
-      throw FlutterError('Asset not found');
+      .setMockMessageHandler('flutter/assets', (ByteData? message) async {
+    if (message != null) {
+      final key = utf8.decode(message.buffer.asUint8List());
+      if (key.endsWith('.md')) {
+        // Return no response so PlatformAssetBundle creates its normal
+        // missing-asset FlutterError. Throwing from this mock trips a
+        // catchError return-type assertion in current Flutter bindings.
+        return null;
+      }
     }
-    return null;
+    return ByteData.view(Uint8List(0).buffer);
   });
 }
 
@@ -59,13 +68,18 @@ void main() {
 
   setUp(() {
     LegalContentLoader.clearCache();
+    // AssetBundle caches loadString futures. Evict both legal keys so each
+    // test owns its mock response and cannot inherit a pending future from a
+    // preceding test.
+    rootBundle.evict('assets/legal/privacy_policy.md');
+    rootBundle.evict('assets/legal/terms_of_service.md');
     _mockAssets(_testMarkdown);
   });
 
-  tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(_assetChannel, null);
-  });
+  // Intentionally do NOT clear the mock handler in tearDown.
+  // Clearing it leaves pending platform messages unresolved, which causes
+  // pumpAndSettle to hang in the next test. setUp re-registers the handler
+  // before each test, so stale handlers are overwritten automatically.
 
   tearDownAll(() async {
     await HiveTestHelper.tearDown();
@@ -119,14 +133,20 @@ void main() {
 
     testWidgets('shows loading indicator while FutureBuilder is loading',
         (tester) async {
-      // Use a slow future to observe the loading state
+      // Use a slow future to observe the loading state.
+      // Only intercept .md assets — let other assets resolve normally.
       final completer = Completer<String>();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_assetChannel, (call) async {
-        if (call.method == 'loadString') {
-          return completer.future;
+          .setMockMessageHandler('flutter/assets', (ByteData? message) async {
+        if (message != null) {
+          final key = utf8.decode(message.buffer.asUint8List());
+          if (key.endsWith('.md')) {
+            final content = await completer.future;
+            return ByteData.view(
+                Uint8List.fromList(utf8.encode(content)).buffer);
+          }
         }
-        return null;
+        return ByteData.view(Uint8List(0).buffer);
       });
 
       await tester.pumpWidget(
@@ -155,7 +175,36 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(home: PrivacyPolicyScreen()),
       );
-      await tester.pumpAndSettle();
+      // Use explicit pumps — FlutterError from loadString causes the framework
+      // to schedule rebuilds that prevent pumpAndSettle from completing.
+      await tester.pump(); // triggers didChangeDependencies → creates _future
+      await tester
+          .pump(); // Future completes with error → FutureBuilder rebuilds
+      await tester.pump(); // final frame
+
+      // Should show error UI
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(
+        find.textContaining('Failed to load privacy policy'),
+        findsOneWidget,
+      );
+      // Should NOT show sections
+      expect(find.text('Section One'), findsNothing);
+    });
+
+    testWidgets('shows error state when asset loading fails', (tester) async {
+      _mockAssetsFailing();
+
+      await tester.pumpWidget(
+        const MaterialApp(home: PrivacyPolicyScreen()),
+      );
+      // Use explicit pumps instead of pumpAndSettle — FlutterError from
+      // loadString can cause the framework to schedule rebuilds that
+      // prevent pumpAndSettle from ever completing.
+      await tester.pump(); // triggers didChangeDependencies → creates _future
+      await tester
+          .pump(); // Future completes with error → FutureBuilder rebuilds
+      await tester.pump(); // final frame
 
       // Should show error UI
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
@@ -219,7 +268,12 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(home: TermsOfServiceScreen()),
       );
-      await tester.pumpAndSettle();
+      // Use explicit pumps — FlutterError from loadString causes the framework
+      // to schedule rebuilds that prevent pumpAndSettle from completing.
+      await tester.pump(); // triggers didChangeDependencies → creates _future
+      await tester
+          .pump(); // Future completes with error → FutureBuilder rebuilds
+      await tester.pump(); // final frame
 
       // Should show error UI
       expect(find.byIcon(Icons.error_outline), findsOneWidget);

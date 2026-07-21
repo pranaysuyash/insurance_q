@@ -17,7 +17,14 @@ from src.utils.pdf_access import PdfPasswordError, unlock_pdf
 try:
     from src.ocr.pdf_processor import PDFProcessor
     from src.ocr.image_processor import ImageProcessor
-except ImportError:
+except (ImportError, OSError) as error:
+    # OCR is an optional local accelerator. Production uses the canonical
+    # text/document pipeline and may intentionally omit doctr's native
+    # libraries; a missing shared library must not prevent the API from
+    # importing and exposing truthful readiness/processing states.
+    logging.getLogger(__name__).warning(
+        "local OCR accelerator unavailable error_type=%s", type(error).__name__
+    )
     PDFProcessor = None
     ImageProcessor = None
 

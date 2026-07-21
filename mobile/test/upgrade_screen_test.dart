@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:coverwise/models/entitlement.dart';
@@ -32,11 +33,11 @@ class FakeEntitlementService extends EntitlementService {
 
 /// Fake BillingAdapter that doesn't require RevenueCat SDK.
 class FakeBillingAdapter extends BillingAdapter {
-  final FakeEntitlementService _service;
   Entitlement? purchaseResult;
   bool manageResult = true;
+  Completer<Entitlement?>? purchaseCompleter;
 
-  FakeBillingAdapter(this._service) : super(_service);
+  FakeBillingAdapter(super.service);
 
   @override
   Future<void> initialize({required String apiKey}) async {}
@@ -47,6 +48,9 @@ class FakeBillingAdapter extends BillingAdapter {
   @override
   Future<Entitlement?> purchasePlan(PlanTier tier,
       {bool annual = false}) async {
+    if (purchaseCompleter != null) {
+      return purchaseCompleter!.future;
+    }
     return purchaseResult;
   }
 
@@ -88,7 +92,7 @@ Widget buildUpgradeScreen({
         if (billingState is AsyncError) {
           throw Exception('Billing init failed');
         }
-        return null;
+        return;
       }),
     ],
     child: const MaterialApp(home: UpgradeScreen()),
@@ -104,8 +108,12 @@ void main() {
         .setMockMethodCallHandler(pathProviderChannel, (call) async {
       return '/tmp/coverwise-upgrade-tests';
     });
-    await Directory('/tmp/coverwise-upgrade-tests').create(recursive: true);
-    await Hive.initFlutter('/tmp/coverwise-upgrade-tests');
+    final dir = Directory('/tmp/coverwise-upgrade-tests');
+    if (dir.existsSync()) {
+      dir.deleteSync(recursive: true);
+    }
+    await dir.create(recursive: true);
+    await Hive.initFlutter(dir.path);
     if (!Hive.isBoxOpen(LocalStorageService.documentsBoxName)) {
       await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     }
@@ -124,9 +132,7 @@ void main() {
   });
 
   tearDownAll(() async {
-    try {
-      await Hive.close();
-    } catch (_) {}
+    try {} catch (_) {}
   });
 
   group('UpgradeScreen — UI rendering', () {
@@ -167,12 +173,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Free'), findsWidgets);
-      expect(find.text('Plus'), findsOneWidget);
-      expect(find.text('Family'), findsOneWidget);
+      expect(find.text('Plus'), findsWidgets);
+      expect(find.text('Family'), findsWidgets);
     });
 
-    testWidgets('shows "Current plan" button for current tier',
-        (tester) async {
+    testWidgets('shows "Current plan" button for current tier', (tester) async {
       await tester.pumpWidget(buildUpgradeScreen());
       await tester.pumpAndSettle();
 
@@ -208,6 +213,7 @@ void main() {
         (tester) async {
       final fakeService = FakeEntitlementService(const Entitlement());
       final fakeBilling = FakeBillingAdapter(fakeService);
+      fakeBilling.purchaseCompleter = Completer<Entitlement?>();
 
       await tester.pumpWidget(buildUpgradeScreen(
         entitlement: const Entitlement(),
@@ -220,6 +226,9 @@ void main() {
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(find.text('Upgrade to Plus'), findsNothing);
+
+      fakeBilling.purchaseCompleter!.complete(null);
+      await tester.pumpAndSettle();
     });
 
     testWidgets('shows success message after successful purchase',

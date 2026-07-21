@@ -64,9 +64,12 @@ void main() {
         .setMockMethodCallHandler(pathProviderChannel, (call) async {
       return '/tmp/coverwise-profile-guard-tests';
     });
-    await Directory('/tmp/coverwise-profile-guard-tests')
-        .create(recursive: true);
-    await Hive.initFlutter('/tmp/coverwise-profile-guard-tests');
+    final dir = Directory('/tmp/coverwise-profile-guard-tests');
+    if (dir.existsSync()) {
+      dir.deleteSync(recursive: true);
+    }
+    await dir.create(recursive: true);
+    await Hive.initFlutter(dir.path);
     if (!Hive.isBoxOpen(LocalStorageService.documentsBoxName)) {
       await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     }
@@ -86,7 +89,6 @@ void main() {
 
   tearDownAll(() async {
     try {
-      await Hive.close();
     } catch (_) {}
   });
 

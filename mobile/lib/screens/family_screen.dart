@@ -8,6 +8,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/error_widget.dart';
 import '../theme/coverwise_theme.dart';
 import 'add_family_member_dialog.dart';
+import 'family_member_detail_screen.dart';
 
 class FamilyScreen extends StatelessWidget {
   const FamilyScreen({super.key});
@@ -121,6 +122,16 @@ class _FamilyList extends ConsumerWidget {
               const CoverWiseSectionLabel('Family and insured members'),
               ...policyHolders.values.map((holder) => _FamilyMemberCard(
                     holder: holder,
+                    documents: documents,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FamilyMemberDetailScreen(
+                          member: holder,
+                          documents: documents,
+                        ),
+                      ),
+                    ),
                     onDelete: holder.isManual
                         ? () async {
                             final confirmed = await showDialog<bool>(
@@ -171,82 +182,137 @@ class _FamilyList extends ConsumerWidget {
 
 class _FamilyMemberCard extends StatelessWidget {
   final PolicyHolder holder;
+  final List<InsuranceDocument> documents;
+  final VoidCallback? onTap;
   final VoidCallback? onDelete;
-  const _FamilyMemberCard({required this.holder, this.onDelete});
+  const _FamilyMemberCard({
+    required this.holder,
+    required this.documents,
+    this.onTap,
+    this.onDelete,
+  });
+
+  /// Count how many policies mention this member by name.
+  int _policyCount(List<InsuranceDocument> docs) {
+    var count = 0;
+    for (final doc in docs) {
+      if (doc.policyHolders != null) {
+        for (final h in doc.policyHolders!) {
+          if (h.name == holder.name) {
+            count++;
+            break;
+          }
+        }
+      }
+    }
+    return count;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isPrimary = holder.relationship == 'Primary Insured';
 
+    final count = _policyCount(documents);
     return CoverWiseSurface(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CoverWiseIconBadge(
-                  icon: isPrimary
-                      ? Icons.person_rounded
-                      : Icons.person_outline_rounded,
-                  color: isPrimary
-                      ? CoverWiseColors.blueDeep
-                      : theme.colorScheme.tertiary,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        holder.name,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 5),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            holder.relationship,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          _SourceBadge(isManual: holder.isManual),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (onDelete != null)
-                  IconButton(
-                    icon: const Icon(Icons.person_remove_outlined),
-                    tooltip: 'Remove ${holder.name}',
-                    onPressed: onDelete,
-                  ),
-              ],
-            ),
-            if (holder.dob != null) ...[
-              const Divider(height: 24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(
                 children: [
-                  Icon(Icons.cake_outlined,
-                      color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Date of birth: ${holder.dob}',
-                    style: theme.textTheme.bodyMedium,
+                  CoverWiseIconBadge(
+                    icon: isPrimary
+                        ? Icons.person_rounded
+                        : Icons.person_outline_rounded,
+                    color: isPrimary
+                        ? CoverWiseColors.blueDeep
+                        : theme.colorScheme.tertiary,
                   ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          holder.name,
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              holder.relationship,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            _SourceBadge(isManual: holder.isManual),
+                            if (count > 0)
+                              _PolicyCountBadge(count: count),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onDelete != null)
+                    IconButton(
+                      icon: const Icon(Icons.person_remove_outlined),
+                      tooltip: 'Remove ${holder.name}',
+                      onPressed: onDelete,
+                    ),
                 ],
               ),
+              if (holder.dob != null) ...[
+                const Divider(height: 24),
+                Row(
+                  children: [
+                    Icon(Icons.cake_outlined,
+                        color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Date of birth: ${holder.dob}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PolicyCountBadge extends StatelessWidget {
+  final int count;
+  const _PolicyCountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        '$count polic${count == 1 ? 'y' : 'ies'}',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onPrimaryContainer,
         ),
       ),
     );

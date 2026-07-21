@@ -1,22 +1,20 @@
-import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:coverwise/services/consent_ledger.dart';
-import 'package:coverwise/services/app_state_store.dart';
 import 'helpers/hive_test_helper.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late Box box;
+  late Box consentBox;
 
   setUpAll(() async {
     await HiveTestHelper.setUp();
   });
 
   setUp(() async {
-    box = Hive.box(AppStateStore.boxName);
-    // Clear the consent ledger before each test.
-    await box.delete('consent_ledger_v1');
+    // ConsentLedger uses a dedicated 'consent_ledger' box (not AppStateStore.boxName).
+    consentBox = Hive.box('consent_ledger');
+    await consentBox.clear();
   });
 
   tearDownAll(() async {
@@ -264,6 +262,7 @@ void main() {
         version: 'v1',
         granted: true,
       );
+      await Future.delayed(const Duration(milliseconds: 15));
       await ledger.recordConsent(
         purpose: ConsentPurpose.analytics,
         version: 'v1',
@@ -272,8 +271,9 @@ void main() {
 
       final records = ledger.getAllRecords();
       expect(records.length, 2);
-      expect(records[0].purpose, ConsentPurpose.documentProcessing);
-      expect(records[1].purpose, ConsentPurpose.analytics);
+      // Sorted descending by timestamp — analytics (recorded later) comes first.
+      expect(records[0].purpose, ConsentPurpose.analytics);
+      expect(records[1].purpose, ConsentPurpose.documentProcessing);
     });
 
     test('clear removes all records', () async {
@@ -295,8 +295,8 @@ void main() {
 
     test('multiple grants and revokes maintain correct history', () async {
       // Grant → Revoke → Grant cycle.
-      // revokeConsent replaces the record in-place (adds revokedAt),
-      // so the total count is: 1 grant + 1 revoke + 1 grant = 3 records.
+      // The ledger is append-only: each operation adds a new record.
+      // grant v1 + revoke v1 + grant v2 = 3 records total.
       await ledger.recordConsent(
         purpose: ConsentPurpose.documentProcessing,
         version: 'v1',
@@ -315,13 +315,14 @@ void main() {
       expect(ledger.hasConsent(ConsentPurpose.documentProcessing), isTrue);
 
       final records = ledger.getAllRecords();
-      // revokeConsent replaces the record in-place, so we get:
-      // [grant v1 (revoked), grant v2 (active)] = 2 records
-      expect(records.length, 2);
-      expect(records[0].version, 'v1');
-      expect(records[0].isRevoked, isTrue);
-      expect(records[1].version, 'v2');
-      expect(records[1].isActive, isTrue);
+      // Sorted descending by timestamp: grant v2, revoke v1, grant v1.
+      expect(records.length, 3);
+      expect(records[0].version, 'v2');
+      expect(records[0].isActive, isTrue);
+      expect(records[1].version, 'v1');
+      expect(records[1].isRevoked, isTrue);
+      expect(records[2].version, 'v1');
+      expect(records[2].isActive, isTrue);
     });
 
     test('hasConsent returns the latest state after grant then revoke', () async {
@@ -351,86 +352,76 @@ void main() {
     late ConsentLedger ledger;
 
     setUp(() async {
-      // Ensure clean state — the outer setUp already deletes the key,
+      // Ensure clean state — the outer setUp already clears consent_ledger,
       // but we double-check to prevent cross-test leakage.
-      await box.delete('consent_ledger_v1');
+      await consentBox.clear();
       ledger = ConsentLedger();
     });
 
     test('handles null value in Hive gracefully', () async {
-      // Write null directly to the Hive key.
-      await box.put('consent_ledger_v1', null);
+      // The consent_ledger box uses _box.add() which stores individual items.
+      // Writing null as a raw value to simulate corruption.
+      await consentBox.add(null);
 
-      // Should not throw — returns empty list.
+      // Should not throw — corrupted items are skipped.
       expect(ledger.getAllRecords(), isEmpty);
       expect(ledger.hasConsent(ConsentPurpose.documentProcessing), isFalse);
       expect(ledger.getLatestRecord(ConsentPurpose.documentProcessing), isNull);
     });
 
-    test('handles non-string value in Hive gracefully', () async {
-      // Write an integer instead of a JSON string.
-      await box.put('consent_ledger_v1', 42);
+    test('handles non-map value in Hive gracefully', () async {
+      // Write an integer instead of a JSON map.
+      await consentBox.add(42);
 
       expect(ledger.getAllRecords(), isEmpty);
       expect(ledger.hasConsent(ConsentPurpose.documentProcessing), isFalse);
     });
 
-    test('handles invalid JSON string gracefully', () async {
-      // Write a string that is not valid JSON.
-      await box.put('consent_ledger_v1', '{corrupted json!!!');
+    test('handles invalid data gracefully', () async {
+      // Write a string that is not a valid map.
+      await consentBox.add('not-a-map');
 
       expect(ledger.getAllRecords(), isEmpty);
       expect(ledger.hasConsent(ConsentPurpose.documentProcessing), isFalse);
     });
 
-    test('handles non-list JSON gracefully', () async {
-      // Write valid JSON but not a list (e.g., an object).
-      await box.put('consent_ledger_v1', '{"not": "a list"}');
+    test('handles non-map value gracefully', () async {
+      // Write a list instead of a map — fromJson expects Map<String, dynamic>.
+      await consentBox.add(['not', 'a', 'map']);
 
       expect(ledger.getAllRecords(), isEmpty);
       expect(ledger.hasConsent(ConsentPurpose.documentProcessing), isFalse);
     });
 
-    test('handles empty JSON array gracefully', () async {
-      await box.put('consent_ledger_v1', '[]');
-
+    test('handles empty box gracefully', () async {
+      // Box is already cleared by setUp.
       expect(ledger.getAllRecords(), isEmpty);
       expect(ledger.hasConsent(ConsentPurpose.documentProcessing), isFalse);
     });
 
-    test('handles corrupted record within valid array', () async {
-      // Write an array with one valid and one corrupted record.
+    test('handles corrupted record alongside valid records', () async {
+      // Add one valid record and one corrupted record via _box.add().
       final validRecord = {
         'purpose': 'document_processing',
         'version': 'v1',
         'granted': true,
         'timestamp': '2026-07-15T00:00:00.000',
       };
-      final corruptedRecord = {
-        'purpose': 'not_a_real_purpose',
-        'version': 'v1',
-        'granted': true,
-        'timestamp': 'invalid-date',
-      };
-      final jsonArray = jsonEncode([validRecord, corruptedRecord]);
-      await box.put('consent_ledger_v1', jsonArray);
+      await consentBox.add(validRecord);
+      await consentBox.add('corrupted-not-a-map');
 
-      // Should not throw — corrupted record gets defaults from fromJson.
+      // Should not throw — corrupted record is skipped by fromJson catch.
       final records = ledger.getAllRecords();
-      expect(records.length, 2);
-      // Corrupted purpose 'not_a_real_purpose' falls back to documentProcessing.
-      // Version 'v1' is preserved because fromJson only defaults version to 'unknown' when null.
-      expect(records[1].purpose, ConsentPurpose.documentProcessing);
-      expect(records[1].version, 'v1');
-      // Invalid timestamp falls back to DateTime.now().
-      expect(records[1].timestamp, isNotNull);
+      expect(records.length, 1);
+      expect(records[0].purpose, ConsentPurpose.documentProcessing);
+      expect(records[0].version, 'v1');
     });
 
     test('can write new records after corrupted data recovery', () async {
-      // Corrupt the data.
-      await box.put('consent_ledger_v1', 'not-json');
+      // Add corrupted data.
+      await consentBox.add('not-a-map');
 
-      // Should recover gracefully.
+      // Should recover gracefully — corrupted items are skipped.
       expect(ledger.getAllRecords(), isEmpty);
 
       // Should be able to write new records after recovery.
@@ -447,8 +438,8 @@ void main() {
     });
 
     test('clear works after corrupted data recovery', () async {
-      // Corrupt the data.
-      await box.put('consent_ledger_v1', 'bad-data');
+      // Add corrupted data.
+      await consentBox.add('bad-data');
 
       // Should not throw on clear.
       await ledger.clear();

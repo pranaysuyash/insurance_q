@@ -42,7 +42,6 @@ class _DocumentTypePickerDialogState extends State<_DocumentTypePickerDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: PolicyType.values.map((type) {
-          final isSelected = type == _selected;
           final color = colorForPolicyType(type);
           return RadioListTile<PolicyType>(
             value: type,

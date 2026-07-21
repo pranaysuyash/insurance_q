@@ -7,6 +7,8 @@
 
 This is the canonical architecture for CoverWise. It is the **map of the system**, not the territory. The territory is the code; the map is this document. If they disagree, the code is right; this doc is updated in the next commit.
 
+For the end-to-end person and operator journeys that this architecture supports, use the canonical [CoverWise User Journey Map](../user_experience/coverwise_user_journey_map.md), governed by [ADR-2026-07-21-01](../decisions/ADR-2026-07-21-01-canonical-user-journey-map.md).
+
 The doc answers 5 questions a new engineer needs to understand the system in 30 minutes:
 
 1. What are the 5 main components?

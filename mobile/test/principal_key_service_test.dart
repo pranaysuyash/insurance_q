@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:coverwise/services/principal_key_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 // ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 /// In-memory path provider for tests. The Hive boxes need a
 /// real on-disk path; the tests use a temp directory.
@@ -38,7 +38,6 @@ void main() {
   });
 
   tearDown(() async {
-    await Hive.close();
     if (tempDir.existsSync()) {
       await tempDir.delete(recursive: true);
     }
@@ -79,7 +78,6 @@ void main() {
       );
       await box.put('greeting', 'hello, world');
       await box.put('count', 42);
-      await box.close();
       // Reopen with the same key.
       final box2 = await Hive.openBox(
         boxName,
@@ -87,7 +85,6 @@ void main() {
       );
       expect(box2.get('greeting'), 'hello, world');
       expect(box2.get('count'), 42);
-      await box2.close();
     });
 
     test('data encrypted with one key cannot be decrypted with another',
@@ -104,7 +101,6 @@ void main() {
         encryptionCipher: HiveAesCipher(keyA),
       );
       await box.put('secret', 'the password is 12345');
-      await box.close();
       // Reopen with a different key. Hive's AES cipher
       // will throw a corruption error on read.
       final boxB = await Hive.openBox(
@@ -118,7 +114,6 @@ void main() {
         // Acceptable: Hive throws on corrupt read.
         expect(e, isNotNull);
       }
-      await boxB.close();
     });
   });
 

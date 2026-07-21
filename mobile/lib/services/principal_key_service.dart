@@ -43,6 +43,15 @@ import 'package:hive_flutter/hive_flutter.dart';
 /// old key is cleared from the secure store. The migration
 /// is per-box and idempotent.
 class PrincipalKeyService {
+  PrincipalKeyService._internal();
+  static final PrincipalKeyService _instance = PrincipalKeyService._internal();
+
+  /// All callers must share the in-memory DEK for the active principal.
+  /// The service is intentionally a process-local singleton; constructing a
+  /// new instance after initialization would otherwise lose the cached key
+  /// before encrypted Hive boxes are opened.
+  factory PrincipalKeyService() => _instance;
+
   /// The key length in bytes. 32 bytes = 256 bits, which is
   /// the AES-256 key size that Hive's AES cipher uses.
   static const int _keyLengthBytes = 32;
@@ -63,12 +72,11 @@ class PrincipalKeyService {
   /// encryption key. Read once during the migration, then
   /// cleared. The name is preserved for v1->v2 migration
   /// compatibility.
-  static const String _oldDeviceKeyStorageKey =
+  static const String oldDeviceKeyStorageKey =
       'coverwise_legacy_device_hive_key_v1';
 
   /// Lazy-initialized secure storage.
-  static final FlutterSecureStorage _secureStorage =
-      const FlutterSecureStorage(
+  static final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
 
@@ -232,7 +240,7 @@ class PrincipalKeyService {
       return false;
     }
     final oldKeyBase64 = await _secureStorage.read(
-      key: _oldDeviceKeyStorageKey,
+      key: oldDeviceKeyStorageKey,
     );
     if (oldKeyBase64 == null) {
       // No old key: this is a fresh install. Mark the

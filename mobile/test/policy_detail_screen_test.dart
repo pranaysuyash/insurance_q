@@ -67,7 +67,6 @@ void main() {
   });
 
   tearDownAll(() {
-    Hive.close();
   });
 
   Widget buildPolicyDetail({

@@ -11,11 +11,11 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [ ] Add comprehensive error logging to identify root causes
   - [ ] Add retry mechanisms for intermittent failures
   
-- [ ] **P0-02: Fix Document Type Recognition**
-  - [ ] Implement proper document type detection during OCR processing
-  - [ ] Add document categorization algorithms to identify policy types
-  - [ ] Create fallback for documents that can't be automatically categorized
-  - [ ] Add manual selection for document type when automatic detection fails
+- [x] **P0-02: Fix Document Type Recognition** ✅ DONE
+  - [x] Implement proper document type detection during OCR processing (classifyPolicyType + _inferDocumentType)
+  - [x] Add document categorization algorithms to identify policy types (backend _matchTypeFromAnswer with Indian insurer names)
+  - [x] Create fallback for documents that can't be automatically categorized (inferDocumentTypeFromContent via RAG queries)
+  - [x] Add manual selection for document type when automatic detection fails (DocumentTypePicker + Change type button)
   
 - [x] **P0-03: Resolve UI Layout Overflow Issues** ✅ DONE
   - [ ] Fix the "RIGHT OVERFLOWED BY X PIXELS" and "BOTTOM OVERFLOWED BY X PIXELS" errors
@@ -55,11 +55,12 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [x] Use last uploaded document as fallback option (June 2025)
   - [x] Auto-select the only document if just one exists (June 2025)
 
-- [ ] **P1-05: Complete "Family Management" and "More Menu" Screens**
-  - [ ] Add basic functionality to these incomplete screens
-  - [ ] Create an MVP version of Family Management
-  - [ ] Implement standard More Menu with settings, help, etc.
-  - [ ] Hide or mark features as "Coming Soon" if not ready
+- [x] **P1-05: Complete "Family Management" and "More Menu" Screens** ✅ DONE
+  - [x] Make family member cards tappable → navigate to detail screen with policy associations
+  - [x] Wire FamilyMemberDetailScreen to show actual policies covering the member
+  - [x] Add edit capability for manual family members (name, relationship)
+  - [x] Add 'Family' and 'Notification preferences' entries to MoreScreen
+  - [x] Add /family and /notifications routes in main.dart
 
 - [ ] **P1-06: Verify Policy Information Extraction**
   - [ ] Test policy number extraction with documents where filename ≠ policy number
@@ -90,17 +91,17 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [ ] Consider increasing limit beyond 5 documents
   - [ ] Implement archive functionality instead of permanent deletion
 
-- [ ] **P2-03: Fix History Display Truncation**
-  - [ ] Ensure questions and answers are displayed in full in history
-  - [ ] Add expand/collapse functionality for longer entries
-  - [ ] Implement proper date/time grouping for historical questions
-  - [ ] Add search functionality for history
+- [x] **P2-03: Fix History Display Truncation** ✅ DONE
+  - [x] Ensure questions and answers are displayed in full in history
+  - [x] Add expand/collapse functionality for longer entries
+  - [x] Implement proper date/time grouping for historical questions (Today, Yesterday, This week, Earlier)
+  - [x] Add search functionality for history (debounced search across question + answer text)
 
-- [ ] **P2-04: Fix Accordion Behavior in Q&A**
-  - [ ] Prevent accordions from auto-closing on error
-  - [ ] Maintain user's expanded/collapsed state during interactions
-  - [ ] Add smooth animations for accordion transitions
-  - [ ] Consider alternative to accordion for better visibility of categories
+- [x] **P2-04: Fix Accordion Behavior in Q&A** ✅ DONE
+  - [x] Prevent answer card from disappearing on error (preserved previous answer)
+  - [x] Maintain user's expanded/collapsed state during interactions (tracked by question text in Set)
+  - [x] Add smooth animations for accordion transitions (AnimatedSize 250ms easeInOut)
+  - [x] First-question error shows fallback card + snackbar instead of blank screen
 
 - [ ] **P2-05: Improve Error Toast Handling**
   - [ ] Make error toasts context-specific

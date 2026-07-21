@@ -43,9 +43,10 @@ void main() {
   });
 
   tearDownAll(() async {
-    await Hive.box<String>(LocalStorageService.documentsBoxName).close();
     if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {}
     }
   });
 
