@@ -316,7 +316,7 @@ class DeleteAccountResult {
   bool get isComplete => status == 'deletion_succeeded';
 
   /// True iff the user should be told that some stages will
-  /// be retried by the durable deletion job.
+  /// remain visible to the user when the request is only partially complete.
   bool get isPartial => status == 'deletion_partial';
 }
 

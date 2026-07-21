@@ -22,16 +22,14 @@ CHECK (section_type IN (
 -- Index for filtering by section type
 CREATE INDEX idx_document_chunks_section_type ON document_chunks(section_type);
 
--- Create chunk_links table for representing graph-like connections between chunks
--- ADR-26: We use a normalized junction table rather than JSON arrays inside chunks
--- to allow bidirectional querying and future algorithms like PageRank over chunks.
--- We do NOT use explicit FOREIGN KEYs to document_chunks here because chunks are
--- identified by their vector store UUIDs, which might not be backed by primary keys
--- in this specific DB if multi-backend logic splits storage. Application handles consistency.
+-- Create chunk_links table for representing graph-like connections between chunks.
+-- The canonical Supabase chunk identity is document_chunks.id (bigint). Keeping
+-- the junction table on that same type makes joins owner-safe and prevents the
+-- previous UUID/vector-store identity split from returning unusable links.
 CREATE TABLE chunk_links (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    source_chunk_id uuid NOT NULL,
-    target_chunk_id uuid NOT NULL,
+    source_chunk_id bigint NOT NULL REFERENCES public.document_chunks(id) ON DELETE CASCADE,
+    target_chunk_id bigint NOT NULL REFERENCES public.document_chunks(id) ON DELETE CASCADE,
     link_type text NOT NULL,
     weight float DEFAULT 1.0,
     created_at timestamptz DEFAULT now(),
@@ -44,10 +42,10 @@ CREATE INDEX idx_chunk_links_source ON chunk_links(source_chunk_id);
 CREATE INDEX idx_chunk_links_target ON chunk_links(target_chunk_id);
 
 -- Enable RLS and setup policies
-ALTER TABLE chunk_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chunk_links ENABLE ROW LEVEL SECURITY;
 
 -- Revoke all permissions initially
-REVOKE ALL ON chunk_links FROM PUBLIC;
+REVOKE ALL ON public.chunk_links FROM PUBLIC, anon, authenticated;
 
 -- Only service_role can access chunk_links (since it's an internal pipeline table)
-GRANT ALL ON chunk_links TO service_role;
+GRANT ALL ON public.chunk_links TO service_role;

@@ -5,6 +5,7 @@ import '../providers/policy_providers.dart';
 import '../utils/what_if_calculator.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
+import 'documents_screen.dart';
 
 /// What-If Calculator — lets users explore how changing coverage parameters
 /// affects premiums and out-of-pocket costs.
@@ -50,11 +51,18 @@ class _WhatIfCalculatorScreenState
     if (_baseSummary == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('What-If Calculator')),
-        body: const EmptyStateWidget(
+        body: EmptyStateWidget(
           icon: Icons.calculate_outlined,
           title: 'No policy data available',
-          subtitle: 'Add a policy first to explore planning estimates.',
-          color: Color(0xFF6A4BA8),
+          subtitle: 'Choose a policy file to explore planning estimates.',
+          actionLabel: 'Choose policy file',
+          actionIcon: Icons.upload_file_rounded,
+          onAction: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const DocumentsScreen(startWithFilePicker: true),
+            ),
+          ),
+          color: const Color(0xFF6A4BA8),
         ),
       );
     }
@@ -213,8 +221,9 @@ class _WhatIfCalculatorScreenState
               ],
             ),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              spacing: 28,
+              runSpacing: 10,
               children: [
                 _infoChip('Coverage',
                     _formatCurrency(_baseSummary?.coverageAmount ?? 0)),
@@ -257,8 +266,10 @@ class _WhatIfCalculatorScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: 16,
+              runSpacing: 4,
               children: [
                 Text(label,
                     style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -323,25 +334,37 @@ class _WhatIfCalculatorScreenState
 
   Widget _resultRow(String label, String value, String? change) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimaryContainer)),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(value,
+        Expanded(
+          child: Text(label,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer)),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value,
+                textAlign: TextAlign.end,
                 style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            if (change != null)
-              Text(change,
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              if (change != null)
+                Text(
+                  change,
+                  textAlign: TextAlign.end,
                   style: TextStyle(
-                      fontSize: 12,
-                      color: change.startsWith('+')
-                          ? Colors.red.shade700
-                          : Colors.green.shade700)),
-          ],
+                    fontSize: 12,
+                    color: change.startsWith('+')
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.tertiary,
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     );

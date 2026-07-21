@@ -1,6 +1,6 @@
 -- CoverWise evidence substrate (Trust Phase 1)
 -- Date: 2026-07-18
--- Convention: follow supabase/migrations/2026_07_18_revops_tables.sql
+-- Convention: follow supabase/migrations/20260718020000_revops_tables.sql
 --   - public schema
 --   - owner_id text (NOT auth.users FK; Supabase user IDs are strings)
 --   - RLS enabled, all access revoked, only service_role granted

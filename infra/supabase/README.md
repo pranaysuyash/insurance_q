@@ -1,10 +1,11 @@
 # CoverWise Supabase setup
 
-This directory contains the first production schema for the canonical solo-launch
-architecture. Apply [`001_coverwise_schema.sql`](001_coverwise_schema.sql),
-[`002_document_processing_leases.sql`](002_document_processing_leases.sql), and
-[`003_rate_limit_windows.sql`](003_rate_limit_windows.sql) in the Supabase SQL
-editor before deploying Cloud Run with the Supabase backends.
+This directory contains the original production SQL for the canonical solo-launch
+architecture. The executable Supabase CLI migration history now lives under
+`supabase/migrations/` with normalized 14-digit versions; the files here remain
+the SQL-editor-compatible source snapshot for operational review and rollback.
+For local verification, run `supabase db reset --local --no-seed` and
+`supabase db lint --local` from the repository root.
 
 ## Required secrets
 

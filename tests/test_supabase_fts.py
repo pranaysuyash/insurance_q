@@ -10,7 +10,9 @@ def mock_supabase_client():
 
 @pytest.fixture
 def vector_store(mock_supabase_client):
-    store = SupabaseVectorStore("http://fake.url", "fake-key")
+    # supabase-py validates the key shape before the client is replaced with
+    # the test double; use a structurally valid JWT-shaped fixture.
+    store = SupabaseVectorStore("http://fake.url", "a.b.c")
     store._client = mock_supabase_client
     return store
 
@@ -42,6 +44,7 @@ async def test_search_fts_calls_rpc(vector_store, mock_supabase_client):
             "query_text": "test query",
             "match_owner_id": "user1",
             "match_count": 10,
+            "match_document_ids": None,
         }
     )
     

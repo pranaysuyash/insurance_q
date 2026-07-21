@@ -95,6 +95,9 @@ def test_evidence_route_uses_current_user_uid_not_id(
     # Build a minimal app with only the evidence router.
     app = FastAPI()
     app.include_router(evidence_api.router)
+    app.dependency_overrides[evidence_api.get_current_user] = (
+        lambda: stub_current_user
+    )
 
     with TestClient(app) as client:
         response = client.get(
@@ -137,6 +140,9 @@ def test_evidence_route_returns_404_when_document_not_found(
 
     app = FastAPI()
     app.include_router(evidence_api.router)
+    app.dependency_overrides[evidence_api.get_current_user] = (
+        lambda: stub_current_user
+    )
 
     with TestClient(app) as client:
         response = client.get(

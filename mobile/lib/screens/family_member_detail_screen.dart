@@ -152,8 +152,8 @@ class _FamilyMemberDetailScreenState
                   ),
                   const SizedBox(height: 16),
                   if (_isEditing)
-                    SizedBox(
-                      width: 260,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
                       child: TextField(
                         controller: _nameController,
                         textAlign: TextAlign.center,
@@ -172,39 +172,49 @@ class _FamilyMemberDetailScreenState
                     ),
                   const SizedBox(height: 4),
                   if (_isEditing)
-                    SizedBox(
-                      width: 220,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
                       child: DropdownButton<String>(
                         value: _editingRelationship,
                         isExpanded: true,
                         items: const [
-                          DropdownMenuItem(value: 'Dependent', child: Text('Dependent')),
-                          DropdownMenuItem(value: 'Spouse', child: Text('Spouse')),
-                          DropdownMenuItem(value: 'Child', child: Text('Child')),
-                          DropdownMenuItem(value: 'Parent', child: Text('Parent')),
-                          DropdownMenuItem(value: 'Sibling', child: Text('Sibling')),
-                          DropdownMenuItem(value: 'Primary Insured', child: Text('Primary Insured')),
-                          DropdownMenuItem(value: 'Other', child: Text('Other')),
+                          DropdownMenuItem(
+                              value: 'Dependent', child: Text('Dependent')),
+                          DropdownMenuItem(
+                              value: 'Spouse', child: Text('Spouse')),
+                          DropdownMenuItem(
+                              value: 'Child', child: Text('Child')),
+                          DropdownMenuItem(
+                              value: 'Parent', child: Text('Parent')),
+                          DropdownMenuItem(
+                              value: 'Sibling', child: Text('Sibling')),
+                          DropdownMenuItem(
+                              value: 'Primary Insured',
+                              child: Text('Primary Insured')),
+                          DropdownMenuItem(
+                              value: 'Other', child: Text('Other')),
                         ],
-                        onChanged: (v) => setState(() => _editingRelationship = v),
+                        onChanged: (v) =>
+                            setState(() => _editingRelationship = v),
                       ),
                     )
                   else
                     Text(
                       _member.relationship,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   if (_isEditing) ...[
                     const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
                         OutlinedButton(
                           onPressed: _cancelEditing,
                           child: const Text('Cancel'),
                         ),
-                        const SizedBox(width: 12),
                         FilledButton(
                           onPressed: _saveEdits,
                           child: const Text('Save'),
@@ -230,19 +240,22 @@ class _FamilyMemberDetailScreenState
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    _DetailRow(
+                    CoverWiseMetadataRow(
+                      icon: Icons.cake_outlined,
                       label: 'Date of Birth',
                       value: _member.dob ?? 'Not specified',
                     ),
                     const Divider(),
-                    _DetailRow(
+                    CoverWiseMetadataRow(
+                      icon: Icons.source_outlined,
                       label: 'Source',
                       value: _member.isManual
                           ? 'Added manually'
                           : 'Detected from policy',
                     ),
                     const Divider(),
-                    _DetailRow(
+                    CoverWiseMetadataRow(
+                      icon: Icons.shield_outlined,
                       label: 'Covering policies',
                       value: '${policies.length}',
                     ),
@@ -264,7 +277,8 @@ class _FamilyMemberDetailScreenState
                       children: [
                         Icon(Icons.shield_outlined,
                             size: 48,
-                            color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.5)),
                         const SizedBox(height: 12),
                         Text(
                           'No policies listing ${_member.name} were found. '
@@ -303,40 +317,14 @@ class _FamilyMemberDetailScreenState
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => PolicyDetailScreen(documentId: doc.id),
+                          builder: (_) =>
+                              PolicyDetailScreen(documentId: doc.id),
                         ),
                       ),
                     ),
                   )),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _DetailRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
-        ],
       ),
     );
   }

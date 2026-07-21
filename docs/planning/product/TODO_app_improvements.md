@@ -79,10 +79,10 @@ Based on the detailed app review from May 2025, this document tracks actionable 
 
 ## Medium Priority Issues
 
-- [ ] **P2-01: Optimize Document Upload UI**
-  - [ ] Redesign document upload section to be less prominent once documents exist
-  - [ ] Convert to a simple "Add New" button when documents are present
-  - [ ] Make the document list the primary focus when documents exist
+- [x] **P2-01: Optimize Document Upload UI** ✅ DONE
+  - [x] Redesign document upload section to be less prominent once documents exist
+  - [x] Convert to a simple "Add New" button when documents are present
+  - [x] Make the document list the primary focus when documents exist
   - [ ] Add drag-and-drop support for desktop web version
 
 - [x] **P2-02: Improve Document Limit Messaging**

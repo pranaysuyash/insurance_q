@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12304F"/>
+      <stop offset="1" stop-color="#071B33"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#69A8FF"/>
+      <stop offset="1" stop-color="#2F80ED"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS artwork includes breathing room because the desktop does not apply
+       the iOS launcher mask to a full-bleed source. -->
+  <rect x="92" y="92" width="840" height="840" rx="188" fill="url(#bg)"/>
+  <circle cx="512" cy="502" r="274" fill="#FFFFFF" opacity="0.055"/>
+  <path d="M512 238 C613 287 690 302 749 324 L749 499 C749 650 654 758 512 810 C370 758 275 650 275 499 L275 324 C334 302 411 287 512 238 Z" fill="url(#shield)"/>
+  <path d="M388 521 L477 612 L649 421" fill="none" stroke="#5EEAD4" stroke-width="62" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -8,6 +8,7 @@ import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/error_widget.dart';
+import 'documents_screen.dart';
 
 class ClaimsAssistantScreen extends ConsumerStatefulWidget {
   const ClaimsAssistantScreen({super.key});
@@ -67,11 +68,19 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
         ),
         data: (documents) {
           if (documents.isEmpty && summaries.isEmpty) {
-            return const EmptyStateWidget(
+            return EmptyStateWidget(
               icon: Icons.fact_check_outlined,
               title: 'No documents uploaded',
-              subtitle: 'Upload insurance documents to get claim guidance',
-              color: Color(0xFFD97706),
+              subtitle: 'Choose a policy file to get claim guidance.',
+              actionLabel: 'Choose policy file',
+              actionIcon: Icons.upload_file_rounded,
+              onAction: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const DocumentsScreen(startWithFilePicker: true),
+                ),
+              ),
+              color: const Color(0xFFD97706),
             );
           }
 
@@ -177,11 +186,10 @@ class _ClaimGuideSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: FractionallySizedBox(
+        heightFactor: 0.9,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
             Text(guide.title,
                 style: Theme.of(context)

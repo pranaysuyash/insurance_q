@@ -173,11 +173,11 @@ def delete_account(current_user: User = Depends(get_current_user)):
     else:
         status = "deletion_partial"
         message = (
-            "Deletion request received. Some stages could not be completed "
-            "and will be retried by the durable deletion job. The remaining "
-            f"stages are: {', '.join(failed_stages)}. Local data on this "
-            "device was not affected and can be cleared from the privacy "
-            "screen."
+            "Deletion request received, but some server stages could not be "
+            "completed. The remaining stages are: "
+            f"{', '.join(failed_stages)}. Do not assume server deletion is "
+            "complete. Local data on this device was not affected and can "
+            "be cleared from the privacy screen."
         )
 
     return {

@@ -388,7 +388,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         } else {
           // Offline/queued - honest message
           final message = isQueuedOnly
-              ? '$selectedName saved locally; will sync when online'
+              ? '$selectedName saved locally; server upload still required'
               : '$selectedName saved locally (offline mode)';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -464,12 +464,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final documentsAsync = ref.watch(documentsProvider);
+    final hasDocuments = documentsAsync.whenOrNull(data: (docs) => docs.isNotEmpty) ?? false;
+    final hasSelection = _selectedFile != null || _selectedWebFile != null;
+    final showExpandedUpload = _showUploadDetails && hasSelection;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Documents'),
         actions: [
           IconButton(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               onPressed: _refreshDocumentTypes,
               tooltip: 'Refresh Document Types'),
         ],
@@ -486,9 +491,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: UsageStatsWidget(),
           ),
-          if (_showUploadDetails ||
-              _selectedFile != null ||
-              _selectedWebFile != null)
+          // Upload section: compact when documents exist, prominent when empty.
+          if (showExpandedUpload)
             CoverWiseSurface(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Padding(
@@ -504,25 +508,13 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                                 .textTheme
                                 .titleLarge
                                 ?.copyWith(fontWeight: FontWeight.w800)),
-                        if (_selectedFile != null || _selectedWebFile != null)
-                          IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: _clearSelection,
-                              tooltip: 'Clear selection'),
+                        IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: _clearSelection,
+                            tooltip: 'Clear selection'),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    if (_selectedFile == null && _selectedWebFile == null)
-                      Center(
-                        child: FilledButton.tonalIcon(
-                          icon: const Icon(Icons.file_upload_outlined),
-                          label: const Text('Select Document'),
-                          onPressed: _pickFile,
-                          style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 12)),
-                        ),
-                      ),
                     if (_selectedFile != null || _selectedWebFile != null) ...[
                       Row(
                         children: [
@@ -687,12 +679,13 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 ),
               ),
             )
-          else
+          else if (!hasDocuments)
+            // Empty state: prominent upload CTA
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
                 child: FilledButton.icon(
-                  icon: const Icon(Icons.note_add_outlined),
+                  icon: const Icon(Icons.upload_file_rounded),
                   label: const Text('Add policy file'),
                   onPressed: _pickFile,
                   style: FilledButton.styleFrom(
@@ -702,24 +695,31 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   ),
                 ),
               ),
+            )
+          else
+            // Documents exist: compact "Add new" button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add new policy'),
+                  onPressed: _pickFile,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                  ),
+                ),
+              ),
             ),
           const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Saved policies',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800)),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: () => ref.invalidate(documentsProvider),
-                  tooltip: 'Refresh list',
-                ),
-              ],
+          CoverWiseSectionLabel(
+            'Saved policies',
+            trailing: IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: () => ref.invalidate(documentsProvider),
+              tooltip: 'Refresh saved policies',
             ),
           ),
           Expanded(

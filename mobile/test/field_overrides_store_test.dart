@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'package:coverwise/services/field_overrides_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'helpers/hive_test_helper.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late FieldOverridesStore store;
 
-  setUpAll(() {
-    Hive.init('/tmp/coverwise-field-overrides-test');
+  setUpAll(() async {
+    await HiveTestHelper.setUp();
   });
 
   setUp(() {
@@ -18,7 +20,8 @@ void main() {
     await store.clearAll();
   });
 
-  tearDownAll(() {
+  tearDownAll(() async {
+    await HiveTestHelper.tearDown();
   });
 
   group('setOverride and getOverride', () {

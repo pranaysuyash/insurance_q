@@ -138,56 +138,12 @@ class JobOutboxService:
         cannot claim the same row; the second one's UPDATE
         affects 0 rows and the call returns None.
         """
-        # Implementation note: the supabase-py client does not
-        # expose a generic "UPDATE ... WHERE ... RETURNING"
-        # pattern directly. We use the .rpc() pathway to call a
-        # Postgres function that performs the atomic claim.
-        # The function is created by a follow-up migration
-        # (planned for 2026_07_19_job_outbox_claim_fn.sql).
-        # For v1 we do a SELECT then UPDATE inside a transaction
-        # using the .from_().select().eq() chain.
-        # See test_claim_concurrent_returns_distinct_jobs for
-        # the contract this method must satisfy.
-        now = datetime.now(timezone.utc).isoformat()
-        # Step 1: select a candidate row.
-        select_response = (
-            self._client.table("job_outbox")
-            .select("*")
-            .eq("status", "pending")
-            .lte("next_attempt_at", now)
-            .order("next_attempt_at", desc=False)
-            .limit(1)
-            .execute()
-        )
-        if not select_response.data:
+        response = self._client.rpc(
+            "claim_job_outbox", {"p_lease_seconds": lease_seconds}
+        ).execute()
+        if not response.data:
             return None
-        candidate = select_response.data[0]
-        candidate_id = candidate["id"]
-        # Step 2: try to claim it atomically.
-        lease_expires_at = (
-            datetime.now(timezone.utc).timestamp() + lease_seconds
-        )
-        from datetime import datetime as _dt
-        lease_iso = _dt.fromtimestamp(
-            lease_expires_at, tz=timezone.utc
-        ).isoformat()
-        claim_response = (
-            self._client.table("job_outbox")
-            .update(
-                {
-                    "status": "running",
-                    "lease_expires_at": lease_iso,
-                    "attempts": candidate["attempts"] + 1,
-                }
-            )
-            .eq("id", candidate_id)
-            .eq("status", "pending")  # still pending? then we won
-            .execute()
-        )
-        if not claim_response.data:
-            # Another worker claimed it first. Try again.
-            return None
-        claimed = claim_response.data[0]
+        claimed = response.data[0]
         try:
             job = OutboxJob.model_validate(claimed)
         except Exception as error:
@@ -298,42 +254,10 @@ class JobOutboxService:
         attempts incremented. If attempts >= max_attempts, the
         job goes to dead_letter.
         """
-        # Implementation: this is a batch UPDATE that uses the
-        # outbox's stuck_lease_idx. The supabase-py chain is
-        # verbose for this; the dispatcher in v2 may move it
-        # to a Postgres function.
-        from datetime import timedelta
-        cutoff = (
-            datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
-        ).isoformat()
-        # First, find the stuck rows.
-        stuck = (
-            self._client.table("job_outbox")
-            .select("id, attempts, max_attempts")
-            .eq("status", "running")
-            .lt("lease_expires_at", cutoff)
-            .execute()
-        )
-        if not stuck.data:
-            return 0
-        reclaimed = 0
-        for row in stuck.data:
-            if row["attempts"] >= row["max_attempts"]:
-                self._client.table("job_outbox").update(
-                    {"status": "dead_letter", "lease_expires_at": None}
-                ).eq("id", row["id"]).execute()
-            else:
-                self._client.table("job_outbox").update(
-                    {
-                        "status": "pending",
-                        "lease_expires_at": None,
-                        "next_attempt_at": datetime.now(
-                            timezone.utc
-                        ).isoformat(),
-                    }
-                ).eq("id", row["id"]).execute()
-            reclaimed += 1
-        return reclaimed
+        response = self._client.rpc(
+            "reclaim_job_outbox", {"p_max_age_seconds": max_age_seconds}
+        ).execute()
+        return int(response.data or 0)
 
     # --- reads (operator dashboard) ---
 

@@ -1,5 +1,45 @@
 # System Exploration Map
 
+## Monetization and onboarding claim hardening (2026-07-21)
+
+Paywall and Upgrade now have one UI owner, but local RevenueCat-derived state is
+still not server-enforced. Customer copy is conditional; entitlement integrity,
+usage reservation, refunds, and cross-device reconciliation remain open
+research/implementation work.
+
+## Principal workspace lifecycle hardening (2026-07-21)
+
+Sensitive Hive-box lifecycle is now centralized in
+`mobile/lib/services/hive_workspace_service.dart`. Sign-out and authenticated
+principal changes reset the cleared workspace and reopen it with the active
+principal DEK; analytics and session state are reinitialized. Real two-account
+authenticated traversal remains the required Tier 3 evidence.
+
+## 2026-07-21 — migration source and deep-link resilience
+
+- **Canonical migration source:** `supabase/migrations/` is the executable
+  timestamped chain; `infra/supabase/` is a retained SQL-editor snapshot. The
+  equivalence of the first three snapshot files was statically checked, and
+  operator-facing references were aligned to prevent applying both sources.
+- **Configuration contract:** server code consistently requires
+  `SUPABASE_SERVICE_ROLE_KEY`; `.env.example` was corrected to match.
+- **Deep-link resilience:** initial-link lookup now has an explicit error path;
+  custom-scheme host routing and universal-link path routing remain supported.
+- **Open exploration:** verify remote migration history and perform a cold-start
+  deep-link traversal on each release platform.
+- **Identity lifecycle:** sign-out cleanup now clears service-owned state before
+  Hive boxes close and drops the cached principal ID. Same-process sign-in still
+  needs an auth-transition-owned reinitialize/reopen cycle before isolation can
+  be called end-to-end verified.
+- **Offline upload:** local persistence is real, but automatic reconciliation is
+  not implemented. User copy now separates local save from server upload; a
+  future retry worker must own idempotency, backoff, auth transitions, and
+  operator visibility.
+- **Deletion semantics:** partial account deletion no longer claims an
+  unimplemented durable retry job. The unresolved long-term path is an
+  outbox-backed erasure receipt with full inventory, retries, tombstones, and
+  operator verification.
+
 ## Exploration update: canonical user journey map (2026-07-21)
 
 The canonical journey-shaped source of truth is now [`docs/user_experience/coverwise_user_journey_map.md`](../user_experience/coverwise_user_journey_map.md), governed by [ADR-2026-07-21-01](../decisions/ADR-2026-07-21-01-canonical-user-journey-map.md). It inventories ideal, current, future, rejected, optional, alternate, happy, non-happy, privacy, and operator journeys.
@@ -94,6 +134,32 @@ CoverWise: trusted policy intelligence
 - **Separate operational and learning data.** Upload permission covers the requested service, not shared-model training.
 - **Earn the right to request contributions.** Begin with previewable field corrections. Consider redacted samples only if benchmarks prove material need.
 
+### Exploration update: founder monetization proposal (2026-07-21)
+
+The new [`monetization_research_and_decision_2026-07-21.md`](../planning/product/monetization_research_and_decision_2026-07-21.md)
+is recorded as **decision pending**, not as a superseding product decision.
+It proposes a 1-policy free tier, 5 questions/month, optional rewarded ads,
+one-time ad removal, paid policy/question capacity, and a future commission /
+web-aggregator path.
+
+First-principles reconciliation:
+
+- The 1-policy capacity hypothesis is directionally compatible with the current
+  companion wedge.
+- Rewarded ads require a separate privacy, consent, policy-compliance, and
+  trust review; they cannot be implemented merely as an entitlement feature.
+- The commission/web-aggregator path conflicts with the permanent non-regulated
+  boundary above and requires a separate founder-approved regulated-business
+  decision. It is not part of the current CoverWise product map.
+- The current implementation remains 1 policy / 20 free questions per month,
+  with Plus, Family, and Q&A-pack concepts. The proposal’s 5-question limit,
+  rewarded credits, ad-removal entitlement, and grandfathering behavior are
+  unresolved contract changes.
+
+Next gate: founder decision on the free-capacity hypothesis and whether ads are
+allowed at all; only then define entitlement, consent, billing, analytics, and
+abuse/replay contracts.
+
 ### New architecture nodes
 
 | Node | Purpose | Current state | Gate |
@@ -113,6 +179,19 @@ CoverWise: trusted policy intelligence
 - Full questions are used in local Hive feedback keys even though the transmitted feedback event contains only sentiment.
 - Processing consent is not a reusable purpose/consent ledger.
 - Retention and production deletion behavior remain incomplete in the privacy draft.
+- Upload policy limits are currently client-side and asymmetric: native local
+  counting is bypassed by the web upload path, and the check is not atomic at
+  the server boundary. Entitlement enforcement therefore remains an
+  architecture gate, not a completed monetization capability.
+- Q&A entitlement is also client-authoritative: the local Hive plan/usage
+  cache gates and charges after the response, while `/query` has no server-side
+  budget reservation. Billing sync accepts client-declared RevenueCat state
+  until webhook/receipt verification is implemented. The canonical future
+  shape is one server entitlement/usage ledger shared by upload and Q&A.
+- Offline upload currently records `pending_upload` and promises future sync,
+  but no mobile pending-upload consumer/retry path is present. This is an
+  explicit J03/J04 non-happy-path exploration gate: local persistence is not
+  evidence of eventual server delivery.
 - No entitlements, billing, commercial disclosure, dataset registry, quarantine, or privacy-release system exists yet.
 
 ### Architecture review note (2026-07-16)
@@ -632,3 +711,59 @@ sandboxed parsers with malware-scanning posture, resource limits, schema-aware
 extraction metrics, and policy corpus evidence before it can join the canonical
 pipeline. See `src/utils/upload_validation.py` and the document-storage
 contract for the active boundary.
+
+## Addendum — identity and offline journey closure (2026-07-21)
+
+The J02–J07 deep dive found a split document identity contract. Local Hive IDs
+are used by library/dashboard navigation, while server IDs are used by summary,
+evidence, processing-status, and Q&A backends. `QueryService` resolves the
+mapping for Q&A, but policy detail and evidence paths do not. Explore a single
+identity resolver at the app boundary and prove a distinct local-ID/server-ID
+journey before calling returning-user detail or evidence reliable.
+
+Offline upload currently persists a `pending_upload` record but has no discovered
+reconciliation worker, foreground retry, connectivity trigger, or explicit
+retry/cancel UI. Keep this as a first-class exploration area: the long-term
+contract needs durable queue ownership, source-hash idempotency, consent
+preservation, backoff, observability, and an end-to-end reconnect test. Until
+then, “saved locally” is verified at Tier 2 while “will sync” remains
+unverified.
+
+Deletion copy also drifted from implementation: the service is remote-first,
+while the library still describes local-only removal. Reconcile the customer
+contract and separately define local-only queue cancellation.
+
+The evidence owner-check test initially failed before dependency injection
+because its fixture patched the source module rather than the router-bound
+dependency. The fixture now uses FastAPI dependency overrides and passes both
+owner-UID and non-owner 404 cases. Keep the owner check intact; a deployed
+authenticated traversal is still required for Tier 3 evidence.
+
+The current diff also renames the Supabase migration set into sortable
+timestamped filenames. Most replacements are byte-identical and analytics adds
+view hardening, but the worktree currently represents them as deleted tracked
+files plus untracked replacements. Treat migration preservation and fresh-reset
+execution as a dedicated exploration gate; static ordering is not deployment
+proof.
+
+Branding generation exposed an important test principle: monochrome glyphs and
+platform-masked icons cannot share a full-bleed pixel-coverage threshold. The
+asset integrity test now encodes class-specific invariants; platform install
+behavior still needs artifact-level verification.
+
+Onboarding consent gating and paywall surface consolidation are directionally
+aligned with the canonical journey. They do not change the open monetization
+decision or the high-risk client-side entitlement/server-verification gaps.
+
+The policy-detail identity gap has a first closure stage: the screen now
+resolves local Hive IDs to server IDs for summary, evidence, status, and Q&A
+surfaces while preserving local IDs for files and overrides. A distinct-ID
+widget regression passes. Continue exploration with a real authenticated
+detail → evidence → Q&A traversal; the widget test is Tier 2, not E2E proof.
+
+The current UX expansion makes empty states actionable by routing users to the
+canonical document picker, and legal-content failures now have retryable shared
+error UI. These paths passed focused tests and preserve the product boundary:
+claim assistance is preparation guidance, emergency cards are reference data,
+and what-if results are explicitly estimates. Continue checking every new CTA
+against entitlement, offline, and local/server identity behavior.

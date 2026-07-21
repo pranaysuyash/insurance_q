@@ -45,7 +45,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       assetPath: 'assets/onboarding/stay-ready.png',
       title: 'Know what needs attention next.',
       description:
-          'Keep renewals, coverage gaps and claim guidance together—without selling you another policy.',
+          'Keep policy details, renewals and preparation notes together—without selling you another policy.',
       accent: Color(0xFF079A86),
     ),
   ];
@@ -57,6 +57,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _complete({bool openFilePicker = false}) async {
+    if (!_acceptedTerms) return;
     // Record both analytics consent and terms acceptance.
     // Analytics: only if user explicitly toggled the switch.
     // Terms: always record — the user must check the box to proceed.
@@ -65,6 +66,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await prefs.setBool('onboarding_complete', true);
     if (mounted) {
       widget.onComplete(openFilePicker: openFilePicker);
+    }
+  }
+
+  void _skipIntro() {
+    final lastPage = _pages.length - 1;
+    if (CoverWiseMotion.isReduced(context)) {
+      _controller.jumpToPage(lastPage);
+    } else {
+      _controller.animateToPage(
+        lastPage,
+        duration: CoverWiseMotion.emphasized,
+        curve: CoverWiseMotion.enterCurve,
+      );
     }
   }
 
@@ -121,13 +135,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ],
                   const Spacer(),
-                  TextButton(
-                    onPressed: () => _complete(),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(64, 48),
-                    ),
-                    child: const Text('Skip'),
-                  ),
+                  if (!isLast)
+                    MediaQuery.textScalerOf(context).scale(1) > 1.5
+                        ? IconButton(
+                            onPressed: _skipIntro,
+                            tooltip: 'Skip intro',
+                            icon: const Icon(Icons.last_page_rounded),
+                          )
+                        : TextButton(
+                            onPressed: _skipIntro,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(92, 48),
+                            ),
+                            child: const Text('Skip intro'),
+                          ),
                 ],
               ),
             ),
@@ -199,8 +220,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Help improve CoverWise. No policy content '
-                                      'or personal data is shared.',
+                                  'Only anonymous usage events are sent; policy '
+                                  'content is not included.',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                     height: 1.3,

@@ -183,9 +183,9 @@ void main() {
       await tester.pump(); // final frame
 
       // Should show error UI
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.byIcon(Icons.privacy_tip_outlined), findsOneWidget);
       expect(
-        find.textContaining('Failed to load privacy policy'),
+        find.text('The privacy policy could not be loaded.'),
         findsOneWidget,
       );
       // Should NOT show sections
@@ -207,9 +207,9 @@ void main() {
       await tester.pump(); // final frame
 
       // Should show error UI
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.byIcon(Icons.privacy_tip_outlined), findsOneWidget);
       expect(
-        find.textContaining('Failed to load privacy policy'),
+        find.text('The privacy policy could not be loaded.'),
         findsOneWidget,
       );
       // Should NOT show sections
@@ -276,9 +276,9 @@ void main() {
       await tester.pump(); // final frame
 
       // Should show error UI
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.byIcon(Icons.gavel_outlined), findsOneWidget);
       expect(
-        find.textContaining('Failed to load terms of service'),
+        find.text('The terms of service could not be loaded.'),
         findsOneWidget,
       );
     });

@@ -390,7 +390,7 @@ class DocumentsList extends ConsumerWidget {
         return 'Reading policy';
       case 'pending':
       case 'pending_upload':
-        return 'Waiting to sync';
+        return 'Server upload required';
       case 'failed':
         return 'Needs attention';
       case 'completed':

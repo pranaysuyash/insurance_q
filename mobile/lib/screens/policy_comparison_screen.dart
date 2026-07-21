@@ -5,6 +5,7 @@ import '../providers/policy_providers.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../utils/document_icons.dart';
+import 'documents_screen.dart';
 
 class PolicyComparisonScreen extends ConsumerStatefulWidget {
   const PolicyComparisonScreen({super.key});
@@ -36,8 +37,15 @@ class _PolicyComparisonScreenState
           icon: Icons.balance_outlined,
           title: 'Need at least 2 policies',
           subtitle: summaries.isEmpty
-              ? 'Upload your first document to compare'
-              : 'Upload another document to compare',
+              ? 'Choose your first policy file to start comparing.'
+              : 'Choose another policy file to compare.',
+          actionLabel: 'Choose policy file',
+          actionIcon: Icons.upload_file_rounded,
+          onAction: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const DocumentsScreen(startWithFilePicker: true),
+            ),
+          ),
           color: const Color(0xFF6A4BA8),
         ),
       );

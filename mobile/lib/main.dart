@@ -47,6 +47,8 @@ import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
 import 'services/install_service.dart';
 import 'services/principal_key_service.dart';
+import 'services/hive_workspace_service.dart';
+import 'providers/auth_provider.dart';
 import 'widgets/shared/global_error_boundary.dart';
 import 'theme/coverwise_theme.dart';
 import 'theme/coverwise_motion.dart';
@@ -87,13 +89,26 @@ void main() async {
       final currentUser = Supabase.instance.client.auth.currentUser;
       principalId = currentUser?.id ?? 'anonymous';
     } else if (AppConfig.hasSupabaseAuthConfig) {
-      // For anonymous sessions, use the anonymous user ID from Supabase
-      final anonSession =
-          await Supabase.instance.client.auth.signInAnonymously();
-      principalId = anonSession.user?.id ?? 'anonymous';
+      // For anonymous sessions, use the Supabase anonymous user ID when the
+      // project enables anonymous sign-ins. Some production projects disable
+      // that provider while still supporting email/OAuth accounts; in that
+      // case the account client remains available and local-only encryption is
+      // the safe startup fallback.
+      try {
+        final anonSession =
+            await Supabase.instance.client.auth.signInAnonymously();
+        principalId = anonSession.user?.id ?? 'anonymous';
+      } catch (error) {
+        debugPrint(
+          'Anonymous Supabase auth unavailable; using local principal: $error',
+        );
+        principalId = 'local-only-${InstallService.getInstallId()}';
+      }
     } else {
-      // Fallback: Initialize with a temporary principal ID for local-only use
-      principalId = 'local-only-${DateTime.now().millisecondsSinceEpoch}';
+      // Local-only installs still need a stable principal. A timestamp here
+      // rotates the encryption key on every launch and makes existing Hive
+      // boxes unreadable. The persisted install id is stable until uninstall.
+      principalId = 'local-only-${InstallService.getInstallId()}';
     }
 
     // Initialize PrincipalKeyService with the principal ID
@@ -103,7 +118,7 @@ void main() async {
     await _migrateLegacyHiveBoxes();
 
     // Now open encrypted Hive boxes
-    await _openEncryptedHiveBoxes();
+    await HiveWorkspaceService.openForActivePrincipal();
 
     // Initialize analytics only after its AppState and ledger boxes exist.
     // AnalyticsService.init() synchronously reads the session from AppStateStore;
@@ -135,6 +150,12 @@ void main() async {
 /// Migrates legacy Hive boxes from device-key encryption to principal-scoped DEK encryption
 Future<void> _migrateLegacyHiveBoxes() async {
   try {
+    final principalKeys = PrincipalKeyService();
+    if (!await principalKeys.hasLegacyDeviceKey()) {
+      debugPrint('No legacy Hive key; migration is not required.');
+      return;
+    }
+
     // List of Hive boxes that need migration to principal-scoped encryption
     final boxesToMigrate = [
       LocalStorageService.documentsBoxName,
@@ -149,7 +170,7 @@ Future<void> _migrateLegacyHiveBoxes() async {
 
     for (final boxName in boxesToMigrate) {
       final migrationCompleted =
-          await PrincipalKeyService().migrateBox(boxName: boxName, boxPath: '');
+          await principalKeys.migrateBox(boxName: boxName, boxPath: '');
       if (migrationCompleted) {
         debugPrint('Successfully migrated Hive box: $boxName');
       } else {
@@ -165,62 +186,6 @@ Future<void> _migrateLegacyHiveBoxes() async {
     debugPrint('Error during Hive box migration: $e');
     // Don't throw - allow app to continue with potentially unencrypted boxes
     // Migration will be retried on next startup
-  }
-}
-
-/// Opens Hive boxes with principal-scoped encryption
-Future<void> _openEncryptedHiveBoxes() async {
-  try {
-    // Get the DEK from PrincipalKeyService
-    final dek = PrincipalKeyService().getOrThrow();
-    final encryptionCipher = HiveAesCipher(dek);
-
-    // Open boxes with encryption
-    await Hive.openBox<String>(
-      LocalStorageService.documentsBoxName,
-      encryptionCipher: encryptionCipher,
-    );
-
-    await Hive.openBox(
-      AppStateStore.boxName,
-      encryptionCipher: encryptionCipher,
-    );
-
-    // Open other sensitive boxes with encryption
-    await Hive.openBox<String>(
-      'resolved_gaps',
-      encryptionCipher: encryptionCipher,
-    );
-
-    await Hive.openBox<String>(
-      'analytics_events',
-      encryptionCipher: encryptionCipher,
-    );
-
-    await Hive.openBox<String>(
-      'consent_ledger',
-      encryptionCipher: encryptionCipher,
-    );
-
-    await Hive.openBox<String>(
-      'qa_history',
-      encryptionCipher: encryptionCipher,
-    );
-
-    await Hive.openBox<String>(
-      'field_overrides_box',
-      encryptionCipher: encryptionCipher,
-    );
-
-    await Hive.openBox<String>(
-      'entitlements',
-      encryptionCipher: encryptionCipher,
-    );
-
-    debugPrint('All Hive boxes opened with principal-scoped encryption');
-  } catch (e) {
-    debugPrint('Error opening encrypted Hive boxes: $e');
-    rethrow; // Fail fast if we can't open encrypted boxes
   }
 }
 
@@ -245,21 +210,61 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   final _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
   final _navigatorKey = GlobalKey<NavigatorState>();
+  ProviderSubscription<AsyncValue<AuthState>>? _authSubscription;
+  bool _workspaceTransitionInProgress = false;
 
   @override
   void initState() {
     super.initState();
     _showOnboarding = widget.showOnboarding;
+    _authSubscription = ref.listenManual<AsyncValue<AuthState>>(
+      authStateProvider,
+      (_, next) {
+        final principalId = next.valueOrNull?.session?.user.id;
+        if (principalId != null) {
+          unawaited(_reopenWorkspaceForPrincipal(principalId));
+        }
+      },
+    );
     _initDeepLinks();
   }
 
   @override
   void dispose() {
     _linkSubscription?.cancel();
+    _authSubscription?.close();
     super.dispose();
   }
 
+  Future<void> _reopenWorkspaceForPrincipal(String principalId) async {
+    if (_workspaceTransitionInProgress ||
+        PrincipalKeyService().principalId == principalId) {
+      return;
+    }
+    _workspaceTransitionInProgress = true;
+    try {
+      // Do not carry account A's buffered analytics into account B's session.
+      await AnalyticsService.clear();
+      AnalyticsService.dispose();
+      await HiveWorkspaceService.resetForPrincipal(principalId);
+      AnalyticsService.init();
+    } catch (error, stackTrace) {
+      debugPrint('Workspace principal transition failed: $error');
+      debugPrint('$stackTrace');
+    } finally {
+      _workspaceTransitionInProgress = false;
+    }
+  }
+
   void _initDeepLinks() {
+    _appLinks.getInitialLink().then((uri) {
+      if (!mounted || uri == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _handleDeepLink(uri);
+      });
+    }).catchError((Object error, StackTrace stackTrace) {
+      debugPrint('Initial deep link unavailable: $error');
+    });
     _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
       if (!mounted) return;
       _handleDeepLink(uri);
@@ -269,7 +274,9 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   void _handleDeepLink(Uri uri) {
     final nav = _navigatorKey.currentState;
     if (nav == null) return;
-    final path = uri.path;
+    // Custom-scheme links such as io.coverwise://emergency place the route in
+    // the URI host, while universal links place it in the path.
+    final path = uri.path.isNotEmpty ? uri.path : '/${uri.host}';
 
     switch (path) {
       case '/emergency':
@@ -394,7 +401,9 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
             return const _MissingArgsScreen(
               title: 'Coverage gaps',
               message: 'No document was specified. '
-                  'Open coverage gaps from a policy detail screen.',
+                  'Choose a policy in Documents, then open its coverage details.',
+              recoveryRoute: '/documents',
+              recoveryLabel: 'Choose a policy',
             );
           }
           // Deep links pass citations as URL-encoded JSON arrays of raw maps,
@@ -417,8 +426,16 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/privacy': (context) => const PrivacySecurityScreen(),
         '/about': (context) => const AboutScreen(),
         '/policy-detail': (context) {
-          final documentId =
-              ModalRoute.of(context)?.settings.arguments as String;
+          final args = ModalRoute.of(context)?.settings.arguments;
+          final documentId = args is String ? args : null;
+          if (documentId == null || documentId.isEmpty) {
+            return const _MissingArgsScreen(
+              title: 'Policy details',
+              message: 'No policy was specified. Open a policy from Documents.',
+              recoveryRoute: '/documents',
+              recoveryLabel: 'Open documents',
+            );
+          }
           return PolicyDetailScreen(documentId: documentId);
         },
         '/claim-tracker': (context) => const ClaimTrackingScreen(),
@@ -446,8 +463,15 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
 class _MissingArgsScreen extends StatelessWidget {
   final String title;
   final String message;
+  final String? recoveryRoute;
+  final String recoveryLabel;
 
-  const _MissingArgsScreen({required this.title, required this.message});
+  const _MissingArgsScreen({
+    required this.title,
+    required this.message,
+    this.recoveryRoute,
+    this.recoveryLabel = 'Go back',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -475,8 +499,14 @@ class _MissingArgsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               FilledButton.tonal(
-                onPressed: () => Navigator.of(context).maybePop(),
-                child: const Text('Go back'),
+                onPressed: () {
+                  if (recoveryRoute case final route?) {
+                    Navigator.of(context).pushReplacementNamed(route);
+                  } else {
+                    Navigator.of(context).maybePop();
+                  }
+                },
+                child: Text(recoveryLabel),
               ),
             ],
           ),
@@ -495,12 +525,14 @@ class MainNavigation extends ConsumerStatefulWidget {
 
 class _MainNavigationState extends ConsumerState<MainNavigation> {
   int _selectedIndex = 0;
+  final Set<int> _visitedTabs = {0};
   bool _demoNavigationScheduled = false;
   bool _notificationsScheduled = false;
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      _visitedTabs.add(index);
     });
   }
 
@@ -509,6 +541,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     super.initState();
     if (AppConfig.bootstrapPolicyDemo) {
       _selectedIndex = 1;
+      _visitedTabs.add(1);
       _scheduleDemoNavigation();
     }
   }
@@ -523,7 +556,27 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     }
 
     return Scaffold(
-      body: _buildPage(_selectedIndex),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          const DashboardScreen(),
+          _visitedTabs.contains(1)
+              ? const DocumentsScreen()
+              : const SizedBox.shrink(),
+          _visitedTabs.contains(2)
+              ? QaScreen(
+                  key: const ValueKey('qa-tab'),
+                  isActive: _selectedIndex == 2,
+                )
+              : const SizedBox.shrink(),
+          _visitedTabs.contains(3)
+              ? const FamilyScreen()
+              : const SizedBox.shrink(),
+          _visitedTabs.contains(4)
+              ? const MoreScreen()
+              : const SizedBox.shrink(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
@@ -565,24 +618,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       if (!mounted) return;
       setState(() {
         _selectedIndex = 2;
+        _visitedTabs.add(2);
       });
     });
-  }
-
-  Widget _buildPage(int index) {
-    switch (index) {
-      case 0:
-        return const DashboardScreen();
-      case 1:
-        return const DocumentsScreen();
-      case 2:
-        return QaScreen(isActive: _selectedIndex == 2);
-      case 3:
-        return const FamilyScreen();
-      case 4:
-        return const MoreScreen();
-      default:
-        return const DashboardScreen();
-    }
   }
 }

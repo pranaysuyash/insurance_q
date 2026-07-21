@@ -50,7 +50,8 @@ Widget _harnessEmpty(Widget child, {ThemeMode mode = ThemeMode.light}) {
   return ProviderScope(
     overrides: [
       policySummariesProvider.overrideWith((ref) => _FakeSummariesNotifier()),
-      documentsProvider.overrideWith((ref) async => const <InsuranceDocument>[]),
+      documentsProvider
+          .overrideWith((ref) async => const <InsuranceDocument>[]),
     ],
     child: MaterialApp(
       theme: ThemeData.light(useMaterial3: true),
@@ -84,7 +85,8 @@ void main() {
     expect(find.text('Claim guide'), findsOneWidget);
     expect(find.text('What happened?'), findsOneWidget);
     expect(
-      find.textContaining('Choose an incident'), findsOneWidget,
+      find.textContaining('Choose an incident'),
+      findsOneWidget,
     );
   });
 
@@ -92,9 +94,7 @@ void main() {
     await tester.pumpWidget(_harnessEmpty(const ClaimsAssistantScreen()));
     await tester.pumpAndSettle();
     expect(find.text('No documents uploaded'), findsOneWidget);
-    expect(
-      find.textContaining('Upload insurance documents'), findsOneWidget,
-    );
+    expect(find.text('Choose policy file'), findsOneWidget);
   });
 
   testWidgets('shows all incident types', (tester) async {
@@ -128,7 +128,8 @@ void main() {
     expect(find.text('View preparation guide'), findsOneWidget);
   });
 
-  testWidgets('renders correctly in dark mode (no hardcoded colors)', (tester) async {
+  testWidgets('renders correctly in dark mode (no hardcoded colors)',
+      (tester) async {
     await tester.pumpWidget(
       _harnessWithData(
         const ClaimsAssistantScreen(),

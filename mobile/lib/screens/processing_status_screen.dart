@@ -123,7 +123,9 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _dio.close();
+    // DocumentService.authenticatedDio is a process-wide shared client. This
+    // screen must not close it while other screens or providers may still be
+    // using the same interceptor/client instance.
     super.dispose();
   }
 

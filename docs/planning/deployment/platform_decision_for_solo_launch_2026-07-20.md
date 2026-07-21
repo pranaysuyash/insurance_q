@@ -154,7 +154,11 @@ not wrong — it's premature for a solo launch.
 
 ## Monetization (separate document)
 
-Monetization is tracked in `docs/planning/product/monetization_strategy_2026-07-20.md`.
+The latest monetization exploration is tracked in
+`docs/planning/product/monetization_research_and_decision_2026-07-21.md`.
+The earlier `monetization_strategy_2026-07-20.md` remains historical context;
+the newer document is still decision pending and does not authorize
+implementation.
 
 The core question: ads vs subscriptions vs one-time unlock vs freemium.
 For an Indian B2C insurance companion app, the options and their tradeoffs

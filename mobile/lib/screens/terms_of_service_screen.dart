@@ -4,6 +4,7 @@ import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/legal_content_section.dart';
 import '../services/legal_content_loader.dart';
+import '../widgets/shared/error_widget.dart';
 
 /// In-app terms of service viewer.
 ///
@@ -45,7 +46,8 @@ class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
               Clipboard.setData(ClipboardData(text: doc.toPlainText()));
               // ignore: use_build_context_synchronously — guarded by mounted check above
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Terms of service copied to clipboard')),
+                const SnackBar(
+                    content: Text('Terms of service copied to clipboard')),
               );
             },
           ),
@@ -59,15 +61,14 @@ class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text('Failed to load terms of service: ${snapshot.error}'),
-                ],
-              ),
+            return AppErrorView(
+              message: 'The terms of service could not be loaded.',
+              icon: Icons.gavel_outlined,
+              onRetry: () => setState(() {
+                _future = LegalContentLoader.loadTermsOfService(
+                  bundle: DefaultAssetBundle.of(context),
+                );
+              }),
             );
           }
 
@@ -100,7 +101,8 @@ class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
                                 children: [
                                   Text(
                                     doc.title,
-                                    style: theme.textTheme.titleMedium?.copyWith(
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
@@ -136,5 +138,4 @@ class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
       ),
     );
   }
-
 }

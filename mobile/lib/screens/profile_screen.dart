@@ -4,10 +4,10 @@ import 'package:hive/hive.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
-import '../services/principal_key_service.dart';
 import '../services/analytics_service.dart';
 import '../services/contact_service.dart';
-import '../services/local_storage_service.dart';
+import '../services/install_service.dart';
+import '../services/hive_workspace_service.dart';
 import '../models/document_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/document_providers.dart';
@@ -88,13 +88,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.initState();
   }
 
-  void _signOut() async {
-    await AuthService.signOut();
-    // Clear the principal encryption key from memory (per audit Phase 1 P0-01)
-    PrincipalKeyService().clearKey();
-    
-    // Clear all Hive boxes for workspace isolation (per audit Phase 1 P0-01)
-    await _clearWorkspaceData();
+  Future<void> _signOut() async {
+    try {
+      await AuthService.signOut();
+    } finally {
+      // Clear services before the workspace is closed and reopened with a new
+      // principal key. This also runs if the remote sign-out reports an error.
+      await _clearWorkspaceData();
+    }
     
     // No need for setState — authStateProvider will trigger rebuild.
   }
@@ -103,29 +104,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// This ensures workspace isolation when switching accounts.
   Future<void> _clearWorkspaceData() async {
     try {
-      // Close and delete all sensitive Hive boxes
-      final boxes = [
-        LocalStorageService.documentsBoxName,
-        AppStateStore.boxName,
-        'resolved_gaps',
-        'analytics_events',
-        'consent_ledger',
-        'qa_history',
-        'field_overrides_box',
-        'entitlements',
-      ];
-      
-      for (final boxName in boxes) {
-        final box = Hive.box(boxName);
-        await box.clear();
-        await box.close();
-      }
-      
-      // Clear analytics events buffer (stored in app_state_box)
-      AnalyticsService.clear();
-      
-      // Clear saved contact info
+      // Clear service-owned state while all boxes are still open.
+      await AnalyticsService.clear();
       await ContactService.clearSavedContact();
+      AnalyticsService.dispose();
+
+      // Delete the cleared files and reopen an empty workspace with a
+      // principal that is not the signed-out account. The auth listener in
+      // InsuranceApp will replace this with the account key after sign-in.
+      await HiveWorkspaceService.resetForPrincipal(
+        'local-only-${InstallService.getInstallId()}',
+      );
+      AnalyticsService.init();
       
       debugPrint('Workspace data cleared on sign-out');
     } catch (e) {
@@ -239,7 +229,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         snackMessage =
             'Account deletion is partially complete. '
             'Failed stages: ${result.failedStages.join(", ")}. '
-            'A durable deletion job will retry these. '
+            'Do not assume server deletion is complete. '
             'Local data on this device was not affected and can be '
             'cleared from the privacy screen.';
       } else {

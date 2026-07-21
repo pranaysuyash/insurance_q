@@ -189,7 +189,7 @@ def test_enqueue_respects_not_before():
 
 def test_claim_returns_none_when_no_pending_jobs():
     svc = _service_with_mocked_client()
-    svc._client.table.return_value.select.return_value.eq.return_value.lte.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+    svc._client.rpc.return_value.execute.return_value.data = []
     import asyncio
     result = asyncio.run(svc.claim())
     assert result is None
@@ -211,9 +211,7 @@ def test_claim_returns_job_when_pending_exists():
         "created_at": "2026-07-19T10:00:00+00:00",
         "updated_at": "2026-07-19T10:00:00+00:00",
     }
-    svc._client.table.return_value.select.return_value.eq.return_value.lte.return_value.order.return_value.limit.return_value.execute.return_value.data = [candidate_row]
-    # The atomic UPDATE returns the claimed row
-    svc._client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+    svc._client.rpc.return_value.execute.return_value.data = [
         {**candidate_row, "status": "running", "attempts": 1}
     ]
     import asyncio

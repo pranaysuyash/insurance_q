@@ -75,6 +75,7 @@ Widget buildUpgradeScreen({
   Entitlement? entitlement,
   AsyncValue<void>? billingState,
   FakeBillingAdapter? billingAdapter,
+  String? entryMessage,
 }) {
   final fakeService = FakeEntitlementService(
     entitlement ?? const Entitlement(),
@@ -95,7 +96,7 @@ Widget buildUpgradeScreen({
         return;
       }),
     ],
-    child: const MaterialApp(home: UpgradeScreen()),
+    child: MaterialApp(home: UpgradeScreen(entryMessage: entryMessage)),
   );
 }
 
@@ -144,6 +145,22 @@ void main() {
       expect(find.text('Choose your plan'), findsOneWidget);
       expect(find.text('Current plan: Free'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('shows limit context without duplicating plan pricing',
+        (tester) async {
+      await tester.pumpWidget(buildUpgradeScreen(
+        entryMessage: 'You have reached the policy limit for your plan.',
+      ));
+      await _pumpAndResolve(tester);
+
+      expect(find.text('Plan limit reached'), findsOneWidget);
+      expect(
+        find.text('You have reached the policy limit for your plan.'),
+        findsOneWidget,
+      );
+      expect(find.text('Notify Me When Available'), findsNothing);
+      expect(find.textContaining('Launch offer'), findsNothing);
     });
 
     testWidgets('shows Annual/Monthly toggle when billing is ready',

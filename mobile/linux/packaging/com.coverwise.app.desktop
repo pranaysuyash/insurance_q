@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=CoverWise
+Comment=Understand and organize insurance policy documents
+Exec=coverwise
+Icon=com.coverwise.app
+Terminal=false
+Type=Application
+Categories=Office;Utility;
+StartupWMClass=com.coverwise.app

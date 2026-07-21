@@ -22,6 +22,22 @@ class SupabaseVectorStore:
     def _vector_literal(values: List[float]) -> str:
         return "[" + ",".join(str(float(value)) for value in values) + "]"
 
+    @staticmethod
+    def _embedding_contract(embedding: List[float], block: Dict[str, Any]) -> Dict[str, Any]:
+        model = str(block.get("embedding_model") or "").strip()
+        version = str(block.get("embedding_version") or "v1").strip()
+        if not model:
+            raise ValueError("Supabase chunks require embedding_model")
+        if len(embedding) != 1536:
+            raise ValueError(
+                f"Supabase retrieval requires 1536-dimensional embeddings; got {len(embedding)}"
+            )
+        return {
+            "embedding_model": model,
+            "embedding_dimensions": len(embedding),
+            "embedding_version": version,
+        }
+
     async def upsert(
         self,
         document_id: str,
@@ -31,12 +47,15 @@ class SupabaseVectorStore:
     ) -> int:
         rows = []
         for index, (block, embedding) in enumerate(zip(blocks, embeddings)):
+            contract = self._embedding_contract(embedding, block)
             metadata = {
                 key: block.get(key)
-                for key in ("page", "section", "source", "filename", "bbox", "embedding_model", "parent_chunk_id")
+                for key in ("page", "section", "source", "filename", "bbox", "page_artifact_id", "parent_chunk_id")
                 if block.get(key) is not None
             }
-            content_text = block.get("retrieval_text", block.get("text", ""))
+            source_text = block.get("source_text", block.get("text", ""))
+            retrieval_text = block.get("retrieval_text", source_text)
+            content_text = retrieval_text
             metadata["text_content"] = content_text
             rows.append(
                 {
@@ -44,10 +63,13 @@ class SupabaseVectorStore:
                     "owner_id": owner_id or "",
                     "chunk_index": index,
                     "content": content_text,
+                    "source_text": source_text,
+                    "retrieval_text": retrieval_text,
                     "metadata": metadata,
                     "section_type": block.get("section_type", "general"),
                     "chunk_type": block.get("chunk_type", "paragraph"),
                     "embedding": self._vector_literal(embedding),
+                    **contract,
                 }
             )
         if rows:
@@ -69,16 +91,17 @@ class SupabaseVectorStore:
             "match_owner_id": filters["owner_id"],
             "match_count": min(max(limit, 1), 50),
             "match_threshold": 0.20,
+            "match_document_ids": filters.get("document_ids") or None,
+            "match_embedding_model": filters.get("embedding_model", "text-embedding-3-small"),
+            "match_embedding_version": filters.get("embedding_version", "v1"),
         }
         response = self._client.rpc("match_document_chunks", params).execute()
-        allowed_ids = set(filters.get("document_ids", []))
         hits = []
         for row in response.data or []:
-            if allowed_ids and row.get("document_id") not in allowed_ids:
-                continue
             metadata = dict(row.get("metadata") or {})
             metadata["document_id"] = row.get("document_id")
             metadata["text_content"] = row.get("content", "")
+            metadata["source_text"] = row.get("content", "")
             hits.append(
                 SimpleNamespace(
                     id=str(row.get("id")),
@@ -100,6 +123,7 @@ class SupabaseVectorStore:
             "query_text": query_text,
             "match_owner_id": filters["owner_id"],
             "match_count": min(max(limit, 1), 50),
+            "match_document_ids": filters.get("document_ids") or None,
         }
         response = self._client.rpc("match_document_chunks_fts", params).execute()
         allowed_ids = set(filters.get("document_ids", []))
@@ -110,6 +134,7 @@ class SupabaseVectorStore:
             metadata = dict(row.get("metadata") or {})
             metadata["document_id"] = row.get("document_id")
             metadata["text_content"] = row.get("content", "")
+            metadata["source_text"] = row.get("content", "")
             hits.append(
                 SimpleNamespace(
                     id=str(row.get("id")),

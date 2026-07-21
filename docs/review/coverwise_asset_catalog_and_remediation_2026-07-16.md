@@ -118,10 +118,12 @@ scene, so decorative raster weight is not mistaken for product polish.
 
 ## Platform status
 
-- iOS: colored launcher and native splash regenerated; runtime verification
-  required after the correction.
+- iOS: colored launcher and native splash regenerated and observed on an
+  iPhone 17 Pro simulator after a clean install.
 - Android: colored legacy/adaptive icons, native splash and monochrome themed
-  icon generated; runtime remains unavailable without Android SDK/ADB.
+  icon generated. The standard adaptive launcher icon and app launch were
+  observed on an API 35 emulator; the themed-icon treatment and Android 12
+  cold-start splash still require a clean system-level observation.
 - Web: branded icons/splash plus CoverWise title, description and install colors.
 - macOS/Windows: branded launcher resources generated. Their binary/project
   names remain legacy internal identifiers; visible Windows title/product label
@@ -201,3 +203,128 @@ Evidence:
 - `mobile/test/dashboard_empty_state_test.dart` prevents the redundant empty
   header/hub/health stack from returning and asserts that the primary action is
   present within the standard viewport.
+
+## Addendum — full-surface asset and interaction pass, 2026-07-21
+
+This pass re-audited all mobile screens, shared visual components, launch
+catalogs, desktop identity resources and the real iPhone 17 Pro runtime. The
+governing rule is now explicit: if an empty state exists to start a task, its
+primary action is part of the state and must remain visible/reachable at the
+default viewport and with larger text. Decorative art supports that action; it
+never pushes it below navigation or replaces it.
+
+### Asset and platform corrections
+
+- The canonical launcher source and web maskable icon are full-bleed. iOS no
+  longer acquires white corners during alpha removal.
+- Android adaptive assets use separate background, foreground and monochrome
+  contracts. The monochrome file is an alpha-mask glyph with separate shield
+  outline and check, rather than a black/white illustration whose opaque
+  regions collapse when Android applies the system theme color.
+- macOS uses a padded desktop-specific icon; Windows now carries a 256 px ICO.
+- Linux uses the CoverWise binary/application identity and includes a desktop
+  entry and icon. macOS test bundle identifiers no longer use the template
+  `com.example.mobile` value.
+- Web install metadata uses the canonical `#145BC7` theme and exposes Apple
+  standalone capability metadata.
+- `asset_integrity_test.dart` now checks full-bleed corners, monochrome alpha
+  topology, platform color variation, desktop identity and Windows icon size.
+
+### Screen and component corrections
+
+- Claims guide, Emergency, Insurance Cards, Compare, Renewals, What-if and
+  Search prerequisite states now expose the same `Choose policy file` action
+  and open the canonical `DocumentsScreen(startWithFilePicker: true)` flow.
+- Search policy-type art now uses the canonical type color; expiry remains a
+  separate status signal. Search metrics wrap instead of overflowing.
+- Claim guidance sheets scroll within a 90% safe-height surface. Insurance
+  cards use the canonical text-plus-icon status chip.
+- Family editing widths, action controls and metadata adapt to narrow/large-text
+  layouts. What-if values and renewal status layouts now wrap or reflow.
+- Legal-content errors use the canonical recoverable error component and do not
+  expose raw exceptions.
+- Onboarding `Skip intro` leads to the consent page rather than bypassing legal
+  acceptance. At text scales above 1.5 it becomes an accessible icon control
+  with the same tooltip, eliminating compact-screen overflow.
+- The stale local paywall is now a compatibility entry into the canonical
+  RevenueCat-backed upgrade screen, with limit context but no duplicate prices,
+  scarcity offer or feature claims.
+- Bottom navigation preserves visited-tab state while mounting tabs lazily, so
+  in-progress UI survives tab changes without starting hidden network work.
+- Custom-scheme deep links normalize host-based routes, cold-start links are
+  handled, and missing policy arguments render a recovery path instead of a
+  cast failure.
+
+### Motion and micro-interaction decision
+
+Research was checked against current primary platform guidance:
+
+- [Apple HIG Motion](https://developer.apple.com/design/human-interface-guidelines/motion)
+  says motion should be purposeful, brief, optional, cancellable and not added
+  to frequent interactions when standard controls already provide feedback.
+- [Apple accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility/)
+  recommends reducing automatic/repetitive motion and replacing spatial or
+  depth transitions with fades when Reduce Motion is enabled.
+- [Apple Reduced Motion evaluation criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/reduced-motion-evaluation-criteria/)
+  explicitly calls out scaling, spinning, parallax and ongoing motion, while
+  allowing meaning-preserving fades, highlights and color shifts.
+- [Android mobile accessibility guidance](https://developer.android.com/design/ui/mobile/guides/foundations/accessibility)
+  treats accessibility as a design foundation rather than a post-build check.
+
+CoverWise therefore keeps its existing short state/onboarding transitions and
+standard Material control feedback, routes custom durations through
+`CoverWiseMotion`, resolves them to zero under system Reduce Motion, and avoids
+looping decorative animation, parallax, bounce-heavy springs and animation-only
+status. The full-page CTA is a stable task surface; it does not auto-advance or
+move while the user is reading it.
+
+### Runtime and verification evidence
+
+- `flutter analyze`: clean.
+- Full Flutter suite: passed after the integration corrections.
+- iOS simulator debug build: passed; `Runner.app` built for
+  `com.coverwise.app`.
+- Web release build with `--no-tree-shake-icons`: passed.
+- iPhone 17 Pro clean install reached the complete onboarding surface; the
+  launcher/native splash and full onboarding art were visually inspected.
+- Android API 35 built, installed and launched the app. The branded adaptive
+  launcher icon was visually inspected in the launcher. The first app launch
+  reached onboarding behind an emulator `System UI isn't responding` dialog;
+  because that dialog belongs to the emulator system process, this is app
+  launch evidence but not a clean Android onboarding or splash acceptance.
+- A second simulator launch retained the same local encryption principal. The
+  root cause of the earlier native-splash stall was a timestamp-based local
+  principal that rotated the Hive encryption key on every launch; local-only
+  mode now uses the persisted install id. Startup also performs one legacy-key
+  check instead of per-box secure-store migration checks on fresh installs.
+- Evidence is stored under
+  `docs/review/evidence/asset-revamp-2026-07-21/`.
+
+Android's standard adaptive launcher icon has Tier 4 evidence on API 35, and
+the app build/install/launch path has Tier 3/4 evidence. The themed-icon tint,
+Android 12 cold-start splash mask and system Reduce Motion response remain Tier
+1/2: their source/configuration and integrity tests are verified, but they were
+not cleanly observed in the emulator. Linux and Windows packaging are also
+statically verified rather than built on their native hosts.
+
+### Three-pass review
+
+1. **Immediate correctness and completeness:** rechecked all screen entry
+   states and repaired the missing actions, clipped/overflow-prone layouts,
+   duplicate paywall and unsafe legal/onboarding behavior. Focused and full
+   tests exposed and closed stale-copy and shared-header integration failures.
+2. **Architecture and long-term viability:** kept one policy picker path, one
+   paywall, one policy-type map, one status/metadata/error vocabulary and one
+   motion-token system. No parallel asset or routing source was introduced.
+3. **Rule compliance and supervision readiness:** regenerated platform assets,
+   visually inspected representative outputs and iOS runtime, recorded evidence
+   tiers and preserved unrelated working-tree changes without staging,
+   committing or deleting them.
+
+### Anything else?
+
+Yes. A clean Android emulator/device pass with themed icons enabled is still
+required before claiming the themed icon, Android 12 splash mask and system
+Reduce Motion behavior at Tier 4. A release-configured iOS cold-start trace should also be
+captured before making a startup-time performance claim; the current proof is a
+debug simulator runtime and establishes correctness, not production latency.

@@ -35,18 +35,22 @@ class EmptyStateWidget extends StatelessWidget {
         // less room than the illustration and copy require.
         final minHeight =
             constraints.hasBoundedHeight ? constraints.maxHeight : 0.0;
+        final compactLayout =
+            constraints.hasBoundedHeight && constraints.maxHeight < 280;
+        final sceneHeight = compactLayout ? 96.0 : 176.0;
+        final contentPadding = compactLayout ? 8.0 : 24.0;
 
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: minHeight),
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(contentPadding),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (scene != null)
-                      CoverWiseScene(scene: scene!, maxHeight: 176)
+                      CoverWiseScene(scene: scene!, maxHeight: sceneHeight)
                     else
                       _EmptyStateVisual(
                         icon: icon,

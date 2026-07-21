@@ -1,4 +1,5 @@
 import 'package:coverwise/models/policy_summary.dart';
+import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/providers/policy_providers.dart';
 import 'package:coverwise/screens/policy_detail_screen.dart';
@@ -72,6 +73,7 @@ void main() {
   Widget buildPolicyDetail({
     required String documentId,
     List<PolicySummary>? summaries,
+    List<InsuranceDocument>? documents,
   }) {
     return ProviderScope(
       overrides: [
@@ -80,7 +82,7 @@ void main() {
             summaries ?? [_fullSummary()],
           ),
         ),
-        documentsProvider.overrideWith((ref) async => []),
+        documentsProvider.overrideWith((ref) async => documents ?? []),
       ],
       child: MaterialApp(
         home: PolicyDetailScreen(documentId: documentId),
@@ -89,6 +91,36 @@ void main() {
   }
 
   group('PolicyDetailScreen — populated state', () {
+    testWidgets('resolves a local ID to the server summary ID', (tester) async {
+      final summary = PolicySummary(
+        documentId: 'remote-policy-1',
+        documentType: 'Health Insurance',
+        insurer: 'ICICI Lombard',
+        policyNumber: 'POL-REMOTE-1',
+        coverageAmount: 500000,
+        startDate: DateTime(2026, 1, 1),
+        endDate: DateTime(2027, 1, 1),
+        extractedAt: DateTime(2026, 7, 10),
+      );
+      final document = InsuranceDocument(
+        id: 'local-policy-1',
+        remoteId: 'remote-policy-1',
+        filename: 'policy.pdf',
+        uploadedOn: DateTime(2026, 7, 10),
+      );
+
+      await tester.pumpWidget(buildPolicyDetail(
+        documentId: document.id,
+        summaries: [summary],
+        documents: [document],
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('POL-REMOTE-1'), findsOneWidget);
+      expect(find.text('ICICI Lombard'), findsOneWidget);
+      expect(find.text('Policy summary not available'), findsNothing);
+    });
+
     testWidgets('renders without crash', (tester) async {
       await tester.pumpWidget(buildPolicyDetail(documentId: 'doc-1'));
       await tester.pumpAndSettle();

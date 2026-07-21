@@ -21,8 +21,9 @@ are not the launch architecture.
 
 ## Canonical production contract
 
-Apply [the canonical Supabase schema](/Users/pranay/Projects/medpiper/insurance_app/infra/supabase/001_coverwise_schema.sql) and the
-[processing-lease upgrade](/Users/pranay/Projects/medpiper/insurance_app/infra/supabase/002_document_processing_leases.sql) before deploying the single
+Apply the canonical Supabase CLI migration chain under
+`supabase/migrations/` (base schema, processing leases, and subsequent
+document-storage extensions) before deploying the single
 Cloud Run application service. Configure:
 
 ```text

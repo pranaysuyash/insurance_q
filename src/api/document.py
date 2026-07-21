@@ -444,7 +444,7 @@ async def get_document_processing_status(
     # Get processing status from service
     processing_status = None
     if processing_service:
-        processing_status = processing_service.get_processing_status(document_id)
+        processing_status = processing_service.get_processing_status(document_id, current_user.uid)
     
     response = {
         "document_id": document_id,

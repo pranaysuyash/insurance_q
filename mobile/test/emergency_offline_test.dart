@@ -59,8 +59,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No policies loaded'), findsOneWidget);
-      expect(find.text('Upload insurance documents to access emergency information'),
-          findsOneWidget);
+      expect(
+        find.text('Choose a policy file to keep emergency information ready.'),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.emergency), findsOneWidget);
     });
 

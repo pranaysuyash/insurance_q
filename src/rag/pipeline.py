@@ -76,6 +76,7 @@ class RAGPipeline:
         self.openai_embedding_dimensions = EMBEDDING_DIMENSIONS.get(
             self.openai_embedding_model, 1536
         )
+        self.embedding_version = os.getenv("RAG_EMBEDDING_VERSION", "v1").strip() or "v1"
         self.embedding_dimensions = self.openai_embedding_dimensions
         self.active_embedding_model = self.openai_embedding_model
 
@@ -195,7 +196,11 @@ class RAGPipeline:
             "collection": getattr(self, "collection_name", ""),
             "chat_model": getattr(self, "openai_chat_model", ""),
             "embedding_model": getattr(self, "active_embedding_model", ""),
-            "retrieval_strategy": "dense_plus_local_fts",
+            "retrieval_strategy": (
+                "supabase_hybrid_fts_pgvector"
+                if getattr(self, "vector_backend", "qdrant") == "supabase"
+                else "dense_plus_local_fts"
+            ),
             "version": self._get_query_cache_version(),
         }
         return "rag:query:" + json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -391,9 +396,18 @@ class RAGPipeline:
     ) -> List[List[float]]:
         # 1. Try OpenAI
         try:
-            return await self._generate_openai_embeddings(texts, max_retries)
+            embeddings = await self._generate_openai_embeddings(texts, max_retries)
+            return self._validate_embedding_contract(embeddings, self.openai_embedding_model)
         except Exception as e:
             logger.warning("OpenAI embedding failed: %s", e)
+
+        # Supabase has one durable embedding space. Falling back to a model
+        # with another dimension would either fail at the database boundary or
+        # silently create an unsearchable corpus, so production fails closed.
+        if getattr(self, "vector_backend", "qdrant") == "supabase":
+            raise RuntimeError(
+                "The canonical Supabase embedding provider failed; refusing to mix embedding spaces"
+            )
 
         # 2. Try Ollama (local, OpenAI-compatible)
         if self.ollama_embed_client:
@@ -405,7 +419,9 @@ class RAGPipeline:
                     self.collection_name = f"{settings.qdrant_collection}_{self.embedding_dimensions}d"
                     logger.warning("Collection dimension mismatch. Creating versioned collection %s to prevent data destruction.", self.collection_name)
                     self._ensure_collection_exists()
-                return await self._generate_ollama_embeddings(texts)
+                return self._validate_embedding_contract(
+                    await self._generate_ollama_embeddings(texts), self.ollama_embedding_model
+                )
             except Exception as e2:
                 logger.warning("Ollama embedding failed: %s", e2)
 
@@ -420,7 +436,30 @@ class RAGPipeline:
             self.collection_name = f"{settings.qdrant_collection}_{self.embedding_dimensions}d"
             logger.warning("Collection dimension mismatch. Creating versioned collection %s to prevent data destruction.", self.collection_name)
             self._ensure_collection_exists()
-        return await self._generate_hf_embeddings(texts)
+        return self._validate_embedding_contract(
+            await self._generate_hf_embeddings(texts), self.hf_embedding_model
+        )
+
+    def _validate_embedding_contract(
+        self, embeddings: List[List[float]], model: str
+    ) -> List[List[float]]:
+        expected = self.embedding_dimensions if model == self.active_embedding_model else (
+            EMBEDDING_DIMENSIONS.get(model)
+            or HF_EMBEDDING_DIMENSIONS.get(model)
+            or OLLAMA_EMBEDDING_DIMENSIONS.get(model)
+        )
+        if not embeddings or any(len(vector) != len(embeddings[0]) for vector in embeddings):
+            raise RuntimeError("Embedding provider returned inconsistent vector dimensions")
+        actual = len(embeddings[0])
+        if expected and actual != expected:
+            raise RuntimeError(
+                f"Embedding model {model} returned {actual} dimensions; expected {expected}"
+            )
+        if getattr(self, "vector_backend", "qdrant") == "supabase" and actual != 1536:
+            raise RuntimeError(
+                f"Canonical Supabase retrieval requires 1536 dimensions; provider returned {actual}"
+            )
+        return embeddings
 
     # ------------------------------------------------------------------
     #  Ingestion with Contextual Retrieval
@@ -521,9 +560,21 @@ class RAGPipeline:
             return {"status": "error", "error": f"Embedding failed: {e}"}
 
         if getattr(self, "vector_backend", "qdrant") == "supabase":
+            supabase_blocks = [
+                {
+                    **block,
+                    "source_text": block.get("source_text", block.get("text", "")),
+                    "retrieval_text": block.get(
+                        "retrieval_text", block.get("source_text", block.get("text", ""))
+                    ),
+                    "embedding_model": self.active_embedding_model,
+                    "embedding_version": self.embedding_version,
+                }
+                for block in text_blocks
+            ]
             points_added = await self.vector_store.upsert(
                 document_id,
-                text_blocks,
+                supabase_blocks,
                 embeddings,
                 owner_id=(document_metadata or {}).get("owner_id"),
             )
@@ -1110,7 +1161,11 @@ class RAGPipeline:
                 "citations": [citation.model_dump() for citation in answer_payload.citations],
                 "missing_information": answer_payload.missing_information,
                 "follow_up_questions": answer_payload.follow_up_questions,
-                "retrieval_strategy": "dense_plus_local_fts",
+                "retrieval_strategy": (
+                    "supabase_hybrid_fts_pgvector"
+                    if getattr(self, "vector_backend", "qdrant") == "supabase"
+                    else "dense_plus_local_fts"
+                ),
             },
         }
         self._store_cached_query_result(cache_key, response)
@@ -1440,6 +1495,9 @@ class RAGPipeline:
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[Any]:
         try:
+            filters = dict(filters or {})
+            filters.setdefault("embedding_model", self.openai_embedding_model)
+            filters.setdefault("embedding_version", self.embedding_version)
             return await self.vector_store.search_fts(
                 query_text=user_query,
                 limit=limit,

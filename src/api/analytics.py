@@ -36,7 +36,35 @@ DB_PATH = "insurance_app.db"
 
 # Feature flag: when true, ingest also writes to Supabase Postgres.
 # Set to false during initial rollout if Supabase project is not yet provisioned.
-DUAL_WRITE_ANALYTICS = os.environ.get("DUAL_WRITE_ANALYTICS", "false").lower() == "true"
+DUAL_WRITE_ANALYTICS = os.environ.get(
+    "DUAL_WRITE_ANALYTICS",
+    "true" if os.environ.get("ENVIRONMENT", "development").lower() == "production" else "false",
+).lower() == "true"
+
+
+def _production_analytics_client():
+    """Return the canonical analytics client or fail closed in production."""
+    if os.environ.get("ENVIRONMENT", "development").lower() != "production":
+        return None
+    client = _get_supabase_client()
+    if client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Canonical analytics storage is unavailable; retry the event batch.",
+        )
+    return client
+
+
+def _supabase_event_rows(client, days: int) -> list[dict[str, Any]]:
+    cutoff = (datetime.now(timezone.utc).timestamp() - max(days, 1) * 86400)
+    response = (
+        client.table("analytics_events")
+        .select("event_name,timestamp,user_uid,properties,received_at")
+        .gte("received_at", datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat())
+        .limit(10000)
+        .execute()
+    )
+    return list(response.data or [])
 
 # Cached Supabase client (lazy-init, reused across requests).
 _supabase_client = None
@@ -197,6 +225,32 @@ async def ingest_events(
     The server-authoritative user_uid overrides any client-claimed uid,
     per the existing convention in this endpoint.
     """
+    canonical_client = _production_analytics_client()
+
+    if canonical_client is not None:
+        server_now = datetime.now(timezone.utc).isoformat()
+        rows = [{
+            "event_name": event.event,
+            "timestamp": event.ts,
+            "user_uid": current_user.uid,
+            "properties": event.props or None,
+            "received_at": server_now,
+            "install_id": event.install_id,
+            "session_id": event.session_id,
+            "is_reinstall": bool(event.is_reinstall),
+        } for event in batch.events]
+        try:
+            inserted = _insert_supabase_batch(canonical_client, rows)
+        except Exception as error:
+            raise HTTPException(status_code=503, detail="Analytics storage unavailable; retry the event batch.") from error
+        return {
+            "status": "accepted",
+            "ingested": inserted,
+            "supabase_ingested": inserted,
+            "dual_write": False,
+            "canonical": "supabase",
+        }
+
     _init_analytics_table()
 
     # Build a single row schema used by both SQLite and Supabase paths.
@@ -336,6 +390,23 @@ async def get_analytics_summary(
     1. Event counts by name (also used to derive total events via sum)
     2. Unique user count (COUNT DISTINCT can't be combined with GROUP BY)
     """
+    canonical_client = _production_analytics_client()
+    if canonical_client is not None:
+        rows = _supabase_event_rows(canonical_client, days)
+        events_by_name: Dict[str, int] = {}
+        unique_users: set[str] = set()
+        for row in rows:
+            events_by_name[row["event_name"]] = events_by_name.get(row["event_name"], 0) + 1
+            unique_users.add(row["user_uid"])
+        return {
+            "status": "success",
+            "days": days,
+            "total_events": sum(events_by_name.values()),
+            "unique_users": len(unique_users),
+            "events_by_name": events_by_name,
+            "canonical": "supabase",
+        }
+
     _init_analytics_table()
 
     conn = sqlite3.connect(DB_PATH)
@@ -393,6 +464,21 @@ async def get_analytics_health(
     - row_count: total rows in analytics_events
     - recent_events_24h: events received in the last 24 hours
     """
+    canonical_client = _production_analytics_client()
+    if canonical_client is not None:
+        try:
+            response = canonical_client.table("analytics_events").select("id", count="exact").limit(1).execute()
+            return {
+                "status": "success",
+                "table_exists": True,
+                "indexes": [],
+                "row_count": int(response.count or 0),
+                "recent_events_24h": len(_supabase_event_rows(canonical_client, 1)),
+                "canonical": "supabase",
+            }
+        except Exception as error:
+            raise HTTPException(status_code=503, detail="Canonical analytics health unavailable") from error
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
@@ -456,6 +542,36 @@ async def get_error_aggregation(
     - Recovery rate (global_error_recovered / global_error)
     - Top error messages (truncated, no PII)
     """
+    canonical_client = _production_analytics_client()
+    if canonical_client is not None:
+        rows = _supabase_event_rows(canonical_client, days)
+        errors = [r for r in rows if r.get("event_name") == "global_error"]
+        recoveries = [r for r in rows if r.get("event_name") == "global_error_recovered"]
+        error_types: Dict[str, int] = {}
+        libraries: Dict[str, int] = {}
+        messages: Dict[str, int] = {}
+        for row in errors:
+            props = row.get("properties") or {}
+            error_type = str(props.get("error_type") or "unknown")
+            library = str(props.get("library") or "unknown")
+            message = str(props.get("error_message") or "unknown")[:200]
+            error_types[error_type] = error_types.get(error_type, 0) + 1
+            libraries[library] = libraries.get(library, 0) + 1
+            messages[message] = messages.get(message, 0) + 1
+        total_errors = len(errors)
+        return {
+            "status": "success",
+            "days": days,
+            "total_errors": total_errors,
+            "total_recoveries": len(recoveries),
+            "recovery_rate_percent": round(len(recoveries) / total_errors * 100, 1) if total_errors else None,
+            "error_types": error_types,
+            "error_libraries": libraries,
+            "top_error_messages": sorted(messages.items(), key=lambda item: item[1], reverse=True)[:10],
+            "trend": {"hourly": [], "daily": []},
+            "canonical": "supabase",
+        }
+
     _init_analytics_table()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row

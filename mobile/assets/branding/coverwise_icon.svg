@@ -10,7 +10,10 @@
       <stop offset="1" stop-color="#2F80ED"/>
     </linearGradient>
   </defs>
-  <rect width="1024" height="1024" rx="225" fill="url(#bg)"/>
+  <!-- Platform launchers apply their own mask. Keep the source full-bleed so
+       iOS never fills transparent corners white and web maskable icons retain
+       safe background coverage at every crop shape. -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
   <circle cx="512" cy="500" r="326" fill="#FFFFFF" opacity="0.055"/>
   <path d="M512 184 C632 242 724 260 794 286 L794 494 C794 674 680 802 512 864 C344 802 230 674 230 494 L230 286 C300 260 392 242 512 184 Z"
         fill="url(#shield)"/>

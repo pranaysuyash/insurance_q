@@ -65,6 +65,22 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     }
   }
 
+  /// Backend-facing identity for this screen.
+  ///
+  /// Library/dashboard entry points may pass the local Hive ID, while
+  /// summaries, evidence, processing status, and source APIs use the server
+  /// document ID. Keep the widget ID for local overrides/file lookup, but
+  /// resolve the remote ID before calling any backend-owned surface.
+  String _backendDocumentId(WidgetRef ref) {
+    final documents = ref.read(documentsProvider).valueOrNull ?? const [];
+    final document = documents
+        .where((candidate) =>
+            candidate.id == widget.documentId ||
+            candidate.remoteId == widget.documentId)
+        .firstOrNull;
+    return document?.remoteId ?? widget.documentId;
+  }
+
   Future<void> _saveField(String field, String value) async {
     // Validate date fields before saving.
     if (field == 'start_date' || field == 'end_date') {
@@ -96,7 +112,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
 
   String _extractedValue(String field) {
     final summaries = ref.read(policySummariesProvider);
-    final summary = summaries.where((s) => s.documentId == widget.documentId).firstOrNull;
+    final summary = summaries
+        .where((s) => s.documentId == _backendDocumentId(ref))
+        .firstOrNull;
     if (summary == null) return '';
     return switch (field) {
       'insurer' => summary.insurer ?? '',
@@ -114,8 +132,14 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final summaries = ref.watch(policySummariesProvider);
-    final summary =
-        summaries.where((s) => s.documentId == widget.documentId).firstOrNull;
+    // Rebuild when the local-to-server identity map finishes loading. A
+    // library entry can arrive with the local Hive ID before this provider's
+    // async document list is ready.
+    ref.watch(documentsProvider);
+    final backendDocumentId = _backendDocumentId(ref);
+    final summary = summaries
+        .where((s) => s.documentId == backendDocumentId)
+        .firstOrNull;
 
     if (summary == null) {
       return Scaffold(
@@ -127,10 +151,10 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
               'Extraction may still be in progress. You can ask about the source document while the summary is prepared.',
           actionLabel: 'Ask about this policy',
           actionIcon: Icons.chat_bubble_outline_rounded,
-          onAction: () => Navigator.pushNamed(
+            onAction: () => Navigator.pushNamed(
             context,
             '/qa',
-            arguments: widget.documentId,
+            arguments: backendDocumentId,
           ),
         ),
       );
@@ -144,7 +168,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     if (!summary.hasMinimumViableEvidence) {
       return _buildUnverifiedSummaryScaffold(
         context: context,
-        documentId: widget.documentId,
+        documentId: backendDocumentId,
         reason: summary.missingEvidenceReason ??
             'This summary is missing critical fields and cannot be safely displayed yet.',
       );
@@ -165,7 +189,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
             icon: const Icon(Icons.chat_bubble_outline_rounded),
             tooltip: 'Ask a Question',
             onPressed: () =>
-                Navigator.pushNamed(context, '/qa', arguments: widget.documentId),
+                Navigator.pushNamed(context, '/qa', arguments: backendDocumentId),
           ),
           IconButton(
             icon: const Icon(Icons.ios_share_rounded),
@@ -220,13 +244,13 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
           // substrate; they re-fetch citations on entry so the
           // navigation is decoupled from the existing
           // _CitedFieldsSection state.
-          _PolicyActionsRow(documentId: widget.documentId),
+          _PolicyActionsRow(documentId: backendDocumentId),
           // Trust Phase 1: cited fields from the evidence substrate.
           // Renders nothing when the substrate has no verified data
           // (the Phase 0 P0-0.4 path handles that case above this
           // build method via _buildUnverifiedSummaryScaffold).
           _CitedFieldsSection(
-            documentId: widget.documentId,
+            documentId: backendDocumentId,
             onPageTap: (pageNumber) {
               // v1 of the page-level navigation: surface the
               // cited page in a SnackBar and open the source

@@ -9,6 +9,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/coverwise_scene.dart';
 import '../theme/coverwise_motion.dart';
+import 'documents_screen.dart';
 
 /// Cross-document search screen — M2 from the audit.
 ///
@@ -150,13 +151,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Expanded(
             child: CoverWiseStateTransition(
               child: allSummaries.isEmpty
-                  ? const EmptyStateWidget(
+                  ? EmptyStateWidget(
                       key: ValueKey('search-empty-library'),
                       icon: Icons.folder_open_rounded,
                       title: 'No policies uploaded',
                       subtitle:
-                          'Add a policy to search its cover, exclusions and dates.',
-                      color: Color(0xFF2466B8),
+                          'Choose a policy file to search its cover, exclusions and dates.',
+                      actionLabel: 'Choose policy file',
+                      actionIcon: Icons.upload_file_rounded,
+                      onAction: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const DocumentsScreen(
+                            startWithFilePicker: true,
+                          ),
+                        ),
+                      ),
+                      color: const Color(0xFF2466B8),
                       scene: CoverWiseSceneKind.firstPolicy,
                     )
                   : hasQuery && results.isEmpty
@@ -340,6 +350,7 @@ class _SearchResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = iconForDocumentType(summary.documentType);
+    final typeColor = colorForDocumentType(summary.documentType);
     final days = summary.daysUntilExpiry;
 
     // Determine status
@@ -368,7 +379,7 @@ class _SearchResultCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CoverWiseIconBadge(icon: icon, color: statusColor),
+                  CoverWiseIconBadge(icon: icon, color: typeColor),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -398,17 +409,17 @@ class _SearchResultCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               // Metrics row
-              Row(
+              Wrap(
+                spacing: 16,
+                runSpacing: 10,
                 children: [
                   if (summary.formattedCoverageAmount != 'Unknown') ...[
                     _ResultMetric(Icons.shield, 'Coverage',
                         summary.formattedCoverageAmount),
-                    const SizedBox(width: 16),
                   ],
                   if (summary.formattedPremium != 'Unknown') ...[
                     _ResultMetric(
                         Icons.payments, 'Premium', summary.formattedPremium),
-                    const SizedBox(width: 16),
                   ],
                   if (summary.formattedExpiryDate != 'Unknown')
                     _ResultMetric(

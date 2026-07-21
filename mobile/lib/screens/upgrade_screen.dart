@@ -14,7 +14,9 @@ import '../utils/app_error.dart';
 /// RevenueCat. The billing adapter handles the purchase flow and the
 /// entitlement provider updates the UI reactively.
 class UpgradeScreen extends ConsumerStatefulWidget {
-  const UpgradeScreen({super.key});
+  final String? entryMessage;
+
+  const UpgradeScreen({super.key, this.entryMessage});
 
   @override
   ConsumerState<UpgradeScreen> createState() => _UpgradeScreenState();
@@ -48,6 +50,15 @@ class _UpgradeScreenState extends ConsumerState<UpgradeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.entryMessage != null) ...[
+              CoverWiseInfoPanel(
+                icon: Icons.lock_outline_rounded,
+                title: 'Plan limit reached',
+                body: widget.entryMessage!,
+                color: theme.colorScheme.tertiary,
+              ),
+              const SizedBox(height: 20),
+            ],
             // Current plan banner
             _CurrentPlanBanner(entitlement: entitlement),
             const SizedBox(height: 20),
@@ -122,7 +133,7 @@ class _UpgradeScreenState extends ConsumerState<UpgradeScreen> {
             const FaqItem(
               question: 'Can I switch plans?',
               answer:
-                  'Yes. Upgrade or downgrade anytime. Changes take effect immediately and billing is prorated.',
+                  'You can manage plan changes through your App Store or Play Store subscription settings. Timing, proration, and refunds follow the store and subscription terms.',
             ),
             const FaqItem(
               question: 'What about my Q&A packs?',
@@ -146,7 +157,9 @@ class _UpgradeScreenState extends ConsumerState<UpgradeScreen> {
     if (billingAsync is! AsyncData) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Billing is not available yet. Please try again later.')),
+          const SnackBar(
+              content: Text(
+                  'Billing is not available yet. Please try again later.')),
         );
       }
       return;
@@ -180,7 +193,8 @@ class _CurrentPlanBanner extends StatelessWidget {
             Icon(
               isFree ? Icons.workspace_premium_rounded : Icons.star_rounded,
               size: 28,
-              color: isFree ? const Color(0xFF637083) : CoverWiseColors.blueDeep,
+              color:
+                  isFree ? const Color(0xFF637083) : CoverWiseColors.blueDeep,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -203,7 +217,7 @@ class _CurrentPlanBanner extends StatelessWidget {
                   ),
                   if (!isFree && entitlement.expiresAt != null)
                     Text(
-                      'Renews ${entitlement.expiresAt!.day}/${entitlement.expiresAt!.month}/${entitlement.expiresAt!.year}',
+                      'Access until ${entitlement.expiresAt!.day}/${entitlement.expiresAt!.month}/${entitlement.expiresAt!.year}',
                       style: TextStyle(
                         fontSize: 12,
                         color: theme.colorScheme.onSurfaceVariant,
@@ -276,7 +290,8 @@ class _BillingToggle extends StatelessWidget {
                       Text(
                         'Annual',
                         style: TextStyle(
-                          fontWeight: annual ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight:
+                              annual ? FontWeight.w700 : FontWeight.w500,
                           color: annual
                               ? theme.colorScheme.onPrimaryContainer
                               : theme.colorScheme.onSurfaceVariant,
@@ -417,9 +432,12 @@ class _PlanCard extends ConsumerWidget {
               children: [
                 _FeatureChip(label: '${limits.maxPolicies} policies'),
                 _FeatureChip(label: '${limits.maxQuestionsPerMonth} Q&A/mo'),
-                if (limits.allowComparison) const _FeatureChip(label: 'Compare'),
-                if (limits.allowFamilyView) const _FeatureChip(label: 'Family view'),
-                if (limits.allowCloudSync) const _FeatureChip(label: 'Cloud sync'),
+                if (limits.allowComparison)
+                  const _FeatureChip(label: 'Compare'),
+                if (limits.allowFamilyView)
+                  const _FeatureChip(label: 'Family view'),
+                if (limits.allowCloudSync)
+                  const _FeatureChip(label: 'Cloud sync'),
                 if (limits.allowEmergencyAccess)
                   const _FeatureChip(label: 'Emergency'),
                 if (limits.allowAnnualReview)
@@ -489,7 +507,8 @@ class _PlanCard extends ConsumerWidget {
         onSuccess();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upgraded to ${tier.displayName}! Enjoy your new features.'),
+            content: Text(
+                'Upgraded to ${tier.displayName}! Enjoy your new features.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -504,7 +523,8 @@ class _PlanCard extends ConsumerWidget {
       AnalyticsService.track('plan_purchase_failed', {
         'plan_tier': tier.name,
         'reason': 'error',
-      });      final msg = AppError.userMessage(e);
+      });
+      final msg = AppError.userMessage(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg.isEmpty ? 'Purchase was cancelled.' : msg),
@@ -554,13 +574,31 @@ class _FeatureComparisonTable extends StatelessWidget {
     final theme = Theme.of(context);
     final features = [
       ('Policies', (PlanTier t) => '${planLimits[t]!.maxPolicies}'),
-      ('Q&A per month', (PlanTier t) => '${planLimits[t]!.maxQuestionsPerMonth}'),
-      ('Compare policies', (PlanTier t) => planLimits[t]!.allowComparison ? '✓' : '—'),
-      ('Family view', (PlanTier t) => planLimits[t]!.allowFamilyView ? '✓' : '—'),
+      (
+        'Q&A per month',
+        (PlanTier t) => '${planLimits[t]!.maxQuestionsPerMonth}'
+      ),
+      (
+        'Compare policies',
+        (PlanTier t) => planLimits[t]!.allowComparison ? '✓' : '—'
+      ),
+      (
+        'Family view',
+        (PlanTier t) => planLimits[t]!.allowFamilyView ? '✓' : '—'
+      ),
       ('Cloud sync', (PlanTier t) => planLimits[t]!.allowCloudSync ? '✓' : '—'),
-      ('Emergency access', (PlanTier t) => planLimits[t]!.allowEmergencyAccess ? '✓' : '—'),
-      ('Annual review', (PlanTier t) => planLimits[t]!.allowAnnualReview ? '✓' : '—'),
-      ('Advanced search', (PlanTier t) => planLimits[t]!.allowAdvancedSearch ? '✓' : '—'),
+      (
+        'Emergency access',
+        (PlanTier t) => planLimits[t]!.allowEmergencyAccess ? '✓' : '—'
+      ),
+      (
+        'Annual review',
+        (PlanTier t) => planLimits[t]!.allowAnnualReview ? '✓' : '—'
+      ),
+      (
+        'Advanced search',
+        (PlanTier t) => planLimits[t]!.allowAdvancedSearch ? '✓' : '—'
+      ),
     ];
 
     return CoverWiseSurface(
@@ -575,7 +613,9 @@ class _FeatureComparisonTable extends StatelessWidget {
                 children: [
                   const Expanded(
                     flex: 3,
-                    child: Text('Feature', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                    child: Text('Feature',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12)),
                   ),
                   for (final tier in PlanTier.values)
                     Expanded(
@@ -584,9 +624,13 @@ class _FeatureComparisonTable extends StatelessWidget {
                         child: Text(
                           tier.displayName,
                           style: TextStyle(
-                            fontWeight: tier == currentTier ? FontWeight.w800 : FontWeight.w600,
+                            fontWeight: tier == currentTier
+                                ? FontWeight.w800
+                                : FontWeight.w600,
                             fontSize: 12,
-                            color: tier == currentTier ? theme.colorScheme.primary : null,
+                            color: tier == currentTier
+                                ? theme.colorScheme.primary
+                                : null,
                           ),
                         ),
                       ),
@@ -613,7 +657,9 @@ class _FeatureComparisonTable extends StatelessWidget {
                             getter(tier),
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: tier == currentTier ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight: tier == currentTier
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
                               color: getter(tier) == '✓'
                                   ? CoverWiseColors.mint
                                   : theme.colorScheme.onSurfaceVariant,
@@ -664,7 +710,8 @@ class _FaqItemState extends State<_FaqItem> {
                   Expanded(
                     child: Text(
                       widget.question,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                   ),
                   AnimatedRotation(

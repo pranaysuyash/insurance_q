@@ -172,7 +172,7 @@ class DocumentService {
         await AppStateRepository.setLastUploadedDocumentId(document.id);
 
         return {
-          'message': 'File saved locally; sync pending',
+          'message': 'File saved locally; server upload still required',
           'document_id': document.id,
           'document_type': documentType,
           'insurer': insurerInfo['insurer'],
@@ -401,7 +401,7 @@ class DocumentService {
         await AppStateRepository.setLastUploadedDocumentId(document.id);
 
         return {
-          'message': 'File saved locally; sync pending',
+          'message': 'File saved locally; server upload still required',
           'document_id': document.id,
           'document_type': documentType,
           'insurer': insurerInfo['insurer'],

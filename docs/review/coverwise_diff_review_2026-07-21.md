@@ -6,7 +6,7 @@ verified, overstated, fragile, or still requiring an owner decision.
 
 ## Findings
 
-### Account-switch isolation is not proven
+### Account-switch isolation required a lifecycle owner and is still not E2E-proven
 
 The current audit diff labels account-switch workspace isolation `DONE`, but
 `mobile/lib/screens/profile_screen.dart` signs out, clears the principal key,
@@ -15,15 +15,15 @@ clears Hive boxes, and closes those boxes. It then calls
 access `app_state_box` after it has been closed; the outer catch masks partial
 cleanup.
 
-The app also does not visibly reinitialize the principal DEK and reopen boxes
-for the next account during an in-process sign-out/sign-in transition. Principal
-migration runs only during process bootstrap. The diff therefore does not prove
-same-process account A → sign out → account B isolation, nor that account B
-writes use account B’s DEK.
+The new `HiveWorkspaceService` and `InsuranceApp` auth listener now reinitialize
+the principal DEK and reopen boxes for an in-process authenticated principal
+change. The diff still does not prove same-process account A → sign out →
+account B isolation, nor that account B writes use account B’s DEK, because no
+two-real-account integration traversal is available in this session.
 
-Disposition: high-risk Tier 1 gap. Do not treat the audit’s `DONE` as an
-end-to-end claim until an auth-transition lifecycle exists and is tested, or the
-product explicitly requires a process restart between principals.
+Disposition: lifecycle implementation is now Tier 1/2 static and focused-test
+evidence; the high-risk Tier 3 gap remains the real two-principal traversal.
+Do not treat the audit’s `DONE` as an end-to-end claim yet.
 
 ### Legacy Hive migration is stronger in documentation than in the call site
 
@@ -100,6 +100,130 @@ short-viewport regression test passed with the Documents suite. This is a
 focused Tier 2 UI closure; it does not prove all device sizes, text scales, or
 other screens that reuse the widget.
 
+The same current diff also changes the Documents upload journey: the empty
+library uses a prominent `Add policy file` CTA, a populated library uses
+`Add new policy`, and the detailed upload surface appears only after a file is
+selected. `flutter analyze lib/screens/documents_screen.dart` reports no issues
+and the Documents suite passes 8 tests, but those tests do not exercise the
+populated CTA or selected-file branch. The overflow review’s former
+“layout-only” description was therefore too narrow and has been corrected.
+
+The parallel edit to `docs/planning/product/TODO_app_improvements.md` now marks
+P2-01 as `DONE`, but the acceptance evidence remains partial: empty and
+populated CTA rendering, saved-policy rendering, short-viewport behavior, and
+the shared `CoverWiseSectionLabel` trailing-widget API are covered by focused
+regressions. The provider-loading transition and file-selection panel remain
+untested. There is still no broad screen-render regression across all existing
+callers of the shared component.
+
+Disposition: keep the UI change, but add focused assertions for both branches
+before claiming the upload journey is fully verified. This is Tier 2 static/UI
+evidence; file picker, upload, duplicate detection, processing, and paywall
+branches remain separate higher-risk journey evidence.
+
+There is also a loading-state edge case: `hasDocuments` is derived from
+`documentsAsync.valueOrNull?.isNotEmpty ?? false`, so while the provider is
+loading the screen chooses the first-use `Add policy file` branch even if the
+user already has saved policies. Once the provider resolves it switches to
+`Add new policy`. This may be a harmless brief transition, but it is not
+tested and can create a misleading first-use affordance for returning users.
+
+Disposition: make the CTA state explicit for loading, empty, and populated
+library states (or preserve the existing state while refreshing), then add a
+provider-loading regression test before claiming the upload journey is closed.
+
+### Upload entitlement enforcement is client-only and asymmetric
+
+The current upload path checks `documentLimit` in
+`DocumentService.uploadDocumentWithLimitCheck` by counting locally loaded
+documents, but the Documents screen calls `uploadWebDocument` directly for web
+files, bypassing that check. The check is also a non-atomic read-before-upload,
+so concurrent uploads can both observe capacity and exceed it. Static review of
+`src/api/document.py` found authentication, content validation, idempotency by
+source hash, and anti-abuse rate limits, but no plan/entitlement capacity check
+or atomic owner-scoped quota reservation at the canonical upload boundary.
+
+This is a high-risk contract gap: client-side limits are advisory and cannot
+protect paid/free entitlements across platforms, retries, multiple devices, or
+parallel requests. It also directly affects the pending monetization proposal,
+which must not be implemented by changing only the Flutter counter.
+
+Disposition: make the server the canonical entitlement decision point, with an
+owner-scoped atomic reservation/idempotency contract and explicit responses for
+limit reached, duplicate replay, partial batch success, rollback, and retry.
+Then make native and web clients consume the same response. Required evidence
+is a Tier 3 cross-client/concurrent upload test against the real persistence
+boundary; the current local widget tests do not cover it.
+
+The project virtual-environment upload subset currently passes **16 tests**:
+
+```text
+.venv/bin/python -m pytest -q tests/test_document_owner_isolation.py tests/test_pdf_access.py tests/test_document_repository.py
+16 passed, 1 warning
+```
+
+That is useful Tier 2 evidence for the existing security/processing contracts,
+not evidence that entitlement limits are enforced. Running the same command
+with the system Python is blocked at collection by the missing `jose` package;
+the project environment is the authoritative result for this subset.
+
+### Billing and Q&A entitlements remain client-authoritative
+
+The entitlement surface currently has several parallel authorities:
+
+- `EntitlementService` stores plan tier, monthly usage, and Q&A packs in local
+  Hive and describes itself as the client-side source of truth.
+- `BillingAdapter` maps RevenueCat customer info into that local state, but a
+  failed or unavailable sync leaves the cached plan in place.
+- `POST /subscription/sync` accepts a client-declared plan and RevenueCat
+  identifiers. Its own docstring says the client is the source of truth and
+  webhook verification is future work; no receipt/webhook verification was
+  found in the inspected path.
+- Flutter gates Q&A locally and deducts a question after an answer is returned,
+  while the backend `/query` path derives owner scope but does not enforce a
+  plan, question budget, or atomic usage reservation.
+
+This creates high-risk failure modes: a forged non-free sync can unlock local
+features; two concurrent questions can pass the same local budget check; a
+successful expensive query can be returned without a durable charge if the
+client dies before deduction; retries can be charged inconsistently; and a
+stale local paid entitlement can survive a failed refresh. The subscription
+endpoint also stores a client-supplied raw customer-info blob and returns the
+un-normalized requested tier in its response even when an invalid tier was
+forced to free internally.
+
+Disposition: establish one server-side entitlement and usage ledger. Verify
+store state through the provider’s trusted webhook/receipt path, make query
+authorization and question reservation owner-scoped and atomic, record a
+request/idempotency key and final charge/refund state, and let the client be an
+offline cache only. Required Tier 3 checks include spoofed plan, expired plan,
+duplicate request, concurrent requests at the cap, timeout after reservation,
+answer-generation failure, provider webhook replay/out-of-order delivery,
+refund/downgrade, and cross-owner access.
+
+There is an additional source-of-truth mismatch: `src/api/subscription.py`
+stores sync rows in a local SQLite file (`insurance_app.db`), while the
+project’s canonical deployment and RevOps plans identify Supabase as the
+durable database. The mobile client does not consume `/subscription/status` in
+the inspected path, and the query/upload routes do not read this SQLite ledger.
+On a multi-instance or ephemeral deployment, this is a parallel, non-authority
+billing store rather than enforcement.
+
+Disposition: do not extend the SQLite sync endpoint as a second billing
+system. Either migrate it into the canonical server entitlement pipeline or
+explicitly deprecate it behind a provider-verified webhook/reconciliation path;
+then remove client-only assumptions from the affected callers in the same
+decision-driven change.
+
+External primary-source alignment: RevenueCat’s [Trusted Entitlements]
+(https://www.revenuecat.com/docs/customers/trusted-entitlements) documentation
+explicitly describes client-side entitlement manipulation as a threat and
+offers response-signature verification. Its [subscription status]
+(https://www.revenuecat.com/docs/customers/customer-info) documentation also
+identifies the REST API as the path for checking status outside the SDK. These
+sources support the architecture concern; they do not prove that this project
+has enabled either control.
+
 ### Analytics view hardening is structurally sound but migration proof is pending
 
 `supabase/migrations/20260721061309_secure_analytics_views.sql` marks the three
@@ -112,7 +236,7 @@ actual Supabase project remain Tier 3 work.
 ### Launch status is a snapshot, not current proof
 
 `docs/review/launch_execution_status_2026-07-21.md` reports “No issues found”
-from `flutter analyze` and a complete Flutter suite of 554 passing tests. The
+from `flutter analyze` and a complete Flutter suite of 555 passing tests. The
 current rerun reports 37 analyzer diagnostics and the reviewed focused suite
 reports 111 passing tests, so the launch-status claims cannot be reused as
 current evidence without reproducing their exact command, checkout, and
@@ -121,6 +245,78 @@ same runtime path is observed against the current tree.
 
 Disposition: retain the launch record for provenance, but label it as a dated
 snapshot and update it only with reproducible current commands/results.
+
+### Processing status has a shared-client lifecycle bug
+
+`ProcessingStatusScreen` assigns `DocumentService.authenticatedDio`—a shared
+singleton with the auth interceptor—to its `_dio` field, then calls `_dio.close()`
+in `dispose()`. Closing that client from one status screen also closes the
+client used by later document, query, deletion, and status requests. The
+focused fallback tests prove that the screen remains renderable during network
+failure, but they do not prove that a later authenticated request still works
+after the screen is dismissed.
+
+Disposition: the screen must not close a process-wide client it does not own.
+Either give the screen an owned Dio instance or remove disposal and centralize
+client lifecycle at the service/app boundary, then add a regression that opens
+and dismisses processing status before issuing a second authenticated request.
+
+### Offline upload claims a sync path that is not present
+
+When transport fails, `DocumentService.uploadFile` and `uploadWebDocument` save
+the source locally with `syncState: 'pending_upload'` and return a message that
+it “will sync when online.” Current code search finds the state mapping and UI
+labels, but no pending-upload queue consumer, connectivity-triggered retry,
+foreground-resume sync, or user retry action that uploads the preserved source
+and reconciles its local/remote IDs. The backend restart-recovery path only
+recovers documents already persisted on the server; it cannot recover a file
+that never reached the server.
+
+This is a non-happy-path contract mismatch: the user is told the document is
+durable and will sync, while the current implementation provides local storage
+without a demonstrated delivery mechanism. It affects processing, evidence,
+Q&A availability, deletion, and account deletion semantics.
+
+Disposition: choose one truthful contract—implement an owner-scoped durable
+outbox with retry/backoff, idempotency, connectivity/resume triggers, conflict
+handling, operator visibility, and explicit user status; or change the UI to
+say the file is local-only and requires manual retry. Required evidence for
+the former is Tier 3 offline → reconnect → server processing with duplicate,
+timeout, restart, and account-switch cases.
+
+The current processing-status subset passes **75 tests** across stage mapping,
+static rendering, navigation warnings, and network-fallback behavior. This is
+Tier 2 evidence for the visible state machine only. The repeated `Document not
+found` debug output in fallback tests is expected for synthetic IDs, but also
+shows that those tests do not exercise a real local document → remote status
+transition or the shared-client-after-dispose failure mode.
+
+### Account-switch isolation is not a complete in-process journey
+
+Static inspection of the current auth path confirms the earlier risk. The
+profile sign-out flow signs out, clears the principal key, clears and closes
+the Hive boxes, and only then calls `AnalyticsService.clear()` and
+`ContactService.clearSavedContact()`. Both services read the already-closed
+`app_state_box`; the outer catch can therefore mask a partial cleanup. There is
+also no auth-transition-owned reinitialization that derives the next
+principal, reopens the encrypted boxes, and rebinds providers for a second
+account in the same process.
+
+The app bootstrap initializes the principal only once, and the Supabase auth
+stream currently rebuilds UI state but does not own storage lifecycle. This
+means “sign out and sign in as another account without killing the app” is not
+Tier 3-proven and may fail with a closed-box error or retain stale in-memory
+state. The risk spans J02 identity, J03 upload, J04 processing, J05 evidence,
+and J07 Q&A because all of those journeys consume principal-scoped local and
+server data.
+
+Disposition: treat auth transitions as a single lifecycle boundary. Before
+claiming account switching works, define and test: cancellation of in-flight
+work, ordered flush/clear, timer disposal, box close, key clear, next-principal
+key derivation, encrypted-box reopen, provider invalidation, anonymous-data
+claim/rollback behavior, and user-visible recovery on any partial failure.
+The required evidence is a same-process two-principal integration test, not a
+unit test of the sign-out button.
 
 ### Staged doctrine conflicts with the working-tree doctrine
 
@@ -147,6 +343,78 @@ Disposition: verify the actual build/release command before retaining the move.
 If generation is build-time only, keep the package as a development dependency
 and document the generation step instead.
 
+### Android Kotlin state is a generated artifact outside ignore coverage
+
+The current worktree also contains `mobile/android/.kotlin/` with a Kotlin
+compiler session marker. It is not covered by the existing Android ignore rules
+(`.gradle`, build outputs, captures, and credentials are covered; `.kotlin/` is
+not). This is runtime/build state, not product source.
+
+Disposition: classify it as generated state and add an intentional ignore rule
+only after confirming no project-owned Kotlin source is stored beneath that
+directory. No deletion or ignore-rule change was performed.
+
+`mobile/test/debug_tos4.dart` is also currently modified outside the staged
+snapshot and contains diagnostic `print` calls. It is tracked debugging
+residue, not a product regression test; its current edits should remain out of
+any release-quality test claim until either converted into an assertion-based
+test or explicitly archived.
+
+### Monetization research is a proposal, not an approved product decision
+
+`docs/planning/product/monetization_research_and_decision_2026-07-21.md` is a
+useful founder-review artifact, but its status is explicitly **DECISION
+PENDING**. It must not yet drive entitlement, ad-SDK, pricing, privacy-policy,
+or billing implementation.
+
+The proposal creates four review hazards:
+
+1. Its commission/web-aggregator path conflicts with the permanent product
+   boundary in `docs/review/exploration_map.md` and the product spec, which
+   reject selling, soliciting, procuring, renewing, lead selling, and
+   commission revenue. IRDAI identifies a web aggregator as a regulated
+   intermediary, so this is a separate regulated-business decision.
+2. Rewarded ads require affirmative opt-in, clear reward disclosure, delivery
+   of the promised reward, and non-transferable in-app value under Google’s
+   policy. They also create a privacy/subprocessor disclosure and consent
+   review; adding `google_mobile_ads` alone would not close that work.
+3. The market figures and pricing conclusions are research inputs, not current
+   product evidence. Revenue, conversion, churn, refund, eCPM, and commission
+   assumptions need source-date and methodology verification before becoming
+   forecasts or acceptance criteria.
+4. The proposal is not yet compatible with the current entitlement contract:
+   code still exposes 1 policy and 20 free questions/month, Plus/Family tiers,
+   and Q&A packs. Five questions/month, rewarded credits, remove-ads
+   entitlement, grandfathering, and server enforcement are unimplemented
+   contract changes.
+
+Disposition: retain the document as decision-pending exploration; do not
+implement its plan. Reconcile the stale platform-decision link, keep the
+commission branch outside the current product unless the founder explicitly
+opens a regulated workstream, and require a written decision plus privacy,
+entitlement, billing, and abuse/replay acceptance criteria before code changes.
+
+Primary-source checks for this review used Google AdMob’s rewarded-ad policy
+and overview and IRDAI’s insurance web-aggregator guidance. These support the
+policy/regulatory constraints above; they do not validate the commercial
+forecasts in the proposal.
+
+### Updated launch-status claims still exceed reproducible evidence
+
+The modified `docs/review/launch_execution_status_2026-07-21.md` now records
+555 Flutter tests and a successful Android bundle build. The current session
+has independently reproduced the focused 111-test suite and the field-overrides
+suite (16 tests), but has not reproduced the complete 555-test command or a
+real-define release build. The document itself says the bundle used placeholder
+defines, so it is staging compile evidence rather than release-readiness proof.
+
+Disposition: retain the status report as provenance, but keep the complete-suite
+and release claims dated/environment-bound until the exact commands, checkout,
+SDK/toolchain, defines, and artifacts are reproducible. The field-overrides
+test change is a sound isolation improvement: it uses the shared Hive helper,
+initializes the Flutter test binding, and tears down the temporary store; its
+current focused result is Tier 2 (16 passed).
+
 ## Verification performed
 
 `flutter analyze`: completed without compile errors; 37 warnings/info findings
@@ -170,17 +438,314 @@ the short-viewport overflow regression.
 No staging, commit, reset, checkout, branch operation, deletion, or ignore-rule
 change was performed.
 
+### J03/J05/J06/J07 identity-key drift breaks some returning-user routes
+
+The local document record has two identifiers: `id` (local Hive key) and
+`remoteId` (server document identifier). Upload success stores the server ID,
+and `QueryService` translates local IDs before Q&A. That translation is not
+uniform: library/dashboard navigation passes `doc.id` to policy detail, while
+summary, evidence, status, and source APIs require the server ID. A synced
+policy can therefore be queryable but show no summary, no evidence, or a
+source-preview failure when opened from those entry points. Existing detail
+tests use matching fixture IDs (Tier 2); they do not prove distinct-ID
+navigation (Tier 1 static finding).
+
+Disposition: create one canonical identity resolver at the detail/navigation
+boundary. Use the resolved server ID for backend calls and the local ID for
+Hive/file operations. Add a distinct local-ID/server-ID library → detail →
+evidence → Q&A regression test.
+
+### Offline persistence currently stops at a durable local queue marker
+
+Native and web uploads save `syncState: pending_upload` on transport failure.
+The UI labels this “Waiting to sync” and blocks Q&A until ready, but repository
+search found no connectivity/resume worker, explicit retry, or app-restart
+reconciliation consumer. Backend recovery only handles documents already
+persisted server-side. The user is therefore promised eventual sync with no
+closure path; a pending record may remain indefinitely. Deletion of a local-only
+record reaches the remote endpoint with a local ID and relies on 404 cleanup,
+which is safe but is not an explicit queue-cancellation contract.
+
+Disposition: define durable reconciliation ownership, source-hash idempotent
+retry, consent/byte preservation, backoff, observability, and offline → restart
+→ reconnect → server ID → processing → Q&A tests. Until then, call this
+**queued locally, sync unverified** (Tier 1), not offline sync supported.
+
+### Evidence route owner-check test wiring is repaired
+
+The focused backend command initially produced **19 passed, 2 failed** because
+the fixture patched `src.api.user.get_current_user` while the evidence router
+had imported that function directly. The test now uses FastAPI's dependency
+override against the router-bound dependency. `tests/test_evidence_api_owner_check.py`
+passes **2 tests**, covering the correct `current_user.uid` owner lookup and
+404 behavior for a non-owned document. This is executable owner-boundary
+evidence (Tier 2); a deployed authenticated route traversal remains Tier 3.
+
+### Deletion copy is stale relative to the current service
+
+`DocumentService.deleteDocument` now attempts remote-first deletion and removes
+local data only after 200/204, treating remote 404 as stale state. `DocumentsList`
+still tells users the action only removes the local copy and that the server is
+unaffected; the comments describe an older security phase. This is a
+customer-facing data-deletion contract mismatch. Reconcile copy and tests,
+distinguish synced remote deletion from local-only queue cancellation, and
+verify failure, 404, retry, and post-delete cleanup before calling deletion
+Tier 3-complete.
+
+### Supabase migration rename set is semantically coherent but not yet a safe checkpoint
+
+The current worktree replaces the legacy underscore-named migration files with
+timestamped names. Seven replacement files are byte-identical to their deleted
+predecessors; the analytics replacement adds `security_invoker`, revokes client
+roles on dashboard views, and grants `service_role`. The timestamp order now
+places the canonical schema before leases, rate limits, evidence, RevOps,
+consent, outbox, RAG tables, and analytics hardening, which is the correct
+dependency direction on static inspection (Tier 1).
+
+Two risks remain. The old files are deleted while the replacements are
+untracked, so a checkpoint could lose migration history or leave a fresh reset
+without the expected files. Also, `20260721061309_secure_analytics_views.sql`
+says the canonical migrations sort after the hardening migration on a fresh
+reset; their actual timestamps sort before it. The executable guard is
+harmless, but the comment is stale and can mislead future operators.
+
+Local Supabase verification is now available: `supabase db lint --local
+--level error --fail-on error` passed with no schema errors; `supabase migration
+list --local` reports all 13 timestamped migrations present and applied; and
+direct read-only catalog checks show the expected documents/evidence/outbox/RAG
+tables with RLS enabled, analytics and dashboard views with
+`security_invoker=true`, and no client-role grants on the dashboard views.
+This is Tier 3 local integration evidence, not proof that a remote linked
+project has the same migration state. A remote/production check remains
+required before deployment claims.
+
+### Branding generation exposed test-contract drift; asset checks are now class-aware
+
+The generated branding assets initially failed `asset_integrity_test.dart`: the
+transparent monochrome glyph measured 13.3% visible pixels against an 18%
+generic threshold, and the rounded macOS icon measured 64.4% against a 90%
+full-bleed threshold. Visual inspection showed both assets were intentional:
+the monochrome test separately requires transparent shield interior, and macOS
+app icons use transparent rounded corners.
+
+The test now uses a lower visibility floor for the transparent monochrome glyph
+and a macOS-specific floor, while retaining the strict opaque-canvas threshold
+for iOS/Android/web. The asset and upgrade suites then passed **23 tests**.
+This is Tier 2 asset/UI evidence, not proof of platform install behavior.
+
+### Onboarding and paywall surface consolidation is directionally correct but monetization remains unapproved
+
+Onboarding now requires privacy/terms acceptance before completion and changes
+“Skip” to “Skip intro”, which lands on the consent/first-policy page rather
+than silently bypassing consent. Paywall is now a compatibility wrapper that
+routes limit context into the single `UpgradeScreen`, removing a second pricing
+surface. These are coherent J02/J08 journey improvements.
+
+The underlying entitlement and billing risks remain unchanged: local Hive state
+still gates access, RevenueCat sync is client-triggered, server subscription
+sync accepts client-declared tier, and the founder monetization proposal is
+still **DECISION PENDING**. The new UI is not proof of server-enforced
+entitlement, refund/downgrade correctness, or approved pricing.
+
+### Local/server identity mismatch is now normalized at policy-detail boundary
+
+The policy-detail screen now resolves a local Hive ID to its `remoteId` when
+selecting summaries and when passing IDs to Q&A, evidence, and other
+backend-owned surfaces. It continues to use the original widget ID for local
+file preview and field overrides. The screen watches the document provider so
+the mapping is re-evaluated after asynchronous local storage loading.
+
+Regression coverage uses distinct `local-policy-1` and `remote-policy-1` IDs
+and confirms the server-keyed summary renders. The full policy-detail suite now
+passes **24 tests**, and targeted analyzer output is clean. This closes the
+previously documented static identity gap for the detail boundary (Tier 2),
+while a live backend evidence/Q&A traversal remains Tier 3 work.
+
+The family-member path still passes the local ID into policy detail, which is
+now safe because it enters the resolver. Callers should continue passing the
+local ID when local preview or override continuity matters.
+
+### Empty states and legal failures are now actionable, with stale assertions repaired
+
+The newly changed feature screens consistently route “no policy” states to the
+canonical DocumentsScreen picker: claims guidance, emergency card, renewal
+calendar, insurance cards, policy comparison, search, and the what-if
+calculator. Claims guidance and what-if copy retains its preparation/estimate
+boundary; it does not imply claim filing, approval, or insurer underwriting.
+Legal privacy and terms screens now use the shared retryable `AppErrorView`
+instead of exposing raw loader errors.
+
+The first regression run found stale tests rather than runtime defects: old
+empty-state copy and old raw-error icon/message expectations. Those assertions
+were updated to the new canonical surface. Verification now passes: emergency
+offline/interactions **17 tests**, legal/onboarding **22 tests**, what-if
+calculator **31 tests**; analyzer passes for all 12 changed screens/tests.
+
+One attempted standalone onboarding test path was invalid because no such file
+exists; onboarding coverage is embedded in `legal_screens_test.dart` and passed.
+
+### Backend dependency pin and test fixture alignment are clean
+
+The backend dependency diff pins `supabase==2.8.1`, aligns `gotrue==2.8.1`,
+and moves `httpx` to 0.27.2 for the proxy keyword used by the Supabase client.
+The project virtual environment reports those versions and `pip check` reports
+no broken requirements. The Supabase FTS test fixture now supplies a
+JWT-shaped key before replacing the client double; the broader backend
+regression run passed **140 tests**.
+
+The backend test run also produced/updated local runtime artifacts: the tracked
+`insurance_app.db` and untracked sample files under `storage/documents/`.
+They remain preserved for classification; they are not treated as product
+source or release evidence, and no cleanup was performed.
+
 ## Priority next pass
 
-1. Decide whether same-process account switching is required; if yes, implement
-   one auth-transition-owned close/reopen/rekey lifecycle.
-2. Repair the purchase test fixture with a pending completer.
-3. Prove legacy Hive migration against an actual encrypted box.
-4. Reconcile audit/TODO status language with evidence tiers.
-5. Classify generated/debug artifacts before cleanup.
+1. Run a same-process two-principal integration traversal against real Supabase
+   sessions and verify account B cannot read or write account A’s local data.
+2. Prove legacy Hive migration against an actual encrypted box.
+3. Reconcile audit/TODO status language with evidence tiers.
+4. Classify generated/debug artifacts before cleanup.
+5. Complete a live authenticated detail → evidence → Q&A traversal using the new identity resolver.
+6. Implement and verify pending-upload reconciliation with a visible retry action, or keep the current explicit “server upload required” contract.
+7. Implement the durable account-erasure job/receipt and verify retry/404/queue-cancellation semantics.
+8. Verify remote migration history and perform platform-level deep-link traversal.
+9. Keep asset integrity class-aware and validate platform build/install artifacts separately from Flutter tests.
+
+## Migration source and deep-link follow-up (2026-07-21)
+
+The diff exposed two contract mismatches around the deployment surface:
+
+1. `.env.example` introduced `SUPABASE_SECRET_KEY` and
+   `SUPABASE_EXPERIMENTAL_API_KEY`, but all server consumers require the
+   canonical `SUPABASE_SERVICE_ROLE_KEY`. A misleading example can produce a
+   deployment that looks configured while account, storage, evidence, and
+   retrieval paths remain disabled.
+2. The timestamped `supabase/migrations/` chain is now the executable local
+   migration source, while multiple runbooks and architecture sections still
+   instructed operators to apply `infra/supabase/*.sql`. The first three base,
+   lease, and rate-limit sets are byte-identical snapshots, but presenting both
+   as active sources creates a duplicate-schema risk.
+
+Focused closure: `.env.example`, the Supabase setup runbook, canonical
+architecture, storage contract, and `infra/supabase/README.md` now identify the
+timestamped CLI chain as canonical and the `infra/supabase/` files as retained
+historical snapshots. Stale migration-header commands were corrected to
+`supabase db push`. Initial deep-link lookup now has an explicit error path so a
+platform API error does not become an unhandled future during app startup.
+
+Evidence: Tier 1 static inspection found all active server consumers use
+`SUPABASE_SERVICE_ROLE_KEY`; Tier 2 `flutter analyze` for the changed app
+surfaces passed; Tier 2 claims-assistant tests passed (5 tests); Tier 1
+`git diff --check` passed. Remaining gaps are remote migration-history proof
+and cold-start deep-link traversal on each release platform.
+
+## Account-switch cleanup hardening (2026-07-21)
+
+The sign-out cleanup path had a concrete ordering defect: it closed
+`app_state_box` and then called `AnalyticsService.clear()` and
+`ContactService.clearSavedContact()`, both of which access that box. One broad
+catch made the failure look like successful workspace isolation. The cleanup
+now clears those service-owned values before closing boxes, awaits analytics
+cleanup, and clears the in-memory principal ID together with the DEK.
+
+Verification: `flutter analyze` for `profile_screen.dart` and
+`principal_key_service.dart` passed; the profile processing-guard suite passed
+(10 tests). This is Tier 2 only. Same-process re-authentication is still not
+closed: the app does not yet own one post-auth transition that reinitializes the
+new principal and reopens all encrypted boxes. That remains a Tier 3 blocker
+for claiming account-switch isolation.
+
+The deletion response had a parallel claim defect: partial responses promised
+that a durable deletion job would retry failed stages, but static inspection of
+`src/api/user.py`, the outbox job types, and worker registration found no
+account-deletion job or enqueue call. The API and Flutter profile message now
+state that server deletion may remain incomplete and identify the failed stages
+instead of asserting an unimplemented retry guarantee.
+
+Verification: `.venv/bin/python -m pytest -q tests/test_user_account_deletion.py`
+passed (5 tests); the changed mobile analyzer and profile/legal suites passed
+(32 tests). This is Tier 2. A production-safe account-erasure contract still
+needs a durable job/receipt, complete data inventory, retry semantics, and
+operator verification before deletion can be called complete.
+
+## Offline upload honesty and shared-client lifecycle (2026-07-21)
+
+The mobile upload path persists an offline file as `pending_upload`, but no
+consumer or connectivity-triggered reconciliation worker was found. The old
+copy (“will sync when online” / “Waiting to sync”) therefore implied an
+automatic behavior the code does not implement. The copy now says the file is
+saved locally and server upload is still required; the existing offline banner
+already states that uploads require a connection.
+
+`ProcessingStatusScreen` also disposed `DocumentService.authenticatedDio`, a
+process-wide shared client. Its disposal is now limited to cancelling the
+screen-owned timer, preventing one screen from closing the client used by other
+requests.
+
+Verification: analyzer passed for the four changed mobile files; the combined
+processing-status and documents suites passed (**84 tests**); `git diff --check`
+passed. The durable follow-up is a true pending-upload
+reconciliation owner with idempotency, retry/backoff, auth-transition handling,
+and a visible retry action; until then, pending local files must not be
+described as queued for automatic sync.
 
 ## Anything else?
 
 The largest diff risk is completion language outpacing lifecycle proof. Visible
 surface improvements do not close ownership, encryption-transition, durable
 cleanup, or operator-recoverability requirements.
+
+## Monetization and onboarding claim hardening (2026-07-21)
+
+Paywall consolidation is directionally correct: `PaywallScreen` now records the
+limit reason and delegates pricing/purchase UI to `UpgradeScreen`, leaving one
+monetization surface. Adjacent customer copy was tightened: onboarding now
+says policy content is not included in anonymous usage events without claiming
+that no personal data is ever transmitted; plan changes defer timing,
+proration, and refunds to platform subscription terms; and the plan banner says
+“Access until” rather than implying auto-renewal.
+
+The deeper billing boundary remains open: RevenueCat synchronizes into local
+Hive state, while the backend subscription endpoint still accepts client-declared
+plan state and is not used for server-side upload/Q&A enforcement. RevenueCat
+purchase UI therefore cannot be treated as entitlement proof or launch-ready
+billing integrity. This remains a high-risk Tier 3+ requirement.
+
+Verification for this pass: `flutter analyze` on onboarding and upgrade screens
+passed; the combined upgrade and legal/onboarding suites passed (**39 tests**);
+`git diff --check` passed. No RevenueCat sandbox purchase, store receipt, or
+server-enforced entitlement traversal was available, so the billing conclusion
+remains static/Tier 1 rather than E2E evidence.
+
+## Principal workspace lifecycle hardening (2026-07-21)
+
+The auth review found that sign-out could close `app_state_box` while
+`ProfileScreen` immediately rebuilt and read it, while `SessionService` and
+analytics retained the previous session identity. A new
+`HiveWorkspaceService` now owns the sensitive-box list, closes/deletes the
+cleared workspace, and reopens it with the new principal DEK. `InsuranceApp`
+listens for authenticated principal changes and performs the same reset before
+reinitializing analytics; it clears buffered analytics and the prior session
+before the reset, and sign-out resets to an install-local fallback first.
+
+Verification: `flutter analyze` passed for `main.dart`, `profile_screen.dart`,
+and `hive_workspace_service.dart`; the focused profile guard test passed (1
+test). A full two-account authenticated traversal remains Tier 3 work because
+the current session lacks two real Supabase identities and live encrypted-box
+transition evidence.
+
+## Platform identity and generated asset review (2026-07-21)
+
+The new Linux packaging files are intentional source artifacts: the desktop
+entry declares `com.coverwise.app`, CMake installs the desktop file and 256px
+icon, and the GTK window title is `CoverWise`. The macOS test bundle identifier,
+launcher-icon configuration, web metadata, and platform icons are aligned to
+the CoverWise identity. The Linux icon and macOS source icon were visually
+inspected; asset integrity tests already use platform/class-specific thresholds.
+
+Verification: the web release build produced `build/web/index.html`; Linux
+build/install verification is unavailable on this macOS host because Flutter
+only supports `build linux` on Linux. This is a platform evidence gap, not a
+claim of Linux release readiness. The untracked runtime screenshots under
+`docs/review/evidence/asset-revamp-2026-07-21/` remain preserved as visual QA
+evidence, not source code.

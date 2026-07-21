@@ -6,6 +6,7 @@ import '../providers/policy_providers.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../utils/document_icons.dart';
+import 'documents_screen.dart';
 
 class EmergencyScreen extends ConsumerStatefulWidget {
   const EmergencyScreen({super.key});
@@ -58,12 +59,18 @@ class _EmergencyScreenState extends ConsumerState<EmergencyScreen> {
     if (summaries.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Emergency Card')),
-        body: const EmptyStateWidget(
+        body: EmptyStateWidget(
           icon: Icons.emergency,
           title: 'No policies loaded',
-          subtitle:
-              'Upload insurance documents to access emergency information',
-          color: Color(0xFFC43B55),
+          subtitle: 'Choose a policy file to keep emergency information ready.',
+          actionLabel: 'Choose policy file',
+          actionIcon: Icons.upload_file_rounded,
+          onAction: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const DocumentsScreen(startWithFilePicker: true),
+            ),
+          ),
+          color: const Color(0xFFC43B55),
         ),
       );
     }

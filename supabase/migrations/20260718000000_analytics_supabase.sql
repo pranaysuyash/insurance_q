@@ -14,7 +14,7 @@
 -- the migration script to use ON CONFLICT DO NOTHING for safe replay.
 --
 -- Apply via Supabase SQL editor or:
---   psql "$SUPABASE_DB_URL" -f supabase/migrations/2026_07_18_analytics_supabase.sql
+--   supabase db push
 
 create extension if not exists pgcrypto;
 
@@ -139,8 +139,18 @@ comment on view public.v_conversion_funnel is
 comment on view public.v_cohort_retention is
   'D1/D7/D30 cohort retention. Powers the Product dashboard view.';
 
--- Dashboard views are owned by postgres (the migration runner). Grant read to
--- service_role explicitly so the FastAPI /revops/dashboard endpoint can query.
+-- Dashboard views are owned by postgres (the migration runner). They must
+-- inherit analytics_events RLS and remain operator-only.
+alter view public.v_daily_active_users set (security_invoker = true);
+alter view public.v_conversion_funnel set (security_invoker = true);
+alter view public.v_cohort_retention set (security_invoker = true);
+
+revoke all on table public.v_daily_active_users from public, anon, authenticated;
+revoke all on table public.v_conversion_funnel from public, anon, authenticated;
+revoke all on table public.v_cohort_retention from public, anon, authenticated;
+
+-- Grant read to service_role explicitly so the FastAPI /revops/dashboard
+-- endpoint can query.
 grant select on public.v_daily_active_users to service_role;
 grant select on public.v_conversion_funnel to service_role;
 grant select on public.v_cohort_retention to service_role;

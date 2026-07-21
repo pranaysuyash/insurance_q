@@ -91,18 +91,20 @@ Add these two redirect URLs to the **Redirect URLs** list:
 
 **Dashboard path:** SQL Editor
 
-**Verification status:** Migration files exist in `infra/supabase/`:
-- `001_coverwise_schema.sql` ✅
-- `002_document_processing_leases.sql` ✅
-- `003_rate_limit_windows.sql` ✅
+**Verification status:** The executable migration chain exists in
+`supabase/migrations/` and is validated locally with the Supabase CLI. The
+`infra/supabase/` files are retained historical SQL-editor snapshots, not a
+second migration source.
 
 However, whether they've been applied to the Supabase project cannot be verified from code.
 
-1. Open the SQL Editor
-2. Paste the contents of `infra/supabase/001_coverwise_schema.sql`
-3. Click **Run**
+1. Prefer `supabase db push` from the repository root with the target project
+   linked and reviewed migration status.
+2. If the SQL Editor is required, apply the ordered files under
+   `supabase/migrations/` in timestamp order and record the applied versions.
+3. Do not apply both the timestamped chain and the `infra/supabase/` snapshots.
 
-**Tables created:**
+**Tables created by the base migration:**
 - `documents` — Policy document metadata
 - `document_chunks` — Chunked text for RAG embedding
 - `analytics_events` — App analytics

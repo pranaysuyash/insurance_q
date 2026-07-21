@@ -1,6 +1,7 @@
 -- CoverWise RevOps tables (Phase R1.1)
 -- Date: 2026-07-18
--- Convention: follow infra/supabase/001_coverwise_schema.sql and 003_rate_limit_windows.sql
+-- Convention: follow supabase/migrations/20260717000000_coverwise_schema.sql and
+-- supabase/migrations/20260717020000_rate_limit_windows.sql
 --   - public schema
 --   - owner_id text (NOT auth.users FK; Supabase user IDs are strings)
 --   - created_at / updated_at timestamptz
@@ -8,7 +9,7 @@
 --   - Comments on every table
 --
 -- Apply via Supabase SQL editor or:
---   psql "$SUPABASE_DB_URL" -f supabase/migrations/2026_07_18_revops_tables.sql
+--   supabase db push
 
 -- ============================================================================
 -- user_lifecycle: one row per user_uid, current lifecycle state

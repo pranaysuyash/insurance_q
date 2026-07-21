@@ -39,7 +39,10 @@ python-dotenv==1.0.0
 structlog==23.2.0
 requests==2.31.0
 boto3==1.34.162
-supabase>=2.0,<3.0
+supabase==2.31.0
+# Keep the Supabase Python clients aligned with the HTTPX proxy API used by
+# this project. Supabase's transitive clients use `proxy`, which is available
+# in HTTPX 0.27.x; HTTPX 0.25.x only exposes the older `proxies` keyword.
 
 # Date and time handling
 python-dateutil==2.8.2
@@ -63,4 +66,4 @@ numpy==1.24.3
 asyncio-throttle==1.0.2
 
 # HTTP client (used by LLM client, tests)
-httpx==0.25.2
+httpx==0.27.2

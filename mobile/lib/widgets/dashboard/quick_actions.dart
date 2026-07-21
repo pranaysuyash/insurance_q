@@ -86,6 +86,13 @@ class QuickActions extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
+        _ActionButton(
+          icon: Icons.auto_awesome_outlined,
+          label: 'AI Health Check',
+          color: const Color(0xFF7557D3),
+          trailing: const CoverWiseSoonBadge(),
+        ),
+        const SizedBox(height: 12),
         // Emergency shortcut — one tap from dashboard instead of More → Emergency
         if (documents.isNotEmpty)
           _EmergencyShortcutButton(
@@ -104,20 +111,22 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final Widget? trailing;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.color,
-    required this.onTap,
+    this.onTap,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Semantics(
-      button: true,
+      button: onTap != null,
       label: label,
       excludeSemantics: true,
       child: InkWell(
@@ -146,6 +155,10 @@ class _ActionButton extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (trailing != null) ...[
+                const SizedBox(height: 6),
+                trailing!,
+              ],
             ],
           ),
         ),

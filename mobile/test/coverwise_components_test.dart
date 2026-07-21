@@ -51,6 +51,24 @@ void main() {
     expect(find.byIcon(Icons.add_rounded), findsNothing);
   });
 
+  testWidgets('section label renders an optional trailing control',
+      (tester) async {
+    await tester.pumpWidget(
+      _host(
+        CoverWiseSectionLabel(
+          'Saved policies',
+          trailing: IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('SAVED POLICIES'), findsOneWidget);
+    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+  });
+
   testWidgets('shared state components remain usable in dark mode at 2x text',
       (tester) async {
     tester.view.physicalSize = const Size(640, 1136);

@@ -7,6 +7,7 @@ import '../utils/document_icons.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/policy_type_icon.dart';
+import 'documents_screen.dart';
 
 /// Digital Insurance Card — proof of insurance from your phone.
 ///
@@ -24,12 +25,20 @@ class InsuranceCardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Insurance Cards')),
       body: summaries.isEmpty
-          ? const EmptyStateWidget(
+          ? EmptyStateWidget(
               icon: Icons.credit_card_off_outlined,
               title: 'No insurance cards yet',
               subtitle:
-                  'Upload a policy to keep its key details ready on your phone.',
-              color: Color(0xFF16866B),
+                  'Choose a policy file to keep its key details ready on your phone.',
+              actionLabel: 'Choose policy file',
+              actionIcon: Icons.upload_file_rounded,
+              onAction: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const DocumentsScreen(startWithFilePicker: true),
+                ),
+              ),
+              color: const Color(0xFF16866B),
             )
           : ListView(
               padding: const EdgeInsets.only(bottom: 24),
@@ -118,31 +127,15 @@ class _InsuranceCard extends StatelessWidget {
                     ),
                   ),
                   if (isExpired || isExpiring)
-                    Semantics(
+                    CoverWiseStatusChip(
+                      icon: isExpired
+                          ? Icons.error_outline_rounded
+                          : Icons.schedule_rounded,
                       label: isExpired
-                          ? 'Policy status: expired'
-                          : 'Policy expires in ${summary.daysUntilExpiry} days',
-                      excludeSemantics: true,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: (isExpired ? Colors.red : Colors.orange)
-                              .withValues(alpha: .12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          isExpired
-                              ? 'EXPIRED'
-                              : '${summary.daysUntilExpiry}d LEFT',
-                          style: TextStyle(
-                            color:
-                                isExpired ? Colors.red : Colors.orange.shade800,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
+                          ? 'Expired'
+                          : '${summary.daysUntilExpiry}d left',
+                      color: isExpired ? Colors.red : Colors.orange,
+                      compact: true,
                     ),
                 ],
               ),

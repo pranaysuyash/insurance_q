@@ -133,10 +133,17 @@ class PrincipalKeyService {
   /// accessible).
   void clearKey() {
     _cachedKey = null;
+    _principalId = null;
   }
 
   /// The current principal ID, or null if not initialized.
   String? get principalId => _principalId;
+
+  /// Whether this install still carries the pre-principal device key.
+  /// Startup uses this single secure-store read to avoid performing a
+  /// read/modify/write migration check for every Hive box on fresh installs.
+  Future<bool> hasLegacyDeviceKey() async =>
+      await _secureStorage.read(key: oldDeviceKeyStorageKey) != null;
 
   /// Get or create the DEK for a principal. The DEK is stored
   /// in the secure store under

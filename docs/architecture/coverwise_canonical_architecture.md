@@ -50,13 +50,18 @@ CoverWise is built from 5 main components. Each is a small surface with a clear 
 - **Storage** (`coverwise-documents` bucket, private) for raw PDFs + rendered page images.
 - **Auth** for user identity.
 - **Migrations:**
-  - `infra/supabase/001_coverwise_schema.sql` — base schema (documents, document_chunks, match_document_chunks, processing leases, rate limits).
-  - `infra/supabase/002_document_processing_leases.sql` — processing lease functions.
-  - `infra/supabase/003_rate_limit_windows.sql` — rate limit RPCs.
-  - `supabase/migrations/2026_07_18_revops_tables.sql` — 9 RevOps tables + `profiles.role`.
-  - `supabase/migrations/2026_07_18_analytics_supabase.sql` — `analytics_events` + 3 dashboard views.
-  - `supabase/migrations/2026_07_18_evidence_substrate.sql` — Trust Phase 1 evidence substrate (4 tables + view + cost table).
-  - `supabase/migrations/2026_07_19_job_outbox.sql` — the durable work queue.
+  - `supabase/migrations/20260717000000_coverwise_schema.sql` — base schema (documents, document_chunks, match_document_chunks).
+  - `supabase/migrations/20260717010000_document_processing_leases.sql` — processing lease functions.
+  - `supabase/migrations/20260717020000_rate_limit_windows.sql` — rate limit RPCs.
+  - `supabase/migrations/20260718000000_analytics_supabase.sql` — `analytics_events` + dashboard views.
+  - `supabase/migrations/20260718010000_evidence_substrate.sql` — Trust Phase 1 evidence substrate.
+  - `supabase/migrations/20260718020000_revops_tables.sql` — RevOps tables + `profiles.role`.
+  - `supabase/migrations/20260719000000_consent_ledger.sql` — append-only consent ledger.
+  - `supabase/migrations/20260719010000_job_outbox.sql` — the durable work queue.
+  - `supabase/migrations/20260720000000_chunk_links.sql`, `20260720010000_chunk_type.sql`, `20260720020000_rag_fts.sql`, and `20260720030000_rag_traces.sql` — retrieval and trace extensions.
+  - `supabase/migrations/20260721061309_secure_analytics_views.sql` — analytics view hardening.
+
+  `infra/supabase/001_*.sql` through `003_*.sql` are retained as SQL-editor-compatible historical snapshots. They are not a second migration runner or an independently editable schema source.
 
 ### 1.4 The evidence substrate (`supabase/migrations/2026_07_18_evidence_substrate.sql` + `src/services/evidence_substrate_service.py` + `src/services/evidence_pipeline.py`)
 

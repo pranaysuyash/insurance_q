@@ -69,19 +69,34 @@ class CoverWisePageHeader extends StatelessWidget {
 
 class CoverWiseSectionLabel extends StatelessWidget {
   final String label;
-  const CoverWiseSectionLabel(this.label, {super.key});
+  final Widget? trailing;
+
+  const CoverWiseSectionLabel(this.label, {super.key, this.trailing});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
-      child: Text(
-        label.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.35,
-            ),
+    final labelWidget = Text(
+      label.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.35,
+          ),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
+        child: Row(
+          mainAxisSize:
+              constraints.hasBoundedWidth ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            if (constraints.hasBoundedWidth)
+              Expanded(child: labelWidget)
+            else
+              labelWidget,
+            if (trailing != null) trailing!,
+          ],
+        ),
       ),
     );
   }

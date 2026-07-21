@@ -1,8 +1,8 @@
 -- CoverWise server-side consent ledger (Security Phase 2)
 -- Date: 2026-07-19
 -- Decision: docs/decisions/ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md
--- Convention: follow supabase/migrations/2026_07_18_revops_tables.sql and
---   2026_07_19_job_outbox.sql
+-- Convention: follow supabase/migrations/20260718020000_revops_tables.sql and
+--   20260719010000_job_outbox.sql
 --   - public schema
 --   - RLS enabled, all access revoked, only service_role granted
 --   - if not exists everywhere (idempotent re-runs)

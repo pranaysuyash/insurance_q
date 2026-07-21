@@ -157,9 +157,11 @@ class DocumentProcessingService:
         self,
         rag_pipeline: Optional['RAGPipeline'] = None,
         document_object_store: Optional[Any] = None,
+        document_repository: Optional[Any] = None,
     ):
         self.rag_pipeline = rag_pipeline
         self.document_object_store = document_object_store
+        self.document_repository = document_repository
         # Share a single OCR pipeline instance across processors
         self._ocr_pipeline = None
         self.pdf_processor = None
@@ -217,6 +219,7 @@ class DocumentProcessingService:
             "status": "processing",
             "stage": "started",
             "filename": filename,
+            "owner_id": owner_id,
             "started_at": datetime.utcnow().isoformat(),
             "progress": 0
         }
@@ -875,9 +878,35 @@ class DocumentProcessingService:
             })
             if error:
                 self.processing_status[document_id]["error"] = error
-    
-    def get_processing_status(self, document_id: str) -> Optional[Dict[str, Any]]:
+
+        # The in-process dictionary is only a development/debug projection.
+        # When a repository is configured, the durable document row remains
+        # authoritative across restarts and Cloud Run instances.
+        owner_id = (self.processing_status.get(document_id) or {}).get("owner_id")
+        if self.document_repository and owner_id:
+            document = self.document_repository.get(document_id, owner_id)
+            if document:
+                if stage == "failed":
+                    document.status = "failed"
+                    document.error_message = error or "Document processing failed"
+                elif document.status == "received":
+                    document.status = "processing"
+                document.processing_started_at = document.processing_started_at or datetime.now()
+                self.document_repository.update(document)
+
+    def get_processing_status(self, document_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get current processing status"""
+        if self.document_repository and owner_id:
+            document = self.document_repository.get(document_id, owner_id)
+            if document:
+                return {
+                    "status": document.status,
+                    "stage": "completed" if document.status == "completed" else document.status,
+                    "progress": 100 if document.status == "completed" else 0,
+                    "started_at": document.processing_started_at.isoformat()
+                    if document.processing_started_at else None,
+                    "error": document.error_message,
+                }
         return self.processing_status.get(document_id)
     
     def get_all_processing_status(self) -> Dict[str, Dict[str, Any]]:

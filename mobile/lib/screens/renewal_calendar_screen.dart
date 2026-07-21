@@ -8,6 +8,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../utils/document_icons.dart';
 import '../services/notification_service.dart';
+import 'documents_screen.dart';
 
 class RenewalCalendarScreen extends ConsumerWidget {
   const RenewalCalendarScreen({super.key});
@@ -19,11 +20,18 @@ class RenewalCalendarScreen extends ConsumerWidget {
     if (summaries.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Renewal Calendar')),
-        body: const EmptyStateWidget(
+        body: EmptyStateWidget(
           icon: Icons.event_busy,
           title: 'No policies tracked',
-          subtitle: 'Upload documents to track renewal dates',
-          color: Color(0xFFA94E00),
+          subtitle: 'Choose a policy file to track renewal dates.',
+          actionLabel: 'Choose policy file',
+          actionIcon: Icons.upload_file_rounded,
+          onAction: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const DocumentsScreen(startWithFilePicker: true),
+            ),
+          ),
+          color: const Color(0xFFA94E00),
         ),
       );
     }
@@ -210,6 +218,7 @@ class _RenewalCard extends StatelessWidget {
             ? 'EXPIRED'
             : '$days days';
     final showRenewCta = summary.isExpired || summary.isExpiringSoon;
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
 
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -223,34 +232,57 @@ class _RenewalCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
             ),
-            subtitle: Text(
-              '${summary.insurer ?? "Insurer not found"}\nExpires ${summary.formattedExpiryDate}',
-            ),
-            isThreeLine: true,
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CoverWiseStatusChip(
-                  icon: hasNoEndDate
-                      ? Icons.help_outline_rounded
-                      : summary.isExpired
-                          ? Icons.error_rounded
-                          : Icons.schedule_rounded,
-                  label: trailingLabel,
-                  color: color,
-                  compact: true,
+                Text(
+                  '${summary.insurer ?? "Insurer not found"}\nExpires ${summary.formattedExpiryDate}',
                 ),
-                if (summary.policyNumber != null)
-                  Text(
-                    summary.policyNumber!,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                    overflow: TextOverflow.ellipsis,
+                if (largeText) ...[
+                  const SizedBox(height: 8),
+                  CoverWiseStatusChip(
+                    icon: hasNoEndDate
+                        ? Icons.help_outline_rounded
+                        : summary.isExpired
+                            ? Icons.error_rounded
+                            : Icons.schedule_rounded,
+                    label: trailingLabel,
+                    color: color,
+                    compact: true,
                   ),
+                ],
               ],
             ),
+            isThreeLine: true,
+            trailing: largeText
+                ? null
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      CoverWiseStatusChip(
+                        icon: hasNoEndDate
+                            ? Icons.help_outline_rounded
+                            : summary.isExpired
+                                ? Icons.error_rounded
+                                : Icons.schedule_rounded,
+                        label: trailingLabel,
+                        color: color,
+                        compact: true,
+                      ),
+                      if (summary.policyNumber != null)
+                        Text(
+                          summary.policyNumber!,
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           ),
