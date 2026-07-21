@@ -31,6 +31,7 @@ from src.utils.anti_abuse import (
     log_usage_attempt,
     get_current_usage_stats
 )
+from src.services.job_outbox_service import JobOutboxService
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ document_object_store: DocumentObjectStore = create_document_object_store()
 
 # Global processing service (will be injected from main app)
 processing_service: Optional[DocumentProcessingService] = None
+job_outbox_service: Optional[JobOutboxService] = None
 
 _CLIENT_DOCUMENT_EXCLUDED_FIELDS = {"file_path", "user_uid", "source_hash", "metadata"}
 
@@ -56,6 +58,12 @@ def set_processing_service(service: DocumentProcessingService):
     global processing_service
     processing_service = service
     logger.info("Document processing service configured for API")
+
+
+def set_job_outbox_service(service: Optional[JobOutboxService]) -> None:
+    """Configure the durable processing queue for production composition."""
+    global job_outbox_service
+    job_outbox_service = service
 
 
 def set_document_repository(repository: DocumentRepository) -> None:
@@ -178,13 +186,30 @@ async def upload_document(
                 )
                 continue
             
-            # Check anti-abuse limits BEFORE processing
-            rate_limit_allowed, rate_limit_reason = check_all_rate_limits(
-                ip_address=ip_address,
-                session_id=session_id,
-                document_hash=document_hash,
-                email=user_email
-            )
+            # Production uses the shared Postgres counter so all Cloud Run
+            # instances enforce the same limit. SQLite/Redis/memory remain
+            # local-development compatibility only.
+            try:
+                if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+                    from src.utils.anti_abuse import check_supabase_rate_limits
+                    rate_limit_allowed, rate_limit_reason = check_supabase_rate_limits(
+                        ip_address, session_id
+                    )
+                else:
+                    rate_limit_allowed, rate_limit_reason = check_all_rate_limits(
+                        ip_address=ip_address,
+                        session_id=session_id,
+                        document_hash=document_hash,
+                        email=user_email,
+                    )
+            except Exception as error:
+                logger.error("canonical_rate_limit_unavailable error_type=%s", type(error).__name__)
+                if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Upload protection is temporarily unavailable. Please retry.",
+                    ) from error
+                raise
             
             if not rate_limit_allowed:
                 log_usage_attempt(
@@ -254,14 +279,80 @@ async def upload_document(
             
             try:
                 document_repository.create(document)
+                try:
+                    from src.services.artifact_registry import record_source
+                    record_source(doc_id, current_user.uid, object_reference, file_content)
+                except Exception:
+                    # In production inventory failure is a hard failure: a
+                    # source without a deletion/retention record is unsafe.
+                    if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+                        document_repository.delete(doc_id, current_user.uid)
+                        document_object_store.delete(object_reference)
+                        raise
             except Exception:
                 # Avoid retaining an unreachable customer document if metadata
                 # persistence fails before the async processing task is queued.
                 document_object_store.delete(object_reference)
                 raise
             
-            # Start background processing if service is available
-            if processing_service:
+            # Production durable work uses the outbox and references the
+            # already-persisted source object; raw document bytes never enter
+            # the JSONB queue payload. Development keeps the legacy task only
+            # when the durable queue is intentionally unavailable.
+            if job_outbox_service:
+                from src.models.job_outbox import EnqueueRequest, JobType
+
+                try:
+                    await job_outbox_service.enqueue(
+                        EnqueueRequest(
+                            job_type=JobType.DOCUMENT_PROCESSING,
+                            payload={
+                                "document_id": doc_id,
+                                "owner_id": current_user.uid,
+                                "object_reference": object_reference,
+                                "filename": file.filename or "document",
+                                "processing_mode": processing_mode,
+                                "pdf_password": pdf_password.strip() if pdf_password else None,
+                                "on_device_ocr_text": mobile_ocr_text,
+                            },
+                            partition_key=None,
+                        )
+                    )
+                except Exception:
+                    # Do not return 202 for a source that has no durable work
+                    # record. Remove both metadata and the source object;
+                    # production inventory remains an auditable deleted row.
+                    try:
+                        from src.services.artifact_registry import mark_document_deleted
+                        mark_document_deleted(doc_id)
+                    except Exception as cleanup_error:
+                        logger.error(
+                            "document_artifact_rollback_failed document_id=%s error_type=%s",
+                            doc_id,
+                            type(cleanup_error).__name__,
+                        )
+                    try:
+                        document_repository.delete(doc_id, current_user.uid)
+                    except Exception as cleanup_error:
+                        logger.error(
+                            "document_metadata_rollback_failed document_id=%s error_type=%s",
+                            doc_id,
+                            type(cleanup_error).__name__,
+                        )
+                    try:
+                        document_object_store.delete(object_reference)
+                    except Exception as cleanup_error:
+                        logger.error(
+                            "document_source_rollback_failed document_id=%s error_type=%s",
+                            doc_id,
+                            type(cleanup_error).__name__,
+                        )
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Document processing is temporarily unavailable. Please retry.",
+                    )
+                logger.info("document_processing_enqueued document_id=%s owner=%s", doc_id, session_id[:12])
+            elif processing_service:
                 background_tasks.add_task(
                     process_document_background,
                     doc_id,
@@ -272,7 +363,7 @@ async def upload_document(
                     pdf_password.strip() if pdf_password else None,
                     mobile_ocr_text,
                 )
-                logger.info("document_processing_queued document_id=%s owner=%s", doc_id, session_id[:12])
+                logger.info("document_processing_queued_legacy document_id=%s owner=%s", doc_id, session_id[:12])
             else:
                 document.status = "uploaded"
                 document_repository.update(document)
@@ -283,7 +374,7 @@ async def upload_document(
                 "filename": file.filename,
                 "size": file_size,
                 "upload_date": document.upload_date,
-                "status": "received" if processing_service else "uploaded",
+                "status": "received" if (processing_service or job_outbox_service) else "uploaded",
                 "processing_mode": processing_mode,
                 "processing_id": doc_id,
             })
@@ -298,7 +389,7 @@ async def upload_document(
         "documents": uploaded_docs,
         "total_uploaded": len(uploaded_docs),
         "total_failed": failed_docs,
-        "message": f"Uploaded {len(uploaded_docs)} documents for processing" if processing_service else f"Uploaded {len(uploaded_docs)} documents (processing service unavailable)"
+        "message": f"Uploaded {len(uploaded_docs)} documents for processing" if (processing_service or job_outbox_service) else f"Uploaded {len(uploaded_docs)} documents (processing service unavailable)"
     }
 
 async def process_document_background(
@@ -310,98 +401,23 @@ async def process_document_background(
     pdf_password: Optional[str] = None,
     on_device_ocr_text: Optional[str] = None,
 ):
-    """Process a document only after atomically leasing its durable state."""
-    try:
-        if not processing_service:
-            logger.error(f"Processing service not available for {document_id}")
-            return
-        if not document_repository.claim_processing(document_id, owner_id, lease_seconds=900):
-            logger.info("Skipping document %s because another worker owns its lease", document_id)
-            return
-        
-        # Process the document
-        result = await processing_service.process_document_full(
-            file_content=file_content,
-            filename=filename,
-            document_id=document_id,
-            processing_mode=processing_mode,
-            owner_id=owner_id,
-            pdf_password=pdf_password,
-            on_device_ocr_text=on_device_ocr_text,
-        )
-        
-        # Update document status
-        doc = document_repository.get(document_id, owner_id)
-        if doc:
-            if result.get("status") == "completed":
-                doc.status = "completed"
-                doc.processing_completed_at = datetime.utcnow()
-                doc.processing_lease_expires_at = None
-                    
-                # Enhanced document classification using the new classifier
-                try:
-                    from src.utils.document_classifier import get_document_classifier
+    """Process a document through the shared durable job contract."""
+    if not processing_service:
+        logger.error("Processing service not available for %s", document_id)
+        return
+    from src.services.document_processing_job import run_document_processing_job
 
-                    text_content = ""
-                    if "stages" in result and "ocr" in result["stages"]:
-                        text_content = result["stages"]["ocr"].get("full_text", "")
-                    classifier = get_document_classifier(processing_service.rag_pipeline)
-                    classification = await classifier.classify_document(document_id, text_content)
-                    doc.document_type = classification.get("document_type", "Insurance Policy")
-                    doc.insurer = classification.get("insurer", "Unknown")
-                    if not doc.metadata:
-                        doc.metadata = {}
-                    doc.metadata.update(
-                        {
-                            "classification": classification,
-                            "policy_number": classification.get("policy_number"),
-                            "effective_date": classification.get("effective_date"),
-                            "expiration_date": classification.get("expiration_date"),
-                            "classification_confidence": classification.get("confidence", 0.0),
-                        }
-                    )
-                    logger.info(
-                        "Document %s classified as %s by %s with %.2f confidence",
-                        document_id,
-                        doc.document_type,
-                        classification.get("insurer", "Unknown"),
-                        classification.get("confidence", 0.0),
-                    )
-                except Exception as e:
-                    logger.error(
-                        "document_classification_failed document_id=%s error_type=%s",
-                        document_id,
-                        type(e).__name__,
-                    )
-                    # Fallback to simple heuristic
-                    if "stages" in result and "ocr" in result["stages"]:
-                        ocr_result = result["stages"]["ocr"]
-                        text = ocr_result.get("full_text", "").lower()
-                        if "health" in text or "medical" in text:
-                            doc.document_type = "Health Insurance"
-                        elif "auto" in text or "vehicle" in text:
-                            doc.document_type = "Auto Insurance"
-                        elif "life" in text:
-                            doc.document_type = "Life Insurance"
-                        else:
-                            doc.document_type = "Insurance Policy"
-            else:
-                doc.status = "failed"
-                doc.error_message = "Document processing did not complete. Please retry the upload."
-                doc.processing_lease_expires_at = None
-            document_repository.update(doc)
-        
-        logger.info("document_processing_finished document_id=%s", document_id)
-        
-    except Exception as e:
-        logger.error("document_processing_failed document_id=%s error_type=%s", document_id, type(e).__name__)
-        # Update document status to failed
-        doc = document_repository.get(document_id, owner_id)
-        if doc:
-            doc.status = "failed"
-            doc.error_message = "Document processing did not complete. Please retry the upload."
-            doc.processing_lease_expires_at = None
-            document_repository.update(doc)
+    await run_document_processing_job(
+        service=processing_service,
+        repository=document_repository,
+        document_id=document_id,
+        filename=filename,
+        processing_mode=processing_mode,
+        owner_id=owner_id,
+        file_content=file_content,
+        pdf_password=pdf_password,
+        on_device_ocr_text=on_device_ocr_text,
+    )
 
 
 async def recover_interrupted_document_processing() -> int:
@@ -488,7 +504,15 @@ async def get_usage_statistics(
     ip_address = get_client_ip(request)
     actual_session_id = current_user.uid
     
-    stats = get_current_usage_stats(ip_address, actual_session_id)
+    if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+        from src.utils.anti_abuse import get_supabase_rate_limit_stats
+        try:
+            stats = get_supabase_rate_limit_stats(ip_address, actual_session_id)
+        except Exception as error:
+            logger.error("canonical_rate_limit_stats_unavailable error_type=%s", type(error).__name__)
+            raise HTTPException(status_code=503, detail="Usage limits are temporarily unavailable") from error
+    else:
+        stats = get_current_usage_stats(ip_address, actual_session_id)
     
     return {
         "usage_stats": stats,

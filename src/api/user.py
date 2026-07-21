@@ -6,13 +6,63 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.utils.anonymous_auth import issue_anonymous_token, verify_anonymous_token
 from src.utils.supabase_auth import verify_supabase_token
 from src.models.user import User
+from src.services.identity_link_service import begin as begin_identity_link
+from src.services.identity_link_service import complete as complete_identity_link
+from src.services.identity_link_service import fail as fail_identity_link
 
 router = APIRouter(prefix="/user", tags=["user"])
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+def _document_api():
+    """Load the canonical document module, respecting test/runtime injection."""
+    import importlib
+
+    return importlib.import_module("src.api.document")
+
+
 class AnonymousClaimRequest(BaseModel):
     anonymous_token: str
+
+
+def _account_export(current_user: User):
+    document_api = _document_api()
+    from src.services.document_object_store import create_document_object_store
+
+    documents = document_api.document_repository.list_for_owner(current_user.uid)
+    object_store = create_document_object_store()
+    source_downloads = []
+    for doc in documents:
+        if not doc.file_path:
+            continue
+        try:
+            url = object_store.create_download_url(doc.file_path, expires_seconds=900)
+        except Exception:
+            url = None
+        if url:
+            source_downloads.append({
+                "document_id": doc.id,
+                "url": url,
+                "expires_in_seconds": 900,
+            })
+    return {
+        "export_format_version": "v1",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "account": {"uid": current_user.uid, "email": current_user.email},
+        "documents": [
+            {
+                "id": doc.id,
+                "filename": doc.filename,
+                "size": doc.size,
+                "upload_date": doc.upload_date.isoformat(),
+                "status": doc.status,
+                "source_hash": doc.source_hash,
+            }
+            for doc in documents
+        ],
+        "source_files": "Source files remain private and are exposed only through short-lived download links.",
+        "source_downloads": source_downloads,
+    }
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
@@ -47,12 +97,39 @@ def claim_anonymous_documents(
         raise HTTPException(status_code=403, detail="An account is required to claim data")
     anonymous_claims = verify_anonymous_token(request.anonymous_token)
     anonymous_owner = anonymous_claims["sub"]
-    from src.api import document as document_api
+    try:
+        link = begin_identity_link(anonymous_owner, current_user.uid)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail="Identity linking is temporarily unavailable") from error
 
-    transferred = document_api.document_repository.transfer_owner(
-        anonymous_owner, current_user.uid
-    )
-    return {"transferred_documents": transferred, "owner_id": current_user.uid}
+    # A completed link is the idempotency record. Returning it makes retries
+    # safe after a client timeout or a duplicated account-submit action.
+    if link.status == "completed":
+        return {
+            "transferred_documents": link.transferred_documents,
+            "owner_id": current_user.uid,
+            "identity_link_status": "completed",
+        }
+    document_api = _document_api()
+
+    try:
+        transferred = document_api.document_repository.transfer_owner(
+            anonymous_owner, current_user.uid
+        )
+        complete_identity_link(anonymous_owner, current_user.uid, transferred)
+    except Exception as error:
+        try:
+            fail_identity_link(anonymous_owner, current_user.uid, type(error).__name__)
+        except Exception:
+            pass
+        raise HTTPException(status_code=503, detail="Anonymous workspace transfer did not complete") from error
+    return {
+        "transferred_documents": transferred,
+        "owner_id": current_user.uid,
+        "identity_link_status": "completed",
+    }
 
 @router.post("/anonymous")
 def create_anonymous_identity():
@@ -81,6 +158,14 @@ def get_profile(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+@router.get("/account/export")
+def export_account(current_user: User = Depends(get_current_user)):
+    """Export account metadata without exposing private source contents."""
+    if not current_user.is_account:
+        raise HTTPException(status_code=403, detail="Only account users can export their account")
+    return _account_export(current_user)
+
+
 @router.delete("/account", status_code=202)
 def delete_account(current_user: User = Depends(get_current_user)):
     """Request deletion of the user's account and all associated data.
@@ -99,9 +184,43 @@ def delete_account(current_user: User = Depends(get_current_user)):
     if not current_user.is_account:
         raise HTTPException(status_code=403, detail="Only account users can delete their account")
 
-    import logging
     import os
-    from src.api import document as document_api
+    if os.getenv("ENVIRONMENT", "development").lower() == "production":
+        from src.services.account_lifecycle_service import create_deletion_request
+        from src.services.job_outbox_service import JobOutboxService
+        from src.models.job_outbox import EnqueueRequest, JobType
+
+        try:
+            request = create_deletion_request(current_user.uid)
+            outbox = JobOutboxService.from_env()
+            import asyncio
+            existing_job = asyncio.run(outbox.find_by_payload_field(
+                JobType.ACCOUNT_DELETION, "request_id", request["id"]
+            ))
+            if existing_job is None:
+                try:
+                    asyncio.run(outbox.enqueue(EnqueueRequest(
+                        job_type=JobType.ACCOUNT_DELETION,
+                        payload={"request_id": request["id"], "account_uid": current_user.uid},
+                    )))
+                except Exception:
+                    # Concurrent retries are converged by the unique payload
+                    # index; re-read before treating the request as failed.
+                    existing_job = asyncio.run(outbox.find_by_payload_field(
+                        JobType.ACCOUNT_DELETION, "request_id", request["id"]
+                    ))
+                    if existing_job is None:
+                        raise
+        except Exception as error:
+            raise HTTPException(status_code=503, detail="Account deletion queue is temporarily unavailable") from error
+        return {
+            "status": "deletion_requested",
+            "request_id": request["id"],
+            "message": "Deletion was queued. The account remains active until all server erasure stages are verified.",
+        }
+
+    import logging
+    document_api = _document_api()
 
     logger = logging.getLogger(__name__)
 

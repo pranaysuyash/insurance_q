@@ -16,9 +16,16 @@ class PaywallScreen extends StatelessWidget {
   static Future<void> show(
     BuildContext context, {
     required PaywallLimitType limitType,
+    int capValue = 0,
+    int userActionsRemaining = 0,
   }) async {
     AnalyticsService.track('free_tier_limit_hit', {
       'limit_type': limitType.name,
+    });
+    AnalyticsService.track('paywall_viewed', {
+      'cap_type': limitType.name,
+      'cap_value': capValue,
+      'user_actions_remaining': userActionsRemaining,
     });
     await Navigator.push(
       context,

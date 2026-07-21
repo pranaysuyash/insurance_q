@@ -3,7 +3,7 @@
 **Date:** 2026-07-16  
 **Baseline:** [`coverwise_supabase_canonical_plan_2026-07-16.md`](../planning/coverwise_supabase_canonical_plan_2026-07-16.md)  
 **Audit type:** repository architecture and implementation audit  
-**Status:** gaps documented; implementation intentionally not started in this pass
+**Status:** implementation pass in progress; original gap baseline retained below
 
 ## Decision boundary
 
@@ -12,21 +12,69 @@ Supabase Auth, and one FastAPI pipeline. This register compares the current
 repository with that target. Existing local/Qdrant/SQLite code is preserved as
 migration evidence, but it is not accepted as production truth.
 
+## Addendum — 2026-07-21 implementation audit
+
+The following closures are now implemented in the current worktree:
+
+- PostgreSQL FTS and pgvector are both canonical retrieval paths, with server-side owner/document filters.
+- Supabase ingestion records source text separately from retrieval text and enforces the 1536-dimensional embedding contract.
+- Chunk links use the canonical bigint `document_chunks.id` key.
+- Processing status can be projected from the durable document repository; in-memory status is debug-only.
+- Outbox claim and stuck-lease reclaim are atomic Postgres functions.
+- Production analytics writes and reads fail closed to Supabase instead of silently using SQLite.
+- Private Storage owner policies are present.
+- Consent-aware dataset releases/items and withdrawal state are present.
+- Dataset release approval, owner withdrawal propagation, retrieval candidate/
+  answer evidence lineage, source artifact inventory, and approved-release
+  model-run/artifact lineage are now implemented. Processing stage history is
+  now append-only and durable as well.
+- A reusable synthetic Supabase retrieval benchmark has passed locally with
+  owner isolation, one FTS hit, one pgvector hit, and recorded latency evidence
+  at [`supabase-retrieval-benchmark-local.json`](evidence/supabase-retrieval-benchmark-local.json).
+
+Evidence: targeted Python tests (71 passed in the broader retrieval/outbox set,
+18 in the auth/identity set), Python compilation, local PostgreSQL execution of
+the migration set, a clean `supabase db reset --local --no-seed`, `supabase db
+lint --local`, migration listing, and direct inspection of the created
+tables/functions.
+
+Remaining gaps are narrower and require either application work or configured
+external systems:
+
+- password recovery is implemented in the mobile client, but live Supabase
+  Auth/RLS integration evidence is not verified against a real project;
+- production deletion is now outbox-backed, but real Storage/Auth deletion,
+  retry, and post-deletion verification still require a configured staging
+  project;
+- retrieval benchmark, representative corpus backfill, rollback checkpoint, and
+  production backup/restore evidence are not present;
+- the legacy Qdrant/SQLite compatibility code remains available and needs a
+  measured cutover/retirement decision;
+- source-file download export is still separate from the current metadata-only
+  account export; model-run/artifact lineage and derived-object retention need
+  a later governed contract.
+
+### Anything else?
+
+Yes: the remaining risk is now primarily verification and lifecycle closure,
+not the basic Supabase data/retrieval substrate. Do not cut over until the
+remaining gates above have Tier 3+ evidence.
+
 ## Summary
 
 | Priority | Area | Current state | Gap |
 |---|---|---|---|
-| P0 | Supabase schema | `documents` and `document_chunks` exist | Missing canonical policy/version/page/section/question/evidence/consent/dataset model |
-| P0 | Production retrieval | Supabase dense RPC exists | No Supabase full-text search; exact lookup and hybrid fallback still depend on local SQLite FTS |
-| P0 | Embedding contract | Schema fixed at 1536 dimensions | Runtime fallback changes dimensions and still contains Qdrant recreation logic; model/version compatibility is not enforced |
-| P0 | Processing state | Repository leases exist | Processing service still owns in-memory status and local directories; end-to-end state is not one durable state machine |
-| P1 | Retrieval auditability | Answers return sources/citations in API payloads | No durable retrieval run, candidate, evidence, model, or latency records |
-| P1 | Training readiness | Policy/training docs and static eval code exist | No implemented consent-aware dataset registry, release, lineage, or deletion propagation |
-| P1 | Auth lifecycle | Anonymous/account path exists locally | No production provider verification, password recovery, deletion/export, or full account-flow evidence |
-| P1 | Analytics/rate limits | SQLite/in-memory/optional Redis paths exist | Production observability and abuse controls are not on the canonical Supabase data plane |
-| P1 | Storage lifecycle | Private Supabase Storage adapter exists | Retention, derived-artifact inventory, restore, and complete deletion evidence are incomplete |
-| P2 | Migration/cutover | Supabase adapters coexist with Qdrant/SQLite | No representative corpus comparison, backfill, rollback checkpoint, or retirement gate |
-| P2 | Tests | Local adapter tests exist | No Supabase integration/RLS/RPC/retrieval benchmark suite |
+| P0 | Supabase schema | Core schema plus evidence, consent, retrieval, and dataset migrations exist | Policy/version/section normalization and full answer-evidence persistence still need domain-level integration |
+| P0 | Production retrieval | Supabase full-text + pgvector RPCs are canonical and owner/document filtered | Representative corpus benchmark and backfill/cutover evidence are missing |
+| P0 | Embedding contract | Supabase ingestion fails closed outside the 1536d/model-version contract | A production embedding-provider decision and existing-corpus re-embedding are still unverified |
+| P0 | Processing state | Repository leases and append-only processing events are authoritative; local status is debug-only | Full staging recovery/operator verification remains |
+| P1 | Retrieval auditability | Query traces, candidate lineage, answer hashes, and citation evidence are persisted without raw content | Full live-pipeline audit write/read evidence remains |
+| P1 | Training readiness | Consent-aware registry, draft approval, withdrawal propagation, and approved-release model lineage exist | Released-manifest execution and real training/evaluation runs are not yet wired |
+| P1 | Auth lifecycle | Anonymous linking, metadata/source export, and durable deletion request/worker exist locally | No production provider verification or full account-flow evidence |
+| P1 | Analytics/rate limits | Production analytics and upload rate limits use Supabase RPCs | Retention policy and multi-instance staging evidence remain |
+| P1 | Storage lifecycle | Private Storage policies and source artifact inventory/checksums exist | Derived-artifact registration, retention jobs, restore, and complete deletion evidence remain |
+| P2 | Migration/cutover | Supabase adapters coexist with Qdrant/SQLite; local contract benchmark and production startup assertions exist | No representative corpus comparison, backfill, rollback checkpoint, or retirement gate |
+| P2 | Tests | Local migration/RPC smoke and synthetic Supabase retrieval benchmark exist | Staging RLS/Auth and representative corpus benchmark remain |
 
 ## P0 gaps
 

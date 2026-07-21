@@ -313,6 +313,13 @@ class OCRPipeline:
             # Pre-processing: deskew, denoise, binarize (5-15% OCR accuracy improvement)
             processed_image = self._preprocess_image(np.array(pil_image))
 
+            # doctr expects multi-channel HxWxC pages. Preprocessing returns
+            # a single-channel image for thresholding; restore the channel
+            # dimension before prediction so image OCR does not degrade to an
+            # empty result after a predictor shape error.
+            if processed_image.ndim == 2:
+                processed_image = np.repeat(processed_image[:, :, None], 3, axis=2)
+
             doc_content = [processed_image]
 
             logger.debug(f"Page {page_num}: Sending pre-processed image to local doctr OCR predictor.")
@@ -613,4 +620,4 @@ class OCRPipeline:
 #         {"id": "effective_date", "type": "date", "question": "What is the effective date?"}
 #     ]
 #     result = await pipeline.process_document(content, file_type, filename, layout_questions_config=custom_questions)
-#     return result 
+#     return result

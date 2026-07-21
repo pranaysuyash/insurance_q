@@ -50,8 +50,8 @@ void main() {
       await tester.drag(listFinder, const Offset(0, -300));
       await tester.pump();
 
-      expect(find.text('Classifying'), findsOneWidget);
-      expect(find.text('Indexing'), findsOneWidget);
+      expect(find.text('Categorising'), findsOneWidget);
+      expect(find.text('Finishing up'), findsOneWidget);
 
       // Verify at least some stage icons render (cover 3 of 5 to stay
       // resilient against icon availability changes).

@@ -7,6 +7,13 @@ still not server-enforced. Customer copy is conditional; entitlement integrity,
 usage reservation, refunds, and cross-device reconciliation remain open
 research/implementation work.
 
+## Insurance-card action closure (2026-07-21)
+
+The card’s phone and share controls now perform their labeled platform actions.
+Sharing is limited to displayed policy fields and includes a verification
+disclaimer; claim filing, insurer representation, and proof guarantees remain
+out of scope. Platform sheet behavior still needs device-level validation.
+
 ## Principal workspace lifecycle hardening (2026-07-21)
 
 Sensitive Hive-box lifecycle is now centralized in
@@ -767,3 +774,100 @@ error UI. These paths passed focused tests and preserve the product boundary:
 claim assistance is preparation guidance, emergency cards are reference data,
 and what-if results are explicitly estimates. Continue checking every new CTA
 against entitlement, offline, and local/server identity behavior.
+
+## Addendum — subscription response and share failure contracts (2026-07-21)
+
+The subscription sync endpoint normalized unknown tiers for storage but echoed
+the original client claim in its response. The response now reports the
+normalized persisted tier. This is a correctness fix, not entitlement proof;
+RevenueCat webhook/receipt verification and server-enforced usage remain open.
+
+Insurance-card sharing now reports platform-share failure instead of allowing an
+uncaught platform exception to escape the action. Continue exploration with
+platform-level share/phone tests and an authenticated billing traversal.
+
+Focused UI verification in this continuation passed 116 tests across upgrade,
+legal, claims, documents, emergency/offline, what-if, and policy-detail flows.
+The remaining evidence gap is platform/E2E behavior, not widget rendering.
+
+## Addendum — entitlement expiry gate (2026-07-21)
+
+An expired paid plan could still expose its unused monthly Q&A quota because
+the model and Q&A screen did not share one expiry-aware gate. The model now
+removes subscription quota when inactive, while preserving separately purchased
+pack questions; Q&A and upload actions use the canonical provider gate.
+
+The correction passed 20 entitlement tests and 20 Q&A/documents tests plus
+focused analyzer checks. The long-term server-side receipt/entitlement gate is
+still required before paid access can be treated as authoritative.
+
+## Addendum — outbox fencing and job parity (2026-07-21)
+
+Terminal queue transitions now require `status = running`, containing stale
+worker writes after lease reclamation. The typed `account_deletion` job is also
+present in the canonical SQL check and lifecycle migration. A lease-token
+fencing version and real multi-worker contention test remain future hardening.
+
+## Addendum — store identity reset (2026-07-21)
+
+RevenueCat identity is now explicitly reset during the canonical sign-out/local
+workspace-clear flow, preventing the local reset from diverging from the store
+customer identity. Sandbox account-switch testing remains required.
+
+## Addendum — durable deletion retry/idempotency (2026-07-21)
+
+Deletion failures now persist a failed lifecycle state with stage counts before
+the outbox retry. Account-deletion jobs are deduplicated by request identity at
+the queue boundary. Before deployment, inspect existing queue payloads for
+duplicates before applying the unique index; live retry and erasure proof are
+still required.
+
+## Addendum — dense retrieval dimension guard (2026-07-21)
+
+Embedding contract validation was asymmetric: Supabase ingestion rejected
+non-1536 vectors, while dense search deferred that error to the remote RPC.
+Both directions now enforce the same 1536-dimensional boundary locally. The
+remaining exploration is live migration plus owner-scoped retrieval proof.
+
+## Addendum — evaluation registry and artifact erasure (2026-07-21)
+
+The diff now includes a consent-aware dataset registry and a document-artifact
+inventory. Dataset releases are service-role-only and purpose-bound; customer
+items require a consent reference, approved releases reject new items, and
+withdrawal is represented as state. Revocation reasons are now retained in the
+release record. Explore consent eligibility validation (owner, consent type,
+purpose, and current state) before any customer-derived example is approved.
+
+Artifact inventory state is not yet equivalent to object-store erasure. Source
+paths are deleted through the document path, but derived/page/embedding
+artifacts need an inventory-driven, idempotent deletion worker with per-object
+outcomes and retry visibility. Keep this as a high-risk deletion exploration
+until a deployed Tier 3 erasure traversal covers all artifact kinds.
+
+The production usage-stats reader now handles expired shared rate-limit windows
+without waiting for a subsequent request. Enforcement remains atomic in the
+database RPC; cross-instance and operational dashboard verification remain
+open.
+
+## Addendum — retrieval context expansion owner fence (2026-07-21)
+
+Dense and FTS retrieval were owner-scoped, but graph-style adjacent expansion
+could fetch target chunks by ID without carrying the owner predicate. The
+canonical vector adapter and RAG pipeline now require owner scope for expansion
+and filter target chunks by owner. A missing owner scope causes expansion to be
+skipped. Focused retrieval/RAG tests pass; deployed cross-owner link traversal
+and policy verification remain open.
+
+## Addendum — durable document-processing adoption (2026-07-21)
+
+The accepted outbox-only contract had drifted from code: production upload
+still used FastAPI `BackgroundTasks`, and the first outbox handler duplicated
+source bytes in the queue payload while bypassing the API finalization logic.
+The first migration stage now carries an object reference, claims the
+owner-scoped document in the worker, runs the canonical processing service, and
+shares terminal state persistence with the development fallback. Production
+fails startup when the outbox is unavailable; development fallback is explicit.
+
+Focused runner/upload tests pass. Keep Tier 3 verification open for deployed
+worker/object-store/lease/retry/UI behavior. Substrate extraction remains an
+inline stage and the unregistered outbox job types remain future adoption areas.

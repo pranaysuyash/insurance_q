@@ -60,6 +60,16 @@ CoverWise is built from 5 main components. Each is a small surface with a clear 
   - `supabase/migrations/20260719010000_job_outbox.sql` — the durable work queue.
   - `supabase/migrations/20260720000000_chunk_links.sql`, `20260720010000_chunk_type.sql`, `20260720020000_rag_fts.sql`, and `20260720030000_rag_traces.sql` — retrieval and trace extensions.
   - `supabase/migrations/20260721061309_secure_analytics_views.sql` — analytics view hardening.
+  - `supabase/migrations/20260721070000_retrieval_contract.sql` — immutable source/retrieval text and embedding identity.
+  - `supabase/migrations/20260721071000_job_outbox_atomic_claims.sql` — atomic claim/reclaim functions.
+  - `supabase/migrations/20260721072000_storage_owner_policies.sql` — private bucket ownership policies.
+  - `supabase/migrations/20260721073000_evaluation_dataset_registry.sql` — consent-aware evaluation/training registry.
+  - `supabase/migrations/20260721074000_identity_aliases.sql` — durable anonymous-to-account identity links.
+  - `supabase/migrations/20260721075000_account_lifecycle.sql` — outbox-backed account deletion requests.
+  - `supabase/migrations/20260721076100_retrieval_audit.sql` — privacy-safe retrieval candidates, answer lineage, and citation evidence.
+  - `supabase/migrations/20260721077000_document_artifacts.sql` — source/derived object inventory and deletion state.
+  - `supabase/migrations/20260721078000_model_lineage.sql` — approved-release model runs and artifact checksums.
+  - `supabase/migrations/20260721079000_processing_events.sql` — append-only processing stage history.
 
   `infra/supabase/001_*.sql` through `003_*.sql` are retained as SQL-editor-compatible historical snapshots. They are not a second migration runner or an independently editable schema source.
 

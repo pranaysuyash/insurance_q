@@ -95,7 +95,7 @@ an upload.
 - `document_pages` with page boundaries and extraction method.
 - `document_sections` with section hierarchy.
 - `document_chunks` with canonical text, source references, chunk version,
-  embedding model, and `vector(1536)` or the active model dimension.
+  embedding model/version, and the canonical `vector(1536)` contract.
 - PostgreSQL full-text generated/indexed representation.
 - `retrieval_runs`, `retrieval_candidates`, and `answer_evidence` for audit and
   evaluation without placing raw sensitive content in ordinary analytics.
@@ -218,6 +218,22 @@ repository interfaces must remain portable enough to support that option later.
 - Paid product entitlements and billing.
 - MFA, social login, or enterprise SSO.
 - Whether any customer-derived data may ever enter a training corpus.
+
+## Addendum — 2026-07-21 implementation direction
+
+The first implementation slice has landed around this decision: Postgres now
+owns hybrid retrieval, embedding identity, storage policies, atomic outbox
+claims, production analytics, and consent-aware dataset registry contracts.
+The local/Qdrant/SQLite adapters remain compatibility paths only. The next
+decision unit is production cutover evidence: live Auth/RLS, deletion/export,
+retrieval benchmark, corpus backfill, rollback, and restore verification.
+
+### Anything else?
+
+The architecture is not complete merely because the migrations exist. The
+operator must be able to prove what was retrieved, why it was used, whether it
+was consented for evaluation/training, and whether deletion propagated. Those
+are release gates, not documentation follow-ups.
 
 Those are downstream decisions. They must not create a second canonical data,
 auth, retrieval, or consent path.

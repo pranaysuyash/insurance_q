@@ -37,7 +37,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       assetPath: 'assets/onboarding/ask-policy.png',
       title: 'Ask your policy, not the internet.',
       description:
-          'Get document-grounded answers in everyday language, with the policy always within reach.',
+          'Get clear answers based on your actual policy — not generic advice from the internet.',
       accent: Color(0xFF7C5CE7),
     ),
     _OnboardingData(

@@ -16,11 +16,11 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class JobType(str, Enum):
-    """The 7 job types the outbox supports. Adding a new type
+    """The 8 job types the outbox supports. Adding a new type
     requires:
       1. Adding the new value here.
       2. Adding the new value to the SQL CHECK in
-         supabase/migrations/2026_07_19_job_outbox.sql.
+         supabase/migrations/20260719010000_job_outbox.sql.
       3. Adding the new value to the dispatcher's handler map.
     """
 
@@ -31,6 +31,7 @@ class JobType(str, Enum):
     SUBSCRIPTION_WRITEBACK = "subscription_writeback"
     CLAIM_VERIFICATION = "claim_verification"
     RENEWAL_DIFF = "renewal_diff"
+    ACCOUNT_DELETION = "account_deletion"
 
 
 class JobStatus(str, Enum):

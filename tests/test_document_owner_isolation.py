@@ -33,6 +33,7 @@ def isolated_documents(tmp_path, monkeypatch):
     )
     document_api.set_document_object_store(LocalDocumentObjectStore(str(tmp_path / "documents")))
     monkeypatch.setattr(document_api, "processing_service", None)
+    monkeypatch.setattr(document_api, "job_outbox_service", None)
 
 
 def _document(owner: User) -> Document:
@@ -176,3 +177,48 @@ async def test_duplicate_source_is_idempotent_before_object_storage(monkeypatch)
     assert first["documents"][0]["id"] == replay["documents"][0]["id"]
     assert replay["documents"][0]["idempotent_replay"] is True
     assert len(document_api.document_repository.list_for_owner(OWNER_A.uid)) == 1
+
+
+@pytest.mark.asyncio
+async def test_upload_enqueues_object_reference_without_document_bytes(monkeypatch):
+    class FakeOutbox:
+        def __init__(self):
+            self.requests = []
+
+        async def enqueue(self, request):
+            self.requests.append(request)
+
+    outbox = FakeOutbox()
+    monkeypatch.setattr(document_api, "job_outbox_service", outbox)
+    monkeypatch.setattr(document_api, "check_all_rate_limits", lambda **_: (True, "ok"))
+    monkeypatch.setattr(document_api, "log_usage_attempt", lambda **_: None)
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/documents/upload",
+            "headers": [],
+            "client": ("127.0.0.1", 5000),
+        }
+    )
+
+    response = await document_api.upload_document(
+        request,
+        BackgroundTasks(),
+        [UploadFile(filename="policy.png", file=BytesIO(_png_bytes()))],
+        processing_mode="full",
+        pdf_password=None,
+        processing_consent=True,
+        processing_consent_version="test-policy-v1",
+        on_device_ocr_text=None,
+        metadata=None,
+        user_email=None,
+        user_phone=None,
+        consent=False,
+        current_user=OWNER_A,
+    )
+
+    assert response["documents"][0]["status"] == "received"
+    payload = outbox.requests[0].payload
+    assert "object_reference" in payload
+    assert "file_content_b64" not in payload

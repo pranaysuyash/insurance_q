@@ -16,6 +16,7 @@ import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/loading_widget.dart';
 import '../widgets/shared/offline_banner.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
 import '../utils/app_error.dart';
@@ -147,24 +148,25 @@ class QaScreenState extends ConsumerState<QaScreen>
       return;
     }
 
-    // Gate on entitlement: subscription or pack questions must be available
+    // Gate on the canonical entitlement provider. Purchased packs remain
+    // usable after a subscription expires; the provider owns that rule.
     final entitlement = ref.read(entitlementProvider);
-    if (!entitlement.hasQuestionsRemaining) {
+    final entitlementReason = ref
+        .read(entitlementProvider.notifier)
+        .checkAction('ask_question');
+    if (entitlementReason != null) {
       AnalyticsService.track('qa_question_blocked_no_budget', {
         'plan_tier': entitlement.planTier.name,
         'subscription_remaining': entitlement.subscriptionQuestionsRemaining,
         'pack_remaining': entitlement.packQuestionsRemaining,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('No questions remaining. Buy a Q&A pack or upgrade your plan.'),
-          action: SnackBarAction(
-            label: 'Get packs',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const QaPacksScreen()),
-            ),
-          ),
+      CoverWiseSnackBar.warning(
+        context,
+        entitlementReason,
+        actionLabel: 'Get packs',
+        onAction: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const QaPacksScreen()),
         ),
       );
       return;
@@ -211,9 +213,7 @@ class QaScreenState extends ConsumerState<QaScreen>
 
       if (result.containsKey('error') && !result.containsKey('answer')) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not get an answer. ${result['error'] ?? 'Please try again.'}')),
-      );
+      CoverWiseSnackBar.error(context, 'Could not get an answer. ${result['error'] ?? 'Please try again.'}');
         return;
       }
 
@@ -281,9 +281,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppError.userMessage(e))),
-      );
+      CoverWiseSnackBar.error(context, AppError.userMessage(e));
     } finally {
       if (mounted && widget.isActive) {
         ref.read(isLoadingProvider.notifier).state = false;
@@ -1014,12 +1012,7 @@ class _AnswerCardState extends State<_AnswerCard> {
 
     final acknowledgement = ++_copyAcknowledgement;
     setState(() => _copied = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Answer copied to clipboard'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    CoverWiseSnackBar.success(context, 'Answer copied to clipboard', duration: const Duration(seconds: 2));
 
     await Future<void>.delayed(const Duration(milliseconds: 1600));
     if (mounted && acknowledgement == _copyAcknowledgement) {
@@ -1223,13 +1216,13 @@ class FollowUpChips extends ConsumerWidget {
 /// Phase 0 P0-0.3 (trust audit, 2026-07-18): the trust audit returns a
 /// NO-GO verdict because confidence is computed as
 /// `max(model_confidence, retrieval_confidence)` which inflates weak
-/// answers. Until a real benchmark calibrates confidence, the badge
-/// must NOT show high/medium/low colours — it must show "uncalibrated"
-/// or hide entirely.
-///
-/// When [AppConfig.confidenceCalibrated] is false (the default), the
-/// badge shows a single neutral "uncalibrated" chip. When true, it
-/// shows the legacy high/medium/low chip behaviour.
+/// answers. Until a real benchmark calibrates confidence, the badge  /// must NOT show high/medium/low colours — it must be hidden entirely
+  /// or show a neutral indicator.
+  ///
+  /// When [AppConfig.confidenceCalibrated] is false (the default), the
+  /// badge returns a SizedBox.shrink() so users never see an internal
+  /// confidence label. When true, it shows the legacy high/medium/low
+  /// chip behaviour.
 class ConfidenceBadge extends StatelessWidget {
   final double confidence;
   const ConfidenceBadge({super.key, required this.confidence});
@@ -1237,12 +1230,9 @@ class ConfidenceBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!AppConfig.confidenceCalibrated) {
-      return const CoverWiseStatusChip(
-        icon: Icons.help_outline_rounded,
-        label: 'uncalibrated',
-        color: Colors.grey,
-        compact: true,
-      );
+      // Hide the badge entirely rather than showing 'uncalibrated' —
+      // users have no context for that internal label.
+      return const SizedBox.shrink();
     }
     final (label, color) = confidence >= 0.7
         ? ('High', Colors.green)

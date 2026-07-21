@@ -92,9 +92,11 @@ Add these two redirect URLs to the **Redirect URLs** list:
 **Dashboard path:** SQL Editor
 
 **Verification status:** The executable migration chain exists in
-`supabase/migrations/` and is validated locally with the Supabase CLI. The
-`infra/supabase/` files are retained historical SQL-editor snapshots, not a
-second migration source.
+`supabase/migrations/` is the executable source. The `infra/supabase/` files
+are retained historical SQL-editor snapshots, not a second migration source.
+The migration SQL has been replayed against the local Postgres container; a
+clean CLI reset/migration-history verification is still required before a
+production push.
 
 However, whether they've been applied to the Supabase project cannot be verified from code.
 
@@ -107,7 +109,8 @@ However, whether they've been applied to the Supabase project cannot be verified
 **Tables created by the base migration:**
 - `documents` — Policy document metadata
 - `document_chunks` — Chunked text for RAG embedding
-- `analytics_events` — App analytics
+- `analytics_events` — App analytics (Supabase is canonical in production)
+- `dataset_releases`, `dataset_items` — consent-aware evaluation/training registry
 
 **Verify:** Run `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';` — you should see all three tables.
 

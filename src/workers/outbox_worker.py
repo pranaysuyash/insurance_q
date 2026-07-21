@@ -62,6 +62,12 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
 
     dispatcher.register(JobType.DOCUMENT_PROCESSING, handle_document_processing)
     dispatcher.register(JobType.SUBSTRATE_EXTRACTION, handle_substrate_extraction)
+    from src.services.account_lifecycle_service import process_deletion
+
+    async def handle_account_deletion(job):
+        process_deletion(job.payload["request_id"], job.payload["account_uid"])
+
+    dispatcher.register(JobType.ACCOUNT_DELETION, handle_account_deletion)
     log.info(
         "registered handlers: %s",
         [jt.value for jt in dispatcher.registered_types],

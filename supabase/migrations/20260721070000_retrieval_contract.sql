@@ -27,9 +27,20 @@ alter table public.document_chunks
   alter column embedding_dimensions set not null,
   alter column embedding_version set not null;
 
-alter table public.document_chunks
-  add constraint document_chunks_embedding_dimensions_positive
-  check (embedding_dimensions > 0);
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.document_chunks'::regclass
+      and conname = 'document_chunks_embedding_dimensions_positive'
+  ) then
+    alter table public.document_chunks
+      add constraint document_chunks_embedding_dimensions_positive
+      check (embedding_dimensions > 0);
+  end if;
+end
+$$;
 
 create index if not exists document_chunks_embedding_contract_idx
   on public.document_chunks (embedding_model, embedding_version, embedding_dimensions);
@@ -67,7 +78,15 @@ grant execute on function public.match_document_chunks(vector(1536), text, integ
 
 -- Retire the earlier unconstrained overloads so callers cannot bypass the
 -- embedding-contract and document-filter arguments.
-revoke all on function public.match_document_chunks(vector(1536), text, integer, double precision)
-  from public, anon, authenticated, service_role;
-revoke all on function public.match_document_chunks_fts(text, text, integer, double precision)
-  from public, anon, authenticated, service_role;
+do $$
+begin
+  if to_regprocedure('public.match_document_chunks(vector, text, integer, double precision)') is not null then
+    revoke all on function public.match_document_chunks(vector, text, integer, double precision)
+      from public, anon, authenticated, service_role;
+  end if;
+  if to_regprocedure('public.match_document_chunks_fts(text, text, integer, double precision)') is not null then
+    revoke all on function public.match_document_chunks_fts(text, text, integer, double precision)
+      from public, anon, authenticated, service_role;
+  end if;
+end
+$$;

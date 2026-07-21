@@ -14,6 +14,11 @@ class EditableField extends StatefulWidget {
   final VoidCallback? onRevert;
   final String? hintText;
 
+  /// Optional tooltip shown when the user long-presses or hovers over the
+  /// label. Use this to explain insurance jargon (e.g. "Sum Insured" means
+  /// "The maximum amount your insurer will pay for a covered claim").
+  final String? labelTooltip;
+
   const EditableField({
     super.key,
     required this.label,
@@ -24,6 +29,7 @@ class EditableField extends StatefulWidget {
     required this.onSave,
     this.onRevert,
     this.hintText,
+    this.labelTooltip,
   });
 
   @override
@@ -86,6 +92,13 @@ class _EditableFieldState extends State<EditableField> {
   }
 
   Widget _buildDisplayMode(ThemeData theme, ColorScheme colorScheme) {
+    final labelWidget = Text(
+      widget.label,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: colorScheme.onSurfaceVariant,
+      ),
+    );
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -93,12 +106,13 @@ class _EditableFieldState extends State<EditableField> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+              widget.labelTooltip != null
+                  ? Tooltip(
+                      message: widget.labelTooltip!,
+                      triggerMode: TooltipTriggerMode.longPress,
+                      child: labelWidget,
+                    )
+                  : labelWidget,
               const SizedBox(height: 2),
               Text(
                 widget.value.isEmpty ? '—' : widget.value,

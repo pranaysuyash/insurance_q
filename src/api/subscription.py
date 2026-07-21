@@ -12,13 +12,14 @@ Phase: M17 (subscription sync endpoint)
 """
 
 import json
+import hmac
 import logging
 import os
 import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from src.api.user import get_current_user
@@ -48,9 +49,14 @@ def _init_subscription_table():
             is_active INTEGER NOT NULL DEFAULT 0,
             revenuecat_app_user_id TEXT,
             synced_at TEXT NOT NULL,
-            raw_customer_info TEXT
+            raw_customer_info TEXT,
+            source TEXT NOT NULL DEFAULT 'client_sync'
         )
     """)
+    try:
+        conn.execute("ALTER TABLE subscription_sync ADD COLUMN source TEXT NOT NULL DEFAULT 'client_sync'")
+    except sqlite3.OperationalError:
+        pass
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_sub_sync_user
         ON subscription_sync(user_uid)
@@ -64,6 +70,17 @@ def _init_subscription_table():
         CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_sync_user_active
         ON subscription_sync(user_uid, is_active)
         WHERE is_active = 1
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS revenuecat_webhook_events (
+            event_id TEXT PRIMARY KEY,
+            event_type TEXT NOT NULL,
+            app_user_id TEXT NOT NULL,
+            received_at TEXT NOT NULL,
+            processed_at TEXT,
+            processing_result TEXT NOT NULL,
+            error_class TEXT
+        )
     """)
     conn.commit()
     conn.close()
@@ -139,11 +156,28 @@ def sync_subscription(
 
     server_now = datetime.now(timezone.utc).isoformat()
 
-    # Deactivate any existing active sync for this user
+    # A client sync can reconcile a verified record, but it must not replace a
+    # paid state established by a RevenueCat webhook.
     conn = sqlite3.connect(DB_PATH)
     try:
+        verified = conn.execute(
+            "SELECT plan_tier, product_id, expires_at, is_active, synced_at "
+            "FROM subscription_sync WHERE user_uid = ? AND source = 'revenuecat_webhook' "
+            "AND is_active = 1 ORDER BY synced_at DESC LIMIT 1",
+            (current_user.uid,),
+        ).fetchone()
+        if verified is not None and plan_tier == "free":
+            return {
+                "status": "verified_state_preserved",
+                "plan_tier": verified[0],
+                "is_active": bool(verified[3]),
+                "synced_at": verified[4],
+            }
+
+        # Deactivate any existing active client sync for this user.
         conn.execute(
-            "UPDATE subscription_sync SET is_active = 0 WHERE user_uid = ? AND is_active = 1",
+            "UPDATE subscription_sync SET is_active = 0 WHERE user_uid = ? "
+            "AND is_active = 1 AND source = 'client_sync'",
             (current_user.uid,),
         )
 
@@ -160,8 +194,8 @@ def sync_subscription(
             """
             INSERT INTO subscription_sync
               (user_uid, plan_tier, product_id, expires_at, is_active,
-               revenuecat_app_user_id, synced_at, raw_customer_info)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               revenuecat_app_user_id, synced_at, raw_customer_info, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'client_sync')
             """,
             (
                 current_user.uid,
@@ -186,13 +220,154 @@ def sync_subscription(
 
         return {
             "status": "synced",
-            "plan_tier": request.plan_tier,
+            # Return the normalized value that was actually persisted. This
+            # keeps the response from echoing an untrusted client claim.
+            "plan_tier": plan_tier,
             "is_active": request.is_active,
             "synced_at": server_now,
         }
     except Exception as e:
         logger.warning("Subscription sync failed for user %s: %s", current_user.uid[:8], e)
         raise HTTPException(status_code=500, detail="Subscription sync failed")
+    finally:
+        conn.close()
+
+
+def _require_revenuecat_webhook(
+    authorization: str | None,
+) -> None:
+    expected = os.getenv("REVENUECAT_WEBHOOK_AUTHORIZATION", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="RevenueCat webhook authorization is not configured")
+    if not authorization or not hmac.compare_digest(authorization, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized webhook")
+
+
+def _webhook_plan(product_id: str | None) -> str:
+    product = (product_id or "").lower()
+    if "family" in product:
+        return "family"
+    if "plus" in product:
+        return "plus"
+    return "free"
+
+
+def _webhook_expiry(event: dict) -> str | None:
+    raw = event.get("expiration_at_ms")
+    if raw in (None, ""):
+        return None
+    try:
+        return datetime.fromtimestamp(float(raw) / 1000, tz=timezone.utc).isoformat()
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+@router.post("/webhook")
+async def revenuecat_webhook(
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    """Accept authenticated, idempotent RevenueCat subscription events.
+
+    RevenueCat retries non-200 deliveries. The event ID is therefore the
+    idempotency key; duplicate deliveries return 200 without reapplying state.
+    Cancellation preserves access until expiration, while expiration/revoked
+    events remove the verified active entitlement.
+    """
+    _require_revenuecat_webhook(authorization)
+    try:
+        payload = await request.json()
+        event = payload.get("event") if isinstance(payload, dict) else None
+        if not isinstance(event, dict):
+            raise ValueError("missing event")
+        event_id = str(event.get("id") or "").strip()
+        event_type = str(event.get("type") or "").upper().strip()
+        app_user_id = str(event.get("app_user_id") or "").strip()
+        if not event_id or not event_type or not app_user_id:
+            raise ValueError("missing event identity")
+    except (ValueError, TypeError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=400, detail="Invalid RevenueCat webhook payload") from error
+
+    now = datetime.now(timezone.utc).isoformat()
+    expiry = _webhook_expiry(event)
+    product_id = event.get("product_id")
+    plan_tier = _webhook_plan(product_id)
+    active_events = {
+        "INITIAL_PURCHASE",
+        "RENEWAL",
+        "UNCANCELLATION",
+        "PRODUCT_CHANGE",
+        "SUBSCRIPTION_EXTENDED",
+        "NON_RENEWING_PURCHASE",
+    }
+    revoke_events = {"EXPIRATION", "REFUND_REVERSED"}
+    if event_type not in active_events | revoke_events | {"CANCELLATION", "BILLING_ISSUE", "TRANSFER"}:
+        # Unknown event types are acknowledged safely. RevenueCat may add
+        # event types without making old deployments retry forever.
+        return {"status": "ignored", "event_id": event_id, "event_type": event_type}
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        _init_subscription_table()
+        inserted = conn.execute(
+            "INSERT OR IGNORE INTO revenuecat_webhook_events "
+            "(event_id, event_type, app_user_id, received_at, processing_result) "
+            "VALUES (?, ?, ?, ?, 'received')",
+            (event_id, event_type, app_user_id, now),
+        ).rowcount
+        if not inserted:
+            return {"status": "duplicate", "event_id": event_id}
+
+        current_active = event_type in active_events or (
+            event_type in {"CANCELLATION", "BILLING_ISSUE"}
+            and expiry is not None
+            and datetime.fromisoformat(expiry) > datetime.now(timezone.utc)
+        )
+        if event_type == "TRANSFER":
+            current_active = True
+
+        conn.execute(
+            "UPDATE subscription_sync SET is_active = 0 WHERE user_uid = ? "
+            "AND is_active = 1 AND source = 'revenuecat_webhook'",
+            (app_user_id,),
+        )
+        conn.execute(
+            "INSERT INTO subscription_sync "
+            "(user_uid, plan_tier, product_id, expires_at, is_active, "
+            "revenuecat_app_user_id, synced_at, raw_customer_info, source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'revenuecat_webhook')",
+            (
+                app_user_id,
+                plan_tier if current_active else "free",
+                product_id,
+                expiry,
+                1 if current_active else 0,
+                app_user_id,
+                now,
+            ),
+        )
+        conn.execute(
+            "UPDATE revenuecat_webhook_events SET processed_at=?, processing_result='processed' "
+            "WHERE event_id=?",
+            (now, event_id),
+        )
+        conn.commit()
+        return {
+            "status": "processed",
+            "event_id": event_id,
+            "event_type": event_type,
+            "plan_tier": plan_tier if current_active else "free",
+            "is_active": current_active,
+        }
+    except Exception as error:
+        conn.rollback()
+        conn.execute(
+            "UPDATE revenuecat_webhook_events SET processed_at=?, processing_result='failed', error_class=? "
+            "WHERE event_id=?",
+            (now, type(error).__name__, event_id),
+        )
+        conn.commit()
+        raise HTTPException(status_code=500, detail="RevenueCat webhook processing failed") from error
     finally:
         conn.close()
 
@@ -211,6 +386,29 @@ def get_subscription_status(
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
+        verified_row = conn.execute(
+            """
+            SELECT plan_tier, product_id, expires_at, is_active, synced_at
+            FROM subscription_sync
+            WHERE user_uid = ? AND source = 'revenuecat_webhook'
+            ORDER BY synced_at DESC
+            LIMIT 1
+            """,
+            (current_user.uid,),
+        ).fetchone()
+        # A verified webhook record always wins over client reconciliation,
+        # including a verified expiration/revocation.
+        if verified_row is not None:
+            return {
+                "plan_tier": verified_row["plan_tier"],
+                "is_active": bool(verified_row["is_active"]),
+                "product_id": verified_row["product_id"],
+                "expires_at": verified_row["expires_at"],
+                "synced_at": verified_row["synced_at"],
+                "is_expired": not bool(verified_row["is_active"]),
+                "source": "revenuecat_webhook",
+            }
+
         row = conn.execute(
             """
             SELECT plan_tier, product_id, expires_at, is_active, synced_at

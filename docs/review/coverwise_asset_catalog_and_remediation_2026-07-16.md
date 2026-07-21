@@ -328,3 +328,54 @@ required before claiming the themed icon, Android 12 splash mask and system
 Reduce Motion behavior at Tier 4. A release-configured iOS cold-start trace should also be
 captured before making a startup-time performance claim; the current proof is a
 debug simulator runtime and establishes correctness, not production latency.
+
+## Addendum — Android 16 release baseline and native-system closure, 2026-07-21
+
+The earlier API 35 Android evidence was insufficient for the current Play
+baseline. CoverWise now compiles **and targets Android 16/API 36** while
+retaining Android 6/API 23 as its minimum supported version. The decision,
+options, rollback and update history are recorded in
+[`ADR-2026-07-21-02`](../decisions/ADR-2026-07-21-02-android-16-target-and-system-identity.md).
+
+Android 16 verification used a newly provisioned Google APIs ARM Pixel emulator
+and a fresh debug APK install:
+
+- cold launch showed the system-owned dark CoverWise splash before Flutter
+  rendered onboarding;
+- the app reached the first onboarding page with no app ANR or fatal exception;
+- Android reports `targetSdk=36` for `com.coverwise.app`;
+- system themed icons were enabled in Wallpaper & style;
+- the packaged APK contains the API 33+ `mipmap-anydpi-v33` adaptive-icon
+  variant with a direct alpha-only monochrome drawable reference, in addition to
+  the existing Android 8+ adaptive variant; its standard and round manifest
+  declarations resolve to the same canonical resource;
+- `asset_integrity_test.dart`, `flutter analyze`, and the Android 16 debug APK
+  build pass.
+
+Evidence is retained in
+`docs/review/evidence/android16-platform-qa-2026-07-21/`. The API 36 screenshot
+captures are Tier 4 for system splash, app launch and the enabled system theme;
+the CoverWise monochrome layer itself is Tier 1/2 packaged-resource/test proof
+because the emulator launcher does not allow ADB-driven pinning of the app to
+its home workspace for a direct tinted-glyph capture. This limitation is stated
+explicitly rather than counted as a completed visual observation.
+
+### Three-pass review — Android 16 closure
+
+1. **Immediate correctness:** aligned target and compile SDKs, preserved
+   `minSdk=23`, added the Android 13+ monochrome resource variant and made the
+   target/splash/icon contract testable.
+2. **Architecture:** kept one launcher resource name with version-qualified
+   Android variants; no second icon pipeline, duplicate activity, or custom
+   splash path was introduced.
+3. **Supervision readiness:** captured clean Android 16 screenshots and UI
+   hierarchy, inspected the built APK with `aapt2`, recorded the unresolved
+   evidence boundary, and preserved unrelated workspace changes.
+
+### Anything else?
+
+Android 17/API 37 remains a preview compatibility lane. It was not installed in
+this workspace because provisioning Android 16 left only 1.8 GiB of free local
+storage; downloading another system image would risk unrelated work. The Android
+16/API 36 release contract is complete and gated. Android 17 needs a separate
+device/emulator run once build storage is available.

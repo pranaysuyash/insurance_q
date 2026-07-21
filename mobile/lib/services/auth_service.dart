@@ -43,6 +43,12 @@ class AuthService {
       _accountClientReady &&
       Supabase.instance.client.auth.currentSession != null;
 
+  /// The canonical account owner used by the backend and RevenueCat when an
+  /// account session exists. Guest ownership remains the server-issued
+  /// anonymous subject until this account is explicitly claimed.
+  static String? get accountUserId =>
+      hasAccountSession ? Supabase.instance.client.auth.currentUser?.id : null;
+
   static Future<String?> accessToken() async {
     if (hasAccountSession) {
       return Supabase.instance.client.auth.currentSession?.accessToken;
@@ -95,11 +101,30 @@ class AuthService {
   static Future<void> claimAnonymousData() async {
     final legacyToken = await anonymousToken();
     if (legacyToken == null || !hasAccountSession) return;
+    AnalyticsService.track('claim_initiated', {
+      // The token age is intentionally not decoded on-device. The backend
+      // remains the authority for token validity and ownership.
+      'anonymous_token_age_hours_bucket': 'unknown',
+    });
     final dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
     dio.interceptors.add(AuthInterceptor(dio));
-    await dio
-        .post('/user/claim-anonymous', data: {'anonymous_token': legacyToken});
-    await clearToken();
+    try {
+      final response = await dio.post('/user/claim-anonymous',
+          data: {'anonymous_token': legacyToken});
+      final transferred = (response.data is Map)
+          ? ((response.data as Map)['transferred_documents'] as int? ?? 0)
+          : 0;
+      AnalyticsService.track('claim_succeeded', {
+        'transferred_count': transferred,
+      });
+      await clearToken();
+    } catch (error) {
+      AnalyticsService.track('claim_failed', {
+        'error_class': error.runtimeType.toString(),
+        'transferred_count': 0,
+      });
+      rethrow;
+    }
   }
 
   static Future<void> signOut() async {
@@ -165,9 +190,8 @@ class AuthService {
       throw Exception('Server returned ${response.statusCode}');
     }
     final data = (response.data as Map?)?.cast<String, dynamic>() ?? {};
-    final failedStages = (data['failed_stages'] as List?)
-            ?.cast<String>() ??
-        const <String>[];
+    final failedStages =
+        (data['failed_stages'] as List?)?.cast<String>() ?? const <String>[];
     final result = DeleteAccountResult(
       status: data['status'] as String? ?? 'unknown',
       deletedDocuments: (data['deleted_documents'] as int?) ?? 0,

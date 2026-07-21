@@ -15,6 +15,7 @@ import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/editable_field.dart';
 import '../services/field_overrides_store.dart';
 import '../utils/date_validation.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import 'claim_assistance_screen.dart';
 import 'coverage_gap_screen.dart';
 import 'document_preview_screen.dart';
@@ -316,7 +317,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
             ),
           ],
           if (summary.waitingPeriods.isNotEmpty) ...[
-            const CoverWiseSectionLabel('Timing conditions'),
+            const CoverWiseSectionLabel('Waiting periods'),
             Builder(
               builder: (context) => _SectionList(
                 title: 'Waiting Periods',
@@ -380,8 +381,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     final documents = ref.read(documentsProvider).valueOrNull;
     if (documents == null || documents.isEmpty) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No documents available.')),
+      CoverWiseSnackBar.info(
+        context,
+        'No policies on this device. Upload one to get started.',
       );
       return;
     }
@@ -394,20 +396,18 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
 
     if (doc == null) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Document not found on this device.')),
+      CoverWiseSnackBar.error(
+        context,
+        'Document not found on this device. Try refreshing or re-uploading.',
       );
       return;
     }
 
     if (doc.localFilePath == null || doc.localFilePath!.isEmpty) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Source document is only available on the device where it was uploaded.'),
-          duration: Duration(seconds: 3),
-        ),
+      CoverWiseSnackBar.info(
+        context,
+        'Source document is only available on the device where it was uploaded.',
       );
       return;
     }
@@ -580,6 +580,7 @@ class _MoneyRow extends StatelessWidget {
       if (summary.coverageAmount != null || overrides.containsKey('coverage_amount'))
         _MoneyItem(
           label: 'Sum Insured',
+          labelTooltip: 'The maximum amount your insurer will pay for a covered claim',
           value: coverageDisplay,
           icon: Icons.shield,
           color: scheme.primary,
@@ -628,7 +629,10 @@ class _MoneyRow extends StatelessWidget {
               children: items
                   .map(
                     (item) => Semantics(
-                      label: '${item.label}: ${item.value}',
+                      label: [
+                        '${item.label}: ${item.value}',
+                        if (item.labelTooltip != null) item.labelTooltip!,
+                      ].join('. '),
                       excludeSemantics: true,
                       child: SizedBox(
                         width: itemWidth
@@ -650,6 +654,7 @@ class _MoneyRow extends StatelessWidget {
                               item.field != null && item.onEditField != null
                                   ? EditableField(
                                       label: item.label,
+                                      labelTooltip: item.labelTooltip,
                                       value: item.value,
                                       originalValue: item.originalValue,
                                       hasOverride: item.hasOverride,
@@ -700,6 +705,7 @@ class _MoneyRow extends StatelessWidget {
 
 class _MoneyItem {
   final String label;
+  final String? labelTooltip;
   final String value;
   final IconData icon;
   final Color color;
@@ -711,6 +717,7 @@ class _MoneyItem {
   
   _MoneyItem({
     required this.label,
+    this.labelTooltip,
     required this.value,
     required this.icon,
     required this.color,
@@ -918,7 +925,7 @@ class _CoverageItemsCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Item-by-item view',
+                  'Detailed breakdown',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),

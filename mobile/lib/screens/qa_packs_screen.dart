@@ -6,6 +6,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/faq_item.dart';
 import '../theme/coverwise_theme.dart';
 import '../services/analytics_service.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../utils/app_error.dart';
 
 /// Screen where users can browse and purchase pay-per-Q&A packs.
@@ -358,12 +359,7 @@ class _PackCard extends ConsumerWidget {
         });
         ref.read(entitlementProvider.notifier).refresh();
         onSuccess();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${pack.displayName} pack purchased! ${pack.questionCount} questions added.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        CoverWiseSnackBar.success(context, '${pack.displayName} pack purchased! ${pack.questionCount} questions added.');
       } else {
         AnalyticsService.track('qa_pack_purchase_failed', {
           'pack_type': pack.name,
@@ -377,12 +373,7 @@ class _PackCard extends ConsumerWidget {
         'reason': 'error',
       });
       final msg = AppError.userMessage(e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg.isEmpty ? 'Purchase was cancelled.' : msg),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      CoverWiseSnackBar.error(context, msg.isEmpty ? 'Purchase was cancelled.' : msg);
     } finally {
       onEndPurchase();
     }

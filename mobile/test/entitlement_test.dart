@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:coverwise/models/entitlement.dart';
+import 'package:coverwise/models/qa_pack.dart';
 
 void main() {
   group('PlanTier', () {
@@ -82,31 +83,61 @@ void main() {
       expect(ent.isActive, false);
     });
 
+    test('expired paid tier has no subscription questions remaining', () {
+      final ent = Entitlement(
+        planTier: PlanTier.plus,
+        expiresAt: DateTime.now().subtract(const Duration(days: 1)),
+      );
+      expect(ent.hasSubscriptionQuestionsRemaining, false);
+      expect(ent.subscriptionQuestionsRemaining, 0);
+    });
+
+    test('expired subscription does not consume purchased pack access', () {
+      final ent = Entitlement(
+        planTier: PlanTier.plus,
+        expiresAt: DateTime.now().subtract(const Duration(days: 1)),
+        packs: [
+          QaPack(
+            type: QaPackType.starter,
+            questionsRemaining: 5,
+            purchasedAt: DateTime.now().subtract(const Duration(days: 2)),
+            expiresAt: DateTime.now().add(const Duration(days: 88)),
+          ),
+        ],
+      );
+      expect(ent.hasQuestionsRemaining, true);
+      expect(ent.subscriptionQuestionsRemaining, 0);
+      expect(ent.packQuestionsRemaining, 5);
+    });
+
     test('subscriptionQuestionsRemaining is clamped to max', () {
       final ent = const Entitlement(planTier: PlanTier.free);
       expect(ent.subscriptionQuestionsRemaining, 20);
     });
 
     test('subscriptionQuestionsRemaining decreases with usage', () {
-      final ent = const Entitlement(
+      final ent = Entitlement(
         planTier: PlanTier.plus,
         questionsUsedThisMonth: 50,
+        expiresAt: DateTime.now().add(const Duration(days: 30)),
       );
       expect(ent.subscriptionQuestionsRemaining, 150);
     });
 
     test('hasQuestionsRemaining when under limit', () {
-      final ent = const Entitlement(
+      final ent = Entitlement(
         planTier: PlanTier.plus,
         questionsUsedThisMonth: 199,
+        expiresAt: DateTime.now().add(const Duration(days: 30)),
       );
       expect(ent.hasQuestionsRemaining, true);
     });
 
     test('no questionsRemaining when at limit', () {
-      final ent = const Entitlement(
+      final ent = Entitlement(
         planTier: PlanTier.plus,
         questionsUsedThisMonth: 200,
+        expiresAt: DateTime.now().add(const Duration(days: 30)),
       );
       expect(ent.hasQuestionsRemaining, false);
     });

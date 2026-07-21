@@ -61,15 +61,18 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
   // with no referrer pass validation as long as the keys are explicitly
   // emitted with null.
   'app_session_started': {
-    'install_id': AnalyticsPropertyType.string,    // UUID stringified
-    'session_id': AnalyticsPropertyType.string,    // UUID stringified, per-launch
-    'platform': AnalyticsPropertyType.string,      // 'android' | 'ios' | ...
-    'app_version': AnalyticsPropertyType.string,   // e.g. '0.1.2'
+    'install_id': AnalyticsPropertyType.string, // UUID stringified
+    'session_id': AnalyticsPropertyType.string, // UUID stringified, per-launch
+    'platform': AnalyticsPropertyType.string, // 'android' | 'ios' | ...
+    'app_version': AnalyticsPropertyType.string, // e.g. '0.1.2'
     'days_since_install': AnalyticsPropertyType.number,
     'is_reinstall': AnalyticsPropertyType.boolean,
-    'install_referrer_source': AnalyticsPropertyType.string,   // null if no referrer
-    'install_referrer_medium': AnalyticsPropertyType.string,   // null if no referrer
-    'install_referrer_campaign': AnalyticsPropertyType.string, // null if no referrer
+    'install_referrer_source':
+        AnalyticsPropertyType.string, // null if no referrer
+    'install_referrer_medium':
+        AnalyticsPropertyType.string, // null if no referrer
+    'install_referrer_campaign':
+        AnalyticsPropertyType.string, // null if no referrer
   },
 
   // Emitted once per install on first identity bootstrap
@@ -82,14 +85,50 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
   // Emitted on Supabase Auth sign-up success.
   'account_created': {
     'install_id': AnalyticsPropertyType.string,
-    'auth_method': AnalyticsPropertyType.string,   // 'email' | 'google' | 'apple' | ...
+    'auth_method':
+        AnalyticsPropertyType.string, // 'email' | 'google' | 'apple' | ...
   },
 
-  // Emitted when user hits a free-tier cap and the paywall is shown.
+  'claim_initiated': {
+    'anonymous_token_age_hours_bucket': AnalyticsPropertyType.string,
+  },
+  'claim_succeeded': {
+    'transferred_count': AnalyticsPropertyType.number,
+  },
+  'claim_failed': {
+    'error_class': AnalyticsPropertyType.string,
+    'transferred_count': AnalyticsPropertyType.number,
+  },
+
   'paywall_viewed': {
-    'cap_type': AnalyticsPropertyType.string,       // 'questions' | 'documents' | 'family_members' | ...
+    'cap_type': AnalyticsPropertyType.string,
     'cap_value': AnalyticsPropertyType.number,
     'user_actions_remaining': AnalyticsPropertyType.number,
+  },
+  'plan_purchase_started': {
+    'plan_tier': AnalyticsPropertyType.string,
+    'billing_cycle': AnalyticsPropertyType.string,
+  },
+  'plan_purchase_completed': {
+    'plan_tier': AnalyticsPropertyType.string,
+  },
+  'plan_purchase_failed': {
+    'plan_tier': AnalyticsPropertyType.string,
+    'reason': AnalyticsPropertyType.string,
+  },
+  'qa_pack_purchase_started': {
+    'pack_type': AnalyticsPropertyType.string,
+  },
+  'qa_pack_purchase_completed': {
+    'pack_type': AnalyticsPropertyType.string,
+  },
+  'qa_pack_purchase_failed': {
+    'pack_type': AnalyticsPropertyType.string,
+    'reason': AnalyticsPropertyType.string,
+  },
+  'subscription_state_synced': {
+    'plan_tier': AnalyticsPropertyType.string,
+    'is_active': AnalyticsPropertyType.boolean,
   },
 
   // Emitted on successful billing event (webhook confirmed server-side).
@@ -108,7 +147,8 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
 
   // Emitted when user cancels (or auto-cancelled for non-payment).
   'subscription_cancelled': {
-    'reason_bucket': AnalyticsPropertyType.string,  // 'too_expensive' | 'no_value' | 'switched_apps' | 'privacy' | 'other'
+    'reason_bucket': AnalyticsPropertyType
+        .string, // 'too_expensive' | 'no_value' | 'switched_apps' | 'privacy' | 'other'
     'days_since_start': AnalyticsPropertyType.number,
     'billing_provider': AnalyticsPropertyType.string,
   },
@@ -119,26 +159,10 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
     'billing_provider': AnalyticsPropertyType.string,
   },
 
-  // Emitted when user triggers claim-anonymous flow.
-  'claim_initiated': {
-    'anonymous_token_age_hours_bucket': AnalyticsPropertyType.string, // '0-1' | '1-24' | '24-168' | '168+'
-  },
-
-  // Emitted when claim-anonymous completes successfully.
-  'claim_succeeded': {
-    'transferred_count': AnalyticsPropertyType.number,
-  },
-
-  // Emitted when claim-anonymous fails. CRITICAL: if transferred_count > 0, this
-  // is silent document loss. Operator alert fires.
-  'claim_failed': {
-    'error_class': AnalyticsPropertyType.string,
-    'transferred_count': AnalyticsPropertyType.number,
-  },
-
   // Emitted when user clicks delete account (before the four-step deletion).
   'account_deletion_initiated': {
-    'reason_bucket': AnalyticsPropertyType.string,  // 'too_expensive' | 'no_value' | 'switched_apps' | 'privacy' | 'other'
+    'reason_bucket': AnalyticsPropertyType
+        .string, // 'too_expensive' | 'no_value' | 'switched_apps' | 'privacy' | 'other'
   },
 
   // Emitted after all four deletion steps complete (storage, metadata, auth, client).
@@ -151,7 +175,8 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
 
   // Emitted when processing doesn't complete in 5 minutes.
   'processing_stalled': {
-    'stalled_after_seconds_bucket': AnalyticsPropertyType.string, // '300-360' | '360-600' | '600+'
+    'stalled_after_seconds_bucket':
+        AnalyticsPropertyType.string, // '300-360' | '360-600' | '600+'
   },
 
   // Emitted when user hits a quota (questions, documents, family members, etc).
@@ -162,8 +187,8 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
 
   // Emitted when refund is successfully processed by billing provider.
   'refund_issued': {
-    'provider': AnalyticsPropertyType.string,        // 'dodo' | 'razorpay'
-    'refund_id': AnalyticsPropertyType.string,      // provider's refund ID
+    'provider': AnalyticsPropertyType.string, // 'dodo' | 'razorpay'
+    'refund_id': AnalyticsPropertyType.string, // provider's refund ID
     'amount_paise': AnalyticsPropertyType.number,
     'reason_bucket': AnalyticsPropertyType.string,
   },

@@ -11,6 +11,7 @@ import '../services/hive_workspace_service.dart';
 import '../models/document_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/document_providers.dart';
+import '../providers/entitlement_provider.dart';
 import '../config/app_config.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
@@ -104,6 +105,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// This ensures workspace isolation when switching accounts.
   Future<void> _clearWorkspaceData() async {
     try {
+      if (AppConfig.hasRevenueCatConfig) {
+        await ref.read(billingAdapterProvider).clearAccountIdentity();
+      }
+
       // Clear service-owned state while all boxes are still open.
       await AnalyticsService.clear();
       await ContactService.clearSavedContact();

@@ -44,7 +44,8 @@ create table if not exists public.job_outbox (
       'webhook_reconciliation',
       'subscription_writeback',
       'claim_verification',
-      'renewal_diff'
+      'renewal_diff',
+      'account_deletion'
     )),
   -- The payload is opaque to the queue. Each handler validates its own
   -- payload shape. JSONB allows payload evolution without schema

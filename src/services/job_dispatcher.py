@@ -3,7 +3,7 @@
 The dispatcher is the only path that maps a claimed job to a
 handler function. The mapping is a single registry; new job
 types require a new entry here AND in src/models/job_outbox.py
-AND in the SQL CHECK in supabase/migrations/2026_07_19_job_outbox.sql.
+AND in the SQL CHECK in supabase/migrations/20260719010000_job_outbox.sql.
 
 The dispatcher does NOT own the queue. The queue is
 JobOutboxService. The dispatcher owns the handler functions and

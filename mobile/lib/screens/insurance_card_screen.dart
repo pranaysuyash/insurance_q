@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
 import '../theme/coverwise_theme.dart';
@@ -13,7 +15,7 @@ import 'documents_screen.dart';
 ///
 /// Shows a visual card for each policy with:
 /// - Policy number, insurer, coverage amount, expiry
-/// - One-tap call/email insurer
+/// - One-tap call insurer and share a limited text card
 /// - Shareable card format
 class InsuranceCardScreen extends ConsumerWidget {
   const InsuranceCardScreen({super.key});
@@ -192,13 +194,7 @@ class _InsuranceCard extends StatelessWidget {
                       child: FilledButton.icon(
                         icon: const Icon(Icons.phone_outlined, size: 18),
                         label: const Text('Call insurer'),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('Call ${summary.insurerHelpline}')),
-                          );
-                        },
+                        onPressed: () => _callInsurer(context),
                       ),
                     );
                     final share = SizedBox(
@@ -206,12 +202,7 @@ class _InsuranceCard extends StatelessWidget {
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.ios_share_rounded, size: 18),
                         label: const Text('Share card'),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Share card coming soon')),
-                          );
-                        },
+                        onPressed: () => _shareCard(context),
                       ),
                     );
                     if (stack) {
@@ -234,6 +225,50 @@ class _InsuranceCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _callInsurer(BuildContext context) async {
+    final rawNumber = summary.insurerHelpline;
+    if (rawNumber == null || rawNumber.trim().isEmpty) return;
+    final phone = rawNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+    bool launched = false;
+    try {
+      launched = await launchUrl(Uri(scheme: 'tel', path: phone));
+    } catch (_) {
+      launched = false;
+    }
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the phone app')),
+      );
+    }
+  }
+
+  Future<void> _shareCard(BuildContext context) async {
+    final lines = <String>[
+      'CoverWise policy card',
+      summary.documentType,
+      if (summary.insurer != null) 'Insurer: ${summary.insurer}',
+      if (summary.policyNumber != null)
+        'Policy number: ${summary.policyNumber}',
+      if (summary.formattedCoverageAmount != 'Unknown')
+        'Coverage: ${summary.formattedCoverageAmount}',
+      if (summary.formattedExpiryDate != 'Unknown')
+        'Valid until: ${summary.formattedExpiryDate}',
+      if (summary.insurerHelpline != null)
+        'Insurer helpline: ${summary.insurerHelpline}',
+      '',
+      'Verify current details with the insurer and the source policy document.',
+    ];
+    try {
+      await SharePlus.instance.share(ShareParams(text: lines.join('\n')));
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open sharing options')),
+        );
+      }
+    }
   }
 }
 

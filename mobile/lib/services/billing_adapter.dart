@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../config/app_config.dart';
 import '../models/entitlement.dart';
 import '../models/qa_pack.dart';
+import 'analytics_service.dart';
+import 'auth_service.dart';
+import 'document_service.dart';
 import 'entitlement_service.dart';
 
 /// Billing adapter backed by RevenueCat.
@@ -18,6 +22,7 @@ import 'entitlement_service.dart';
 /// truth for feature gating (fast, offline-capable).
 class BillingAdapter {
   final EntitlementService _entitlementService;
+  static bool _initialized = false;
 
   BillingAdapter(this._entitlementService);
 
@@ -52,10 +57,45 @@ class BillingAdapter {
     await Purchases.setLogLevel(
       kDebugMode ? LogLevel.debug : LogLevel.info,
     );
-    await Purchases.configure(
-      PurchasesConfiguration(apiKey),
-    );
+    final configuration = PurchasesConfiguration(apiKey)
+      ..appUserID = AuthService.accountUserId;
+    await Purchases.configure(configuration);
+    _initialized = true;
     debugPrint('BillingAdapter: RevenueCat initialized');
+  }
+
+  /// Associate RevenueCat with the durable CoverWise account after a guest
+  /// converts. RevenueCat aliases the prior store customer where possible,
+  /// preserving purchases while the backend uses the Supabase account UID.
+  Future<void> identifyAccount(String accountId) async {
+    if (!_initialized || accountId.isEmpty) return;
+    try {
+      final currentId = await Purchases.appUserID;
+      if (currentId != accountId) {
+        final result = await Purchases.logIn(accountId);
+        await _applyCustomerInfo(result.customerInfo);
+      }
+      await syncEntitlement();
+    } catch (e) {
+      debugPrint('BillingAdapter: account identity sync deferred: $e');
+    }
+  }
+
+  /// Detach the store customer from the signed-out account.
+  ///
+  /// RevenueCat maintains its own customer identity independently of Hive;
+  /// resetting local entitlement state without logging out here could carry
+  /// account A's purchases into a guest or account B session.
+  Future<void> clearAccountIdentity() async {
+    if (!_initialized) return;
+    try {
+      await Purchases.logOut();
+      debugPrint('BillingAdapter: RevenueCat identity reset after sign-out');
+    } catch (e) {
+      // Do not block local workspace isolation, but leave an observable
+      // diagnostic for the operator/runtime review.
+      debugPrint('BillingAdapter: RevenueCat identity reset deferred: $e');
+    }
   }
 
   // ── Sync from RevenueCat ──────────────────────────────────────────
@@ -68,6 +108,7 @@ class BillingAdapter {
     try {
       final customerInfo = await Purchases.getCustomerInfo();
       await _applyCustomerInfo(customerInfo);
+      await _syncServerEntitlement(customerInfo);
     } catch (e) {
       debugPrint('BillingAdapter: syncEntitlement failed: $e');
     }
@@ -88,9 +129,8 @@ class BillingAdapter {
       if (tier != null) {
         // expirationDate is String? in this SDK version; parse safely.
         final rawExpiry = revenueCatEntitlement.expirationDate;
-        final expiresAt = rawExpiry != null
-            ? DateTime.tryParse(rawExpiry.toString())
-            : null;
+        final expiresAt =
+            rawExpiry != null ? DateTime.tryParse(rawExpiry.toString()) : null;
         await _entitlementService.setPlan(
           tier,
           expiresAt: expiresAt,
@@ -108,13 +148,43 @@ class BillingAdapter {
     }
   }
 
+  Future<void> _syncServerEntitlement(CustomerInfo customerInfo) async {
+    final entitlement = _entitlementService.current();
+    final productId = customerInfo.activeSubscriptions.isNotEmpty
+        ? customerInfo.activeSubscriptions.first
+        : null;
+    final active = entitlement.planTier != PlanTier.free;
+    try {
+      final appUserId = await Purchases.appUserID;
+      await DocumentService.authenticatedDio.post(
+        AppConfig.subscriptionSyncEndpoint.replaceFirst(AppConfig.baseUrl, ''),
+        data: {
+          'plan_tier': entitlement.planTier.name,
+          'product_id': productId,
+          'expires_at': customerInfo.latestExpirationDate,
+          'is_active': active,
+          'revenuecat_app_user_id': appUserId,
+        },
+      );
+      AnalyticsService.track('subscription_state_synced', {
+        'plan_tier': entitlement.planTier.name,
+        'is_active': active,
+      });
+    } catch (e) {
+      // Billing remains usable offline, but the server must retry the next
+      // startup/purchase so operator and entitlement records converge.
+      debugPrint('BillingAdapter: server entitlement sync deferred: $e');
+    }
+  }
+
   // ── Subscription purchases ────────────────────────────────────────
 
   /// Attempt to purchase a plan upgrade.
   ///
   /// Returns the updated Entitlement on success, or null if the user
   /// cancelled or the purchase failed.
-  Future<Entitlement?> purchasePlan(PlanTier tier, {bool annual = false}) async {
+  Future<Entitlement?> purchasePlan(PlanTier tier,
+      {bool annual = false}) async {
     try {
       // Fetch current offerings from RevenueCat
       final offerings = await Purchases.getOfferings();
@@ -135,6 +205,7 @@ class BillingAdapter {
       // Initiate purchase
       final result = await Purchases.purchase(PurchaseParams.package(package));
       await _applyCustomerInfo(result.customerInfo);
+      await _syncServerEntitlement(result.customerInfo);
 
       debugPrint('BillingAdapter: purchased ${tier.name} (annual=$annual)');
       return _entitlementService.current();

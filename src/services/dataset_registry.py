@@ -70,6 +70,17 @@ class DatasetRegistry:
             raise DatasetRegistryError(
                 "customer-derived dataset items require consent_record_id"
             )
+        release = (
+            self._client.table("dataset_releases")
+            .select("status,purpose")
+            .eq("id", str(release_id))
+            .limit(1)
+            .execute()
+        )
+        if not release.data:
+            raise DatasetRegistryError("dataset release does not exist")
+        if release.data[0]["status"] != "draft":
+            raise DatasetRegistryError("dataset items can only be added to draft releases")
         response = self._client.table("dataset_items").insert({
             "release_id": str(release_id),
             "owner_id": owner_id,
@@ -96,3 +107,32 @@ class DatasetRegistry:
         }).eq("id", str(item_id)).eq("status", "active").select("id").execute()
         if not response.data:
             raise DatasetRegistryError("dataset item was not active or does not exist")
+
+    async def approve_release(self, release_id: UUID) -> None:
+        response = self._client.table("dataset_releases").update({
+            "status": "approved",
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", str(release_id)).eq("status", "draft").select("id").execute()
+        if not response.data:
+            raise DatasetRegistryError("dataset release was not draft or does not exist")
+
+    async def revoke_release(self, release_id: UUID, reason: str) -> None:
+        if not reason.strip():
+            raise DatasetRegistryError("revocation reason is required")
+        response = self._client.table("dataset_releases").update({
+            "status": "revoked",
+            "revoked_at": datetime.now(timezone.utc).isoformat(),
+            "revoked_reason": reason,
+        }).eq("id", str(release_id)).in_("status", ["draft", "approved"]).select("id").execute()
+        if not response.data:
+            raise DatasetRegistryError("dataset release was already revoked or does not exist")
+
+    async def withdraw_owner_items(self, owner_id: str, reason: str) -> int:
+        if not owner_id or not reason.strip():
+            raise DatasetRegistryError("owner_id and withdrawal reason are required")
+        response = self._client.table("dataset_items").update({
+            "status": "withdrawn",
+            "withdrawn_at": datetime.now(timezone.utc).isoformat(),
+            "withdrawn_reason": reason,
+        }).eq("owner_id", owner_id).eq("status", "active").select("id").execute()
+        return len(response.data or [])

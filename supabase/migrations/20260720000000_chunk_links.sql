@@ -2,13 +2,20 @@
 -- Description: Add section_type to document_chunks and create chunk_links for context expansion
 
 -- Add section_type to document_chunks
-ALTER TABLE document_chunks
-ADD COLUMN section_type text DEFAULT 'general';
+ALTER TABLE public.document_chunks
+ADD COLUMN IF NOT EXISTS section_type text DEFAULT 'general';
 
 -- Add check constraint for valid section types
-ALTER TABLE document_chunks
-ADD CONSTRAINT check_valid_section_type
-CHECK (section_type IN (
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.document_chunks'::regclass
+      AND conname = 'check_valid_section_type'
+  ) THEN
+    ALTER TABLE public.document_chunks
+    ADD CONSTRAINT check_valid_section_type
+    CHECK (section_type IN (
     'general',
     'definition',
     'exclusion',
@@ -17,16 +24,19 @@ CHECK (section_type IN (
     'schedule',
     'waiting_period',
     'contact'
-));
+    ));
+  END IF;
+END
+$$;
 
 -- Index for filtering by section type
-CREATE INDEX idx_document_chunks_section_type ON document_chunks(section_type);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_section_type ON public.document_chunks(section_type);
 
 -- Create chunk_links table for representing graph-like connections between chunks.
 -- The canonical Supabase chunk identity is document_chunks.id (bigint). Keeping
 -- the junction table on that same type makes joins owner-safe and prevents the
 -- previous UUID/vector-store identity split from returning unusable links.
-CREATE TABLE chunk_links (
+CREATE TABLE IF NOT EXISTS public.chunk_links (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     source_chunk_id bigint NOT NULL REFERENCES public.document_chunks(id) ON DELETE CASCADE,
     target_chunk_id bigint NOT NULL REFERENCES public.document_chunks(id) ON DELETE CASCADE,
@@ -38,8 +48,8 @@ CREATE TABLE chunk_links (
 );
 
 -- Indexes for fast traversal
-CREATE INDEX idx_chunk_links_source ON chunk_links(source_chunk_id);
-CREATE INDEX idx_chunk_links_target ON chunk_links(target_chunk_id);
+CREATE INDEX IF NOT EXISTS idx_chunk_links_source ON public.chunk_links(source_chunk_id);
+CREATE INDEX IF NOT EXISTS idx_chunk_links_target ON public.chunk_links(target_chunk_id);
 
 -- Enable RLS and setup policies
 ALTER TABLE public.chunk_links ENABLE ROW LEVEL SECURITY;

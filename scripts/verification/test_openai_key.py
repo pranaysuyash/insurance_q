@@ -52,7 +52,9 @@ def test_openai_connection():
                         help='Number of texts to use in batch test (default: 10)')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--show-full-key', action='store_true', help='Show full API key (for debugging)')
-    args = parser.parse_args()
+    # This function is also exercised by pytest. Ignore pytest's own command
+    # line flags while preserving strict parsing for direct script usage.
+    args, _unknown_args = parser.parse_known_args()
     
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)

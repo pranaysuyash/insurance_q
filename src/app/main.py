@@ -1,3 +1,9 @@
+from src.utils.native_runtime import configure_native_library_paths
+from src.utils.runtime_config import normalize_supabase_environment
+
+configure_native_library_paths()
+normalize_supabase_environment()
+
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,6 +18,7 @@ from src.api.document import (
     router as document_router,
     recover_interrupted_document_processing,
     set_processing_service,
+    set_job_outbox_service,
     document_object_store,
     document_repository,
 )
@@ -83,6 +90,18 @@ async def lifespan(app: FastAPI):
     configuration_errors = production_configuration_errors(os.environ)
     if configuration_errors:
         raise RuntimeError("Invalid production configuration: " + "; ".join(configuration_errors))
+
+    # Durable document processing is mandatory in production. Development may
+    # use the legacy in-process compatibility path when Supabase is absent.
+    try:
+        from src.services.job_outbox_service import JobOutboxService
+        set_job_outbox_service(JobOutboxService.from_env())
+        logger.info("durable job outbox configured")
+    except Exception as error:
+        set_job_outbox_service(None)
+        if is_production:
+            raise RuntimeError("Production durable job outbox initialization failed") from error
+        logger.warning("durable job outbox unavailable in development error_type=%s", type(error).__name__)
 
     # Initialize anti-abuse system
     try:

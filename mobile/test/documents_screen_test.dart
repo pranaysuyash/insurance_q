@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:coverwise/models/document_model.dart';
-import 'package:coverwise/config/app_config.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/screens/documents_screen.dart';
+import 'package:coverwise/widgets/usage_stats_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -205,12 +205,6 @@ void main() {
 
     testWidgets('shows the selected-file upload panel after automatic picking',
         (tester) async {
-      // The bootstrap flag supplies the bundled fixture and avoids opening a
-      // platform picker in widget tests. Run this test with
-      // --dart-define=BOOTSTRAP_POLICY_DEMO=true for the production-equivalent
-      // selected-file transition.
-      if (!AppConfig.bootstrapPolicyDemo) return;
-
       tester.view.physicalSize = const Size(402, 874);
       tester.view.devicePixelRatio = 1;
       addTearDown(() {
@@ -222,16 +216,20 @@ void main() {
         ProviderScope(
           overrides: [
             documentsProvider.overrideWith((ref) async => const []),
+            usageStatsProvider.overrideWith((ref) async => const {
+                  'session_uploads': 0,
+                  'session_limit': 5,
+                  'ip_uploads': 0,
+                  'ip_limit': 10,
+                }),
           ],
           child: const MaterialApp(
-            home: DocumentsScreen(startWithFilePicker: true),
+            home: DocumentsScreen(initialFileName: 'policy_demo.pdf'),
           ),
         ),
       );
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
 
-      debugDumpApp();
       expect(find.text('Add a policy file'), findsOneWidget);
       expect(find.text('policy_demo.pdf'), findsOneWidget);
       expect(find.text('Upload Selected File'), findsOneWidget);

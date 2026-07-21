@@ -70,7 +70,7 @@ def test_constructor_rejects_empty_inputs():
 # --- 2. JobType enum matches SQL CHECK ---
 
 def test_job_type_enum_matches_sql_check():
-    """The SQL CHECK lists 7 job types. The enum must match
+    """The SQL CHECK lists 8 job types. The enum must match
     exactly. Drift here means an enqueue that the DB rejects."""
     expected = {
         "document_processing",
@@ -80,6 +80,7 @@ def test_job_type_enum_matches_sql_check():
         "subscription_writeback",
         "claim_verification",
         "renewal_diff",
+        "account_deletion",
     }
     actual = {jt.value for jt in JobType}
     assert actual == expected
@@ -185,6 +186,18 @@ def test_enqueue_respects_not_before():
     assert inserted_row["next_attempt_at"] == scheduled.isoformat()
 
 
+def test_find_by_payload_field_returns_existing_job():
+    svc = _service_with_mocked_client()
+    svc._client.table.return_value.select.return_value.eq.return_value.contains.return_value.limit.return_value.execute.return_value.data = [
+        {"id": "00000000-0000-0000-0000-000000000001"}
+    ]
+    import asyncio
+    job_id = asyncio.run(svc.find_by_payload_field(
+        JobType.ACCOUNT_DELETION, "request_id", "request-1"
+    ))
+    assert str(job_id) == "00000000-0000-0000-0000-000000000001"
+
+
 # --- 5. claim ---
 
 def test_claim_returns_none_when_no_pending_jobs():
@@ -254,7 +267,7 @@ def test_claim_returns_none_when_lost_race():
 
 def test_complete_marks_job_as_completed():
     svc = _service_with_mocked_client()
-    svc._client.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [
+    svc._client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
         {"id": "00000000-0000-0000-0000-000000000001"}
     ]
     import asyncio
@@ -275,7 +288,7 @@ def test_fail_with_attempts_under_max_requeues():
     svc._client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
         {"attempts": 1, "max_attempts": 5}
     ]
-    svc._client.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [
+    svc._client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
         {"id": "00000000-0000-0000-0000-000000000001"}
     ]
     import asyncio
@@ -293,7 +306,7 @@ def test_fail_with_attempts_at_max_goes_to_dead_letter():
     svc._client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
         {"attempts": 5, "max_attempts": 5}
     ]
-    svc._client.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [
+    svc._client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
         {"id": "00000000-0000-0000-0000-000000000001"}
     ]
     import asyncio
@@ -307,7 +320,7 @@ def test_fail_truncates_long_error_messages():
     svc._client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
         {"attempts": 1, "max_attempts": 5}
     ]
-    svc._client.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [
+    svc._client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
         {"id": "00000000-0000-0000-0000-000000000001"}
     ]
     import asyncio

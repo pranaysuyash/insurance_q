@@ -78,3 +78,52 @@ async def test_search_fts_document_ids_filter(vector_store, mock_supabase_client
     assert len(results) == 1
     assert results[0].id == "id2"
     assert results[0].payload["document_id"] == "doc2"
+
+
+@pytest.mark.asyncio
+async def test_upsert_rejects_noncanonical_embedding_dimension(vector_store):
+    with pytest.raises(ValueError, match="1536-dimensional"):
+        await vector_store.upsert(
+            "doc-1",
+            [{"source_text": "policy text", "embedding_model": "test-model"}],
+            [[0.1, 0.2]],
+        )
+
+
+@pytest.mark.asyncio
+async def test_dense_search_rejects_noncanonical_embedding_dimension(vector_store):
+    with pytest.raises(ValueError, match="1536-dimensional"):
+        await vector_store.search(
+            [0.1, 0.2],
+            10,
+            filters={"owner_id": "user-1"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_adjacent_chunks_require_owner_scope(vector_store):
+    with pytest.raises(ValueError, match="owner_id filter"):
+        await vector_store.get_adjacent_chunks(["1"], owner_id="")
+
+
+@pytest.mark.asyncio
+async def test_adjacent_chunks_filter_targets_by_owner(vector_store, mock_supabase_client):
+    table = mock_supabase_client.table.return_value
+    table.select.return_value.eq.return_value.in_.return_value.execute.return_value.data = [
+        {"target_chunk_id": 2}
+    ]
+    table.select.return_value.in_.return_value.eq.return_value.execute.return_value.data = [
+        {
+            "id": 2,
+            "content": "safe",
+            "metadata": {},
+            "section_type": "general",
+            "document_id": "doc-1",
+        }
+    ]
+
+    await vector_store.get_adjacent_chunks(["1"], owner_id="owner-1")
+
+    table.select.return_value.in_.return_value.eq.assert_called_with(
+        "owner_id", "owner-1"
+    )

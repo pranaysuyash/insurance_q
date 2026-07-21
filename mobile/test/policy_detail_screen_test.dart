@@ -214,9 +214,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll to the section content (below fold in ListView)
-      await tester.scrollUntilVisible(find.text('Item-by-item view'), 200);
-      expect(find.text('Item-by-item view'), findsOneWidget);
-      expect(find.text('Item-by-item view'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Detailed breakdown'), 200);
+      expect(find.text('Detailed breakdown'), findsOneWidget);
+      expect(find.text('Detailed breakdown'), findsOneWidget);
       expect(find.text('Room & Board'), findsOneWidget);
       expect(find.text('ICU'), findsOneWidget);
       expect(find.text('Cosmetic'), findsOneWidget);

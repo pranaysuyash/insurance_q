@@ -27,6 +27,12 @@ CoverWise is not launch-ready yet. The local API path, local Supabase schema, Su
 - Pinned the tested Supabase Python client set and `httpx==0.27.2` so the GoTrue/PostgREST `proxy` client contract matches the installed HTTPX API.
 - Connected the provided remote Supabase project through ignored env storage and upgraded the Python client to `supabase==2.31.0`, which accepts the modern `sb_secret_` server key format.
 - Hardened Flutter startup to fall back to a local principal when the configured Supabase project disables anonymous sign-ins; account auth remains available.
+- Added a durable, idempotent guest-to-account identity-link contract in `supabase/migrations/20260721074000_identity_aliases.sql` and wired the claim endpoint to record pending/completed/failed transfer state.
+- Added guest-claim analytics outcomes, paywall-view instrumentation, RevenueCat account identification, and server subscription-state sync through the existing `/subscription/sync` route.
+- Repaired the full-suite failures in the OpenAI verification harness, citation verifier test contract, doctr image input normalization, and account-deletion repository injection path.
+- Added authenticated, idempotent RevenueCat webhook ingestion with verified-state precedence over client reconciliation; cancellation preserves access through expiry and expiration/revocation removes the verified entitlement.
+- Fixed evidence substrate construction to use the required environment-backed Supabase client and added macOS Homebrew native-library path configuration for GLib/Pango/Cairo/GDK-Pixbuf/Harfbuzz/Fontconfig/Freetype before optional OCR/PDF imports.
+- Stopped retrying deterministic OpenAI credential failures in the embedding path; configured local fallback remains observable while the invalid credential is replaced.
 
 ## Evidence captured from code/runtime
 
@@ -57,15 +63,24 @@ CoverWise is not launch-ready yet. The local API path, local Supabase schema, Su
 | Remote secret-key Python client | Read-only `documents` query succeeded with the provided server secret | Tier 3 |
 | Remote-configured API on port 8002 | App startup, `/healthz`, and `/readyz` passed with remote Supabase values | Tier 3 |
 | Remote-configured iOS simulator | Supabase initialization completed; anonymous-provider-disabled startup is handled by local-principal fallback | Tier 4 |
+| Local identity-link tests | Guest-to-account link retry is idempotent; rebinding to another account is rejected | Tier 2 |
+| Remote identity/analytics schema probe | Remote `identity_aliases` and `analytics_events` are available and queryable with the server key | Tier 3 |
+| Remote migration application | Supabase Management API accepted all 25 normalized migrations; remote core repository tables are queryable | Tier 3 |
+| Current full backend pytest suite | 305 passed, 4 skipped; the prior 12 failures were repaired in the OpenAI verification harness, citation test contract, doctr image input shape, deletion repository injection path, and subscription webhook coverage | Tier 2 |
+| Current Flutter analyzer | No issues found with `flutter analyze --no-fatal-infos` | Tier 1 |
+| Current remote-configured API on port 8002 | Latest code running in development/staging mode; `/readyz` returned 200 and a real anonymous profile round-trip preserved the same owner UID | Tier 3 |
+| RevenueCat webhook tests | Authorization, duplicate delivery idempotency, initial purchase, and expiration precedence pass | Tier 2 |
+| Native runtime probe | Homebrew native libraries and WeasyPrint import pass; doctr predictor initializes successfully from the project venv | Tier 2 |
 
 ## Remaining blockers and closure paths
 
 1. Production environment is incomplete. The remote URL, publishable key, and modern secret key are now present in ignored local env storage, but the remote project has anonymous sign-ins disabled and still needs the approved production anonymous-auth strategy/signing key, public site URL, allowed origins, and backend settings; rerun `tools/validate_production_config.py`.
 2. The local OpenAI key currently receives 401 invalid-key responses. Replace it with a valid production credential or explicitly configure the intended production fallback, then rerun real extraction and question-answer flows.
-3. Production Supabase linkage is still absent. The local project is verified, but `.env` has no production Supabase values and the Supabase CLI has no access token or linked remote project. Link the intended remote project, apply the normalized migrations, and execute authenticated cross-owner isolation checks.
+3. Production Supabase schema linkage is now applied through the Management API. Authenticated cross-owner isolation and guest-claim tests still need to be run against a real staging account pair.
 4. The Android bundle now compiles, but it used placeholder release defines. Rebuild with real production values and verify install/startup plus authenticated flows before distribution.
-5. The full backend suite still has 14 failures outside the verified Supabase slice: OpenAI verification argument handling, citation verifier test contract drift, evidence-route auth stubs, account-deletion test wiring, and image OCR fallback behavior. Each needs a focused repair and rerun before broad backend release confidence.
+5. The full backend suite is now green at 305 passed and 4 skipped. The skipped async verification scripts still need an async pytest plugin or an explicit separate execution command before those scripts can count as broad integration proof.
 6. External distribution/deployment was not performed. No deployment destination or production credentials were available, and no commit or push was authorized.
+7. The identity-link and analytics tables are now remotely queryable. The RevenueCat webhook audit table remains SQLite-backed because the webhook route is currently implemented in the API's local subscription ledger; move that ledger to Supabase before production billing scale-up.
 
 ## Artifact and workspace state
 
@@ -84,9 +99,9 @@ This is an analysis, not a decision that the product must be account-first or an
 - The product already has a custom guest identity: `POST /user/anonymous` issues a 30-day server-signed bearer token whose owner is an `anon:<uuid>` subject. Documents and policy-bearing API requests use that owner.
 - Supabase is currently used for account sessions. The app also attempts `auth.signInAnonymously()` only to derive the local encryption principal; the remote project currently has anonymous sign-ins disabled, and startup falls back to a device-local principal.
 - These are separate identities. `claim-anonymous` moves documents from the custom `anon:<uuid>` owner to the Supabase account `sub`; there is no Supabase-anonymous-to-account claim path.
-- Analytics are server-attributed to the bearer principal in `src/api/analytics.py`. The client also sends `install_id` and `session_id`, but there is no canonical identity-alias table or account-link event joining the custom guest UID, a possible Supabase-anonymous UID, and the later account UID.
-- `identity_created` and `account_created` are implemented. `paywall_viewed`, subscription lifecycle events, and claim lifecycle events are registered in the schema, but the current code search found no corresponding emission for most of them. `plan_purchase_completed` is emitted, but it is not registered in the current analytics schema.
-- RevenueCat is configured without an explicit `Purchases.logIn(accountId)` / `appUserID` transition. The backend subscription sync endpoint stores the client-provided RevenueCat ID, but the mobile code does not currently call that endpoint. Paid entitlement state is therefore primarily local and not yet a durable identity-linked revenue record.
+- Analytics remain server-attributed to the bearer principal in `src/api/analytics.py`, but the guest-to-account link is now recorded durably when the remote migration is present. The client sends `install_id`, `session_id`, and claim outcome events without raw identity IDs in event properties.
+- `identity_created`, `account_created`, claim lifecycle events, paywall views, and purchase lifecycle events are now instrumented and registered in the mobile schema. Server-confirmed subscription lifecycle webhooks remain open.
+- RevenueCat now receives the Supabase account UID via `PurchasesConfiguration.appUserID` or `Purchases.logIn(accountId)` and the mobile client calls `/subscription/sync`. The endpoint still accepts client-reported entitlement state; this is useful reconciliation telemetry but is not yet production-authoritative until RevenueCat webhook verification is implemented.
 
 ### User and business implications
 

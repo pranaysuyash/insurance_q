@@ -5,6 +5,7 @@
         android:label="CoverWise"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="false">
         <activity
             android:name="io.flutter.embedding.android.FlutterActivity"

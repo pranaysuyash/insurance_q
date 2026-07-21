@@ -5,6 +5,7 @@ import '../providers/family_providers.dart';
 import '../providers/document_providers.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/error_widget.dart';
 import '../theme/coverwise_theme.dart';
 import 'add_family_member_dialog.dart';
@@ -33,9 +34,7 @@ class FamilyMembersContent extends ConsumerWidget {
     if (member != null) {
       await addManualFamilyMember(ref, member);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${member.name}.')),
-      );
+      CoverWiseSnackBar.success(context, 'Added ${member.name}.');
     }
   }
 

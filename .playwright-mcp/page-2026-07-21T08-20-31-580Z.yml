@@ -1,0 +1,168 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic "Simulator status" [ref=e5]:
+        - button "Toggle simulators sidebar" [pressed] [ref=e6] [cursor=pointer]:
+          - generic [ref=e7]: iPhone 17 Pro
+        - generic [ref=e8]: connecting
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - button "Action" [ref=e12] [cursor=pointer]
+          - button "Volume Up" [ref=e14] [cursor=pointer]
+          - button "Volume Down" [ref=e16] [cursor=pointer]
+          - button "Power" [ref=e18] [cursor=pointer]
+          - generic [ref=e20]: Connecting...
+        - separator "Resize simulator width. Drag the corner or use Left and Right Arrow keys; hold Shift for larger steps." [ref=e28]
+        - generic: 320 × 692
+      - generic [ref=e29]:
+        - generic "Simulator actions" [ref=e30]:
+          - generic [ref=e31]:
+            - button "Home" [disabled] [ref=e32]:
+              - tooltip: Home
+            - button "Screenshot" [disabled] [ref=e35]:
+              - tooltip: Screenshot
+            - button "Rotate device" [disabled] [ref=e38]:
+              - tooltip: Rotate device
+        - generic "Accessibility overlay" [ref=e43]:
+          - button "Show accessibility overlay" [disabled] [ref=e44]:
+            - tooltip: AX off
+    - generic:
+      - button "Open tools panel" [pressed]
+      - button "Open WebKit DevTools"
+    - complementary [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]: Tools
+        - button "Close panel" [ref=e51] [cursor=pointer]
+      - generic [ref=e55]:
+        - generic "Waiting for foreground app" [ref=e56]
+        - group [ref=e63]:
+          - generic "Simulator" [ref=e64] [cursor=pointer]
+          - generic [ref=e69]:
+            - generic [ref=e70]:
+              - generic [ref=e71]: Appearance
+              - button "Appearance" [disabled] [ref=e78]:
+                - generic [ref=e79]: Light
+            - generic [ref=e80]:
+              - generic [ref=e81]: Liquid Glass
+              - button "Liquid Glass" [disabled] [ref=e88]:
+                - generic [ref=e89]: Clear
+            - generic [ref=e90]:
+              - generic [ref=e91]: Color Filter
+              - button "Color Filter" [disabled] [ref=e98]:
+                - generic [ref=e99]: None
+            - generic [ref=e100]:
+              - generic [ref=e101]: Text Size
+              - slider "Text Size" [disabled] [ref=e107]: "3"
+            - generic [ref=e108]:
+              - generic [ref=e109]: Reduce Motion
+              - switch "Reduce Motion" [disabled] [ref=e115]
+            - generic [ref=e117]:
+              - generic [ref=e118]: Increase Contrast
+              - switch "Increase Contrast" [disabled] [ref=e124]
+            - generic [ref=e126]:
+              - generic [ref=e127]: Show Borders
+              - switch "Show Borders" [disabled] [ref=e132]
+            - generic [ref=e134]:
+              - generic [ref=e135]: Reduce Transparency
+              - switch "Reduce Transparency" [disabled] [ref=e140]
+            - generic [ref=e142]:
+              - generic [ref=e143]: VoiceOver
+              - switch "VoiceOver" [disabled] [ref=e150]
+        - generic [ref=e153]:
+          - generic [ref=e154]: AX Tree
+          - switch "Enable overlay" [ref=e155] [cursor=pointer]
+        - group [ref=e157]:
+          - generic "Camera Ready" [ref=e158] [cursor=pointer]:
+            - generic [ref=e159]: Camera
+            - generic [ref=e160]: Ready
+        - group [ref=e163]:
+          - generic "Location" [ref=e164] [cursor=pointer]
+        - generic [ref=e169]:
+          - generic [ref=e170]: Permissions
+          - status "Loading permissions" [ref=e171]
+        - group [ref=e172]:
+          - generic "Stream" [ref=e173] [cursor=pointer]
+    - separator "Resize tools panel" [ref=e177]
+    - complementary:
+      - generic:
+        - generic: No inspectable Safari or WKWebView targets
+        - button
+      - generic: Open Safari or an inspectable WKWebView in the simulator.
+    - separator
+  - region "serve-sim notifications alt+T"
+  - complementary [ref=e178]:
+    - generic [ref=e179]:
+      - button "Close devices sidebar" [pressed] [ref=e180] [cursor=pointer]
+      - link "Open serve-sim" [ref=e183] [cursor=pointer]:
+        - /url: https://github.com/EvanBacon/serve-sim
+        - text: serve-sim
+    - textbox [ref=e189]:
+      - /placeholder: Search
+    - generic [ref=e191]:
+      - generic [ref=e192]: Available
+      - generic [ref=e193]:
+        - button "iPhone 17 Pro Streaming 26.2 Shut down simulator" [pressed] [ref=e194] [cursor=pointer]:
+          - generic [ref=e200]:
+            - generic [ref=e201]: iPhone 17 Pro
+            - generic [ref=e202]: Streaming
+          - generic [ref=e203]:
+            - generic [ref=e204]: "26.2"
+            - button "Shut down simulator" [ref=e205]
+        - button "iPhone 16e 26.2" [ref=e209] [cursor=pointer]:
+          - generic [ref=e214]: iPhone 16e
+          - generic [ref=e216]: "26.2"
+        - button "iPhone 17 26.2" [ref=e218] [cursor=pointer]:
+          - generic [ref=e223]: iPhone 17
+          - generic [ref=e225]: "26.2"
+        - button "iPhone 17 Pro Max 26.2" [ref=e227] [cursor=pointer]:
+          - generic [ref=e232]: iPhone 17 Pro Max
+          - generic [ref=e234]: "26.2"
+        - button "iPhone Air 26.2" [ref=e236] [cursor=pointer]:
+          - generic [ref=e241]: iPhone Air
+          - generic [ref=e243]: "26.2"
+        - button "iPad (A16) 26.2" [ref=e245] [cursor=pointer]:
+          - generic [ref=e250]: iPad (A16)
+          - generic [ref=e252]: "26.2"
+        - button "iPad Air 11-inch (M3) 26.2" [ref=e254] [cursor=pointer]:
+          - generic [ref=e259]: iPad Air 11-inch (M3)
+          - generic [ref=e261]: "26.2"
+        - button "iPad Air 13-inch (M3) 26.2" [ref=e263] [cursor=pointer]:
+          - generic [ref=e268]: iPad Air 13-inch (M3)
+          - generic [ref=e270]: "26.2"
+        - button "iPad mini (A17 Pro) 26.2" [ref=e272] [cursor=pointer]:
+          - generic [ref=e277]: iPad mini (A17 Pro)
+          - generic [ref=e279]: "26.2"
+        - button "iPad Pro 11-inch (M5) 26.2" [ref=e281] [cursor=pointer]:
+          - generic [ref=e286]: iPad Pro 11-inch (M5)
+          - generic [ref=e288]: "26.2"
+        - button "iPad Pro 13-inch (M5) 26.2" [ref=e290] [cursor=pointer]:
+          - generic [ref=e295]: iPad Pro 13-inch (M5)
+          - generic [ref=e297]: "26.2"
+        - button "Apple Watch SE 3 (40mm) 26.2" [ref=e299] [cursor=pointer]:
+          - generic [ref=e306]: Apple Watch SE 3 (40mm)
+          - generic [ref=e308]: "26.2"
+        - button "Apple Watch SE 3 (44mm) 26.2" [ref=e310] [cursor=pointer]:
+          - generic [ref=e317]: Apple Watch SE 3 (44mm)
+          - generic [ref=e319]: "26.2"
+        - button "Apple Watch Series 11 (42mm) 26.2" [ref=e321] [cursor=pointer]:
+          - generic [ref=e328]: Apple Watch Series 11 (42mm)
+          - generic [ref=e330]: "26.2"
+        - button "Apple Watch Series 11 (46mm) 26.2" [ref=e332] [cursor=pointer]:
+          - generic [ref=e339]: Apple Watch Series 11 (46mm)
+          - generic [ref=e341]: "26.2"
+        - button "Apple Watch Ultra 3 (49mm) 26.2" [ref=e343] [cursor=pointer]:
+          - generic [ref=e350]: Apple Watch Ultra 3 (49mm)
+          - generic [ref=e352]: "26.2"
+        - button "Apple Vision Pro (at 2732x2048) 2.5" [ref=e354] [cursor=pointer]:
+          - generic [ref=e359]: Apple Vision Pro (at 2732x2048)
+          - generic [ref=e361]: "2.5"
+    - generic [ref=e366]:
+      - generic [ref=e367]: 1/40 sims
+      - text: ·
+      - generic [ref=e368]: 24 GB free
+  - separator "Resize simulators sidebar" [ref=e371]
+  - generic:
+    - button "Open devices sidebar" [pressed]
+    - link "Open serve-sim":
+      - /url: https://github.com/EvanBacon/serve-sim
+      - text: serve-sim

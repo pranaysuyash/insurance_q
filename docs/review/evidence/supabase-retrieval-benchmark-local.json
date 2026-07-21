@@ -1,0 +1,11 @@
+{
+  "benchmark": "supabase_retrieval_contract_v1",
+  "owner_isolation": true,
+  "fts_hits": 1,
+  "dense_hits": 1,
+  "fts_top_document": "253d1510-ddc8-4a0e-85d0-c38b476b1786",
+  "dense_top_document": "253d1510-ddc8-4a0e-85d0-c38b476b1786",
+  "fts_latency_ms": 9.562,
+  "dense_latency_ms": 7.171,
+  "total_latency_ms": 96.214
+}

@@ -20,6 +20,7 @@ import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
 import 'paywall_screen.dart';
 import '../theme/coverwise_motion.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 import '../utils/app_error.dart';
 import '../widgets/lead_capture_dialog.dart';
 import '../widgets/phone_capture_sheet.dart';
@@ -34,7 +35,15 @@ class DocumentsScreen extends ConsumerStatefulWidget {
   /// "tap to open file picker" step — reduces upload taps from 4 to 2.
   final bool startWithFilePicker;
 
-  const DocumentsScreen({super.key, this.startWithFilePicker = false});
+  /// Supplies a deterministic selected-file state for widget tests.
+  @visibleForTesting
+  final String? initialFileName;
+
+  const DocumentsScreen({
+    super.key,
+    this.startWithFilePicker = false,
+    this.initialFileName,
+  });
   @override
   ConsumerState<DocumentsScreen> createState() => _DocumentsScreenState();
 }
@@ -57,6 +66,19 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (widget.initialFileName != null && !_demoPolicyPreloaded) {
+        _demoPolicyPreloaded = true;
+        setState(() {
+          _selectedWebFile = WebPickedFile(
+            name: widget.initialFileName!,
+            bytes: Uint8List(0),
+          );
+          _selectedFile = null;
+          _useOnDeviceOcr = false;
+          _showUploadDetails = true;
+        });
+        return;
+      }
       // Auto-open file picker when launched from onboarding/dashboard CTA.
       if (widget.startWithFilePicker && !_demoPolicyPreloaded) {
         _demoPolicyPreloaded = true;
@@ -153,6 +175,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final selectedFile = _selectedFile;
     final selectedWebFile = _selectedWebFile;
     if (selectedFile == null && selectedWebFile == null) return;
+
+    final currentPolicyCount =
+        ref.read(documentsProvider).valueOrNull?.length ?? 0;
+    final entitlementReason = ref
+        .read(entitlementProvider.notifier)
+        .checkAction('upload_policy', currentPolicyCount: currentPolicyCount);
+    if (entitlementReason != null) {
+      if (!mounted) return;
+      PaywallScreen.show(context, limitType: PaywallLimitType.documents);
+      return;
+    }
 
     final duplicate = selectedFile != null
         ? await ref
@@ -300,8 +333,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           });
           // Show the paywall instead of a bare snackbar
           if (!mounted) return;
-          PaywallScreen.show(context,
-              limitType: PaywallLimitType.documents);
+          PaywallScreen.show(context, limitType: PaywallLimitType.documents);
           return;
         }
 
@@ -310,7 +342,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             result['error'] == 'pdf_unreadable') {
           setState(() {
             _uploadError = result['message']?.toString() ??
-                'This PDF could not be opened.';
+                'This PDF is password-protected or corrupted. Please unlock it or try a different file.';
             _isUploading = false;
           });
           return;
@@ -388,15 +420,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         } else {
           // Offline/queued - honest message
           final message = isQueuedOnly
-              ? '$selectedName saved locally; server upload still required'
+              ? '$selectedName saved locally. It will be processed when you\'re back online.'
               : '$selectedName saved locally (offline mode)';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          CoverWiseSnackBar.warning(context, message);
           PhoneCaptureSheet.maybeShow(context);
         }
       }
@@ -465,7 +491,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   @override
   Widget build(BuildContext context) {
     final documentsAsync = ref.watch(documentsProvider);
-    final hasDocuments = documentsAsync.whenOrNull(data: (docs) => docs.isNotEmpty) ?? false;
+    final hasDocuments =
+        documentsAsync.whenOrNull(data: (docs) => docs.isNotEmpty) ?? false;
     final hasSelection = _selectedFile != null || _selectedWebFile != null;
     final showExpandedUpload = _showUploadDetails && hasSelection;
 
@@ -493,189 +520,214 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           ),
           // Upload section: compact when documents exist, prominent when empty.
           if (showExpandedUpload)
-            CoverWiseSurface(
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Flexible(
+              fit: FlexFit.loose,
+              child: SingleChildScrollView(
+                child: CoverWiseSurface(
+                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Add a policy file',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w800)),
-                        IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: _clearSelection,
-                            tooltip: 'Clear selection'),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    if (_selectedFile != null || _selectedWebFile != null) ...[
-                      Row(
-                        children: [
-                          CoverWiseIconBadge(
-                            icon: Icons.description_outlined,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 40,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _selectedWebFile?.name ??
-                                      _selectedFile!.path.split('/').last,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
-                                ),
-                                if (_selectedFileSize != null)
-                                  Text(
-                                    _formatFileSize(_selectedFileSize!),
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                              ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Add a policy file',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      if (!kIsWeb) ...[
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          value: _useOnDeviceOcr,
-                          onChanged: _isUploading
-                              ? null
-                              : (value) =>
-                                  setState(() => _useOnDeviceOcr = value),
-                          title:
-                              const Text('Read scanned pages on this device'),
-                          subtitle: const Text(
-                            'Uses on-device text recognition. Your original file is still uploaded and remains the source of truth.',
-                          ),
-                          secondary:
-                              const Icon(Icons.document_scanner_outlined),
+                            IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: _clearSelection,
+                                tooltip: 'Clear selection'),
+                          ],
                         ),
-                        if (_useOnDeviceOcr)
-                          DropdownButtonFormField<OnDeviceOcrScript>(
-                            value: _onDeviceOcrScript,
-                            decoration: const InputDecoration(
-                              labelText: 'Document language',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: OnDeviceOcrScript.values
-                                .map(
-                                  (script) => DropdownMenuItem(
-                                    value: script,
-                                    child: Text(script.label),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: _isUploading
-                                ? null
-                                : (script) {
-                                    if (script != null) {
-                                      setState(
-                                        () => _onDeviceOcrScript = script,
-                                      );
-                                    }
-                                  },
+                        const SizedBox(height: 16),
+                        if (_selectedFile != null ||
+                            _selectedWebFile != null) ...[
+                          Row(
+                            children: [
+                              CoverWiseIconBadge(
+                                icon: Icons.description_outlined,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 40,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _selectedWebFile?.name ??
+                                          _selectedFile!.path.split('/').last,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                    if (_selectedFileSize != null)
+                                      Text(
+                                        _formatFileSize(_selectedFileSize!),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        const SizedBox(height: 8),
-                      ],
-                      Center(
-                        child: CoverWiseStateTransition(
-                          child: KeyedSubtree(
-                            key: ValueKey(
-                              _isUploading
-                                  ? _isReadingOnDevice
-                                      ? 'reading-on-device'
-                                      : 'uploading'
-                                  : 'ready-to-upload',
+                          const SizedBox(height: 16),
+                          if (!kIsWeb) ...[
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              value: _useOnDeviceOcr,
+                              onChanged: _isUploading
+                                  ? null
+                                  : (value) =>
+                                      setState(() => _useOnDeviceOcr = value),
+                              title: const Text(
+                                  'Read scanned pages on this device'),
+                              subtitle: const Text(
+                                'Uses on-device text recognition. Your original file is still uploaded and remains the source of truth.',
+                              ),
+                              secondary:
+                                  const Icon(Icons.document_scanner_outlined),
                             ),
-                            child: _isUploading
-                                ? Semantics(
-                                    liveRegion: true,
-                                    label: _isReadingOnDevice
-                                        ? 'Reading policy pages on this device'
-                                        : 'Uploading policy file',
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const LinearProgressIndicator(),
-                                        const SizedBox(height: 12),
-                                        Row(
+                            if (_useOnDeviceOcr)
+                              DropdownButtonFormField<OnDeviceOcrScript>(
+                                value: _onDeviceOcrScript,
+                                decoration: const InputDecoration(
+                                  labelText: 'Document language',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: OnDeviceOcrScript.values
+                                    .map(
+                                      (script) => DropdownMenuItem(
+                                        value: script,
+                                        child: Text(script.label),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: _isUploading
+                                    ? null
+                                    : (script) {
+                                        if (script != null) {
+                                          setState(
+                                            () => _onDeviceOcrScript = script,
+                                          );
+                                        }
+                                      },
+                              ),
+                            const SizedBox(height: 8),
+                          ],
+                          Center(
+                            child: CoverWiseStateTransition(
+                              child: KeyedSubtree(
+                                key: ValueKey(
+                                  _isUploading
+                                      ? _isReadingOnDevice
+                                          ? 'reading-on-device'
+                                          : 'uploading'
+                                      : 'ready-to-upload',
+                                ),
+                                child: _isUploading
+                                    ? Semantics(
+                                        liveRegion: true,
+                                        label: _isReadingOnDevice
+                                            ? 'Reading policy pages on this device'
+                                            : 'Uploading policy file',
+                                        child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(
-                                              _isReadingOnDevice
-                                                  ? Icons.document_scanner_outlined
-                                                  : Icons.cloud_upload_outlined,
-                                              size: 16,
-                                              color: Theme.of(context).colorScheme.primary,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              _isReadingOnDevice
-                                                  ? 'Reading pages on this device…'
-                                                  : 'Uploading to CoverWise…',
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                              ),
+                                            const LinearProgressIndicator(),
+                                            const SizedBox(height: 12),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  _isReadingOnDevice
+                                                      ? Icons
+                                                          .document_scanner_outlined
+                                                      : Icons
+                                                          .cloud_upload_outlined,
+                                                  size: 16,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  _isReadingOnDevice
+                                                      ? 'Reading pages on this device…'
+                                                      : 'Uploading to CoverWise…',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),
-                                      ],
-                                    ),
-                                  )
-                                : FilledButton.icon(
-                                    icon:
-                                        const Icon(Icons.cloud_upload_outlined),
-                                    label: const Text('Upload Selected File'),
-                                    onPressed: _uploadFile,
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 24, vertical: 12),
-                                    ),
-                                  ),
+                                      )
+                                    : FilledButton.icon(
+                                        icon: const Icon(
+                                            Icons.cloud_upload_outlined),
+                                        label:
+                                            const Text('Upload Selected File'),
+                                        onPressed: _uploadFile,
+                                        style: FilledButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 24, vertical: 12),
+                                        ),
+                                      ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                    if (_uploadError != null) ...[
-                      const SizedBox(height: 12),
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          _uploadError!,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                            fontWeight: FontWeight.w600,
+                        ],
+                        if (_uploadError != null) ...[
+                          const SizedBox(height: 12),
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              _uploadError!,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                    if (_ocrResult != null) ...[
-                      const SizedBox(height: 12),
-                      Semantics(
-                        liveRegion: true,
-                        child: const Text(
-                          'Upload and document reading completed',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                        ],
+                        if (_ocrResult != null) ...[
+                          const SizedBox(height: 12),
+                          Semantics(
+                            liveRegion: true,
+                            child: const Text(
+                              'Upload and document reading completed',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ],
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             )

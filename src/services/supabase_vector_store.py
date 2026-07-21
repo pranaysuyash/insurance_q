@@ -86,6 +86,11 @@ class SupabaseVectorStore:
     ) -> List[Any]:
         if not filters or not filters.get("owner_id"):
             raise ValueError("Supabase vector search requires an owner_id filter")
+        if len(query_vector) != 1536:
+            raise ValueError(
+                "Supabase retrieval requires 1536-dimensional embeddings; "
+                f"got {len(query_vector)}"
+            )
         params = {
             "query_embedding": self._vector_literal(query_vector),
             "match_owner_id": filters["owner_id"],
@@ -100,8 +105,10 @@ class SupabaseVectorStore:
         for row in response.data or []:
             metadata = dict(row.get("metadata") or {})
             metadata["document_id"] = row.get("document_id")
+            metadata["owner_id"] = filters["owner_id"]
             metadata["text_content"] = row.get("content", "")
             metadata["source_text"] = row.get("content", "")
+            metadata["_retrieval_source"] = "dense"
             hits.append(
                 SimpleNamespace(
                     id=str(row.get("id")),
@@ -133,8 +140,10 @@ class SupabaseVectorStore:
                 continue
             metadata = dict(row.get("metadata") or {})
             metadata["document_id"] = row.get("document_id")
+            metadata["owner_id"] = filters["owner_id"]
             metadata["text_content"] = row.get("content", "")
             metadata["source_text"] = row.get("content", "")
+            metadata["_retrieval_source"] = "fts"
             hits.append(
                 SimpleNamespace(
                     id=str(row.get("id")),
@@ -154,7 +163,14 @@ class SupabaseVectorStore:
         )
         return len(response.data or [])
 
-    async def get_adjacent_chunks(self, chunk_ids: List[str], link_type: str = 'adjacent') -> List[Any]:
+    async def get_adjacent_chunks(
+        self,
+        chunk_ids: List[str],
+        owner_id: str,
+        link_type: str = 'adjacent',
+    ) -> List[Any]:
+        if not owner_id:
+            raise ValueError("Adjacent chunk expansion requires an owner_id filter")
         if not chunk_ids:
             return []
             
@@ -182,6 +198,7 @@ class SupabaseVectorStore:
             self._client.table("document_chunks")
             .select("id, content, metadata, section_type, document_id")
             .in_("id", target_ids)
+            .eq("owner_id", owner_id)
             .execute()
         )
         
@@ -189,6 +206,7 @@ class SupabaseVectorStore:
         for row in (chunks_res.data or []):
             metadata = dict(row.get("metadata") or {})
             metadata["document_id"] = row.get("document_id")
+            metadata["owner_id"] = owner_id
             metadata["text_content"] = row.get("content", "")
             metadata["section_type"] = row.get("section_type", "general")
             metadata["is_adjacent_context"] = True

@@ -176,6 +176,37 @@ void main() {
       ).readAsString(),
       contains('<monochrome>'),
     );
+    final android13Icon = await File(
+      'android/app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml',
+    ).readAsString();
+    expect(android13Icon, contains('<monochrome android:drawable='));
+    expect(android13Icon, contains('@drawable/ic_launcher_monochrome'));
+  });
+
+  test('Android startup contract stays current and preserves system branding',
+      () async {
+    final buildConfig =
+        await File('android/app/build.gradle.kts').readAsString();
+    final manifest =
+        await File('android/app/src/main/AndroidManifest.xml').readAsString();
+    final launchTheme =
+        await File('android/app/src/main/res/values-v31/styles.xml')
+            .readAsString();
+    final darkLaunchTheme =
+        await File('android/app/src/main/res/values-night-v31/styles.xml')
+            .readAsString();
+
+    expect(buildConfig, contains('compileSdk = 36'));
+    expect(buildConfig, contains('targetSdk = 36'));
+    expect(manifest, contains('android:icon="@mipmap/ic_launcher"'));
+    expect(manifest, contains('android:roundIcon="@mipmap/ic_launcher"'));
+
+    for (final theme in [launchTheme, darkLaunchTheme]) {
+      expect(theme, contains('android:windowSplashScreenBackground'));
+      expect(theme, contains('android:windowSplashScreenAnimatedIcon'));
+      expect(theme, contains('android:windowSplashScreenIconBackgroundColor'));
+      expect(theme, contains('#071B33'));
+    }
   });
 
   test('desktop runners use the CoverWise product identity', () async {

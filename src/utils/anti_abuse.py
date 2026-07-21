@@ -6,7 +6,7 @@ Implements Phase 1: Quick wins for preventing misuse.
 import hashlib
 import re
 import redis
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Tuple, List
 import logging
 from functools import wraps
@@ -265,6 +265,81 @@ def check_all_rate_limits(
     
     return True, "All checks passed"
 
+
+def check_supabase_rate_limits(
+    ip_address: str,
+    session_id: str,
+) -> Tuple[bool, str]:
+    """Consume the canonical Postgres rate-limit windows.
+
+    Production must not fall back to process memory or Redis because Cloud
+    Run instances would each see a different counter. Identifiers are hashed
+    before they cross the database boundary.
+    """
+    from supabase import create_client
+
+    url = os.getenv("SUPABASE_URL", "").strip()
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    if not url or not key:
+        raise RuntimeError("Supabase rate limiting requires server credentials")
+    client = create_client(url, key)
+    for scope, identifier, limit in (
+        ("ip_daily", ip_address, RATE_LIMITS["ip_daily"]),
+        ("session_daily", session_id, RATE_LIMITS["session_daily"]),
+    ):
+        identifier_hash = hashlib.sha256(identifier.encode("utf-8")).hexdigest()
+        response = client.rpc(
+            "consume_rate_limit",
+            {
+                "p_scope": scope,
+                "p_identifier_hash": identifier_hash,
+                "p_limit": limit,
+                "p_window_seconds": 86400,
+            },
+        ).execute()
+        row = (response.data or [{}])[0]
+        if not row.get("allowed", False):
+            return False, f"{scope} limit exceeded; retry after {row.get('retry_after_seconds', 0)} seconds"
+    return True, "All canonical checks passed"
+
+
+def get_supabase_rate_limit_stats(ip_address: str, session_id: str) -> Dict[str, int]:
+    """Read the current shared counters for the usage transparency endpoint."""
+    from supabase import create_client
+
+    url = os.getenv("SUPABASE_URL", "").strip()
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    if not url or not key:
+        raise RuntimeError("Supabase rate limiting requires server credentials")
+    client = create_client(url, key)
+    counts = {}
+    for scope, identifier, output_key in (
+        ("ip_daily", ip_address, "ip_usage"),
+        ("session_daily", session_id, "session_usage"),
+    ):
+        identifier_hash = hashlib.sha256(identifier.encode("utf-8")).hexdigest()
+        response = client.table("rate_limit_windows").select(
+            "request_count,window_started_at"
+        ).eq("scope", scope).eq("identifier_hash", identifier_hash).limit(1).execute()
+        row = (response.data or [{}])[0]
+        started_at = row.get("window_started_at")
+        if started_at:
+            try:
+                started = datetime.fromisoformat(str(started_at).replace("Z", "+00:00"))
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=timezone.utc)
+                if started <= datetime.now(timezone.utc) - timedelta(days=1):
+                    counts[output_key] = 0
+                    continue
+            except (TypeError, ValueError):
+                logger.warning("invalid_rate_limit_window_timestamp scope=%s", scope)
+        counts[output_key] = int(row.get("request_count", 0))
+    return {
+        **counts,
+        "ip_limit": RATE_LIMITS["ip_daily"],
+        "session_limit": RATE_LIMITS["session_daily"],
+    }
+
 def log_usage_attempt(
     ip_address: str,
     session_id: str,
@@ -391,4 +466,4 @@ def load_additional_disposable_domains():
         logger.info(f"Loaded {len(domains)} additional disposable email domains")
 
 # Load additional domains on import
-load_additional_disposable_domains() 
+load_additional_disposable_domains()

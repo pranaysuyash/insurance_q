@@ -89,3 +89,15 @@ venv/bin/python tools/evaluate_local_document_models.py \
 
 Use only synthetic fixtures or explicitly approved documents with
 `--include-text`; reports otherwise retain no extracted document text.
+
+## `verification/supabase_retrieval_benchmark.py`
+
+Exercises the local Supabase retrieval contract with synthetic rows: owner and
+document filtering, PostgreSQL FTS, pgvector, embedding identity, latency, and
+cleanup. It refuses non-local Supabase URLs unless explicitly enabled.
+
+```bash
+SERVICE_ROLE_KEY=$(supabase status -o env | awk -F= '/^SERVICE_ROLE_KEY=/{print $2}' | tr -d '"') \
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+venv/bin/python tools/verification/supabase_retrieval_benchmark.py
+```

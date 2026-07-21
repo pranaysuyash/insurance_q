@@ -749,3 +749,203 @@ only supports `build linux` on Linux. This is a platform evidence gap, not a
 claim of Linux release readiness. The untracked runtime screenshots under
 `docs/review/evidence/asset-revamp-2026-07-21/` remain preserved as visual QA
 evidence, not source code.
+
+The insurance-card action row had an active “Call insurer” control that only
+showed a snackbar and a “Share card” control that only said “coming soon”. The
+row now launches the platform phone handler and shares a deliberately limited
+text card with a source-document verification disclaimer. This keeps the
+customer-facing action aligned with its label without implying insurer claim
+filing or proof beyond the displayed policy fields.
+
+Verification: `flutter analyze lib/screens/insurance_card_screen.dart` passed.
+Platform phone/share sheets were not exercised in this session, so this remains
+Tier 1/2 rather than platform E2E evidence.
+
+## Subscription response normalization and share failure handling (2026-07-21)
+
+Two small contract corrections were made at canonical boundaries. The
+subscription sync endpoint already forced unknown client-declared tiers to
+`free` before persistence, but its response echoed the untrusted request value;
+it now returns the normalized tier that was actually written. This prevents a
+client or operator from treating the response as stronger entitlement evidence
+than the server stored. The endpoint remains client-asserted and therefore is
+not server-side billing verification.
+
+The insurance-card share action now catches platform share failures and gives
+the user an explicit recovery message, matching the existing phone-handler
+failure behavior. The card remains intentionally limited and includes a
+source-document/insurer verification disclaimer.
+
+Verification: `flutter analyze lib/screens/insurance_card_screen.dart` passed;
+the Python subscription module compiles; no dedicated subscription endpoint
+test was present in the repository search. Store-sheet behavior and a live
+authenticated subscription traversal remain unverified Tier 3+ work.
+
+Additional focused regression verification in this continuation: the
+upgrade/legal/claims suite passed **44 tests**, and the
+documents/emergency/offline/what-if/policy-detail suite passed **72 tests**.
+The repository-wide `git diff --check` still reports one trailing-space line
+in the unrelated current `src/utils/anti_abuse.py` diff; it was preserved as
+parallel work and not changed in this review.
+
+## Entitlement expiry and access-gate correction (2026-07-21)
+
+The access-control review found that an expired paid entitlement still reported
+its unused monthly question quota. `QaScreen` read that property directly,
+which bypassed the provider's separate expiry check and could allow questions
+after subscription expiry. Upload submission also lacked a final canonical
+entitlement gate.
+
+The entitlement model now requires an active paid plan for subscription
+questions; purchased Q&A packs remain available after subscription expiry.
+Q&A submission uses the provider gate, and upload submission checks the same
+gate before consent/upload work begins. Existing paid-plan quota fixtures were
+made explicit about their future expiry rather than weakening the rule.
+
+During verification, malformed snackbar edits in the current policy-detail
+diff and an incorrect shared-widget theme import were also exposed and fixed;
+these were compile failures in the touched customer flows, not silently
+deferred pre-existing failures.
+
+Verification: analyzer passed for six affected Dart files; entitlement tests
+passed **20 tests**; Q&A and documents tests passed **20 tests**. Server-side
+entitlement enforcement and a real store/authenticated traversal remain open.
+
+## Retrieval embedding boundary (2026-07-21)
+
+The Supabase vector store already rejected non-canonical dimensions during
+ingestion, but dense query vectors were passed to the RPC without the same
+local contract check. The query path now rejects anything other than the
+canonical 1536 dimensions before making a remote call, keeping ingestion and
+retrieval failure behavior aligned.
+
+Verification: the Supabase FTS/vector-focused tests cover both upsert and
+dense-search dimension rejection. Live Supabase migration execution and a real
+owner-scoped retrieval traversal remain Tier 3+ evidence gaps.
+
+## Durable outbox transition fencing and job-type parity (2026-07-21)
+
+The queue claim path is now database-atomic, but terminal service transitions
+were still update-by-ID only. A stale worker could therefore mark a later
+attempt completed or failed after its lease had been reclaimed. `complete()`
+and `fail()` now require the row to still be `running`, preventing mutation of
+completed/pending jobs. A lease-token/fencing version remains the stronger
+long-term design for distinguishing two simultaneous running attempts.
+
+The queue also had a concrete schema parity defect: `ACCOUNT_DELETION` existed
+in the typed model and worker registration but was absent from the base SQL
+check. The canonical migration and account-lifecycle migration now include it.
+
+Verification: job-outbox and Supabase vector tests passed **33 tests**. Live
+multi-worker contention and deployed migration execution remain unverified.
+
+## RevenueCat identity reset on sign-out (2026-07-21)
+
+Account sign-in now associates RevenueCat with the durable account UID, but
+sign-out previously only reset local Hive state. That left the store SDK's
+customer identity attached to the former account, creating a cross-account
+purchase/entitlement leakage risk for the next guest or account session.
+
+`BillingAdapter.clearAccountIdentity()` now calls the provider logout operation
+from the existing profile workspace-clear path. A provider failure is logged
+and does not prevent local isolation; the next authenticated sync remains the
+recovery path.
+
+Verification: analyzer passed for billing and profile; the focused profile
+guard suite passed **10 tests**. Store-account switching remains unverified
+without a RevenueCat sandbox traversal.
+
+## Durable deletion retry and enqueue idempotency (2026-07-21)
+
+The expanded account-lifecycle worker now withdraws evaluation items, marks
+owner artifacts deleted, removes storage/chunks/documents, and deletes the auth
+user. Its failure path now persists `failed`, stage state, and an error class
+before re-raising so the outbox can retry without leaving an apparently active
+request.
+
+Production delete retries also now look up an existing account-deletion job and
+the queue has a unique request-payload index. This prevents repeated client
+submits or concurrent API calls from creating multiple destructive jobs for one
+request. A forward migration must preflight existing duplicate payloads before
+the unique index is applied; that deployment check is not yet live-verified.
+
+Verification: the lifecycle, identity, user-deletion, and job-outbox tests
+passed **36 tests**. Live Supabase job uniqueness, worker retry, and complete
+erasure verification remain Tier 3+ work.
+
+## Dataset and artifact lifecycle boundaries (2026-07-21)
+
+The current diff now contains a canonical, service-role-only registry for
+evaluation/training/benchmark releases. It correctly prevents customer-derived
+items without a consent reference, prevents edits after release approval, and
+represents withdrawal as state. One audit gap was found and closed: release
+revocation accepted a reason but previously discarded it. `revoked_reason` is
+now persisted by the service and migration, with a focused regression test.
+
+The registry still does not independently verify that a referenced consent row
+belongs to the declared owner or covers the dataset purpose. That is a Tier 1
+contract boundary, not proof of consent validity. Before customer-derived data
+enters a release, add a server-side consent lookup/eligibility check and a
+release manifest/hash verification path; require operator review for training
+purpose. The existing source snapshot is useful provenance but is not a
+replacement for consent validation.
+
+`document_artifacts` is a useful canonical inventory for source and derived
+objects, and account deletion now marks an owner's inventory rows deleted.
+However, the physical deletion loop currently follows document payload source
+paths; it does not enumerate and delete every `page_image`, `derived`, or
+`embedding_cache` object referenced only by the artifact table. Metadata marked
+`deleted` must not be interpreted as physical erasure. The long-term closure is
+an artifact deletion worker that claims inventory rows, deletes each validated
+object reference idempotently, records per-artifact outcome, and only reaches
+`deleted` after storage confirmation. Until then, deployed erasure evidence is
+incomplete for derived artifacts.
+
+The production rate-limit transparency endpoint also had a stale-window bug:
+it read `request_count` without checking `window_started_at`, so an expired
+window could display old usage until another upload rotated the row. The
+reader now treats windows at least 24 hours old as zero and preserves current
+counts; two focused tests pass. This is usage-display correctness, not a
+change to the atomic `consume_rate_limit` enforcement primitive.
+
+## Retrieval context-expansion owner fence (2026-07-21)
+
+Primary dense and FTS retrieval already required an owner filter, but adjacent
+context expansion accepted only chunk IDs. A linked target could therefore be
+returned without the primary owner predicate. The vector adapter now carries
+the owner into retrieval hit metadata, requires it for adjacent expansion, and
+applies it when fetching target chunks. The RAG pipeline skips expansion when
+owner scope is absent rather than widening the query.
+
+Verification: Supabase retrieval and RAG pipeline tests passed **13 tests**.
+This is Tier 2 evidence; a live cross-owner linked-chunk traversal against the
+deployed RPC/table policies remains required before claiming Tier 3 isolation.
+
+## Durable document-processing adoption (2026-07-21)
+
+The accepted outbox-only decision was not reflected by the live upload path:
+production still called FastAPI `BackgroundTasks`, while the outbox handler
+accepted base64 document bytes and bypassed the API path's durable terminal
+status/classification finalization. That was a real split contract, not merely
+an implementation detail.
+
+The first coherent migration stage is now implemented. Production composition
+requires the outbox; upload jobs carry the already-persisted source-object
+reference rather than duplicating document bytes in JSONB; the worker validates
+the owner-scoped document, fetches the source through the canonical object
+store, claims the repository lease, and uses the shared job runner. The local
+compatibility path remains explicit for development without Supabase. Enqueue
+failure rolls back metadata/source state and returns 503 rather than 202.
+
+The shared runner persists the processing result and releases the lease before
+returning, while classification remains best-effort and cannot hide a failed
+processing state. Focused runner/upload tests pass **4 tests** and syntax checks
+pass. A deployed worker traversal is still required: production outbox
+configuration, object-store fetch, lease contention, retry after worker death,
+and UI-visible status must be verified together at Tier 3.
+
+Remaining outbox adoption is not silently considered complete: substrate
+extraction is still invoked inline inside `DocumentProcessingService`, and
+Q&A/subscription/claim job types lack registered handlers. Continue with a
+separate migration stage only after the current document-processing path has
+live evidence.

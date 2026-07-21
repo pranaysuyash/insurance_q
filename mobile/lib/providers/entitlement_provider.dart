@@ -122,7 +122,9 @@ class EntitlementNotifier extends StateNotifier<Entitlement> {
   /// Reads from provider state (not directly from Hive) for consistency.
   String? checkAction(String action, {int? currentPolicyCount}) {
     final ent = state;
-    if (ent.isExpired) {
+    // Purchased Q&A packs remain usable after a subscription expires. Other
+    // paid-plan capabilities still require an active subscription.
+    if (ent.isExpired && action != 'ask_question') {
       return 'Your ${ent.planTier.displayName} plan has expired. Renew to continue.';
     }
     switch (action) {

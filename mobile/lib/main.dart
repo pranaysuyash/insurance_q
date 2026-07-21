@@ -223,6 +223,10 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         final principalId = next.valueOrNull?.session?.user.id;
         if (principalId != null) {
           unawaited(_reopenWorkspaceForPrincipal(principalId));
+          if (AppConfig.hasRevenueCatConfig) {
+            unawaited(
+                ref.read(billingAdapterProvider).identifyAccount(principalId));
+          }
         }
       },
     );

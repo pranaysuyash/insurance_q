@@ -108,7 +108,7 @@ class TestCitationVerifier:
         """A citation whose quote is a substring of source_text is valid."""
         source_text = "The sum insured is five lakh rupees. Coverage includes hospitalization."
         citation = RAGCitation(source_index=1, quote="five lakh rupees")
-        is_valid, reason = verify_citation(citation, source_text)
+        is_valid, reason, status = verify_citation(citation, source_text)
         assert is_valid is True
         assert reason is None
 
@@ -124,7 +124,7 @@ class TestCitationVerifier:
             quote="Context: policy clause.",
             quote_source="retrieval_text",
         )
-        is_valid, reason = verify_citation(citation, source_text, retrieval_text=retrieval_text)
+        is_valid, reason, status = verify_citation(citation, source_text, retrieval_text=retrieval_text)
         assert is_valid is False
         assert reason == CitationRejectionReason.QUOTE_FROM_RETRIEVAL
 
@@ -132,7 +132,7 @@ class TestCitationVerifier:
         """A citation whose quote is not in source_text is rejected."""
         source_text = "The sum insured is five lakh rupees."
         citation = RAGCitation(source_index=1, quote="ten lakh rupees")
-        is_valid, reason = verify_citation(citation, source_text)
+        is_valid, reason, status = verify_citation(citation, source_text)
         assert is_valid is False
         assert reason == CitationRejectionReason.QUOTE_NOT_IN_SOURCE
 
@@ -140,7 +140,7 @@ class TestCitationVerifier:
         """An empty quote is rejected."""
         source_text = "The sum insured is five lakh rupees."
         citation = RAGCitation(source_index=1, quote="")
-        is_valid, reason = verify_citation(citation, source_text)
+        is_valid, reason, status = verify_citation(citation, source_text)
         assert is_valid is False
         assert reason == CitationRejectionReason.EMPTY_QUOTE
 
@@ -148,7 +148,7 @@ class TestCitationVerifier:
         """A citation whose source_index is > source_count is rejected."""
         source_text = "The sum insured is five lakh rupees."
         citation = RAGCitation(source_index=5, quote="five lakh rupees")
-        is_valid, reason = verify_citation(citation, source_text, source_count=3)
+        is_valid, reason, status = verify_citation(citation, source_text, source_count=3)
         assert is_valid is False
         assert reason == CitationRejectionReason.SOURCE_INDEX_OUT_OF_BOUNDS
 
@@ -162,7 +162,7 @@ class TestCitationVerifier:
             quote="five lakh rupees",
             document_id="doc-A",
         )
-        is_valid, reason = verify_citation(
+        is_valid, reason, status = verify_citation(
             citation, source_text, document_id="doc-B"
         )
         assert is_valid is False
@@ -178,7 +178,7 @@ class TestCitationVerifier:
             quote="five lakh rupees",
             page_number=99,
         )
-        is_valid, reason = verify_citation(citation, source_text, page_count=10)
+        is_valid, reason, status = verify_citation(citation, source_text, page_count=10)
         assert is_valid is False
         assert reason == CitationRejectionReason.PAGE_NOT_FOUND
 
@@ -193,7 +193,7 @@ class TestCitationVerifier:
             source_index=1,
             quote="The  sum  insured  is  five  lakh  rupees.",
         )
-        is_valid, reason = verify_citation(citation, source_text)
+        is_valid, reason, status = verify_citation(citation, source_text)
         assert is_valid is True
         assert reason is None
 

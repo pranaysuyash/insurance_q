@@ -162,6 +162,15 @@ class DocumentProcessingService:
         self.rag_pipeline = rag_pipeline
         self.document_object_store = document_object_store
         self.document_repository = document_repository
+        self.processing_event_service = None
+        if os.getenv("SUPABASE_URL", "").strip() and os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip():
+            try:
+                from src.services.processing_event_service import ProcessingEventService
+                self.processing_event_service = ProcessingEventService()
+            except Exception as error:
+                if os.getenv("ENVIRONMENT", "development").lower() == "production":
+                    raise
+                logger.warning("processing event history unavailable error_type=%s", type(error).__name__)
         # Share a single OCR pipeline instance across processors
         self._ocr_pipeline = None
         self.pdf_processor = None
@@ -689,7 +698,11 @@ class DocumentProcessingService:
                     from src.services.evidence_substrate_service import (
                         EvidenceSubstrateService,
                     )
-                    substrate = EvidenceSubstrateService()
+                    # Use the canonical environment-backed constructor. The
+                    # positional constructor intentionally requires both
+                    # Supabase credentials so a missing production substrate
+                    # cannot silently become an in-memory path.
+                    substrate = EvidenceSubstrateService.from_env()
                     page_artifact_id_map = {}
                     for page_num, ocr_text in page_texts.items():
                         page_image = (
@@ -893,6 +906,20 @@ class DocumentProcessingService:
                     document.status = "processing"
                 document.processing_started_at = document.processing_started_at or datetime.now()
                 self.document_repository.update(document)
+        if self.processing_event_service and owner_id:
+            try:
+                self.processing_event_service.append(
+                    document_id=document_id,
+                    owner_id=owner_id,
+                    stage=stage,
+                    progress=progress,
+                    attempt=int((self.processing_status.get(document_id) or {}).get("attempt", 0)),
+                    error_class=type(error).__name__ if error else None,
+                )
+            except Exception as event_error:
+                if os.getenv("ENVIRONMENT", "development").lower() == "production":
+                    raise RuntimeError("Durable processing event persistence failed") from event_error
+                logger.warning("processing event append failed error_type=%s", type(event_error).__name__)
 
     def get_processing_status(self, document_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get current processing status"""

@@ -246,3 +246,29 @@ class TestDeleteAccountResponse:
         assert isinstance(data["deleted_storage_files"], int)
         assert isinstance(data["storage_errors"], int)
         assert isinstance(data["auth_user_deleted"], bool)
+
+
+def test_account_export_returns_metadata_without_source_contents(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("DOCUMENT_REPOSITORY_BACKEND", "sqlite")
+    from src.api import user as user_api
+    from src.services.document_repository import SQLiteDocumentRepository
+
+    monkeypatch.setattr(user_api, "verify_supabase_token", _make_account_token_verifier())
+    repo = SQLiteDocumentRepository(":memory:")
+    repo.create(_make_document())
+    mock_doc_api = MagicMock()
+    mock_doc_api.document_repository = repo
+    with patch.dict("sys.modules", {"src.api.document": mock_doc_api}):
+        app = FastAPI()
+        app.include_router(user_router)
+        with TestClient(app) as client:
+            response = client.get("/user/account/export", headers={"Authorization": "Bearer account-token"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["export_format_version"] == "v1"
+    assert data["documents"][0]["id"] == "doc-1"
+    assert "file_path" not in data["documents"][0]
+    assert "source_files" in data
+    assert data["source_downloads"] == []

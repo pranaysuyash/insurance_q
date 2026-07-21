@@ -15,9 +15,13 @@ create table if not exists public.dataset_releases (
   created_by text not null,
   approved_at timestamptz,
   revoked_at timestamptz,
+  revoked_reason text,
   created_at timestamptz not null default now(),
   unique (name, version)
 );
+
+alter table public.dataset_releases
+  add column if not exists revoked_reason text;
 
 create table if not exists public.dataset_items (
   id uuid primary key default gen_random_uuid(),

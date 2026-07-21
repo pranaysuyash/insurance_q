@@ -124,6 +124,28 @@ class JobOutboxService:
             raise JobOutboxError("job_outbox insert returned no row")
         return UUID(response.data[0]["id"])
 
+    async def find_by_payload_field(
+        self, job_type: JobType, field: str, value: str
+    ) -> Optional[UUID]:
+        """Find an existing job by a bounded JSON payload identity.
+
+        This supports idempotent retry of destructive workflows such as
+        account deletion without exposing raw table access to callers.
+        """
+        if not field or not field.replace("_", "").isalnum():
+            raise JobOutboxError("payload identity field must be alphanumeric")
+        response = (
+            self._client.table("job_outbox")
+            .select("id")
+            .eq("job_type", job_type.value)
+            .contains("payload", {field: value})
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            return None
+        return UUID(response.data[0]["id"])
+
     # --- claim ---
 
     async def claim(
@@ -132,11 +154,9 @@ class JobOutboxService:
         """Atomically claim one pending job. Returns None if no
         job is available.
 
-        The claim uses a conditional UPDATE that succeeds only
-        if the row is still 'pending' AND the lease is not held
-        by another worker. Two workers calling this concurrently
-        cannot claim the same row; the second one's UPDATE
-        affects 0 rows and the call returns None.
+        The database function performs SELECT ... FOR UPDATE SKIP LOCKED
+        and the state transition in one transaction. Two workers cannot
+        claim the same row.
         """
         response = self._client.rpc(
             "claim_job_outbox", {"p_lease_seconds": lease_seconds}
@@ -181,6 +201,7 @@ class JobOutboxService:
             self._client.table("job_outbox")
             .update({"status": "completed", "lease_expires_at": None})
             .eq("id", str(job_id))
+            .eq("status", "running")
             .execute()
         )
         if not response.data:
@@ -236,6 +257,7 @@ class JobOutboxService:
                 }
             )
             .eq("id", str(job_id))
+            .eq("status", "running")
             .execute()
         )
         if not response.data:

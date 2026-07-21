@@ -43,7 +43,11 @@ android {
     defaultConfig {
         applicationId = "com.coverwise.app"
         minSdk = 23
-        targetSdk = 35
+        // Keep the Play submission target aligned with the current Android
+        // platform baseline. This is intentionally separate from minSdk: the
+        // app continues to support Android 6+ while opting into Android 16
+        // runtime behavior and its privacy/security guarantees.
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

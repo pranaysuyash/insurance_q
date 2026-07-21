@@ -23,6 +23,10 @@ class DocumentObjectStore:
     def get(self, object_reference: str) -> bytes:
         raise NotImplementedError
 
+    def create_download_url(self, object_reference: str, expires_seconds: int = 900) -> str | None:
+        """Return a short-lived private download URL when supported."""
+        raise NotImplementedError
+
     def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
         raise NotImplementedError
 
@@ -51,6 +55,9 @@ class LocalDocumentObjectStore(DocumentObjectStore):
 
     def get(self, object_reference: str) -> bytes:
         return Path(object_reference).read_bytes()
+
+    def create_download_url(self, object_reference: str, expires_seconds: int = 900) -> str | None:
+        return None
 
     def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
         path = self._directory / "_pages" / document_id / f"{page_number}.png"
@@ -102,6 +109,16 @@ class S3DocumentObjectStore(DocumentObjectStore):
             raise ValueError("Object reference does not belong to configured document bucket")
         response = self._client.get_object(Bucket=self._bucket, Key=object_reference.removeprefix(prefix))
         return response["Body"].read()
+
+    def create_download_url(self, object_reference: str, expires_seconds: int = 900) -> str | None:
+        prefix = f"s3://{self._bucket}/"
+        if not object_reference.startswith(prefix):
+            raise ValueError("Object reference does not belong to configured document bucket")
+        return self._client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self._bucket, "Key": object_reference.removeprefix(prefix)},
+            ExpiresIn=expires_seconds,
+        )
 
     def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
         key = f"_pages/{document_id}/{page_number}.png"
@@ -161,6 +178,17 @@ class SupabaseDocumentObjectStore(DocumentObjectStore):
         if not object_reference.startswith(prefix):
             raise ValueError("Object reference belongs to a different Supabase bucket")
         return self._client.storage.from_(self._bucket).download(object_reference.removeprefix(prefix))
+
+    def create_download_url(self, object_reference: str, expires_seconds: int = 900) -> str | None:
+        prefix = f"supabase://{self._bucket}/"
+        if not object_reference.startswith(prefix):
+            raise ValueError("Object reference belongs to a different Supabase bucket")
+        response = self._client.storage.from_(self._bucket).create_signed_url(
+            object_reference.removeprefix(prefix), expires_seconds
+        )
+        if isinstance(response, dict):
+            return response.get("signedURL") or response.get("signedUrl")
+        return None
 
     def put_page_image(self, document_id: str, page_number: int, image_bytes: bytes) -> None:
         path = f"_pages/{document_id}/{page_number}.png"

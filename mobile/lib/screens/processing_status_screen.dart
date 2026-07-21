@@ -24,9 +24,9 @@ enum ProcessingStage {
       'Identifying coverage, premiums, and dates',
       Icons.find_in_page_outlined,
       Colors.purple),
-  classification(3, 'Classifying', 'Determining policy type and insurer',
+  classification(3, 'Categorising', 'Identifying the policy type and insurer',
       Icons.category, Colors.teal),
-  indexing(4, 'Indexing', 'Making your policy searchable', Icons.search,
+  indexing(4, 'Finishing up', 'Preparing your policy for questions', Icons.search,
       Colors.orange),
   complete(
       5, 'Complete', 'Your policy is ready', Icons.check_circle, Colors.green),

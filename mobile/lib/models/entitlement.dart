@@ -125,10 +125,13 @@ class Entitlement {
 
   /// Whether the user has remaining Q&A capacity this month (subscription only).
   bool get hasSubscriptionQuestionsRemaining =>
-      questionsUsedThisMonth < limits.maxQuestionsPerMonth;
+      isActive && questionsUsedThisMonth < limits.maxQuestionsPerMonth;
 
   int get subscriptionQuestionsRemaining =>
-      (limits.maxQuestionsPerMonth - questionsUsedThisMonth).clamp(0, limits.maxQuestionsPerMonth);
+      !isActive
+          ? 0
+          : (limits.maxQuestionsPerMonth - questionsUsedThisMonth)
+              .clamp(0, limits.maxQuestionsPerMonth);
 
   // ── Pack-based Q&A ──────────────────────────────────────────────
 

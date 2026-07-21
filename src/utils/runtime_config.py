@@ -5,6 +5,22 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 
+def normalize_supabase_environment() -> None:
+    """Accept Supabase's modern secret-key name at the server boundary.
+
+    The application keeps ``SUPABASE_SERVICE_ROLE_KEY`` as its canonical
+    internal contract, while current Supabase projects expose the server key
+    as ``SUPABASE_SECRET_KEY``. This alias is server-only and is never exposed
+    to Flutter or returned in diagnostics.
+    """
+    import os
+
+    if not os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip():
+        secret = os.environ.get("SUPABASE_SECRET_KEY", "").strip()
+        if secret:
+            os.environ["SUPABASE_SERVICE_ROLE_KEY"] = secret
+
+
 def allowed_cors_origins(environment: str, configured_origins: str) -> list[str]:
     """Return explicit browser origins; production never inherits a stale host."""
     origins = [origin.strip() for origin in configured_origins.split(",") if origin.strip()]
@@ -33,6 +49,8 @@ def production_configuration_errors(environment: Mapping[str, str]) -> list[str]
     )
     for name in required:
         value = environment.get(name, "").strip()
+        if name == "SUPABASE_SERVICE_ROLE_KEY" and not value:
+            value = environment.get("SUPABASE_SECRET_KEY", "").strip()
         if not value or value.lower().startswith(("change-me", "placeholder", "your_", "set_")):
             errors.append(f"{name} is required")
 

@@ -8,6 +8,7 @@ import os
 import re
 import sqlite3
 import uuid
+import hashlib
 from datetime import datetime
 from collections import Counter
 from types import SimpleNamespace
@@ -196,6 +197,7 @@ class RAGPipeline:
             "collection": getattr(self, "collection_name", ""),
             "chat_model": getattr(self, "openai_chat_model", ""),
             "embedding_model": getattr(self, "active_embedding_model", ""),
+            "embedding_version": getattr(self, "embedding_version", "v1"),
             "retrieval_strategy": (
                 "supabase_hybrid_fts_pgvector"
                 if getattr(self, "vector_backend", "qdrant") == "supabase"
@@ -361,9 +363,16 @@ class RAGPipeline:
                 return [item.embedding for item in response.data]
             except Exception as e:
                 error_str = str(e)
-                # Don't retry quota errors — they won't resolve
-                if "insufficient_quota" in error_str or "quota" in error_str.lower():
-                    logger.error("OpenAI quota exhausted, aborting embedding")
+                # Credential and quota errors are deterministic. Retrying
+                # them only adds latency and noise before the configured
+                # local/provider fallback can run.
+                if (
+                    "insufficient_quota" in error_str
+                    or "quota" in error_str.lower()
+                    or "invalid_api_key" in error_str.lower()
+                    or "incorrect api key" in error_str.lower()
+                ):
+                    logger.error("OpenAI embedding credential/quota failure; aborting retries")
                     raise
                 self.openai_failure_count += 1
                 logger.error("OpenAI embedding error (%d/%d): %s", attempt, max_retries, e)
@@ -912,6 +921,8 @@ class RAGPipeline:
     ) -> Dict[str, Any]:
         import time
         start_time = time.time()
+        audit_candidates: list[dict[str, Any]] = []
+        audit_evidence: list[dict[str, Any]] = []
         
         async def _log_and_return(resp: Dict[str, Any], cache_hit: bool = False):
             if resp.get("status") == "success":
@@ -924,7 +935,9 @@ class RAGPipeline:
                     return getattr(c, "verification_status", None)
                     
                 trace_data = {
-                    "query_text": user_query,
+                    "query_text": "[redacted]",
+                    "query_hash": hashlib.sha256(user_query.encode("utf-8")).hexdigest(),
+                    "query_length": len(user_query),
                     "owner_id": filters.get("owner_id") if filters else None,
                     "retrieval_strategy": res.get("retrieval_strategy"),
                     "top_k": top_k,
@@ -938,7 +951,20 @@ class RAGPipeline:
                     "llm_used": res.get("llm_used", False),
                     "llm_model": self.openai_chat_model,
                     "latency_ms": int((time.time() - start_time) * 1000),
-                    "cache_hit": cache_hit
+                    "cache_hit": cache_hit,
+                    "embedding_model": self.active_embedding_model,
+                    "embedding_version": getattr(self, "embedding_version", "v1"),
+                    "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2" if getattr(self, "reranker", None) else None,
+                    "query_variant_count": len(query_variants) if "query_variants" in locals() else 1,
+                    "candidates": audit_candidates,
+                    "answer": {
+                        "text": res.get("answer", ""),
+                        "llm_used": res.get("llm_used", False),
+                        "llm_model": self.openai_chat_model,
+                        "confidence": res.get("confidence", 0.0),
+                        "missing_information_count": len(res.get("missing_information", [])),
+                        "evidence": audit_evidence,
+                    },
                 }
                 asyncio.create_task(self._log_query_trace(trace_data))
             return resp
@@ -1055,6 +1081,17 @@ class RAGPipeline:
 
         ranked_results = self._rank_results(user_query, results)
         ranked_results = ranked_results[:top_k]
+        audit_candidates = [
+            {
+                "rank": index,
+                "chunk_id": int(hit.id) if str(hit.id).isdigit() else None,
+                "document_id": (hit.payload or {}).get("document_id"),
+                "source_path": (hit.payload or {}).get("_retrieval_source", "unknown"),
+                "score": float(hit.score or 0.0),
+                "included": True,
+            }
+            for index, hit in enumerate(ranked_results, 1)
+        ]
 
         # Commit 3: expand top-k context with adjacent chunks (ADR-26).
         ranked_results = await self._expand_with_adjacent_chunks(ranked_results, max_expand=3)
@@ -1148,6 +1185,18 @@ class RAGPipeline:
             answer_payload.citations = self._verify_citations(
                 answer_payload.citations, sources
             )
+        audit_evidence = []
+        for index, citation in enumerate(answer_payload.citations, 1):
+            source_index = int(citation.source_index) - 1
+            source = sources[source_index] if 0 <= source_index < len(sources) else {}
+            audit_evidence.append({
+                "citation_index": index,
+                "chunk_id": int(source["id"]) if str(source.get("id", "")).isdigit() else None,
+                "document_id": source.get("document_id"),
+                "page_number": source.get("page_number"),
+                "citation_status": citation.citation_status,
+                "quote": citation.quote,
+            })
         response = {
             "status": "success",
             "result": {
@@ -1176,9 +1225,25 @@ class RAGPipeline:
         try:
             if getattr(self, "vector_backend", "qdrant") == "supabase" and hasattr(self.vector_store, "_client"):
                 loop = asyncio.get_event_loop()
+                trace_row = {
+                    key: trace_data[key]
+                    for key in (
+                        "query_text", "query_hash", "query_length", "owner_id",
+                        "retrieval_strategy", "top_k", "hits_count", "citations_count",
+                        "citations_verified", "citations_approximate", "citations_rejected",
+                        "confidence", "retrieval_confidence", "llm_used", "llm_model",
+                        "latency_ms", "cache_hit",
+                    )
+                    if key in trace_data
+                }
                 await loop.run_in_executor(
                     None,
-                    lambda: self.vector_store._client.table("rag_query_traces").insert(trace_data).execute()
+                    lambda: self.vector_store._client.table("rag_query_traces").insert(trace_row).execute()
+                )
+                from src.services.retrieval_audit_service import write_audit
+                await loop.run_in_executor(
+                    None,
+                    lambda: write_audit(self.vector_store._client, trace_data),
                 )
             else:
                 logger.info("Query Trace: %s", json.dumps(trace_data))
@@ -1643,8 +1708,14 @@ class RAGPipeline:
             chunk_ids = [str(hit.id) for hit in hits[:max_expand]]
             if not chunk_ids:
                 return hits
-                
-            adjacent_hits = await self.vector_store.get_adjacent_chunks(chunk_ids)
+            owner_id = (hits[0].payload or {}).get("owner_id")
+            if not owner_id:
+                logger.warning("Skipping adjacent expansion without owner scope")
+                return hits
+
+            adjacent_hits = await self.vector_store.get_adjacent_chunks(
+                chunk_ids, owner_id=owner_id
+            )
             
             existing_ids = {str(hit.id) for hit in hits}
             new_hits = []
