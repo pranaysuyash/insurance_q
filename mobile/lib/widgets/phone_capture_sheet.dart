@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import '../services/analytics_service.dart';
 import '../services/app_state_store.dart';
+import '../services/auth_service.dart';
 import 'shared/coverwise_components.dart';
 import 'shared/coverwise_snackbar.dart';
 import '../theme/coverwise_motion.dart';

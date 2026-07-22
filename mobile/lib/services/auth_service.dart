@@ -190,6 +190,34 @@ class AuthService {
     );
   }
 
+  /// Send a phone OTP for verification.
+  /// Uses Supabase's built-in phone auth.
+  static Future<void> signInWithPhoneOtp(String phone) async {
+    if (!_accountClientReady) return;
+    await Supabase.instance.client.auth.signInWithOtp(
+      phone: phone,
+    );
+  }
+
+  /// Verify a phone OTP code.
+  static Future<AuthResponse> verifyPhoneOtp(
+      String phone, String token) async {
+    final response = await Supabase.instance.client.auth.verifyOTP(
+      phone: phone,
+      token: token,
+      type: OtpType.sms,
+    );
+    return response;
+  }
+
+  /// Update the phone number on the current Supabase user.
+  static Future<void> updateUserPhone(String phone) async {
+    if (!_accountClientReady || !hasAccountSession) return;
+    await Supabase.instance.client.auth.updateUser(
+      UserAttributes(phone: phone),
+    );
+  }
+
   /// Resend email verification for the given email.
   static Future<void> resendEmailVerification(String email) async {
     await Supabase.instance.client.auth.resend(
