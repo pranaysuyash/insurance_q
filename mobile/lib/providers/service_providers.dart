@@ -4,6 +4,8 @@ import '../config/app_config.dart';
 import '../services/document_service.dart';
 import '../services/query_service.dart';
 import '../services/auth_service.dart';
+import '../services/server_consent_service.dart';
+import '../services/local_storage_service.dart';
 
 final authenticatedDioProvider = Provider<Dio>((ref) {
   final dio = Dio(
@@ -23,4 +25,13 @@ final documentServiceProvider = Provider<DocumentService>((ref) {
 
 final queryServiceProvider = Provider<QueryService>((ref) {
   return QueryService(ref.watch(authenticatedDioProvider));
+});
+
+final serverConsentServiceProvider = Provider<ServerConsentService>((ref) {
+  final dio = ref.watch(authenticatedDioProvider);
+  return ServerConsentService(dio: dio);
+});
+
+final localStorageServiceProvider = Provider<LocalStorageService>((ref) {
+  return LocalStorageService();
 });
