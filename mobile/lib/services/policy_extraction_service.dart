@@ -2,22 +2,18 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
-import '../config/app_config.dart';
 import '../models/policy_summary.dart';
 import '../utils/policy_type.dart';
+import 'document_service.dart';
 import 'policy_extraction_helpers.dart';
 import 'query_service.dart';
 
 class PolicyExtractionService {
   final QueryService _queryService;
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: AppConfig.baseUrl,
-    connectTimeout: Duration(seconds: AppConfig.connectTimeoutSeconds),
-    receiveTimeout: Duration(seconds: AppConfig.receiveTimeoutSeconds),
-  ));
+  final Dio _dio;
   static const _summariesBoxKey = 'policy_summaries';
 
-  PolicyExtractionService(this._queryService);
+  PolicyExtractionService(this._queryService) : _dio = DocumentService.authenticatedDio;
 
   Box get _box => Hive.box('app_state_box');
 
