@@ -5,7 +5,7 @@ import '../services/document_service.dart';
 import '../services/query_service.dart';
 import '../services/auth_service.dart';
 
-final _dioProvider = Provider<Dio>((ref) {
+final authenticatedDioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
       baseUrl: AppConfig.baseUrl,
@@ -18,9 +18,9 @@ final _dioProvider = Provider<Dio>((ref) {
 });
 
 final documentServiceProvider = Provider<DocumentService>((ref) {
-  return DocumentService(ref.watch(_dioProvider));
+  return DocumentService(ref.watch(authenticatedDioProvider));
 });
 
 final queryServiceProvider = Provider<QueryService>((ref) {
-  return QueryService(ref.watch(_dioProvider));
+  return QueryService(ref.watch(authenticatedDioProvider));
 });
