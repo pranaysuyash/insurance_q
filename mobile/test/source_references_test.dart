@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
+import 'package:coverwise/providers/entitlement_provider.dart';
+import 'package:coverwise/models/entitlement.dart';
 import 'package:coverwise/providers/questions_provider.dart';
 import 'package:coverwise/utils/ref_state.dart';
 import 'package:coverwise/screens/qa_screen.dart';
@@ -39,7 +41,18 @@ Widget _buildQaScreen({
 }) {
   return ProviderScope(
     overrides: [
-      documentsProvider.overrideWith((ref) async => documents),      selectedDocumentProvider.overrideWith(() => RefState<String?>(null)),
+      documentsProvider.overrideWith((ref) async => documents),
+      selectedDocumentProvider.overrideWith(() => RefState<String?>(null)),
+      entitlementProvider.overrideWith((ref) {
+        final notifier = EntitlementNotifier();
+        notifier.state = Entitlement(
+          planTier: PlanTier.plus,
+          questionsRemaining: 10,
+          packQuestionsRemaining: 0,
+          expiresAt: DateTime.now().add(const Duration(days: 30)),
+        );
+        return notifier;
+      }),
       queryServiceProvider
           .overrideWithValue(_MockQueryService(queryResponse)),
     ],

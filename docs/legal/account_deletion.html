@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CoverWise - Account & Data Deletion Request</title>
+  <style>
+    :root {
+      --primary: #0F9D84;
+      --bg: #0F172A;
+      --card-bg: #1E293B;
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --border: #334155;
+      --accent: #38BDF8;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 32px 24px;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    h1 {
+      color: var(--text);
+      margin-top: 0;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    h1 span {
+      color: var(--primary);
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 24px;
+    }
+    .info-box {
+      background: rgba(15, 157, 132, 0.1);
+      border-left: 4px solid var(--primary);
+      padding: 16px;
+      border-radius: 4px;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    label {
+      display: block;
+      margin-top: 16px;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+    }
+    input[type="email"], textarea {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      background: #0F172A;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    input[type="email"]:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    button {
+      margin-top: 24px;
+      background-color: #E11D48;
+      color: white;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: #BE123C;
+    }
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1><span>CoverWise</span> Account & Data Deletion</h1>
+      <p class="subtitle">Request complete deletion of your CoverWise account, uploaded insurance policies, and extracted metadata.</p>
+      
+      <div class="info-box">
+        <strong>What will be deleted:</strong>
+        <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+          <li>Your CoverWise account identity and authentication credentials</li>
+          <li>All uploaded policy documents and cached source files</li>
+          <li>Extracted policy summaries, field citations, and Q&A history</li>
+          <li>Associated family member profiles and entitlement records</li>
+        </ul>
+      </div>
+
+      <p style="font-size: 14px; color: var(--text-muted);">
+        <em>Note on Store Subscriptions:</em> Deleting your account does not automatically cancel active Google Play or Apple App Store subscriptions. Please cancel any active trial or subscription via your device store settings before submitting your request.
+      </p>
+
+      <form id="deletionForm" onsubmit="handleSubmit(event)">
+        <label for="email">Account Email Address *</label>
+        <input type="email" id="email" required placeholder="your.email@example.com">
+
+        <label for="reason">Reason for deletion (Optional)</label>
+        <textarea id="reason" rows="3" placeholder="Tell us why you are leaving..."></textarea>
+
+        <button type="submit">Request Account & Data Deletion</button>
+      </form>
+
+      <div id="confirmation" style="display:none; margin-top: 24px; text-align: center; padding: 20px; background: rgba(56, 189, 248, 0.1); border-radius: 8px;">
+        <h3 style="color: var(--accent); margin-top:0;">Request Received</h3>
+        <p style="margin-bottom:0; font-size: 14px;">Your account deletion request has been registered. If your account is verified, all associated remote data will be purged within 30 days. You will receive confirmation at your email address.</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      CoverWise is developed by Medpiper Technologies. <br>
+      <a href="privacy_policy.md">Privacy Policy</a> &bull; <a href="terms.html">Terms of Service</a>
+    </div>
+  </div>
+
+  <script>
+    function handleSubmit(event) {
+      event.preventDefault();
+      document.getElementById('deletionForm').style.display = 'none';
+      document.getElementById('confirmation').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

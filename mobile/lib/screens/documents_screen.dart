@@ -301,6 +301,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     if (consentVersion == null) return;
 
     await _syncProcessingConsent();
+    if (!mounted) return;
 
     setState(() {
       _isUploading = true;

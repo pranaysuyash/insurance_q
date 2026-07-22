@@ -5,9 +5,9 @@
 
 ## Introduction
 
-CoverWise ("we," "our," or "us") helps you understand your insurance policies by extracting key information and answering your questions in plain language. This Privacy Policy explains what data we collect, how we use it, and your rights.
+CoverWise ("we," "our," or "us") helps you store and understand your insurance policies by extracting key information and answering questions grounded in your uploaded documents. This Privacy Policy explains what data we collect, how we protect it, and your privacy rights.
 
-We are an **information broker** — we help you understand your policies. We do not sell insurance, provide financial advice, or act as an insurer.
+We are a **policy information assistant** — we help you understand your insurance documents. We do not sell insurance, provide financial advice, or act as an insurer or broker.
 
 ## What We Collect
 

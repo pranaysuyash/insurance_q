@@ -63,19 +63,19 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [x] Add /family and /notifications routes in main.dart
   - [x] Add /family/visualization route in main.dart
 
-- [ ] **P1-06: Verify Policy Information Extraction**
-  - [ ] Test policy number extraction with documents where filename ≠ policy number
-  - [ ] Implement proper document parsing for key policy information
-  - [x] Create confidence scores for extracted information (ConfidenceBadge widget)
+- [x] **P1-06: Verify Policy Information Extraction** ✅ DONE
+  - [x] Test policy number extraction with documents where filename ≠ policy number (validatePolicyNumber in policy_extraction_helpers.dart with 14 test cases)
+  - [x] Implement proper document parsing for key policy information (cleanText, extractEmail, parseAmount, parseDate, splitLines in policy_extraction_helpers.dart with 83 unit tests)
+  - [x] Create confidence scores for extracted information (ConfidenceBadge widget + fieldConfidence/overallExtractionConfidence in policy_extraction_helpers.dart)
   - [x] Allow manual correction of incorrectly extracted data (field_overrides_store, edit buttons on PolicyDetailScreen)
 
-- [ ] **P1-07: Implement Complex Relationship Extraction**
-  - [ ] Develop document section classifier for identifying policy details, insured persons, and nominee sections
-  - [ ] Create relationship extraction module to identify policyholder, insured persons, and nominees
-  - [ ] Implement relationship graph model to represent connections between parties
-  - [ ] Design specialized prompt templates for relationship-focused questions
-  - [ ] Add verification mechanisms for extracted relationships
-  - [ ] Create test cases for complex family relationship scenarios
+- [x] **P1-07: Implement Complex Relationship Extraction** ✅ DONE
+  - [x] Develop document section classifier for identifying policy details, insured persons, and nominee sections (DocumentSectionClassifier with 30+ Indian insurance keywords across 10 section types)
+  - [x] Create relationship extraction module to identify policyholder, insured persons, and nominees (RelationshipExtractionService with LLM query pipeline)
+  - [x] Implement relationship graph model to represent connections between parties (RelationshipGraph with node/edge dedup, merge, JSON roundtrip)
+  - [x] Design specialized prompt templates for relationship-focused questions (RelationshipPromptTemplates with 12 prompt constants)
+  - [x] Add verification mechanisms for extracted relationships (confidence scoring, warning collection, edge dedup)
+  - [x] Create test cases for complex family relationship scenarios (22 unit tests covering model, type conversion, classifier)
   - [x] Update UI to display relationship information (FamilyVisualizationScreen with coverage matrix)
 
 ## Medium Priority Issues

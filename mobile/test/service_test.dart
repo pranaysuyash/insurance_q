@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 
 import 'package:coverwise/services/demo_service.dart';
@@ -65,7 +66,9 @@ void main() {
 
   group('QaHistoryNotifier', () {
     test('adds item and maintains order', () {
-      final notifier = QaHistoryNotifier();
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(qaHistoryProvider.notifier);
       final answer = QaAnswer(
         text: 'Test answer',
         sources: [],
@@ -75,16 +78,18 @@ void main() {
       );
 
       notifier.addItem('Question 1', answer);
-      expect(notifier.state.length, 1);
-      expect(notifier.state.first.question, 'Question 1');
+      expect(container.read(qaHistoryProvider).length, 1);
+      expect(container.read(qaHistoryProvider).first.question, 'Question 1');
 
       notifier.addItem('Question 2', answer);
-      expect(notifier.state.length, 2);
-      expect(notifier.state.first.question, 'Question 2');
+      expect(container.read(qaHistoryProvider).length, 2);
+      expect(container.read(qaHistoryProvider).first.question, 'Question 2');
     });
 
     test('limits history to 50 items', () {
-      final notifier = QaHistoryNotifier();
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(qaHistoryProvider.notifier);
       final answer = QaAnswer(
         text: 'Test',
         sources: [],
@@ -97,11 +102,13 @@ void main() {
         notifier.addItem('Question $i', answer);
       }
 
-      expect(notifier.state.length, 50);
+      expect(container.read(qaHistoryProvider).length, 50);
     });
 
     test('clears history', () {
-      final notifier = QaHistoryNotifier();
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(qaHistoryProvider.notifier);
       final answer = QaAnswer(
         text: 'Test',
         sources: [],
@@ -112,7 +119,7 @@ void main() {
 
       notifier.addItem('Question 1', answer);
       notifier.clearHistory();
-      expect(notifier.state, isEmpty);
+      expect(container.read(qaHistoryProvider), isEmpty);
     });
   });
 

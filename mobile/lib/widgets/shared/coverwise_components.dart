@@ -222,7 +222,10 @@ class CoverWiseSurface extends StatelessWidget {
         ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: child,
+      child: Material(
+        color: Colors.transparent,
+        child: child,
+      ),
     );
   }
 }

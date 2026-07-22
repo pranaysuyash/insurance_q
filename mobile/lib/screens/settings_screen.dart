@@ -12,9 +12,9 @@ import '../providers/questions_provider.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/consent_ledger.dart';
-import '../services/local_storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
+import '../services/hive_workspace_service.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
@@ -119,9 +119,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
-      // 1. Clear Hive boxes (documents + all app state)
-      await Hive.box<String>(LocalStorageService.documentsBoxName).clear();
-      await Hive.box(AppStateStore.boxName).clear();
+      // 1. Clear all Hive workspace boxes and cache
+      await HiveWorkspaceService.clearLocalWorkspace();
 
       // 2. Clear SharedPreferences
       final prefs = await SharedPreferences.getInstance();

@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 from types import SimpleNamespace
 
 from fastapi import FastAPI
@@ -80,8 +81,8 @@ def test_revenuecat_webhook_handler_calls_transactional_ledger(monkeypatch):
     assert calls == [{
         "event_id": "event-1",
         "event_type": "RENEWAL",
-        "app_user_id": "account-1",
+        "app_user_id": hashlib.sha256(b"account-1").hexdigest(),
         "event_timestamp_ms": 10,
-        "product_id": "coverwise_plus_monthly",
+        "product_id": hashlib.sha256(b"coverwise_plus_monthly").hexdigest(),
         "expires_at": None,
     }]

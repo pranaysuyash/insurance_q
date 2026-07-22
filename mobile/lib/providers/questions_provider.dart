@@ -178,22 +178,20 @@ final qaHistoryProvider = NotifierProvider<QaHistoryNotifier, List<QaPair>>(
 class QaHistoryNotifier extends Notifier<List<QaPair>> {
   @override
   List<QaPair> build() {
-    _loadHistory();
-    return state;
-  }
-
-  Future<void> _loadHistory() async {
     try {
-      final box = Hive.box(AppStateStore.boxName);
-      final raw = box.get(_qaHistoryBoxKey) as List<dynamic>?;
-      if (raw != null) {
-        state = raw
-            .map((item) => QaPair.fromJson(item as Map<String, dynamic>))
-            .toList();
+      if (Hive.isBoxOpen(AppStateStore.boxName)) {
+        final box = Hive.box(AppStateStore.boxName);
+        final raw = box.get(_qaHistoryBoxKey) as List<dynamic>?;
+        if (raw != null) {
+          return raw
+              .map((item) => QaPair.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        }
       }
     } catch (e) {
       debugPrint('Error loading QA history: $e');
     }
+    return [];
   }
 
   void addItem(String question, QaAnswer answer) {

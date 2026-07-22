@@ -59,7 +59,11 @@ class HiveTestHelper {
 
     for (final name in _boxNames) {
       if (!Hive.isBoxOpen(name)) {
-        await Hive.openBox(name);
+        if (name == LocalStorageService.documentsBoxName) {
+          await Hive.openBox<String>(name);
+        } else {
+          await Hive.openBox(name);
+        }
       }
     }
   }

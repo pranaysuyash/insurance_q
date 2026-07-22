@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/services/consent_ledger.dart';
@@ -10,21 +8,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'helpers/hive_test_helper.dart';
 
 /// Tests the _ensureConsent() helper in DocumentsScreen through
 /// widget integration, covering stale consent, healthy consent,
 /// and cancellation edge cases.
-///
-/// Uses a dedicated Hive directory (not HiveTestHelper) so these
-/// tests don't share box state with other test files.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory hiveDir;
 
   setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.it_sweat_shop.flutter_secure_storage'),
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
       (call) async {
         if (call.method == 'read') return null;
         if (call.method == 'readAll') return <String, String>{};
@@ -32,23 +30,11 @@ void main() {
       },
     );
 
-    hiveDir = await Directory.systemTemp.createTemp('consent-upload-flow-');
-    Hive.init(hiveDir.path);
-    await Hive.openBox('consent_ledger');
-    await Hive.openBox(AppStateStore.boxName);
-    await Hive.openBox('insurance_documents');
-    await Hive.openBox('resolved_gaps');
-    await Hive.openBox('analytics_events');
-  });
-
-  setUp(() async {
-    // Fresh state for each test — clear both boxes that _ensureConsent() touches.
-    await Hive.box('consent_ledger').clear();
-    await Hive.box(AppStateStore.boxName).clear();
+    await HiveTestHelper.setUp();
   });
 
   tearDownAll(() async {
-    // Let the OS clean up the temp directory.
+    await HiveTestHelper.tearDown();
   });
 
   /// Sets a fixed viewport so layout tests don't depend on the host machine.
@@ -61,23 +47,35 @@ void main() {
     });
   }
 
+  Future<void> cleanDb(WidgetTester tester) async {
+    await tester.runAsync(() async {
+      await Hive.box('consent_ledger').clear();
+      await Hive.box(AppStateStore.boxName).clear();
+    });
+  }
+
   /// Pre-sets the processing_consent_version in the Hive app_state box.
-  Future<void> setConsentVersion(String version) async {
-    await Hive.box(AppStateStore.boxName)
-        .put('processing_consent_version', version);
+  Future<void> setConsentVersion(WidgetTester tester, String version) async {
+    await tester.runAsync(() async {
+      await Hive.box(AppStateStore.boxName)
+          .put('processing_consent_version', version);
+    });
   }
 
   /// Pre-records a consent grant in the consent_ledger box.
-  Future<void> recordConsentInLedger({
-    String purpose = 'document_processing',
-    String version = 'v1',
-    bool granted = true,
+  Future<void> recordConsentInLedger(
+    WidgetTester tester, {
+    required String purpose,
+    required String version,
+    required bool granted,
   }) async {
-    await Hive.box('consent_ledger').add({
-      'purpose': purpose,
-      'version': version,
-      'granted': granted,
-      'timestamp': DateTime.now().toIso8601String(),
+    await tester.runAsync(() async {
+      await Hive.box('consent_ledger').add({
+        'purpose': purpose,
+        'version': version,
+        'granted': granted,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
     });
   }
 
@@ -114,17 +112,24 @@ void main() {
 
   /// Taps the upload button and pumps so the consent flow can execute.
   Future<void> tapUpload(WidgetTester tester) async {
-    await tester.tap(find.text('Upload Selected File'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+    final finder = find.text('Upload Selected File');
+    await tester.ensureVisible(finder);
+    await tester.runAsync(() async {
+      await tester.tap(finder);
+      await tester.pump();
+      for (int i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    });
   }
 
   // ─── Stale consent ─────────────────────────────────────────────────
 
   group('Stale consent (version in Hive, ledger empty)', () {
     testWidgets('records consent in ledger', (tester) async {
+      await cleanDb(tester);
       setViewport(tester);
-      await setConsentVersion('v1');
+      await setConsentVersion(tester, 'v1');
       expect(countLedgerRecords('document_processing'), 0);
 
       await tester.pumpWidget(buildApp());
@@ -138,8 +143,9 @@ void main() {
     });
 
     testWidgets('records correct version string', (tester) async {
+      await cleanDb(tester);
       setViewport(tester);
-      await setConsentVersion('v2_upgrade');
+      await setConsentVersion(tester, 'v2_upgrade');
 
       await tester.pumpWidget(buildApp());
       await tester.pump();
@@ -165,8 +171,10 @@ void main() {
 
   group('Healthy consent (version in Hive + ledger already populated)', () {
     testWidgets('does not create duplicate ledger record', (tester) async {
-      await setConsentVersion('v1');
+      await cleanDb(tester);
+      await setConsentVersion(tester, 'v1');
       await recordConsentInLedger(
+        tester,
         purpose: 'document_processing',
         version: 'v1',
         granted: true,
@@ -186,9 +194,10 @@ void main() {
 
     testWidgets('re-records consent when ledger has revoked record',
         (tester) async {
+      await cleanDb(tester);
       // Pre-set version in Hive, but ledger has a revoked consent.
       // _ensureConsent() sees hasConsent() == false and re-records.
-      await setConsentVersion('v1');
+      await setConsentVersion(tester, 'v1');
       const revokedRecord = {
         'purpose': 'document_processing',
         'version': 'v1',
@@ -196,7 +205,9 @@ void main() {
         'timestamp': '2026-07-01T00:00:00.000',
         'revoked_at': '2026-07-01T00:00:00.000',
       };
-      await Hive.box('consent_ledger').add(revokedRecord);
+      await tester.runAsync(() async {
+        await Hive.box('consent_ledger').add(revokedRecord);
+      });
       expect(countLedgerRecords('document_processing'), 1);
       expect(hasActiveConsentInLedger(ConsentPurpose.documentProcessing),
           isFalse);
@@ -215,9 +226,10 @@ void main() {
     });
 
     testWidgets('does not affect other consent purposes', (tester) async {
-      await setConsentVersion('v1');
-      await recordConsentInLedger(purpose: 'document_processing', version: 'v1');
-      await recordConsentInLedger(purpose: 'analytics', version: 'v1');
+      await cleanDb(tester);
+      await setConsentVersion(tester, 'v1');
+      await recordConsentInLedger(tester, purpose: 'document_processing', version: 'v1', granted: true);
+      await recordConsentInLedger(tester, purpose: 'analytics', version: 'v1', granted: true);
       expect(countLedgerRecords('document_processing'), 1);
       expect(countLedgerRecords('analytics'), 1);
 
@@ -238,6 +250,7 @@ void main() {
   group('First-upload cancellation (no pre-existing consent)', () {
     testWidgets('returns null and records nothing when dialog cancelled',
         (tester) async {
+      await cleanDb(tester);
       // Set a predictable surface size so we know dialog boundaries.
       tester.view.physicalSize = const Size(402, 874);
       tester.view.devicePixelRatio = 1;
@@ -252,9 +265,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       // Tap upload — this triggers _uploadFile() → _ensureConsent().
-      await tester.tap(find.text('Upload Selected File'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tapUpload(tester);
 
       // The LeadCaptureDialog should now be visible. Dismiss by tapping
       // the system back button (reliably dismisses any dialog).
@@ -278,17 +289,16 @@ void main() {
   group('Existing consent fast path', () {
     testWidgets('no dialog appears when consent already exists',
         (tester) async {
-      await setConsentVersion('v1');
-      await recordConsentInLedger(purpose: 'document_processing', version: 'v1');
+      await cleanDb(tester);
+      await setConsentVersion(tester, 'v1');
+      await recordConsentInLedger(tester, purpose: 'document_processing', version: 'v1', granted: true);
 
       setViewport(tester);
       await tester.pumpWidget(buildApp());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Upload Selected File'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tapUpload(tester);
 
       // The fast path should skip the dialog entirely.
       expect(find.byType(Dialog), findsNothing);
@@ -296,25 +306,24 @@ void main() {
 
     testWidgets('returns existing version without re-prompt on version change',
         (tester) async {
+      await cleanDb(tester);
       // Even if the stored version is "v1" (no upgrade logic exists yet),
       // _ensureConsent() should return it without showing a dialog.
-      await setConsentVersion('v1');
-      await recordConsentInLedger(purpose: 'document_processing', version: 'v1');
+      await setConsentVersion(tester, 'v1');
+      await recordConsentInLedger(tester, purpose: 'document_processing', version: 'v1', granted: true);
 
       setViewport(tester);
       await tester.pumpWidget(buildApp());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Upload Selected File'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      await tapUpload(tester);
 
       // No dialog shown (fast path).
       expect(find.byType(Dialog), findsNothing);
       // Version still v1.
       final stored =
-          Hive.box('app_state_store').get('processing_consent_version');
+          Hive.box(AppStateStore.boxName).get('processing_consent_version');
       expect(stored, 'v1');
     });
   });

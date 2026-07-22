@@ -82,6 +82,39 @@ class AuthService {
     return response;
   }
 
+  /// Request an SMS OTP for phone sign-in or account registration.
+  static Future<void> signInWithPhoneOtp(String phone) async {
+    if (!_accountClientReady) return;
+    await prepareAnonymousWorkspaceClaim();
+    await Supabase.instance.client.auth.signInWithOtp(
+      phone: phone.trim(),
+    );
+  }
+
+  /// Verify 6-digit SMS OTP code for phone sign-in.
+  static Future<AuthResponse> verifyPhoneOtp(String phone, String token) async {
+    final response = await Supabase.instance.client.auth.verifyOTP(
+      phone: phone.trim(),
+      token: token.trim(),
+      type: OtpType.sms,
+    );
+    if (response.user != null) {
+      _trackAccountCreated(authMethod: 'phone_otp');
+    }
+    return response;
+  }
+
+  /// Update / link phone number to existing authenticated Supabase account.
+  static Future<UserResponse> updateUserPhone(String phone) async {
+    if (!hasAccountSession) {
+      throw StateError('Must be signed in to link phone to account');
+    }
+    final response = await Supabase.instance.client.auth.updateUser(
+      UserAttributes(phone: phone.trim()),
+    );
+    return response;
+  }
+
   /// Emit account_created once per successful Supabase Auth sign-up.
   /// Best-effort, never throws.
   static void _trackAccountCreated({required String authMethod}) {

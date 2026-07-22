@@ -100,4 +100,15 @@ class HiveWorkspaceService {
       }
     }
   }
+
+  /// Centralized lifecycle method to clear all local workspace boxes, delete
+  /// temporary cached source files, and reset local state safely.
+  static Future<void> clearLocalWorkspace() async {
+    for (final boxName in boxNames) {
+      if (Hive.isBoxOpen(boxName)) {
+        await Hive.box(boxName).clear();
+      }
+    }
+    await LocalStorageService().clearCache();
+  }
 }

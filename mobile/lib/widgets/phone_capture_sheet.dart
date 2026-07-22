@@ -62,36 +62,81 @@ class PhoneCaptureSheet extends StatefulWidget {
 }
 
 class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
-  final _controller = TextEditingController();
-  bool _isValid = false;
+  final _phoneController = TextEditingController();
+  final _otpController = TextEditingController();
+  bool _isValidPhone = false;
+  bool _isValidOtp = false;
+  bool _otpSent = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _phoneController.dispose();
+    _otpController.dispose();
     super.dispose();
   }
 
-  void _validate(String value) {
+  void _validatePhone(String value) {
     final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-    setState(() => _isValid = digits.length == 10);
+    setState(() => _isValidPhone = digits.length == 10);
   }
 
-  Future<void> _save() async {
-    final phone = '+91${_controller.text.replaceAll(RegExp(r'[^0-9]'), '')}';
-    final box = Hive.box(AppStateStore.boxName);
-    await box.put(AppStateStore.phoneNumberKey, phone);
-    AnalyticsService.track(
-        'phone_capture_completed', {'method': 'manual_entry'});
-    if (!mounted) return;
-    Navigator.pop(context);
-    // Security audit P0-13: honest copy. The phone number is stored only on
-    // this device and is not used to identify an account, enable cross-device
-    // access, or back up policies until a verified account/restore contract
-    // exists.
-    CoverWiseSnackBar.info(
-      context,
-      'Phone number saved on this device only.',
-    );
+  void _validateOtp(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    setState(() => _isValidOtp = digits.length == 6);
+  }
+
+  Future<void> _sendOtp() async {
+    setState(() => _isLoading = true);
+    final phone = '+91${_phoneController.text.replaceAll(RegExp(r'[^0-9]'), '')}';
+
+    try {
+      if (AuthService.isClientReady) {
+        if (AuthService.hasAccountSession) {
+          await AuthService.updateUserPhone(phone);
+        } else {
+          await AuthService.signInWithPhoneOtp(phone);
+        }
+      }
+      final box = Hive.box(AppStateStore.boxName);
+      await box.put(AppStateStore.phoneNumberKey, phone);
+      AnalyticsService.track('phone_otp_requested', {'phone': phone});
+
+      if (!mounted) return;
+      setState(() {
+        _otpSent = true;
+        _isLoading = false;
+      });
+      CoverWiseSnackBar.success(context, 'OTP code sent to $phone');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      CoverWiseSnackBar.error(context, 'Failed to send OTP code: $e');
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    setState(() => _isLoading = true);
+    final phone = '+91${_phoneController.text.replaceAll(RegExp(r'[^0-9]'), '')}';
+    final code = _otpController.text.trim();
+
+    try {
+      if (AuthService.isClientReady) {
+        await AuthService.verifyPhoneOtp(phone, code);
+      }
+      AnalyticsService.track('phone_otp_verified', {'phone': phone});
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      CoverWiseSnackBar.success(
+        context,
+        'Phone number verified and linked to your account.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      CoverWiseSnackBar.error(context, 'Invalid OTP code. Please try again.');
+    }
   }
 
   void _dismiss() {
@@ -116,33 +161,25 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Icon
             Align(
               alignment: Alignment.center,
               child: CoverWiseIconBadge(
-                icon: Icons.phone_outlined,
+                icon: _otpSent ? Icons.mark_email_read_outlined : Icons.phone_outlined,
                 color: theme.colorScheme.primary,
                 size: 68,
               ),
             ),
             const SizedBox(height: 16),
-            // Title — security audit P0-13: honest. No "never lose",
-            // no "access from any device". This is a local-only
-            // preference.
-            const Text(
-              'Save your number on this device',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Text(
+              _otpSent ? 'Enter 6-digit verification code' : 'Link phone with OTP verification',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            // Body — security audit P0-13: explicit "stays on this
-            // device", no claim about cross-device access or
-            // automatic backup.
             Text(
-              'CoverWise will store your number locally so you can quickly '
-              'check policies you have on this device. It does not enable '
-              'cross-device sync, automatic backup, or account recovery. '
-              'Those features are not available yet.',
+              _otpSent
+                  ? 'We sent a verification code to +91 ${_phoneController.text}. Enter it below to complete identity verification.'
+                  : 'Enter your phone number to receive a verification OTP and link your account across devices.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 height: 1.5,
@@ -150,59 +187,85 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            // Phone input
-            TextField(
-              controller: _controller,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.telephoneNumberNational],
-              inputFormatters: [
-                LengthLimitingTextInputFormatter(10),
-                FilteringTextInputFormatter.digitsOnly
-              ],
-              onChanged: _validate,
-              decoration: InputDecoration(
-                prefixText: '+91 ',
-                labelText: 'Mobile number',
-                hintText: '98765 43210',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.phone_outlined),
+
+            if (!_otpSent) ...[
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.telephoneNumberNational],
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(10),
+                  FilteringTextInputFormatter.digitsOnly
+                ],
+                onChanged: _validatePhone,
+                decoration: InputDecoration(
+                  prefixText: '+91 ',
+                  labelText: 'Mobile number',
+                  hintText: '98765 43210',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            // Save button — security audit P0-13: honest label
-            FilledButton(
-              onPressed: _isValid ? _save : null,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: (_isValidPhone && !_isLoading) ? _sendOtp : null,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Send Verification Code'),
               ),
-              child: const Text('Save on this device',
-                  style: TextStyle(fontSize: 16)),
-            ),
+            ] else ...[
+              TextField(
+                controller: _otpController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(6),
+                  FilteringTextInputFormatter.digitsOnly
+                ],
+                onChanged: _validateOtp,
+                decoration: InputDecoration(
+                  labelText: '6-Digit OTP',
+                  hintText: '123456',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: (_isValidOtp && !_isLoading) ? _verifyOtp : null,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Verify & Link Account'),
+              ),
+            ],
             const SizedBox(height: 8),
-            // Maybe Later
             TextButton(
               onPressed: _dismiss,
               child: Text(
-                'Maybe later',
+                'Maybe Later',
                 style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               ),
-            ),
-            const SizedBox(height: 8),
-            // Privacy note — security audit P0-13: no "we'll use this
-            // to identify your account" claim; no "no spam, no sharing"
-            // until the underlying contract supports it.
-            Text(
-              'Stored only on this device. Not shared with servers, '
-              'insurers, or third parties. You can clear it from the '
-              'privacy screen at any time.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

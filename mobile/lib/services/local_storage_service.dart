@@ -252,6 +252,29 @@ class LocalStorageService {
     return cached;
   }
 
+  /// Remove all temporary cached source files from disk.
+  Future<void> clearCache() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      if (await tempDir.exists()) {
+        final entities = tempDir.listSync();
+        for (final entity in entities) {
+          try {
+            if (entity is File) {
+              await entity.delete();
+            } else if (entity is Directory) {
+              await entity.delete(recursive: true);
+            }
+          } catch (e) {
+            debugPrint('Failed to delete cached entity: ${entity.path}');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error clearing cache directory: $e');
+    }
+  }
+
   // Get a specific document by ID
   Future<InsuranceDocument?> getDocumentById(String documentId) async {
     try {
