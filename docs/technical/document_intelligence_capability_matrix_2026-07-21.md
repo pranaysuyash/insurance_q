@@ -51,15 +51,34 @@ most expensive model.
 | Area | What the code does now | Evidence | Gap or consequence |
 | --- | --- | --- | --- |
 | Born-digital PDF text | Uses PyMuPDF before OCR | `src/ocr/pipeline.py` and the 2026-07-12 local evaluation | Correct default for embedded text; preserve page provenance through the CIR. |
-| Scanned/image OCR | Uses doctr in `OCRPipeline`; mobile has an ML Kit sidecar | `src/ocr/pipeline.py`, `src/services/document_processing_service.py` | Surya, PaddleOCR, and Docling are not production dependencies; benchmark before replacement. |
+| Sentence structure | CIR derives conservative sentence nodes from page text with exact source offsets and parent linkage | `src/models/document_intelligence.py`, `tests/test_document_intelligence_contract.py` | Structural segmentation is not language-specific sentence accuracy; specialist multilingual segmentation remains a benchmark gate. |
+| Multilingual signal | CIR observes Unicode script families and records a `multilingual` capability when multiple families are present | `src/models/document_intelligence.py`, `tests/test_document_intelligence_contract.py` | This is routing metadata only; script-level OCR accuracy, language identification, and translation quality still require corpus gates. |
+| Scanned/image OCR | Uses doctr in `OCRPipeline`; mobile has an ML Kit sidecar; the canonical production image now installs the same pinned doctr profile | `src/ocr/pipeline.py`, `src/services/document_processing_service.py`, `requirements-production-ocr.txt`, `Dockerfile` | Surya, PaddleOCR, and Docling remain optional specialist candidates; benchmark before replacement. |
 | Image preprocessing | `_preprocess_image` performs preprocessing | `src/ocr/pipeline.py` | Older research text saying preprocessing is absent is stale; keep it as historical and use this record as the correction. |
 | Layout | Current page-level results and optional Docling layout elements exist | `src/ocr/pipeline.py` | The representation is not yet a complete typed layout tree with reading order and parser provenance. |
-| Tables | MinerU branch can return simple table payloads; the main path has no canonical table model | `src/ocr/pipeline.py`, `src/models/extraction.py` | Table cells, spans, merged cells, and table evidence need a first-class CIR contract. |
+| Tables | Native PDF path now emits table/table-cell nodes through PyMuPDF; optional MinerU remains separate | `src/ocr/native_pdf.py`, `src/services/document_processing_service.py` | Native born-digital tables are measured; scanned/nested/merged-cell coverage still needs specialist corpus gates. |
+| Native PDF forms | PyMuPDF AcroForm widgets emit source-linked `form_field` nodes with name, type, value, flags, and geometry | `src/ocr/native_pdf.py`, `tests/test_native_pdf_adapter.py` | Native widget structure is measured; scanned key/value forms and selection marks still require specialist corpus gates. |
 | Figures/images/charts | Original pages are available; no durable figure/crop/caption contract is exposed | `src/ocr/pipeline.py` and evidence paths | Preserve the original artifact and crop/bbox; VLM descriptions remain derived annotations. |
 | Formulas | No first-class formula output in the extraction models | `src/models/extraction.py` | Route scientific/formula-heavy inputs to a specialist only when corpus evidence justifies it. |
 | Policy extraction | Summary-centric Pydantic models and a single structured extraction call | `src/models/extraction.py`, `src/services/policy_extraction_service.py` | Add source span, page, confidence, and validation links; do not make summary JSON the evidence substrate. |
-| Evidence | Durable page artifacts/source spans/extracted fields/field evidence exist | `src/workers/substrate_extraction_handler.py` and evidence services | Extend the substrate/CIR rather than creating a parallel parser output store. |
-| Optional parser imports | `DOCLING_ENABLED` and `MINERU_ENABLED` are false by default; doctr is imported when `OCRPipeline` is constructed | `src/config/settings.py`, `src/ocr/pipeline.py` | Slim API imports are resilient; scan execution still needs an observable OCR-unavailable state and local dependency/runtime verification. |
+| Evidence | Durable page artifacts/source spans/extracted fields/field evidence exist | `src/services/document_processing_service.py`, `src/services/evidence_substrate_service.py` | CIR nodes with text and geometry now persist as source spans; extend the substrate/CIR rather than creating a parallel parser output store. |
+| Optional parser imports | `DOCLING_ENABLED` and `MINERU_ENABLED` are false by default; doctr is imported when `OCRPipeline` is constructed | `src/config/settings.py`, `src/ocr/pipeline.py` | The canonical production image includes doctr; the slim dependency profile must not be used for customer deployment. |
+
+### Addendum — mixed-page extraction truthfulness (2026-07-21)
+
+The canonical `DocumentProcessingService` now preserves mixed-PDF capability
+boundaries. Native-text pages are recorded separately from image-only pages;
+image-only pages use the shared doctr OCR predictor when available, and the CIR
+emits both `native_text` and `scanned_ocr` when both are observed. Unrecoverable
+image-only pages produce an explicit `partial` OCR stage/document state rather
+than being silently omitted. This is a routing and provenance correction, not
+evidence of corpus-level OCR accuracy.
+
+The local doctr adapter also retries the untouched page image when the
+preprocessed prediction is empty or trivially small. This handles a concrete
+preprocessing failure mode without replacing the source artifact or claiming
+that the fallback improves corpus accuracy; the evaluator records the same
+runtime path.
 
 ## Capability matrix and routing recommendation
 
@@ -190,10 +209,45 @@ document-processing results carry the CIR while retaining their legacy fields;
 constructed. The existing `rag_only` orchestration path also now initializes
 its optional OCR result explicitly, avoiding an unbound-variable failure.
 
-This is a foundation, not a claim that tables/forms/formulas are solved. Those
-node types remain deliberately absent until a specialist adapter can prove
-them. The next code gate is to connect CIR nodes to the existing page-artifact
-and source-span persistence without introducing a second evidence store.
+This is a foundation, not a claim that every document capability is solved.
+Native born-digital table and figure nodes now exist; forms, formulas,
+handwriting, and scan/table recovery remain absent until specialist adapters
+prove them. The next code gate is to connect CIR nodes to the existing
+page-artifact and source-span persistence without introducing a second evidence
+store.
+
+The deterministic native-PDF adapter is now implemented in
+`src/ocr/native_pdf.py`. It emits observable layout blocks, table/table-cell
+coordinates, source-linked AcroForm fields, and hashed embedded-image figure nodes using the project’s
+PyMuPDF dependency. The versioned benchmark is
+`docs/eval/document_intelligence/capability_manifest_v1.json`, executed by
+`tools/evaluate_document_capabilities.py`. Its native text/table/figure/form
+cases pass;
+OCR, forms, formulas, multilingual/handwriting, and VLM figure annotation
+remain explicit benchmark gates.
+
+The local generated-scan doctr case was then executed with the project venv:
+all three expected tokens were recovered in 2.314 seconds, producing
+`scanned_ocr` and `image_artifact` capabilities. This is Tier 2 synthetic
+evidence only; it does not establish field accuracy or justify a production
+default without the versioned consented corpus gate.
+
+### Addendum — standalone OCR runner parity (2026-07-21)
+
+The evaluator now calls `src.utils.native_runtime.configure_native_library_paths`
+before constructing the optional doctr pipeline, matching the API entrypoint.
+This closes a reproducibility gap on macOS: the project venv had doctr and all
+Python dependencies installed, but a direct evaluator invocation could still
+fail to load Homebrew GLib/Pango libraries. The strict evaluator now passes the
+synthetic native and doctr cases through `uv` using `.venv/bin/python`.
+
+### Addendum — native form structure (2026-07-21)
+
+The native adapter and capability manifest now include a generated AcroForm
+case. It verifies that field name, type, value, flags, and bounding box are
+preserved as `form_field` evidence. This closes the born-digital form-structure
+layer while keeping scanned key/value extraction, selection marks, and semantic
+form interpretation behind specialist corpus and privacy gates.
 
 ## Primary sources
 
@@ -212,3 +266,143 @@ and source-span persistence without introducing a second evidence store.
 - [OmniDocBench](https://github.com/opendatalab/OmniDocBench)
 - [DocLayNet](https://github.com/DS4SD/DocLayNet)
 - [PubTables-1M](https://arxiv.org/abs/2110.00061)
+
+## Addendum — live primary-source recheck and environment-contract hardening (2026-07-21)
+
+The attached workbook was re-read directly from its seven sheets using the
+project Python environment's standard-library XLSX reader. It contains 149
+master-catalog entries, a capability guide, research notes, a coverage audit,
+77 recent-model rows, and a separate 34-row general-VLM/OCR sheet. The catalog
+therefore remains a research inventory, not a dependency manifest or accuracy
+claim.
+
+A fresh first-party source recheck confirms the important capability boundaries:
+Docling's current `DoclingDocument` represents text, tables, pictures,
+key-value items, hierarchy, layout, and provenance; Surya exposes OCR,
+line-level detection, layout, reading order, table recognition, and LaTeX OCR
+but documents limitations around handwriting and non-document photos; MinerU
+currently advertises structured Markdown/JSON, formulas, tables, images,
+scanned-document OCR, and 109-language support; PaddleOCR's current release
+line includes PP-Structure and PaddleOCR-VL document parsing. These are
+capability claims from primary project sources, not CoverWise benchmark results.
+
+The earlier note saying CIR persistence was still the next code gate is now
+superseded: `DocumentProcessingService._ingest_into_rag()` writes page artifacts
+and geometry-bearing source spans through `EvidenceSubstrateService`, while
+non-highlightable nodes remain in page `layout_json` without fabricated spans.
+The remaining gap is coverage and quality of specialist adapters, not a second
+storage path.
+
+The runtime configuration audit also found and fixed a real source-of-truth
+drift. The canonical services now use `supabase_server_key()` and accept both
+the internal compatibility name `SUPABASE_SERVICE_ROLE_KEY` and the current
+project name `SUPABASE_SECRET_KEY` when instantiated directly. This covers the
+evidence substrate, processing events, model/dataset lineage, artifact
+registry, document repository/object store, auth, RAG vector store, consent,
+policy domain/extraction, account lifecycle, anti-abuse, and document
+processing paths. This is configuration correctness; it does not prove remote
+schema or production deployment state.
+
+## Addendum — source-span capability vocabulary (2026-07-21)
+
+The evidence substrate now accepts explicit source-bearing span types for text
+blocks, sentences, headings, lines, words, tables/table cells, formulas, form
+fields, captions, and annotations. The ingestion adapter maps CIR node types to
+these values rather than collapsing every non-table node into `paragraph`.
+Image-only figures remain page-artifact/layout evidence because inserting a
+generated caption as `span_text` would turn a derived description into source
+proof. The local migration is applied and schema lint is the release check for
+this contract.
+
+## Addendum — runtime capability registry (2026-07-21)
+
+`src/ocr/capability_registry.py` now exposes a side-effect-free runtime
+snapshot consumed by `/health` and `tools/inspect_document_capabilities.py`.
+It distinguishes active profiles from disabled optional packages, benchmark
+candidates, and unavailable capabilities. This is operational truth about
+what the current process can route to; it is not a claim that an available
+profile has passed the consented corpus quality gate. The registry deliberately
+does not import heavyweight model runtimes or contact external providers.
+
+The registry also reports `vlm_annotation` explicitly. OpenAI and local Ollama
+profiles may be `configured_unverified`, while Mistral/Gemini profiles remain
+candidates until an image fixture, structured-output, privacy, and provider
+failure benchmark passes. A configured chat model is never treated as proof of
+image understanding.
+
+## Addendum — live VLM registry and final local regression (2026-07-21)
+
+Current-code API port 8007 returned a healthy `/health` response with the VLM
+profiles visible at runtime. The local regression completed with 432 backend
+tests passed and 639 Flutter tests passed; Flutter analysis and static checks
+are clean. These results establish implementation/runtime readiness locally,
+not specialist image-quality or remote production readiness.
+
+The strict document-capability evaluator was rerun with the project `.venv` and
+`--ocr-profile doctr`. All five manifest cases passed with zero unrun cases:
+native text/layout, native table/figure, scanned OCR, mixed native/scanned OCR,
+and native forms. This is synthetic Tier 2 evidence; the manifest still
+correctly leaves specialist scanned-table, formula, handwriting, multilingual,
+and VLM quality gates open.
+
+## Addendum — production OCR dependency parity (2026-07-21)
+
+The deployment audit found that `Dockerfile` previously installed the slim
+`requirements.txt` profile while local verification used `requirements-local.txt`.
+That made scanned-document behavior diverge by environment. The canonical
+customer-facing image now installs `requirements-production-ocr.txt`, which
+pins the same PyTorch/doctr OCR runtime used by the strict benchmark. The
+Cloud Run deploy default is increased to 4Gi for this model-bearing image.
+
+This closes dependency parity, not specialist quality: the five-case benchmark
+is synthetic Tier 2 evidence, and real-corpus accuracy, latency, and failure
+recovery still gate release decisions.
+
+The first Linux container smoke also found a missing WeasyPrint dependency;
+`libpangoft2-1.0-0` is now included in the Docker image. The corrected image
+has not yet been runtime-verified because Docker Desktop stopped responding
+during the rebuild. Host `.venv` verification remains healthy only after the
+project native-library bootstrap is applied.
+
+The deployment-contract tests pass, and the full backend suite passes **442
+tests with 1 intentional skip** when its temporary files are directed to
+`/tmp`. Container runtime verification remains separate because Docker Desktop
+is currently unavailable.
+
+## Addendum — x86_64 container execution verified (2026-07-21)
+
+The production OCR image is now architecture-explicit: `linux/amd64` with
+CPU-only Torch/torchvision. Linux ARM64 was rejected as a container target
+after direct evidence showed torchvision model-forward segmentation faults,
+even though basic Torch imports worked. The rebuilt x86_64 image passed doctr
+predictor initialization and a generated scanned-page OCR smoke containing a
+policy title, policy number, and effective date. `/healthz` also returned 200
+from the running container. `redis==5.0.1` was promoted into the production
+dependency profile after the first app-start smoke found it missing.
+
+The complete `/health` contract still requires a valid embedding provider: the
+credentialed smoke returned 503 because the current local OpenAI key returned
+401 and the production image intentionally has no sentence-transformers local
+fallback. This is provider readiness evidence, not evidence against OCR.
+
+## Addendum — catalog coverage audit and capability-complete research map (2026-07-21)
+
+The supplied workbook was inspected directly rather than treated as a dependency manifest. Its seven sheets contain 149 master-catalog records, 77 recent-model records, and 34 general-VLM/OCR records. The catalog marks text extraction present for 121 records, layout for 89, tables for 91, headers/sections for 86, coordinates/reading order for 110, and math/LaTeX for 34. These are catalog labels, not CoverWise accuracy results.
+
+The runtime registry now mirrors the actual product vocabulary: sentence segmentation, reading order, headings/sections, tables, key/value extraction, selection marks, figures, charts/diagrams, image understanding, formulas, handwriting, multilingual routing, and office/email structure. `available` means a callable local path with targeted evidence; `routing_only` means observation without quality proof; `candidate` means benchmark-only; `unavailable` means no safe canonical profile; and `configured_unverified` means configuration exists without provider/image-contract proof.
+
+| Capability family | Current CoverWise truth | Closure path |
+| --- | --- | --- |
+| Text, words, lines, sentences | Native PDF text and exact-offset conservative sentence nodes are implemented; doctr provides the proven scan OCR path. | Add language-specific boundary and word/line alignment fixtures. |
+| Layout, hierarchy, reading order, headers | Native block geometry/order exists; semantic heading hierarchy does not. | Benchmark Docling, Surya, and PP-Structure on multi-column, rotated, header/footer, and nested-section fixtures. |
+| Born-digital tables | PyMuPDF table/cell nodes with coordinates are implemented and measured. | Add merged-cell, spanning-header, borderless, and malformed-table fixtures. |
+| Scanned tables | Not production-available. | Isolate PP-Structure, Surya, TATR/GMFT/img2table, and MinerU; require cell provenance plus HTML/CSV fidelity. |
+| Forms, key/value, marks | Native AcroForm widget evidence is implemented; semantic scanned form extraction is not. | Benchmark managed form parsers and Paddle KIE with schema validation and manual-review states. |
+| Figures, images, charts, diagrams | Embedded-image bytes are hash-preserved; semantic interpretation is not source evidence. | Add crop/bbox/caption relations and a bounded derived-annotation schema. |
+| Formulas, handwriting, multilingual accuracy | No production formula/handwriting profile; Unicode script observation is routing metadata only. | Benchmark specialist profiles on consented fixtures and default uncertainty to review. |
+| DOCX/PPTX/XLSX/HTML/email | Native DOCX, HTML, and EML paragraphs/headings, tables/cells, image references, and attachment hashes now enter the CIR; PPTX/XLSX remain open. | Add format-specific adapters only behind the same CIR and relationship/provenance fixtures. |
+| VLM/LLM semantic extraction | Downstream of source evidence; image/VLM annotation remains candidate/unverified. | Require schema validation, source references, unsupported-claim checks, privacy/retention approval, and cost/latency metrics. |
+
+Docling is the strongest broad local CIR candidate because its first-party representation includes text, tables, pictures, hierarchy, layout, provenance, key/value items, and reading order. Surya is the strongest local specialist comparison for OCR, layout, reading order, tables, and LaTeX OCR, with its own printed-document and non-handwriting limits respected. PaddleOCR PP-Structure/PaddleOCR-VL is the strongest specialist comparison for layout, tables, KIE, and document-VLM parsing. MinerU remains isolated until current code/weights licensing, resources, and CoverWise corpus results are reviewed together.
+
+We will not install every catalog entry into the customer image: conflicting weights, platform constraints, licensing obligations, and unmeasured fallback behavior would make the system less trustworthy. Each candidate must earn promotion through fixture, provenance, privacy, license, latency, and recovery gates. Inspect the current runtime state with `.venv/bin/python tools/inspect_document_capabilities.py`. The strict eight-case manifest now covers native text/layout, native table/figure, scanned OCR, mixed native/scanned OCR, native forms, DOCX, HTML, and EML structure. It still does not close scanned tables, semantic form interpretation, formula fidelity, handwriting, multilingual accuracy, PPTX/XLSX structure, or VLM image understanding; those remain explicit launch-gated work.

@@ -6,13 +6,12 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Optional, Sequence
 
+from src.utils.runtime_config import supabase_server_key
+
 
 def _client() -> Optional[Any]:
     url = os.getenv("SUPABASE_URL", "").strip()
-    key = (
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-        or os.getenv("SUPABASE_SECRET_KEY", "").strip()
-    )
+    key = supabase_server_key()
     if not url or not key:
         if os.getenv("ENVIRONMENT", "development").lower() == "production":
             raise RuntimeError("Supabase artifact lifecycle is required in production")

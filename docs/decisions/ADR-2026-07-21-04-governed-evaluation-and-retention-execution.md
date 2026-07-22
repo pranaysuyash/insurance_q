@@ -56,3 +56,16 @@ without a schedulable entry point cannot be operated consistently.
 - `src/services/artifact_lifecycle_service.py`
 - `tools/run_data_retention.py`
 - `supabase/migrations/20260721100000_model_run_results.sql`
+
+## Addendum — output-hash validation (2026-07-21)
+
+The execution boundary now validates caller-supplied output hashes as
+canonical lowercase SHA-256 hexadecimal values. If an evaluator supplies raw
+or malformed content in that field, the item is recorded as an error without
+persisting the value; when only in-memory output is supplied, the service
+derives the hash before writing the result. This preserves the ADR's
+hash/metric-only result contract.
+
+The full backend suite subsequently passed 359 tests with 1 intentional
+deployment-gated skip; real approved-release execution and operator replay
+remain unverified.

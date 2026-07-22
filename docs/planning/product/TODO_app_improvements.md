@@ -159,11 +159,11 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [x] Implement easy-to-access terminology dialog
   - [x] Use plain language definitions for technical terms
 
-- [ ] **P3-09: Implement Source References**
-  - [ ] Link answers to specific pages/sections in source documents
-  - [ ] Add "View Source" button for verification
-  - [ ] Highlight relevant text in original document
-  - [ ] Include confidence score for sourced information
+- [x] **P3-09: Implement Source References** ✅ DONE
+  - [x] Link answers to specific pages/sections in source documents (citation cards + source cards navigable to DocumentPreviewScreen at cited page)
+  - [x] Add "View source" button for verification (tappable citation cards with open_in_new icon + "View source" text)
+  - [ ] Highlight relevant text in original document (deferred — requires backend page-text search)
+  - [x] Include confidence score for sourced information (relevance score badge with tooltip on _SourceCard)
 
 - [ ] **P3-10: Add Relationship Visualization**
   - [ ] Create visual representation of policy relationships

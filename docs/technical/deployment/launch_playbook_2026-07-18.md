@@ -252,7 +252,7 @@ gcloud services list --enabled | grep -E 'run|secretmanager|cloudbuild'
 
 ## Step 4: Create secrets in Secret Manager (~3 minutes)
 
-The deploy script reads 3 secrets at deploy time. None of these are
+The deploy script reads 4 secrets at deploy time. None of these are
 logged; all are mounted as env vars on the Cloud Run service.
 
 ```bash
@@ -269,13 +269,18 @@ echo -n "YOUR_SUPABASE_SERVICE_ROLE_KEY" \
 # Anonymous auth signing key. Generate a random 32-byte value.
 echo -n "$(openssl rand -hex 32)" \
   | gcloud secrets create coverwise-anon-auth-signing-key --data-file=-
+
+# RevenueCat webhook authorization value. Store the exact authorization
+# header value expected by the webhook route, not the mobile public SDK key.
+echo -n "Bearer YOUR-REVENUECAT-WEBHOOK-SECRET" \
+  | gcloud secrets create coverwise-revenuecat-webhook-auth --data-file=-
 ```
 
 **Verify:**
 ```bash
 gcloud secrets list --project=coverwise \
-  | grep -E 'coverwise-openai-key|coverwise-supabase-service-role|coverwise-anon-auth-signing-key'
-# Expect 3 lines.
+  | grep -E 'coverwise-openai-key|coverwise-supabase-service-role|coverwise-anon-auth-signing-key|coverwise-revenuecat-webhook-auth'
+# Expect 4 lines.
 ```
 
 ---
@@ -292,7 +297,9 @@ SUPABASE_STORAGE_BUCKET=coverwise-documents
 DOCUMENT_REPOSITORY_BACKEND=supabase
 DOCUMENT_OBJECT_STORE_BACKEND=supabase
 RAG_VECTOR_BACKEND=supabase
-ALLOWED_ORIGINS=https://coverwise-api-xxx.a.run.app
+# Include every actual browser origin, including the API origin only if a
+# browser client uses it directly. PUBLIC_SITE_URL must be one of these.
+ALLOWED_ORIGINS=https://coverwise.app,https://www.coverwise.app
 PUBLIC_SITE_URL=https://coverwise.app
 OPENAI_CHAT_MODEL=gpt-4o-mini
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
@@ -330,6 +337,7 @@ COVERWISE_RUNTIME_ENV_FILE=coverwise-runtime.env \
 COVERWISE_OPENAI_SECRET=coverwise-openai-key \
 COVERWISE_SUPABASE_SERVICE_ROLE_SECRET=coverwise-supabase-service-role \
 COVERWISE_ANON_AUTH_SIGNING_SECRET=coverwise-anon-auth-signing-key \
+COVERWISE_REVENUECAT_WEBHOOK_SECRET=coverwise-revenuecat-webhook-auth \
 tools/deploy_cloud_run.sh
 ```
 
@@ -359,31 +367,35 @@ right token, the env file is missing `OPERATOR_DASHBOARD_TOKEN`.
 
 ---
 
-## Step 7: Build the release APK (~5 minutes + Android SDK setup)
+## Step 7: Build the production Android App Bundle (~5 minutes + Android SDK setup)
 
 ```bash
-cd mobile
-
-flutter build apk --release \
-  --dart-define=ENVIRONMENT=production \
-  --dart-define=API_BASE_URL=https://coverwise-api-xxx.a.run.app \
-  --dart-define=SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_QokliXvSKAyiqeWvbsNy2Q_2EyKVqAy \
-  --dart-define=PRIVACY_POLICY_URL=https://coverwise.app/privacy \
-  --dart-define=TERMS_OF_SERVICE_URL=https://coverwise.app/terms \
-  --dart-define=SUPPORT_EMAIL=support@coverwise.app \
-  --dart-define=PRIVACY_POLICY_VERSION=1.0
+# Run from the repository root with live public values. The script fails closed
+# if the production keystore is absent or any tracked key.properties remains.
+COVERWISE_API_BASE_URL=https://api.example.com \
+COVERWISE_PRIVACY_POLICY_URL=https://www.example.com/privacy \
+COVERWISE_TERMS_OF_SERVICE_URL=https://www.example.com/terms \
+COVERWISE_SUPPORT_EMAIL=support@example.com \
+COVERWISE_PRIVACY_POLICY_VERSION=1.0 \
+SUPABASE_URL=https://project.supabase.co \
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_... \
+REVENUECAT_API_KEY=appl_... \
+tools/build_mobile_release.sh
 ```
 
-APK will be at `mobile/build/app/outputs/flutter-apk/app-release.apk`.
+The production artifact is at
+`mobile/build/app/outputs/bundle/release/mobile-release.aab` (the exact filename
+may follow the Gradle application name). Do not submit an artifact built with
+placeholder values. For a non-distributable local debug/release smoke build,
+use the commands in `docs/technical/deployment/release_signing.md` instead.
 
 **Android SDK setup if needed:** `flutter doctor` — if Android
 toolchain shows ✗, open Android Studio → SDK Manager → install the
 SDK, then `flutter config --android-sdk ~/Library/Android/sdk`.
 
-**Verify the APK was built:**
+**Verify the bundle was built:**
 ```bash
-ls -la build/app/outputs/flutter-apk/app-release.apk
+ls -la mobile/build/app/outputs/bundle/release/*.aab
 # Expect a non-zero file, recent mtime.
 ```
 
@@ -410,8 +422,9 @@ Test sequence:
 2. Open a policy, hit the policy detail screen. Upload a PDF without
    enough text — verify the "Not yet verified" scaffold shows
    instead of a confident summary (Phase 0 P0-0.4).
-3. Tap "Remove from this device" on a document. Verify the button
-   copy is honest (Phase 0 P0-02).
+3. Tap "Delete policy" on a document. Verify the confirmation copy,
+   remote-first deletion request, and local cleanup after server success
+   (Phase 0 P0-02).
 4. Privacy screen. Verify there is no "synced across devices" copy
    (Phase 0 P0-18).
 5. Force a crash (any way). Wait 60s. Verify the
@@ -461,9 +474,10 @@ for it. **Only do this after Step 8 verifies the Cloud Run path.**
 - [ ] All 8 SQL migrations applied to Supabase; Step 1 verify passes
 - [ ] Supabase service_role key captured (not the publishable key)
 - [ ] GCP project created with Cloud Run / Secret Manager / Cloud Build APIs enabled
-- [ ] 3 secrets created in Secret Manager; Step 4 verify passes
+- [ ] 4 secrets created in Secret Manager; Step 4 verify passes
 - [ ] `coverwise-runtime.env` created with `OPERATOR_DASHBOARD_TOKEN` set
 - [ ] Cloud Run deployed; `/health` returns 200 with `embedding_probe: ok`
+- [ ] Dedicated outbox worker deployed; `/healthz` returns 200 and a real queued-job round trip is observed
 - [ ] Operator token gate verified (Step 6 verify)
 - [ ] `coverwise.app` (or chosen brand) domain registered; DNS pointed
 - [ ] Privacy policy + terms hosted at real URLs (not placeholder domains)

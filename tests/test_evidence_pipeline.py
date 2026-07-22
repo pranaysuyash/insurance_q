@@ -170,18 +170,65 @@ def test_extractor_returns_none_when_field_absent():
 # --- 3. LLM extractor (fake LLM) ---
 
 class FakeLLM:
-    def __init__(self, response_payload: str):
+    def __init__(self, response_payload):
         self.response_payload = response_payload
 
-    async def generate(self, **kwargs):
-        return self.response_payload
+    async def generate_structured(self, response_model, **kwargs):
+        return response_model.model_validate(self.response_payload)
+
+
+class BrokenLLM:
+    async def generate_structured(self, **kwargs):
+        raise RuntimeError("rate limited")
+
+
+def _room_rent_payload(present, clause="", display=""):
+    return {"present": present, "clause": clause, "display": display}
+
+
+def test_room_rent_cap_extractor_rejects_invalid_typed_payload():
+    fake = FakeLLM(_room_rent_payload(True, "x" * 2_001, "cap"))
+    e = RoomRentCapExtractor(llm_client=fake)
+    r = _run(e.extract(_uuid(), SAMPLE_PAGES))
+    assert r is None
+
+
+def test_room_rent_cap_extractor_uses_typed_output_contract():
+    fake = FakeLLM(_room_rent_payload(
+        True,
+        "Room rent: 1% of sum insured, max ₹5,000/day",
+        "1% of sum insured, max ₹5,000/day",
+    ))
+    e = RoomRentCapExtractor(llm_client=fake)
+    r = _run(e.extract(_uuid(), SAMPLE_PAGES))
+    assert r is not None
+    assert r.cite_string == "page 2"
+
+
+def test_room_rent_cap_extractor_rejects_unverified_clause():
+    fake = FakeLLM(_room_rent_payload(
+        True,
+        "There is no room rent cap in this policy.",
+        "No room rent cap",
+    ))
+    e = RoomRentCapExtractor(llm_client=fake)
+    r = _run(e.extract(_uuid(), SAMPLE_PAGES))
+    assert r is None
+
+
+def test_room_rent_cap_extractor_handles_structured_llm_error():
+    e = RoomRentCapExtractor(llm_client=BrokenLLM())
+    r = _run(e.extract(_uuid(), SAMPLE_PAGES))
+    assert r is None
 
 
 def test_room_rent_cap_extractor_present():
     fake = FakeLLM(
-        '{"present": true, '
-        '"clause": "Room rent: 1% of sum insured, max ₹5,000/day", '
-        '"display": "1% of sum insured, max ₹5,000/day"}'
+        _room_rent_payload(
+            True,
+            "Room rent: 1% of sum insured, max ₹5,000/day",
+            "1% of sum insured, max ₹5,000/day",
+        )
     )
     e = RoomRentCapExtractor(llm_client=fake)
     r = _run(e.extract(_uuid(), SAMPLE_PAGES))
@@ -194,33 +241,25 @@ def test_room_rent_cap_extractor_present():
 
 
 def test_room_rent_cap_extractor_absent():
-    fake = FakeLLM('{"present": false}')
+    fake = FakeLLM(_room_rent_payload(False))
     e = RoomRentCapExtractor(llm_client=fake)
     r = _run(e.extract(_uuid(), SAMPLE_PAGES))
     assert r is None
 
 
 def test_room_rent_cap_extractor_rejects_hallucinated_clause():
-    """The most important LLM safety test. The LLM says
-    'the cap is on page 4' but the actual clause text is not
-    on any page. The extractor must reject the field with
-    evidence_strength=0.0 so the UI does not show it."""
-    fake = FakeLLM(
-        '{"present": true, '
-        '"clause": "There is no room rent cap in this policy.", '
-        '"display": "No room rent cap"}'
-    )
+    """Unverified model text must not enter the evidence substrate."""
+    fake = FakeLLM(_room_rent_payload(
+        True,
+        "There is no room rent cap in this policy.",
+        "No room rent cap",
+    ))
     e = RoomRentCapExtractor(llm_client=fake)
     r = _run(e.extract(_uuid(), SAMPLE_PAGES))
-    assert r is not None  # the field is recorded for audit
-    assert r.evidence_strength == 0.0  # but the UI must not show it
-    assert r.cite_string == ""  # no valid citation
+    assert r is None  # no unverified value enters the substrate
 
 
 def test_room_rent_cap_extractor_handles_llm_error():
-    class BrokenLLM:
-        async def generate(self, **kwargs):
-            raise RuntimeError("rate limited")
     e = RoomRentCapExtractor(llm_client=BrokenLLM())
     r = _run(e.extract(_uuid(), SAMPLE_PAGES))
     assert r is None  # graceful failure, no row
@@ -277,9 +316,11 @@ def test_orchestrator_runs_all_extractors():
     substrate = _mock_substrate_with_pages(document_id, [1, 2])
 
     fake = FakeLLM(
-        '{"present": true, '
-        '"clause": "Room rent: 1% of sum insured, max ₹5,000/day", '
-        '"display": "1% of sum insured, max ₹5,000/day"}'
+        _room_rent_payload(
+            True,
+            "Room rent: 1% of sum insured, max ₹5,000/day",
+            "1% of sum insured, max ₹5,000/day",
+        )
     )
     pipeline = EvidencePipeline(substrate=substrate, llm_client=fake)
     result = _run(pipeline.run_for_document(document_id, SAMPLE_PAGES))

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from src.models.document import Document
+from src.utils.runtime_config import supabase_server_key
 
 
 class DocumentRepository:
@@ -469,7 +470,7 @@ def create_document_repository() -> DocumentRepository:
     if backend == "supabase":
         return SupabaseDocumentRepository(
             os.getenv("SUPABASE_URL", "").strip(),
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
+            supabase_server_key(),
             os.getenv("SUPABASE_DOCUMENTS_TABLE", "documents").strip(),
         )
     raise RuntimeError(f"Unsupported DOCUMENT_REPOSITORY_BACKEND: {backend}")

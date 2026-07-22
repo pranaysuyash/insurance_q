@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
 import 'local_storage_service.dart';
 import 'session_service.dart';
 import 'demo_service.dart';
 
 class QueryService {
+  static const Uuid _uuid = Uuid();
   final Dio _dio;
   final LocalStorageService _localStorageService = LocalStorageService();
   final DemoService _demoService;
@@ -51,6 +53,9 @@ class QueryService {
         Map<String, dynamic> data = {
           'query': query,
           '_cache_buster': timestamp.toString(),
+          // Stable per request: the server ledger uses this to make a
+          // transport retry idempotent instead of charging twice.
+          'request_id': _uuid.v4(),
         };
 
         if (documentId != null) {
@@ -83,11 +88,23 @@ class QueryService {
           final responseData = response.data;
 
           if (responseData is! Map<String, dynamic>) {
-            return _buildUnavailableAnswer(
-              query, reason: 'non_map_response', documentId: documentId);
+            return _buildUnavailableAnswer(query,
+                reason: 'non_map_response', documentId: documentId);
           }
 
           if (responseData.containsKey('answer')) {
+            final serverError = responseData['error']?.toString();
+            if (serverError == 'qa_budget_exhausted' ||
+                serverError == 'qa_usage_unavailable') {
+              return {
+                'status': 'blocked',
+                'error': serverError,
+                'message': responseData['message'],
+                'sources': const [],
+                'query': query,
+                if (documentId != null) 'document_id': documentId,
+              };
+            }
             return _processDirectAnswer(responseData, query, documentId);
           }
 
@@ -96,20 +113,20 @@ class QueryService {
             return _processWrappedAnswer(responseData, query, documentId);
           }
 
-          return _buildUnavailableAnswer(
-            query, reason: 'unrecognized_response_format', documentId: documentId);
+          return _buildUnavailableAnswer(query,
+              reason: 'unrecognized_response_format', documentId: documentId);
         } else if (response.statusCode == 500 &&
             response.data is Map<String, dynamic>) {
           final error = response.data as Map<String, dynamic>;
           final errorMessage = error['detail']?.toString() ?? 'Server error';
 
           if (errorMessage.contains('result')) {
-            return _buildUnavailableAnswer(
-              query, reason: 'missing_result_field', documentId: documentId);
+            return _buildUnavailableAnswer(query,
+                reason: 'missing_result_field', documentId: documentId);
           }
 
-          return _buildUnavailableAnswer(
-            query, reason: 'server_error', documentId: documentId);
+          return _buildUnavailableAnswer(query,
+              reason: 'server_error', documentId: documentId);
         } else {
           throw DioException(
             requestOptions: RequestOptions(path: '/query'),
@@ -120,7 +137,8 @@ class QueryService {
       } catch (e) {
         debugPrint('Error with real query: $e');
         if (AppConfig.bootstrapPolicyDemo) {
-          return _demoService.buildLocalPolicyAnswer(query, documentId: documentId);
+          return _demoService.buildLocalPolicyAnswer(query,
+              documentId: documentId);
         }
         return _buildUnavailableAnswer(
           query,
@@ -131,10 +149,11 @@ class QueryService {
     } catch (e) {
       debugPrint('Falling back to local mock response: $e');
       if (AppConfig.bootstrapPolicyDemo) {
-        return _demoService.buildLocalPolicyAnswer(query, documentId: documentId);
+        return _demoService.buildLocalPolicyAnswer(query,
+            documentId: documentId);
       }
-      return _buildUnavailableAnswer(
-        query, reason: 'unhandled_error', documentId: documentId);
+      return _buildUnavailableAnswer(query,
+          reason: 'unhandled_error', documentId: documentId);
     }
   }
 
@@ -142,15 +161,29 @@ class QueryService {
       Map<String, dynamic> responseData, String query, String? documentId) {
     List<String> sources = _extractSources(responseData);
 
-    final answerText = responseData['answer']?.toString() ?? 'No answer provided';
+    final answerText =
+        responseData['answer']?.toString() ?? 'No answer provided';
     final errorText = responseData['error']?.toString();
 
     if (_isErrorAnswer(errorText, answerText)) {
       if (AppConfig.bootstrapPolicyDemo) {
-        return _demoService.buildLocalPolicyAnswer(query, documentId: documentId);
+        return _demoService.buildLocalPolicyAnswer(query,
+            documentId: documentId);
       }
-      return _buildUnavailableAnswer(
-        query, reason: 'backend_error_answer', documentId: documentId);
+      return _buildUnavailableAnswer(query,
+          reason: 'backend_error_answer', documentId: documentId);
+    }
+
+    if (errorText == 'qa_budget_exhausted' ||
+        errorText == 'qa_usage_unavailable') {
+      return {
+        'status': 'blocked',
+        'error': errorText,
+        'message': responseData['message'],
+        'sources': const [],
+        'query': query,
+        if (documentId != null) 'document_id': documentId,
+      };
     }
 
     return {
@@ -180,10 +213,23 @@ class QueryService {
 
       if (_isErrorAnswer(errorText, answerText)) {
         if (AppConfig.bootstrapPolicyDemo) {
-          return _demoService.buildLocalPolicyAnswer(query, documentId: documentId);
+          return _demoService.buildLocalPolicyAnswer(query,
+              documentId: documentId);
         }
-        return _buildUnavailableAnswer(
-          query, reason: 'legacy_backend_error_answer', documentId: documentId);
+        return _buildUnavailableAnswer(query,
+            reason: 'legacy_backend_error_answer', documentId: documentId);
+      }
+
+      if (errorText == 'qa_budget_exhausted' ||
+          errorText == 'qa_usage_unavailable') {
+        return {
+          'status': 'blocked',
+          'error': errorText,
+          'message': result['message'],
+          'sources': const [],
+          'query': query,
+          if (documentId != null) 'document_id': documentId,
+        };
       }
 
       return {
@@ -200,8 +246,8 @@ class QueryService {
         'document_id': documentId,
       };
     }
-    return _buildUnavailableAnswer(
-      query, reason: 'missing_result_field', documentId: documentId);
+    return _buildUnavailableAnswer(query,
+        reason: 'missing_result_field', documentId: documentId);
   }
 
   List<String> _extractSources(Map<String, dynamic> data) {
@@ -211,7 +257,9 @@ class QueryService {
     }
     return sources.map((source) {
       if (source is String) return source;
-      if (source is Map<String, dynamic>) return source['text']?.toString() ?? source.toString();
+      if (source is Map<String, dynamic>) {
+        return source['text']?.toString() ?? source.toString();
+      }
       return source.toString();
     }).toList();
   }

@@ -1,33 +1,20 @@
 # =============================================================================
-# Local development requirements — extends requirements.txt with heavy ML deps
+# Local development requirements — extends the production OCR image with
+# embedding/reranking, cache, worker, and test dependencies.
 #
 # Install with:  uv pip install --python .venv/bin/python -r requirements-local.txt
 #
-# These packages are NOT in the production image (requirements.txt). They add
-# ~2.5 GB (torch + doctr + sentence-transformers) and are used for:
-#   - Local OCR on scanned/image-only PDFs (python-doctr)
+# These additional packages are NOT in the production OCR image. They add
+# embedding/reranking, cache, worker, and test capabilities used for local
+# development:
 #   - Local embedding fallback when OpenAI is unavailable (sentence-transformers)
 #   - Cross-encoder reranking (sentence-transformers CrossEncoder)
-#
-# In production, these paths degrade gracefully:
-#   - Scanned PDFs → user gets "direct text not found" message
-#   - OpenAI down → query returns "LLM unavailable" with raw context
-#   - Reranking → falls back to lexical scoring
 # =============================================================================
 
--r requirements.txt
-
-# Local OCR (scanned/image-only PDFs)
-pdf2image==1.17.0
-torch==2.1.0
-torchvision==0.16.0
-python-doctr[torch]==0.7.0
+-r requirements-production-ocr.txt
 
 # Local embedding + reranker fallbacks
 sentence-transformers==2.7.0
-
-# Redis client (local dev / optional caching)
-redis==5.0.1
 
 # Background task queue (unused in single-container deploy, kept for local dev)
 celery==5.3.4
@@ -38,3 +25,4 @@ pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-cov==4.1.0
 pytest-mock==3.12.0
+ruff==0.15.22

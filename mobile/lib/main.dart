@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:app_links/app_links.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -39,17 +40,21 @@ import 'screens/notification_preferences_screen.dart';
 import 'config/app_config.dart';
 import 'providers/entitlement_provider.dart';
 import 'providers/policy_providers.dart';
+import 'providers/document_providers.dart';
 import 'services/local_storage_service.dart';
+import 'services/document_service.dart';
 import 'services/app_state_store.dart';
 import 'services/app_state_repository.dart';
 import 'services/notification_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
+import 'services/consent_sync_service.dart';
 import 'services/install_service.dart';
 import 'services/principal_key_service.dart';
 import 'services/hive_workspace_service.dart';
 import 'providers/auth_provider.dart';
 import 'widgets/shared/global_error_boundary.dart';
+import 'widgets/shared/coverwise_snackbar.dart';
 import 'theme/coverwise_theme.dart';
 import 'theme/coverwise_motion.dart';
 
@@ -76,10 +81,6 @@ void main() async {
     // AnalyticsService.init() runs, so the app_session_started event
     // emitted from init() has accurate values. Must run before init().
     await InstallService.ensureInitialized();
-
-    // Acquire anonymous auth token if we don't have one yet (non-blocking —
-    // the AuthInterceptor also acquires on first 401).
-    unawaited(_warmAnonymousSession());
 
     // Initialize principal encryption AFTER auth is ready but BEFORE opening encrypted boxes
     // This ensures we have the principal ID for encryption key derivation
@@ -124,6 +125,16 @@ void main() async {
     // AnalyticsService.init() synchronously reads the session from AppStateStore;
     // calling it earlier causes a first-launch HiveError before the UI mounts.
     AnalyticsService.init();
+    // The custom API anonymous identity and the Supabase principal are
+    // intentionally separate contracts. Acquire the API token only after the
+    // principal-scoped Hive/analytics workspace exists, so identity-created
+    // telemetry cannot race an unopened app-state box. AuthInterceptor still
+    // retains its first-request acquisition fallback.
+    unawaited(_warmAnonymousSession());
+    // Reconcile any local consent decisions that could not reach the server
+    // during onboarding or an offline upload. The service is principal-scoped
+    // and idempotent by current-decision signature.
+    unawaited(ConsentSyncService().syncAll());
 
     // Check if onboarding has been completed
     final prefs = await SharedPreferences.getInstance();
@@ -184,8 +195,10 @@ Future<void> _migrateLegacyHiveBoxes() async {
     debugPrint('Legacy device-key cleared from secure storage');
   } catch (e) {
     debugPrint('Error during Hive box migration: $e');
-    // Don't throw - allow app to continue with potentially unencrypted boxes
-    // Migration will be retried on next startup
+    // Do not open the new-key workspace after a failed migration: doing so
+    // would hide the legacy data behind an unreadable new-key box. The zone
+    // boundary surfaces startup failure and the next launch can retry.
+    rethrow;
   }
 }
 
@@ -211,6 +224,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   StreamSubscription<Uri>? _linkSubscription;
   final _navigatorKey = GlobalKey<NavigatorState>();
   ProviderSubscription<AsyncValue<AuthState>>? _authSubscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _workspaceTransitionInProgress = false;
 
   @override
@@ -222,7 +236,12 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       (_, next) {
         final principalId = next.valueOrNull?.session?.user.id;
         if (principalId != null) {
-          unawaited(_reopenWorkspaceForPrincipal(principalId));
+          final preserveWorkspace =
+              AuthService.consumeAnonymousWorkspaceClaim();
+          unawaited(_reopenWorkspaceForPrincipal(
+            principalId,
+            preserveCurrentWorkspace: preserveWorkspace,
+          ).then((_) => _retryPendingUploads()));
           if (AppConfig.hasRevenueCatConfig) {
             unawaited(
                 ref.read(billingAdapterProvider).identifyAccount(principalId));
@@ -231,16 +250,39 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       },
     );
     _initDeepLinks();
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((results) {
+      if (results.any((result) => result != ConnectivityResult.none)) {
+        unawaited(_retryPendingUploads());
+      }
+    });
+    unawaited(_retryPendingUploads());
   }
 
   @override
   void dispose() {
     _linkSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     _authSubscription?.close();
     super.dispose();
   }
 
-  Future<void> _reopenWorkspaceForPrincipal(String principalId) async {
+  Future<void> _retryPendingUploads() async {
+    try {
+      await DocumentService(DocumentService.authenticatedDio)
+          .retryPendingUploads();
+      if (mounted) {
+        ref.invalidate(documentsProvider);
+      }
+    } catch (error) {
+      debugPrint('Pending upload reconciliation failed: $error');
+    }
+  }
+
+  Future<void> _reopenWorkspaceForPrincipal(
+    String principalId, {
+    bool preserveCurrentWorkspace = false,
+  }) async {
     if (_workspaceTransitionInProgress ||
         PrincipalKeyService().principalId == principalId) {
       return;
@@ -250,7 +292,10 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       // Do not carry account A's buffered analytics into account B's session.
       await AnalyticsService.clear();
       AnalyticsService.dispose();
-      await HiveWorkspaceService.resetForPrincipal(principalId);
+      await HiveWorkspaceService.resetForPrincipal(
+        principalId,
+        preserveCurrentWorkspace: preserveCurrentWorkspace,
+      );
       AnalyticsService.init();
     } catch (error, stackTrace) {
       debugPrint('Workspace principal transition failed: $error');
@@ -350,6 +395,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
 
     return MaterialApp(
       navigatorKey: _navigatorKey,
+      scaffoldMessengerKey: CoverWiseSnackBar.scaffoldMessengerKey,
       title: AppConfig.appName,
       theme: CoverWiseTheme.light(),
       darkTheme: CoverWiseTheme.dark(),
@@ -458,6 +504,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/notifications': (context) => const NotificationPreferencesScreen(),
         '/documents': (context) => const DocumentsScreen(),
       },
+      navigatorObservers: [CoverWiseSnackBarObserver()],
       debugShowCheckedModeBanner: false,
     );
   }

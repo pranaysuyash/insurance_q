@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalStorageService {
   static const String legacyDocumentsKey = 'local_documents_list';
   static const String documentsBoxName = 'documents_box';
+
   /// The only record injected by the explicit development demo mode. Remove it
   /// on a production-capable build so beta/demo upgrades cannot present sample
   /// policy data as a customer's real coverage.
@@ -27,6 +28,7 @@ class LocalStorageService {
       String? remoteId,
       String syncState = 'synced',
       String processingState = 'ready',
+      String? processingConsentVersion,
       String? status}) async {
     // Create a unique ID for the document
     final docId = _uuid.v4();
@@ -52,6 +54,7 @@ class LocalStorageService {
       status: status ?? (syncState == 'synced' ? 'completed' : 'pending'),
       syncState: syncState,
       processingState: processingState,
+      processingConsentVersion: processingConsentVersion,
       processingCompletedAt: DateTime.now(),
       localFilePath: localFilePath,
       // Add additional metadata if provided
@@ -71,6 +74,7 @@ class LocalStorageService {
     String? remoteId,
     String syncState = 'synced',
     String processingState = 'ready',
+    String? processingConsentVersion,
     String? status,
   }) async {
     final docId = _uuid.v4();
@@ -83,6 +87,7 @@ class LocalStorageService {
       status: status ?? (syncState == 'synced' ? 'completed' : 'pending'),
       syncState: syncState,
       processingState: processingState,
+      processingConsentVersion: processingConsentVersion,
       processingCompletedAt: DateTime.now(),
       localFilePath: null,
       documentType: additionalMetadata?['document_type'],
@@ -179,6 +184,72 @@ class LocalStorageService {
       debugPrint('Error updating document: $e');
       return false;
     }
+  }
+
+  /// Reconcile a server-owned document into the active principal's local
+  /// metadata cache. A remote-only document has no local source file; its
+  /// server ID remains the stable identity for detail, query, and deletion.
+  Future<InsuranceDocument> upsertRemoteDocument(
+      InsuranceDocument remoteDocument) async {
+    final remoteId = remoteDocument.remoteId ?? remoteDocument.id;
+    final existing = await getDocumentById(remoteId);
+    final merged = InsuranceDocument(
+      id: existing?.id ?? _uuid.v4(),
+      remoteId: remoteId,
+      filename: remoteDocument.filename,
+      uploadedOn: remoteDocument.uploadedOn,
+      documentType: remoteDocument.documentType ?? existing?.documentType,
+      insurer: remoteDocument.insurer ?? existing?.insurer,
+      status: remoteDocument.status,
+      syncState: 'synced',
+      processingState: remoteDocument.processingState,
+      processingConsentVersion: remoteDocument.processingConsentVersion ??
+          existing?.processingConsentVersion,
+      schemaVersion: remoteDocument.schemaVersion,
+      processingCompletedAt: remoteDocument.processingCompletedAt ??
+          existing?.processingCompletedAt,
+      size: remoteDocument.size ?? existing?.size,
+      localFilePath: existing?.localFilePath,
+      policyHolders: existing?.policyHolders,
+    );
+    await _documentsBox.put(merged.id, merged.toJsonString());
+    return merged;
+  }
+
+  /// Persist a server-owned source file locally without putting document
+  /// bytes into Hive. The existing local identity and extracted metadata stay
+  /// stable so reconciliation cannot create a duplicate document.
+  Future<InsuranceDocument> cacheRemoteSource(
+      InsuranceDocument document, Uint8List bytes) async {
+    if (bytes.isEmpty) {
+      throw StateError('Downloaded source document was empty');
+    }
+    final directory = await getApplicationDocumentsDirectory();
+    final safeName = path.basename(document.filename).replaceAll(
+          RegExp(r'[^A-Za-z0-9._-]'),
+          '_',
+        );
+    final localPath = path.join(directory.path, '${document.id}_$safeName');
+    await File(localPath).writeAsBytes(bytes, flush: true);
+    final cached = InsuranceDocument(
+      id: document.id,
+      remoteId: document.remoteId,
+      filename: document.filename,
+      uploadedOn: document.uploadedOn,
+      documentType: document.documentType,
+      insurer: document.insurer,
+      status: document.status,
+      syncState: document.syncState,
+      processingState: document.processingState,
+      processingConsentVersion: document.processingConsentVersion,
+      schemaVersion: document.schemaVersion,
+      processingCompletedAt: document.processingCompletedAt,
+      size: bytes.length,
+      localFilePath: localPath,
+      policyHolders: document.policyHolders,
+    );
+    await _documentsBox.put(cached.id, cached.toJsonString());
+    return cached;
   }
 
   // Get a specific document by ID
@@ -281,5 +352,13 @@ class LocalStorageService {
 
   Future<int> countDocuments() async {
     return _documentsBox.length;
+  }
+
+  Future<List<InsuranceDocument>> getPendingUploads() async {
+    final documents = await getDocuments();
+    return documents
+        .where((document) =>
+            document.remoteId == null && document.syncState == 'pending_upload')
+        .toList();
   }
 }

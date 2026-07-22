@@ -32,6 +32,11 @@ from src.utils.anti_abuse import (
     get_current_usage_stats
 )
 from src.services.job_outbox_service import JobOutboxService
+from src.services.policy_slot_reservation_service import (
+    PolicySlotReservationService,
+    production_policy_slot_reservations_enabled,
+)
+from src.utils.secure_processing_payload import encrypt_processing_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +117,16 @@ async def upload_document(
         )
     uploaded_docs = []
     failed_docs = 0
+    policy_slot_service: Optional[PolicySlotReservationService] = None
+    if production_policy_slot_reservations_enabled():
+        try:
+            policy_slot_service = PolicySlotReservationService.from_env()
+        except Exception as error:
+            logger.error("policy_slot_reservation_unavailable error_type=%s", type(error).__name__)
+            raise HTTPException(
+                status_code=503,
+                detail="Policy entitlement protection is temporarily unavailable. Please retry.",
+            ) from error
     
     # Extract client information for anti-abuse
     ip_address = get_client_ip(request)
@@ -138,6 +153,7 @@ async def upload_document(
     logger.info("document_upload_received owner=%s", session_id[:12])
     
     for file in files:
+        policy_reservation_id: Optional[str] = None
         try:
             doc_id = str(uuid.uuid4())
             # Read file content
@@ -226,7 +242,52 @@ async def upload_document(
                     detail=f"Rate limit exceeded: {rate_limit_reason}"
                 )
             
-            # Log successful usage attempt
+            # The client-side plan count is only a UX hint. Production uses an
+            # owner-locked Postgres reservation that counts in-flight slots so
+            # concurrent uploads cannot oversubscribe the verified plan.
+            if policy_slot_service is not None:
+                try:
+                    slot = policy_slot_service.reserve(
+                        owner_id=current_user.uid,
+                        source_hash=document_hash,
+                    )
+                except Exception as error:
+                    logger.error(
+                        "policy_slot_reservation_failed error_type=%s",
+                        type(error).__name__,
+                    )
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Policy entitlement protection is temporarily unavailable. Please retry.",
+                    ) from error
+                if not bool(slot.get("allowed")):
+                    if slot.get("reason") == "upload_in_progress":
+                        raise HTTPException(
+                            status_code=409,
+                            detail={
+                                "code": "upload_in_progress",
+                                "message": "This policy upload is already being processed. Please retry shortly.",
+                            },
+                        )
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "code": "policy_limit_reached",
+                            "message": "Your current plan has reached its policy limit. Upgrade to add another policy.",
+                            "plan_tier": slot.get("plan_tier", "free"),
+                            "max_policies": slot.get("max_policies"),
+                        },
+                    )
+                reservation_value = slot.get("reservation_id")
+                if not reservation_value:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Policy entitlement protection is temporarily unavailable. Please retry.",
+                    )
+                policy_reservation_id = str(reservation_value)
+
+            # Record acceptance only after both abuse protection and the
+            # server entitlement reservation have allowed the upload.
             log_usage_attempt(
                 ip_address=ip_address,
                 session_id=session_id,
@@ -234,7 +295,7 @@ async def upload_document(
                 email=user_email,
                 user_agent=user_agent,
                 allowed=True,
-                reason="Upload accepted"
+                reason="Upload accepted",
             )
             
             object_reference = document_object_store.put(
@@ -289,11 +350,69 @@ async def upload_document(
                         document_repository.delete(doc_id, current_user.uid)
                         document_object_store.delete(object_reference)
                         raise
+                if policy_slot_service is not None and policy_reservation_id is not None:
+                    policy_slot_service.finalize(
+                        reservation_id=policy_reservation_id,
+                        owner_id=current_user.uid,
+                        document_id=doc_id,
+                    )
             except Exception:
                 # Avoid retaining an unreachable customer document if metadata
                 # persistence fails before the async processing task is queued.
                 document_object_store.delete(object_reference)
+                if policy_slot_service is not None and policy_reservation_id is not None:
+                    try:
+                        policy_slot_service.release(
+                            reservation_id=policy_reservation_id,
+                            owner_id=current_user.uid,
+                        )
+                    except Exception as cleanup_error:
+                        logger.error(
+                            "policy_slot_release_failed error_type=%s",
+                            type(cleanup_error).__name__,
+                        )
+                    policy_reservation_id = None
                 raise
+
+            def rollback_persisted_document() -> None:
+                """Best-effort rollback for a source with no work record."""
+                try:
+                    from src.services.artifact_registry import mark_document_deleted
+                    mark_document_deleted(doc_id)
+                except Exception as cleanup_error:
+                    logger.error(
+                        "document_artifact_rollback_failed document_id=%s error_type=%s",
+                        doc_id,
+                        type(cleanup_error).__name__,
+                    )
+                try:
+                    document_repository.delete(doc_id, current_user.uid)
+                except Exception as cleanup_error:
+                    logger.error(
+                        "document_metadata_rollback_failed document_id=%s error_type=%s",
+                        doc_id,
+                        type(cleanup_error).__name__,
+                    )
+                try:
+                    document_object_store.delete(object_reference)
+                except Exception as cleanup_error:
+                    logger.error(
+                        "document_source_rollback_failed document_id=%s error_type=%s",
+                        doc_id,
+                        type(cleanup_error).__name__,
+                    )
+                if policy_slot_service is not None and policy_reservation_id is not None:
+                    try:
+                        policy_slot_service.release(
+                            reservation_id=policy_reservation_id,
+                            owner_id=current_user.uid,
+                        )
+                    except Exception as cleanup_error:
+                        logger.error(
+                            "policy_slot_release_failed error_type=%s",
+                            type(cleanup_error).__name__,
+                        )
+                    policy_reservation_id = None
             
             # Production durable work uses the outbox and references the
             # already-persisted source object; raw document bytes never enter
@@ -301,6 +420,19 @@ async def upload_document(
             # when the durable queue is intentionally unavailable.
             if job_outbox_service:
                 from src.models.job_outbox import EnqueueRequest, JobType
+
+                try:
+                    processing_inputs_envelope = encrypt_processing_inputs(
+                        document_id=doc_id,
+                        pdf_password=pdf_password.strip() if pdf_password else None,
+                        on_device_ocr_text=mobile_ocr_text,
+                    )
+                except RuntimeError as error:
+                    rollback_persisted_document()
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Secure document processing is temporarily unavailable. Please retry.",
+                    ) from error
 
                 try:
                     await job_outbox_service.enqueue(
@@ -312,8 +444,7 @@ async def upload_document(
                                 "object_reference": object_reference,
                                 "filename": file.filename or "document",
                                 "processing_mode": processing_mode,
-                                "pdf_password": pdf_password.strip() if pdf_password else None,
-                                "on_device_ocr_text": mobile_ocr_text,
+                                "processing_inputs_envelope": processing_inputs_envelope,
                             },
                             partition_key=None,
                         )
@@ -322,31 +453,7 @@ async def upload_document(
                     # Do not return 202 for a source that has no durable work
                     # record. Remove both metadata and the source object;
                     # production inventory remains an auditable deleted row.
-                    try:
-                        from src.services.artifact_registry import mark_document_deleted
-                        mark_document_deleted(doc_id)
-                    except Exception as cleanup_error:
-                        logger.error(
-                            "document_artifact_rollback_failed document_id=%s error_type=%s",
-                            doc_id,
-                            type(cleanup_error).__name__,
-                        )
-                    try:
-                        document_repository.delete(doc_id, current_user.uid)
-                    except Exception as cleanup_error:
-                        logger.error(
-                            "document_metadata_rollback_failed document_id=%s error_type=%s",
-                            doc_id,
-                            type(cleanup_error).__name__,
-                        )
-                    try:
-                        document_object_store.delete(object_reference)
-                    except Exception as cleanup_error:
-                        logger.error(
-                            "document_source_rollback_failed document_id=%s error_type=%s",
-                            doc_id,
-                            type(cleanup_error).__name__,
-                        )
+                    rollback_persisted_document()
                     raise HTTPException(
                         status_code=503,
                         detail="Document processing is temporarily unavailable. Please retry.",
@@ -354,6 +461,7 @@ async def upload_document(
                 logger.info("document_processing_enqueued document_id=%s owner=%s", doc_id, session_id[:12])
             elif processing_service:
                 if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+                    rollback_persisted_document()
                     raise HTTPException(
                         status_code=503,
                         detail="Document processing is temporarily unavailable. Please retry.",
@@ -370,6 +478,12 @@ async def upload_document(
                 )
                 logger.info("document_processing_queued_legacy document_id=%s owner=%s", doc_id, session_id[:12])
             else:
+                if os.environ.get("ENVIRONMENT", "development").lower() == "production":
+                    rollback_persisted_document()
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Document processing is temporarily unavailable. Please retry.",
+                    )
                 document.status = "uploaded"
                 document_repository.update(document)
                 logger.warning("document_source_persisted_without_processing development_only=true")
@@ -385,8 +499,32 @@ async def upload_document(
             })
             
         except HTTPException:
+            if policy_slot_service is not None and policy_reservation_id is not None:
+                try:
+                    policy_slot_service.release(
+                        reservation_id=policy_reservation_id,
+                        owner_id=current_user.uid,
+                    )
+                except Exception as cleanup_error:
+                    logger.error(
+                        "policy_slot_release_failed error_type=%s",
+                        type(cleanup_error).__name__,
+                    )
+                policy_reservation_id = None
             raise
         except Exception as e:
+            if policy_slot_service is not None and policy_reservation_id is not None:
+                try:
+                    policy_slot_service.release(
+                        reservation_id=policy_reservation_id,
+                        owner_id=current_user.uid,
+                    )
+                except Exception as cleanup_error:
+                    logger.error(
+                        "policy_slot_release_failed error_type=%s",
+                        type(cleanup_error).__name__,
+                    )
+                policy_reservation_id = None
             logger.error("document_upload_failed error_type=%s", type(e).__name__)
             failed_docs += 1
     
@@ -539,7 +677,16 @@ async def query_documents(
     document_ids: Optional[List[str]] = Form(None),
     current_user: User = Depends(get_current_user),
 ):
-    """Query only documents that belong to the verified principal."""
+    """Deprecated form-compatible query surface.
+
+    The canonical product contract is JSON ``POST /query``. Keep this route
+    for known external integrations during the compatibility window, but do
+    not add product callers or new behavior here.
+    """
+    logger.warning(
+        "deprecated_query_route_used route=/documents/query owner_prefix=%s",
+        current_user.uid[:12],
+    )
     if not processing_service:
         raise HTTPException(status_code=503, detail="Document processing service not available")
     
@@ -605,11 +752,60 @@ async def get_document(document_id: str, current_user: User = Depends(get_curren
         raise HTTPException(status_code=404, detail="Document not found")
     return _client_document(document)
 
+
+@router.get("/{document_id}/source-url", response_model=dict)
+async def get_document_source_url(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Issue a short-lived URL for the owner's original source document.
+
+    Storage references never cross the API boundary. The document lookup is
+    owner-scoped before the object store is consulted, and a missing local
+    source is reported honestly rather than producing a misleading preview.
+    """
+    document = document_repository.get(document_id, current_user.uid)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not document.file_path:
+        raise HTTPException(status_code=404, detail="Source document is not available")
+    try:
+        url = document_object_store.create_download_url(
+            document.file_path, expires_seconds=900
+        )
+    except Exception as error:
+        logger.error(
+            "document_source_url_failed owner=%s document=%s error_type=%s",
+            current_user.uid[:12], document_id, type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Source document is temporarily unavailable; retry",
+        ) from error
+    if not url:
+        raise HTTPException(
+            status_code=503,
+            detail="Source document downloads are unavailable in this environment",
+        )
+    return {
+        "document_id": document.id,
+        "filename": document.filename,
+        "size": document.size,
+        "url": url,
+        "expires_in_seconds": 900,
+    }
+
 @router.delete("/{document_id}")
 async def delete_document(document_id: str, current_user: User = Depends(get_current_user)):
     """Delete a document and associated data."""
     doc = document_repository.get(document_id, current_user.uid)
     if doc:
+        # Fence new/recovered processing claims before touching any derived or
+        # source data. Metadata remains until every cleanup stage succeeds so
+        # a transient failure can be retried safely.
+        doc.status = "deleting"
+        doc.processing_lease_expires_at = None
+        document_repository.update(doc)
         # Delete derived search data before deleting the metadata record so a
         # retry retains the owner/document evidence needed to finish cleanup.
         if processing_service and processing_service.rag_pipeline:
@@ -624,6 +820,16 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
             document_object_store.delete(doc.file_path)
         except Exception as error:
             raise HTTPException(status_code=503, detail="Unable to delete source document; retry deletion") from error
+        try:
+            # Traverse every registered source and derived object before the
+            # metadata row is removed. Inventory state is not physical erasure.
+            from src.services.artifact_registry import delete_document_artifacts
+            delete_document_artifacts(document_id, current_user.uid)
+        except Exception as error:
+            raise HTTPException(
+                status_code=503,
+                detail="Unable to delete document artifacts; retry deletion",
+            ) from error
         if not document_repository.delete(document_id, current_user.uid):
             raise HTTPException(status_code=409, detail="Document deletion conflicted; retry")
         return {"message": "Document deleted successfully", "id": document_id}

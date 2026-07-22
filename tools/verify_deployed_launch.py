@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Non-mutating launch smoke verifier for a deployed CoverWise API.
+"""Launch smoke verifier for a deployed CoverWise API.
 
-It deliberately never uploads a policy or prints bearer tokens. Run it after a
-Cloud Run deploy to establish the minimum public/auth/CORS runtime contract.
+The default checks are non-mutating. The optional identity-isolation probe
+creates two anonymous identities and therefore requires explicit operator
+authorization. It never uploads a policy or prints bearer tokens.
 """
 
 from __future__ import annotations
@@ -36,7 +37,14 @@ def request(base_url: str, path: str, *, method: str = "GET", token: str | None 
     try:
         with urlopen(req, timeout=15) as response:
             payload = response.read().decode("utf-8")
-            return response.status, dict(response.headers.items()), json.loads(payload) if payload else {}
+            if not payload:
+                parsed: object = {}
+            else:
+                try:
+                    parsed = json.loads(payload)
+                except json.JSONDecodeError:
+                    parsed = {}
+            return response.status, dict(response.headers.items()), parsed
     except HTTPError as error:
         payload = error.read().decode("utf-8")
         try:
@@ -51,7 +59,16 @@ def request(base_url: str, path: str, *, method: str = "GET", token: str | None 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", required=True, help="Deployed HTTPS API URL")
+    parser.add_argument(
+        "--worker-url",
+        help="Optional internal URL for the durable outbox worker health listener",
+    )
     parser.add_argument("--origin", help="Expected public web origin for CORS verification")
+    parser.add_argument(
+        "--allow-identity-creation",
+        action="store_true",
+        help="Authorize creation of two anonymous identities for owner-isolation checks",
+    )
     args = parser.parse_args()
     base_url = args.base_url.rstrip("/")
     results: list[Result] = []
@@ -63,28 +80,57 @@ def main() -> int:
         status, _, payload = request(base_url, "/readyz")
         results.append(Result("readiness", status == 200 and payload.get("status") == "ready" if isinstance(payload, dict) else False, f"HTTP {status}"))
 
+        status, _, payload = request(base_url, "/health")
+        # The canonical FastAPI contract returns ``status: ok`` for a healthy
+        # integrated service and ``status: degraded``/503 when its embedding
+        # probe fails. Do not broaden this to any arbitrary 2xx response.
+        health_ok = (
+            status == 200
+            and isinstance(payload, dict)
+            and payload.get("status") == "ok"
+        )
+        results.append(Result("service health", health_ok, f"HTTP {status}"))
+
+        if args.worker_url:
+            worker_status, _, worker_payload = request(
+                args.worker_url.rstrip("/"), "/readyz"
+            )
+            worker_ok = (
+                worker_status == 200
+                and isinstance(worker_payload, dict)
+                and worker_payload.get("status") == "ready"
+                and worker_payload.get("worker") == "outbox"
+            )
+            results.append(
+                Result("durable outbox worker readiness", worker_ok,
+                       f"HTTP {worker_status}")
+            )
+
         status, _, _ = request(base_url, "/documents?page=1&limit=10")
         results.append(Result("unauthenticated document rejection", status == 401, f"HTTP {status}"))
 
-        identities: list[tuple[str, str]] = []
-        for index in range(2):
-            status, _, payload = request(base_url, "/user/anonymous", method="POST")
-            token = payload.get("access_token") if isinstance(payload, dict) else None
-            uid = payload.get("user", {}).get("uid") if isinstance(payload, dict) else None
-            results.append(Result(f"anonymous identity {index + 1}", status == 200 and isinstance(token, str) and isinstance(uid, str), f"HTTP {status}"))
-            if isinstance(token, str) and isinstance(uid, str):
-                identities.append((token, uid))
+        if args.allow_identity_creation:
+            identities: list[tuple[str, str]] = []
+            for index in range(2):
+                status, _, payload = request(base_url, "/user/anonymous", method="POST")
+                token = payload.get("access_token") if isinstance(payload, dict) else None
+                uid = payload.get("user", {}).get("uid") if isinstance(payload, dict) else None
+                results.append(Result(f"anonymous identity {index + 1}", status == 200 and isinstance(token, str) and isinstance(uid, str), f"HTTP {status}"))
+                if isinstance(token, str) and isinstance(uid, str):
+                    identities.append((token, uid))
 
-        for index, (token, expected_uid) in enumerate(identities):
-            status, _, profile = request(base_url, "/user/profile", token=token)
-            profile_ok = status == 200 and isinstance(profile, dict) and profile.get("uid") == expected_uid
-            results.append(Result(f"identity {index + 1} profile", profile_ok, f"HTTP {status}"))
-            status, _, documents = request(base_url, "/documents?page=1&limit=10", token=token)
-            list_ok = status == 200 and isinstance(documents, dict) and isinstance(documents.get("documents"), list)
-            results.append(Result(f"identity {index + 1} owner-scoped list", list_ok, f"HTTP {status}"))
+            for index, (token, expected_uid) in enumerate(identities):
+                status, _, profile = request(base_url, "/user/profile", token=token)
+                profile_ok = status == 200 and isinstance(profile, dict) and profile.get("uid") == expected_uid
+                results.append(Result(f"identity {index + 1} profile", profile_ok, f"HTTP {status}"))
+                status, _, documents = request(base_url, "/documents?page=1&limit=10", token=token)
+                list_ok = status == 200 and isinstance(documents, dict) and isinstance(documents.get("documents"), list)
+                results.append(Result(f"identity {index + 1} owner-scoped list", list_ok, f"HTTP {status}"))
 
-        if len(identities) == 2:
-            results.append(Result("distinct anonymous owners", identities[0][1] != identities[1][1], "subjects compared"))
+            if len(identities) == 2:
+                results.append(Result("distinct anonymous owners", identities[0][1] != identities[1][1], "subjects compared"))
+        else:
+            results.append(Result("anonymous owner-isolation probe", True, "SKIP: pass --allow-identity-creation to authorize test identities"))
 
         if args.origin:
             status, headers, _ = request(base_url, "/healthz", method="OPTIONS", origin=args.origin)

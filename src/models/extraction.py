@@ -46,3 +46,16 @@ class InsuranceDocumentExtraction(BaseModel):
     deductible: Optional[str] = Field(None, description="Deductible amount")
     copay: Optional[str] = Field(None, description="Co-payment or co-insurance percentage/amount")
     additional_fields: Optional[dict] = Field(None, description="Any other notable fields found in the document")
+
+
+class RoomRentCapExtraction(BaseModel):
+    """Typed LLM contract for room-rent-cap extraction.
+
+    ``clause`` and ``display`` remain empty when ``present`` is false.  A
+    present result is still subject to the evidence pipeline's exact-text
+    check before it can become a user-visible citation.
+    """
+
+    present: bool = Field(False, description="Whether a room-rent cap is explicitly present")
+    clause: str = Field("", max_length=2_000, description="Exact clause text from the source document")
+    display: str = Field("", max_length=500, description="Short human-readable summary of the cap")

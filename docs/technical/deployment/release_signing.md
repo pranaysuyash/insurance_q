@@ -1,8 +1,11 @@
 # Android Release Signing
 
-The Android release build is wired to sign with a release keystore when
-`mobile/android/key.properties` exists, and to fall back to the debug keystore
-otherwise (so local `flutter build apk --release` keeps working without setup).
+The Android release build is wired to sign with a release keystore from
+`mobile/android/key.properties`. The canonical production script fails closed
+when that file is absent or when the historical root-level credential remains
+tracked; it must never produce a distributable artifact using the debug key.
+Ad-hoc local release builds may still use the Gradle debug fallback when the
+production gate is not set.
 
 This document covers the one-time setup to produce a Play Store–ready,
 properly signed release build.
@@ -47,7 +50,10 @@ storeFile=coverwise-upload.jks
 ```
 
 `storeFile` is resolved relative to `mobile/android/`, so a bare filename works
-if the keystore lives there. Use an absolute path if it lives elsewhere.
+if the keystore lives there. Use an absolute path if it lives elsewhere. The
+production gate also requires all four properties and verifies that the
+resolved keystore file exists before Gradle can select the release signing
+configuration.
 
 ## 3. Build the release
 
@@ -57,9 +63,10 @@ flutter build apk --release       # APK for direct distribution
 flutter build appbundle --release  # AAB for Play Store upload
 ```
 
-The build reads `key.properties`, loads the keystore, and signs the output. If
-`key.properties` is absent, the build still succeeds but uses the debug
-keystore (with a clear note in the gradle config).
+The build reads `key.properties`, loads the keystore, and signs the output. The
+canonical `tools/build_mobile_release.sh` sets the production gate and refuses
+to build until this file is present and the tracked historical credential has
+been rotated/removed.
 
 ## Verification
 

@@ -343,18 +343,21 @@ GET  /health                  # Service health check
 
 #### Docker Configuration
 ```dockerfile
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11-slim
 WORKDIR /app
 
 # System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl software-properties-common git \
-    libgl1-mesa-glx libglib2.0-0
+    build-essential curl \
+    libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libfontconfig1 \
+    libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libgdk-pixbuf-2.0-0
 
 # Python dependencies
-COPY requirements.txt .
+COPY requirements.txt requirements-production-ocr.txt .
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements.txt
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.1.0 torchvision==0.16.0 && \
+    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements-production-ocr.txt
 
 # Application code
 COPY src/ src/

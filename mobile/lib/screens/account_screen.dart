@@ -47,6 +47,7 @@ class _AccountScreenState extends State<AccountScreen> {
     final navigator = Navigator.of(context);
     setState(() => _busy = true);
     try {
+      await AuthService.prepareAnonymousWorkspaceClaim();
       final response = _signUp
           ? await AuthService.signUp(_email.text, _password.text, _name.text)
           : await AuthService.signIn(_email.text, _password.text);

@@ -348,6 +348,29 @@ void main() {
       expect(ent.packs[1].type, QaPackType.value);
     });
 
+    test('replacePacks reconciles the local mirror without changing plan usage', () async {
+      await service.setPlan(PlanTier.plus, expiresAt: DateTime.now().add(const Duration(days: 30)));
+      await service.recordQuestionUsed();
+      await service.addPack(QaPackType.starter);
+
+      final purchasedAt = DateTime.now().subtract(const Duration(days: 1));
+      final expiresAt = DateTime.now().add(const Duration(days: 89));
+      await service.replacePacks([
+        QaPack(
+          type: QaPackType.value,
+          questionsRemaining: 7,
+          purchasedAt: purchasedAt,
+          expiresAt: expiresAt,
+        ),
+      ]);
+
+      final ent = service.current();
+      expect(ent.planTier, PlanTier.plus);
+      expect(ent.questionsUsedThisMonth, 1);
+      expect(ent.packs.single.questionsRemaining, 7);
+      expect(ent.packs.single.type, QaPackType.value);
+    });
+
     test('recordQuestionUsed deducts from subscription first', () async {
       // Free tier: 20 questions/month, start with 0 used
       await service.recordQuestionUsed();

@@ -17,6 +17,7 @@ from typing import Optional, Dict, Any
 
 from src.llm.client import LLMClient
 from src.models.extraction import PolicySummaryExtraction
+from src.utils.runtime_config import supabase_server_key
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class PolicyExtractionService:
         self._supabase = None
         if os.getenv("ENVIRONMENT", "development").lower() == "production":
             url = os.getenv("SUPABASE_URL", "").strip()
-            key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            key = supabase_server_key()
             if not url or not key:
                 raise RuntimeError("Supabase policy-summary storage is required in production")
             from supabase import create_client

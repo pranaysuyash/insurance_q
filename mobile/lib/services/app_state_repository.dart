@@ -47,6 +47,25 @@ class AppStateRepository {
     await _box.put(AppStateStore.lastViewedDocumentIdKey, documentId);
   }
 
+  /// Remove navigation pointers that refer to a deleted document.
+  ///
+  /// A document can have both a local Hive ID and a server ID. Callers should
+  /// pass both so a remote-first deletion cannot leave a stale deep-link
+  /// pointer after the local record is removed.
+  static Future<void> clearDocumentReferences(
+      Iterable<String> documentIds) async {
+    final ids = documentIds.toSet();
+    for (final entry in <String, String?>{
+      AppStateStore.selectedDocumentIdKey: getSelectedDocumentId(),
+      AppStateStore.lastUploadedDocumentIdKey: getLastUploadedDocumentId(),
+      AppStateStore.lastViewedDocumentIdKey: getLastViewedDocumentId(),
+    }.entries) {
+      if (entry.value != null && ids.contains(entry.value)) {
+        await _box.delete(entry.key);
+      }
+    }
+  }
+
   static List<String> getRecentQuestions() {
     final raw = _box.get(AppStateStore.recentQuestionsKey);
     if (raw is List) {

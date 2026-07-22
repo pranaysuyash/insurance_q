@@ -17,12 +17,11 @@ delete prior rows. The UI shows the latest row per (document,
 field) by created_at; older rows remain for audit.
 
 LLM honesty check: every LLM-extracted field is verified against
-the source text before the citation is written. If the LLM says
-"the room rent cap clause is on page 4" but the page text does
-not contain the relevant phrase, the field is recorded with
-evidence_strength=0.0 (UI excludes it) and a log line is
-emitted. This is the substrate's defense against the most
-common LLM failure mode: citing text that isn't there.
+the source text before the citation is written. If the structured
+output contains a clause that the page text does not contain, the
+candidate is rejected and no unverified value enters the substrate.
+This is the substrate's defense against the most common LLM failure
+mode: citing text that isn't there.
 """
 from __future__ import annotations
 
@@ -40,6 +39,7 @@ from src.models.evidence import (
     SpanType,
     ValueType,
 )
+from src.models.extraction import RoomRentCapExtraction
 from src.services.evidence_substrate_service import (
     EvidenceSubstrateService,
     EvidenceSubstrateUnavailable,
@@ -340,12 +340,6 @@ class RoomRentCapExtractor:
     parser_kind = ParserKind.LLM_EXTRACT
 
     def __init__(self, llm_client, model: str = "gpt-4o-mini"):
-        """
-        # Audit note (ADR-26, Top 20 #11): this extractor currently calls
-        # llm_client.generate() with json_object mode. v2 should use
-        # generate_structured() with a typed RoomRentCapResult Pydantic model.
-        # The honesty check below is the compensating control until then.
-        """
         self._llm = llm_client
         self._model = model
 
@@ -358,29 +352,21 @@ class RoomRentCapExtractor:
             page_texts[p] for p in sorted(page_texts)
         )[:30000]
         try:
-            response = await self._llm.generate(
+            payload = await self._llm.generate_structured(
                 messages=[
                     {"role": "system", "content": "You extract structured data from insurance policy text. Respond only with JSON."},
                     {"role": "user", "content": _ROOM_RENT_CAP_PROMPT + full_text},
                 ],
+                response_model=RoomRentCapExtraction,
                 temperature=0.0,
-                max_tokens=500,
-                response_format={"type": "json_object"},
             )
         except Exception as error:
             log.warning("room_rent_cap LLM call failed: %s", error)
             return None
-        # Parse the response
-        try:
-            import json
-            payload = json.loads(response)
-        except (ValueError, TypeError):
-            log.warning("room_rent_cap LLM returned non-JSON: %r", response)
+        if not payload.present:
             return None
-        if not isinstance(payload, dict) or not payload.get("present"):
-            return None
-        clause = payload.get("clause", "").strip()
-        display = payload.get("display", "").strip()
+        clause = payload.clause.strip()
+        display = payload.display.strip()
         if not clause or not display:
             return None
         # Find the page that contains the clause (the honesty check).
@@ -392,24 +378,9 @@ class RoomRentCapExtractor:
         if cite_page is None:
             # LLM cited a clause that isn't on any page. Reject.
             log.warning(
-                "room_rent_cap LLM cited a clause not found in any page; "
-                "rejecting with evidence_strength=0.0 (Audit P0-11)"
+                "room_rent_cap LLM cited a clause not found in any page; rejecting"
             )
-            evidence_strength = 0.0
-            cite_string = ""
-            # Still record the field but with strength 0 so the UI
-            # does not show it. The substrate keeps the row for audit.
-            return ExtractorResult(
-                field_name=self.field_name,
-                value=ExtractedValue(
-                    raw=clause, normalized=display, display=display,
-                ),
-                value_type=ValueType.CLAUSE_TEXT,
-                confidence=0.7,
-                page_artifact_id=UUID(int=0),  # pipeline will set
-                evidence_strength=0.0,
-                cite_string="",
-            )
+            return None
         return ExtractorResult(
             field_name=self.field_name,
             value=ExtractedValue(

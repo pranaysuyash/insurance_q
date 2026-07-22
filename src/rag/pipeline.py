@@ -21,6 +21,7 @@ from src.config.settings import settings
 from src.llm.client import LLMClient
 from src.models.rag import RAGAnswer, RAGCitation
 from src.services.supabase_vector_store import SupabaseVectorStore
+from src.utils.runtime_config import supabase_server_key
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,31 @@ OLLAMA_EMBEDDING_DIMENSIONS = {
     "bge-m3": 1024,
     "snowflake-arctic-embed": 1024,
 }
+
+
+def _citation_status(citation: Any) -> Optional[str]:
+    """Read the canonical citation status for trace accounting.
+
+    ``citation_status`` is the public RAGCitation field and the persisted
+    answer-evidence field. The legacy fallback keeps older test/integration
+    objects readable while preventing new traces from silently counting every
+    citation as unclassified.
+    """
+    if isinstance(citation, dict):
+        return citation.get("citation_status", citation.get("verification_status"))
+    return getattr(
+        citation,
+        "citation_status",
+        getattr(citation, "verification_status", None),
+    )
+
+
+def _citation_status_counts(citations: list[Any]) -> dict[str, int]:
+    """Count statuses on the citations that survived verification."""
+    return {
+        status: sum(1 for citation in citations if _citation_status(citation) == status)
+        for status in ("verified", "approximate", "rejected")
+    }
 
 
 class RAGPipeline:
@@ -89,7 +115,7 @@ class RAGPipeline:
         if self.vector_backend == "supabase":
             self.vector_store = SupabaseVectorStore(
                 os.getenv("SUPABASE_URL", "").strip(),
-                os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
+                supabase_server_key(),
             )
         else:
             self._init_qdrant()
@@ -280,14 +306,34 @@ class RAGPipeline:
                     lex_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     point_id TEXT UNIQUE,
                     document_id TEXT,
+                    owner_id TEXT,
                     filename TEXT,
                     page_number INTEGER,
                     section TEXT,
                     text_content TEXT NOT NULL,
+                    source_text TEXT,
+                    retrieval_text TEXT,
                     embedding_model TEXT,
                     updated_at TEXT
                 )
                 """
+            )
+            columns = {
+                row["name"]
+                for row in self.hybrid_index.execute("PRAGMA table_info(rag_chunks)").fetchall()
+            }
+            if "owner_id" not in columns:
+                self.hybrid_index.execute("ALTER TABLE rag_chunks ADD COLUMN owner_id TEXT")
+            # These columns were added after the original local index schema.
+            # Legacy rows are backfilled from text_content because the old
+            # index did not retain the distinction and cannot recover it.
+            if "source_text" not in columns:
+                self.hybrid_index.execute("ALTER TABLE rag_chunks ADD COLUMN source_text TEXT")
+            if "retrieval_text" not in columns:
+                self.hybrid_index.execute("ALTER TABLE rag_chunks ADD COLUMN retrieval_text TEXT")
+            self.hybrid_index.execute(
+                "UPDATE rag_chunks SET source_text = COALESCE(source_text, text_content), "
+                "retrieval_text = COALESCE(retrieval_text, text_content)"
             )
             self.hybrid_index.execute(
                 """
@@ -615,6 +661,9 @@ class RAGPipeline:
                 "page_artifact_id": block.get("page_artifact_id"),
                 # Per ADR-2026-07-19-11: source_text is preserved untouched.
                 "source_text": block.get("source_text", ""),
+                # Keep contextual retrieval separate from citable source text
+                # in every backend, including the direct Qdrant path.
+                "retrieval_text": chunk_text,
                 "section_type": self._classify_section_type(chunk_text),
                 "chunk_type": block.get("chunk_type", "paragraph"),
                 "parent_chunk_id": block.get("parent_chunk_id"),
@@ -624,6 +673,10 @@ class RAGPipeline:
                     payload[key] = block[key]
             if document_metadata:
                 payload.update(document_metadata)
+            # Metadata may add ownership and display fields, but it cannot
+            # override the block's canonical evidence/retrieval lineage.
+            payload["source_text"] = block.get("source_text", "")
+            payload["retrieval_text"] = chunk_text
             points.append(
                 qdrant_models.PointStruct(
                     id=block.get("id", str(uuid.uuid4())),
@@ -930,10 +983,11 @@ class RAGPipeline:
                 
                 # Handle both Pydantic models (from some paths) and dicts
                 citations = res.get("citations", [])
-                def get_status(c):
-                    if isinstance(c, dict): return c.get("verification_status")
-                    return getattr(c, "verification_status", None)
-                    
+                stored_counts = resp.get("_citation_counts") or {}
+                status_counts = _citation_status_counts(citations)
+                for status in status_counts:
+                    if status in stored_counts:
+                        status_counts[status] = int(stored_counts[status])
                 trace_data = {
                     "query_text": "[redacted]",
                     "query_hash": hashlib.sha256(user_query.encode("utf-8")).hexdigest(),
@@ -943,9 +997,9 @@ class RAGPipeline:
                     "top_k": top_k,
                     "hits_count": len(res.get("sources", [])),
                     "citations_count": len(citations),
-                    "citations_verified": sum(1 for c in citations if get_status(c) == "verified"),
-                    "citations_approximate": sum(1 for c in citations if get_status(c) == "approximate"),
-                    "citations_rejected": sum(1 for c in citations if get_status(c) == "rejected"),
+                    "citations_verified": status_counts["verified"],
+                    "citations_approximate": status_counts["approximate"],
+                    "citations_rejected": status_counts["rejected"],
                     "confidence": res.get("confidence", 0.0),
                     "retrieval_confidence": res.get("retrieval_confidence", 0.0),
                     "llm_used": res.get("llm_used", False),
@@ -970,7 +1024,11 @@ class RAGPipeline:
                 # contract. A detached task can be lost on worker shutdown
                 # and would make a customer-visible answer unauditable.
                 await self._log_query_trace(trace_data)
-            return resp
+            # Cache entries carry private trace metadata for accurate cache-hit
+            # accounting; never expose that implementation detail to callers.
+            public_response = dict(resp)
+            public_response.pop("_citation_counts", None)
+            return public_response
 
         logger.info("Query: '%s' top_k=%d", user_query, top_k)
 
@@ -1185,9 +1243,16 @@ class RAGPipeline:
         # Commit 1: Verify citations against source_text (ADR-26, ADR-2026-07-19-09).
         # Strip rejected citations. Tag approximate citations for UI distinction.
         if answer_payload and answer_payload.citations:
+            generated_citation_count = len(answer_payload.citations)
             answer_payload.citations = self._verify_citations(
                 answer_payload.citations, sources
             )
+            status_counts = _citation_status_counts(answer_payload.citations)
+            status_counts["rejected"] = max(
+                0, generated_citation_count - len(answer_payload.citations)
+            )
+        else:
+            status_counts = {"verified": 0, "approximate": 0, "rejected": 0}
         audit_evidence = []
         for index, citation in enumerate(answer_payload.citations, 1):
             source_index = int(citation.source_index) - 1
@@ -1202,6 +1267,7 @@ class RAGPipeline:
             })
         response = {
             "status": "success",
+            "_citation_counts": status_counts,
             "result": {
                 "answer": answer_payload.answer,
                 "sources": sources,
@@ -1375,9 +1441,21 @@ class RAGPipeline:
             return
 
         try:
+            columns = {
+                row["name"]
+                for row in self.hybrid_index.execute("PRAGMA table_info(rag_chunks)").fetchall()
+            }
+            if "owner_id" not in columns:
+                self.hybrid_index.execute("ALTER TABLE rag_chunks ADD COLUMN owner_id TEXT")
+            if "source_text" not in columns:
+                self.hybrid_index.execute("ALTER TABLE rag_chunks ADD COLUMN source_text TEXT")
+            if "retrieval_text" not in columns:
+                self.hybrid_index.execute("ALTER TABLE rag_chunks ADD COLUMN retrieval_text TEXT")
             text = payload.get("text_content", "")
             if not text:
                 return
+            source_text = payload.get("source_text", text)
+            retrieval_text = payload.get("retrieval_text", text)
             search_text = " ".join(
                 str(value)
                 for value in [
@@ -1392,25 +1470,31 @@ class RAGPipeline:
             self.hybrid_index.execute(
                 """
                 INSERT INTO rag_chunks (
-                    point_id, document_id, filename, page_number, section,
-                    text_content, embedding_model, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    point_id, document_id, owner_id, filename, page_number, section,
+                    text_content, source_text, retrieval_text, embedding_model, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(point_id) DO UPDATE SET
                     document_id=excluded.document_id,
+                    owner_id=excluded.owner_id,
                     filename=excluded.filename,
                     page_number=excluded.page_number,
                     section=excluded.section,
                     text_content=excluded.text_content,
+                    source_text=excluded.source_text,
+                    retrieval_text=excluded.retrieval_text,
                     embedding_model=excluded.embedding_model,
                     updated_at=excluded.updated_at
                 """,
                 (
                     point_id,
                     payload.get("document_id"),
+                    payload.get("owner_id"),
                     payload.get("filename"),
                     payload.get("page_number"),
                     payload.get("section"),
                     text,
+                    source_text,
+                    retrieval_text,
                     payload.get("embedding_model"),
                     payload.get("embedding_timestamp"),
                 ),
@@ -1462,6 +1546,9 @@ class RAGPipeline:
                 elif key == "document_ids" and isinstance(value, (list, tuple, set)):
                     sql_filters.append(f"c.document_id IN ({','.join('?' for _ in value)})")
                     filter_params.extend(list(value))
+                elif key == "owner_id" and isinstance(value, str):
+                    sql_filters.append("c.owner_id = ?")
+                    filter_params.append(value)
                 elif key in {"filename", "section"} and isinstance(value, str):
                     sql_filters.append(f"c.{key} = ?")
                     filter_params.append(value)
@@ -1476,8 +1563,9 @@ class RAGPipeline:
             rows = self.hybrid_index.execute(
                 """
                 SELECT f.point_id, f.search_text, bm25(rag_chunks_fts) AS bm25_score,
-                       c.document_id, c.filename, c.page_number, c.section,
-                       c.text_content, c.embedding_model, c.updated_at
+                       c.document_id, c.owner_id, c.filename, c.page_number, c.section,
+                       c.text_content, c.source_text, c.retrieval_text,
+                       c.embedding_model, c.updated_at
                 FROM rag_chunks_fts f
                 JOIN rag_chunks c ON c.lex_id = f.rowid
                 WHERE rag_chunks_fts MATCH ?
@@ -1503,6 +1591,9 @@ class RAGPipeline:
                 elif key == "document_ids" and isinstance(value, (list, tuple, set)):
                     like_filters.append(f"c.document_id IN ({','.join('?' for _ in value)})")
                     like_params.extend(list(value))
+                elif key == "owner_id" and isinstance(value, str):
+                    like_filters.append("c.owner_id = ?")
+                    like_params.append(value)
                 elif key in {"filename", "section"} and isinstance(value, str):
                     like_filters.append(f"c.{key} = ?")
                     like_params.append(value)
@@ -1520,8 +1611,9 @@ class RAGPipeline:
                 rows = self.hybrid_index.execute(
                     """
                     SELECT f.point_id, f.search_text, 0.0 AS bm25_score,
-                           c.document_id, c.filename, c.page_number, c.section,
-                           c.text_content, c.embedding_model, c.updated_at
+                           c.document_id, c.owner_id, c.filename, c.page_number, c.section,
+                           c.text_content, c.source_text, c.retrieval_text,
+                           c.embedding_model, c.updated_at
                     FROM rag_chunks_fts f
                     JOIN rag_chunks c ON c.lex_id = f.rowid
                     WHERE (
@@ -1554,10 +1646,13 @@ class RAGPipeline:
                     score=lexical_score,
                     payload={
                         "document_id": row["document_id"],
+                        "owner_id": row["owner_id"],
                         "filename": row["filename"],
                         "page_number": row["page_number"],
                         "section": row["section"],
                         "text_content": row["text_content"],
+                        "source_text": row["source_text"] or row["text_content"],
+                        "retrieval_text": row["retrieval_text"] or row["text_content"],
                         "embedding_model": row["embedding_model"],
                         "embedding_timestamp": row["updated_at"],
                     },
@@ -1826,7 +1921,14 @@ class RAGPipeline:
                 page_count=page_count,
             )
             if is_valid or status == "approximate":
-                kept.append(citation.model_copy(update={"citation_status": status}))
+                # The source index is the authoritative lineage. The model is
+                # allowed to choose the quote, but it must not be trusted to
+                # invent or omit the document/page needed for navigation.
+                kept.append(citation.model_copy(update={
+                    "citation_status": status,
+                    "document_id": source.get("document_id"),
+                    "page_number": source.get("page_number"),
+                }))
                 if status == "approximate":
                     logger.info(
                         "Citation %d approximate match (fuzzy); rendered with label",

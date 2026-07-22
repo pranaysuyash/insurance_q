@@ -103,22 +103,33 @@ aws ecr put-lifecycle-policy \
 echo ""
 echo "2️⃣ Creating optimized Dockerfile for AWS App Runner..."
 cat > Dockerfile.aws << 'EOF'
-# Production image — slim, API-first (no bundled ML models)
-# ~400MB vs ~3GB with torch/doctr/sentence-transformers
+# Production image — OCR-enabled document-processing profile.
+# The image is intentionally larger because scanned-policy support is part of
+# the customer-facing contract.
 FROM --platform=linux/amd64 python:3.11-slim
 
 WORKDIR /app
 
-# Minimal system dependencies (PyMuPDF needs libgl for image rendering)
+# System dependencies for PyMuPDF, doctr, and WeasyPrint.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libfontconfig1 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements.txt requirements-production-ocr.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements.txt
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+      torch==2.1.0 torchvision==0.16.0 && \
+    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements-production-ocr.txt
 
 COPY src/ src/
 COPY storage/ storage/
@@ -302,7 +313,7 @@ cat > enhanced-v2-service-config.json << EOF
   },
   "InstanceConfiguration": {
     "Cpu": "512",
-    "Memory": "1024"
+    "Memory": "4096"
   },
   "HealthCheckConfiguration": {
     "Protocol": "HTTP",

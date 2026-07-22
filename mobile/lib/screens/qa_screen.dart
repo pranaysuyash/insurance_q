@@ -24,6 +24,7 @@ import '../utils/app_error.dart';
 import '../providers/entitlement_provider.dart';
 import '../models/entitlement.dart';
 import 'document_selection_dialog.dart';
+import 'document_preview_screen.dart';
 import 'qa_packs_screen.dart';
 
 class QaScreen extends ConsumerStatefulWidget {
@@ -43,6 +44,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       TextEditingController();
   bool _demoSequenceStarted = false;
   int _demoSequenceGeneration = 0;
+  bool _questionRequestInFlight = false;
 
   @override
   void initState() {
@@ -145,6 +147,12 @@ class QaScreenState extends ConsumerState<QaScreen>
     if (!mounted || !widget.isActive) {
       return;
     }
+    // All entry points (buttons, keyboard submit, follow-ups, and the demo
+    // sequence) converge here. Keep the entitlement check and usage write
+    // inside one request boundary so rapid submissions cannot race them.
+    if (_questionRequestInFlight) {
+      return;
+    }
     if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
       return;
     }
@@ -173,6 +181,7 @@ class QaScreenState extends ConsumerState<QaScreen>
     }
 
     final selectedDoc = _currentDocumentId();
+    _questionRequestInFlight = true;
     ref.read(isLoadingProvider.notifier).state = true;
     // Don't clear currentAnswerProvider here — keep the previous answer
     // visible while the new question loads. The new answer replaces it
@@ -212,9 +221,36 @@ class QaScreenState extends ConsumerState<QaScreen>
       }
 
       if (result.containsKey('error') && !result.containsKey('answer')) {
+        final serverError = result['error']?.toString();
+        if (serverError == 'qa_budget_exhausted') {
+          if (!mounted) return;
+          CoverWiseSnackBar.warning(
+            context,
+            'No server-verified questions remain. Buy a Q&A pack or renew your plan.',
+            actionLabel: S.getPacks,
+            onAction: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const QaPacksScreen()),
+            ),
+          );
+          return;
+        }
+        if (serverError == 'qa_usage_unavailable') {
+          if (!mounted) return;
+          CoverWiseSnackBar.error(
+            context,
+            'Question usage could not be verified. Please try again.',
+            operation: 'verify question usage',
+          );
+          return;
+        }
         if (!mounted) return;
-        CoverWiseSnackBar.error(
-            context, S.qaCouldNotGetAnswer(result['error'] ?? ''));
+        // The response error is untrusted server data. Route it through the
+        // centralized safe mapping instead of rendering raw backend text.
+        final safeMessage = AppError.userMessage(
+          Exception(result['error']?.toString() ?? 'query failed'),
+        );
+        CoverWiseSnackBar.error(context, safeMessage,
+            operation: 'ask question');
         return;
       }
 
@@ -284,8 +320,10 @@ class QaScreenState extends ConsumerState<QaScreen>
       if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
         return;
       }
-      CoverWiseSnackBar.error(context, AppError.userMessage(e));
+      CoverWiseSnackBar.error(context, AppError.userMessage(e),
+          operation: 'ask question');
     } finally {
+      _questionRequestInFlight = false;
       if (mounted && widget.isActive) {
         ref.read(isLoadingProvider.notifier).state = false;
       }
@@ -977,15 +1015,81 @@ class _HistoryTabState extends State<_HistoryTab> {
   }
 }
 
-class _AnswerCard extends StatefulWidget {
+class _AnswerCard extends ConsumerStatefulWidget {
   final QaAnswer answer;
   const _AnswerCard({required this.answer});
 
   @override
-  State<_AnswerCard> createState() => _AnswerCardState();
+  ConsumerState<_AnswerCard> createState() => _AnswerCardState();
 }
 
-class _AnswerCardState extends State<_AnswerCard> {
+/// Navigates to the source document at a specific page for citation verification.
+Future<void> _navigateToSource(
+  BuildContext context,
+  WidgetRef ref,
+  String documentId,
+  int page,
+) async {
+  final documents = ref.read(documentsProvider).valueOrNull ?? [];
+  final doc = documents
+      .where((d) => d.id == documentId || d.remoteId == documentId)
+      .firstOrNull;
+  if (doc == null) {
+    if (!context.mounted) return;
+    CoverWiseSnackBar.error(context, S.qaNoSourceDocument,
+        operation: 'view source');
+    return;
+  }
+
+  // If the document has a local file, navigate directly to preview
+  if (doc.localFilePath != null) {
+    if (!context.mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DocumentPreviewScreen(
+          filePath: doc.localFilePath!,
+          filename: doc.filename,
+          documentId: doc.remoteId,
+          initialPage: page,
+        ),
+      ),
+    );
+    return;
+  }
+
+  // If remote-only, try to cache the source first
+  if (doc.remoteId != null) {
+    try {
+      final cached = await ref
+          .read(documentServiceProvider)
+          .cacheRemoteSource(doc.id);
+      if (!context.mounted) return;
+      ref.invalidate(documentsProvider);
+      if (cached.localFilePath == null) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DocumentPreviewScreen(
+            filePath: cached.localFilePath!,
+            filename: cached.filename,
+            documentId: cached.remoteId,
+            initialPage: page,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      CoverWiseSnackBar.error(
+        context,
+        S.qaNoSourceDocument,
+        operation: 'view source',
+      );
+    }
+  }
+}
+
+class _AnswerCardState extends ConsumerState<_AnswerCard> {
   int? _feedback; // 1 = helpful, -1 = not helpful, null = not yet
   bool _copied = false;
   int _copyAcknowledgement = 0;
@@ -1009,8 +1113,6 @@ class _AnswerCardState extends State<_AnswerCard> {
     // Find the parent QaScreenState and trigger the question
     final qaState = context.findAncestorStateOfType<QaScreenState>();
     if (qaState == null) return;
-    // Set loading state immediately so the UI shows a spinner
-    qaState.ref.read(isLoadingProvider.notifier).state = true;
     try {
       await qaState._askQuestion(question);
     } catch (e) {
@@ -1112,45 +1214,78 @@ class _AnswerCardState extends State<_AnswerCard> {
                               ? S.qaCitationSource(entry.key + 1)
                               : S.qaCitationSourcePage(entry.key + 1, page);
                           final displayStatus = status ?? S.qaCitationUnknown;
+                          // Navigate to document preview at the cited page
+                          final documentId = answer.documentId;
+                          final pageInt = page is int
+                              ? page
+                              : int.tryParse(page?.toString() ?? '');
+                          final hasPage = pageInt != null && pageInt > 0;
+
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
+                            child: Material(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                              child: InkWell(
                                 borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(citationIcon, size: 16),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(label,
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 12)),
-                                        ),
-                                        Flexible(
-                                          child: Text(displayStatus,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                  fontSize: 11)),
-                                        ),
+                                onTap: hasPage && documentId.isNotEmpty
+                                    ? () => _navigateToSource(
+                                        context,
+                                        ref,
+                                        documentId,
+                                        pageInt,
+                                      )
+                                    : null,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(citationIcon, size: 16),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(label,
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 12)),
+                                          ),
+                                          if (hasPage && documentId.isNotEmpty)
+                                            Text(
+                                              S.qaViewSource,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              ),
+                                            ),
+                                          if (hasPage && documentId.isNotEmpty)
+                                            const Icon(
+                                              Icons.open_in_new,
+                                              size: 14,
+                                            ),
+                                          const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(displayStatus,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    fontSize: 11)),
+                                          ),
+                                        ],
+                                      ),
+                                      if (quote != null && quote.isNotEmpty) ...[
+                                        const SizedBox(height: 5),
+                                        Text('“$quote”',
+                                            style: const TextStyle(fontSize: 13)),
                                       ],
-                                    ),
-                                    if (quote != null && quote.isNotEmpty) ...[
-                                      const SizedBox(height: 5),
-                                      Text('“$quote”',
-                                          style: const TextStyle(fontSize: 13)),
                                     ],
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1263,6 +1398,8 @@ class _AnswerCardState extends State<_AnswerCard> {
 /// When multiple documents are queried, the source's [documentId] is resolved
 /// to a human-readable document name via [documentsProvider]. This lets users
 /// verify which policy each fact was extracted from.
+///
+/// Tap to navigate to the source document at the relevant page.
 class _SourceCard extends ConsumerWidget {
   final QaSource source;
   const _SourceCard({required this.source});
@@ -1270,23 +1407,108 @@ class _SourceCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final documents = ref.watch(documentsProvider).valueOrNull ?? [];
-    final docName = source.documentId.isNotEmpty
+    final doc = source.documentId.isNotEmpty
         ? documents
             .where((d) =>
                 d.id == source.documentId || d.remoteId == source.documentId)
-            .map((d) => d.filename)
             .firstOrNull
         : null;
+    final docName = doc?.filename;
+    final hasPage =
+        source.pageNumber != null && source.pageNumber! > 0;
 
     final title = <String>[
       if (docName != null) docName,
-      if (source.pageNumber != null) 'Page ${source.pageNumber}',
+      if (hasPage) S.qaSourcePageLabel(source.pageNumber!),
     ].join(' · ');
 
-    return CoverWiseInfoPanel(
-      icon: Icons.menu_book_outlined,
-      title: title.isNotEmpty ? title : 'Policy source',
-      body: source.text,
+    // Show relevance score as a percentage (score is 0.0–1.0)
+    final scorePercent = (source.score * 100).round();
+
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: hasPage && doc != null
+            ? () => _navigateToSource(
+                context,
+                ref,
+                source.documentId,
+                source.pageNumber!,
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.menu_book_outlined, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      title.isNotEmpty ? title : S.qaPolicySource,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  // Relevance score badge with tooltip
+                  Tooltip(
+                    message: S.qaRelevanceTooltip,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: scorePercent >= 80
+                            ? Colors.green.withValues(alpha: 0.1)
+                            : scorePercent >= 50
+                                ? Colors.orange.withValues(alpha: 0.1)
+                                : Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$scorePercent%',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: scorePercent >= 80
+                              ? Colors.green
+                              : scorePercent >= 50
+                                  ? Colors.orange
+                                  : Colors.red,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (hasPage && doc != null) ...[
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.open_in_new,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                source.text,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

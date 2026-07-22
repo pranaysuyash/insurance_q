@@ -15,11 +15,13 @@ Step 1 verify proves the SQL contract; the real-Supabase
 load is T0 (operational, deferred to the operator).
 """
 
+import asyncio
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from uuid import uuid4
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -106,6 +108,7 @@ def _outbox_job(**overrides) -> OutboxJob:
         attempts=0,
         max_attempts=5,
         next_attempt_at="2026-07-19T10:00:00+00:00",
+        lease_token=uuid4(),
         created_at="2026-07-19T10:00:00+00:00",
         updated_at="2026-07-19T10:00:00+00:00",
     )
@@ -199,6 +202,21 @@ def test_find_by_payload_field_returns_existing_job():
     assert str(job_id) == "00000000-0000-0000-0000-000000000001"
 
 
+def test_find_by_payload_field_can_limit_to_active_jobs():
+    svc = _service_with_mocked_client()
+    svc._client.table.return_value.select.return_value.eq.return_value.contains.return_value.in_.return_value.limit.return_value.execute.return_value.data = [
+        {"id": "00000000-0000-0000-0000-000000000001"}
+    ]
+    import asyncio
+    job_id = asyncio.run(svc.find_by_payload_field(
+        JobType.ACCOUNT_DELETION,
+        "request_id",
+        "request-1",
+        active_only=True,
+    ))
+    assert str(job_id) == "00000000-0000-0000-0000-000000000001"
+
+
 # --- 5. claim ---
 
 def test_claim_returns_none_when_no_pending_jobs():
@@ -220,6 +238,7 @@ def test_claim_returns_job_when_pending_exists():
         "max_attempts": 5,
         "next_attempt_at": "2026-07-19T10:00:00+00:00",
         "lease_expires_at": None,
+        "lease_token": "00000000-0000-0000-0000-000000000002",
         "last_error": None,
         "partition_key": None,
         "created_at": "2026-07-19T10:00:00+00:00",
@@ -251,6 +270,7 @@ def test_claim_returns_none_when_lost_race():
         "max_attempts": 5,
         "next_attempt_at": "2026-07-19T10:00:00+00:00",
         "lease_expires_at": None,
+        "lease_token": "00000000-0000-0000-0000-000000000002",
         "last_error": None,
         "partition_key": None,
         "created_at": "2026-07-19T10:00:00+00:00",
@@ -273,7 +293,7 @@ def test_complete_marks_job_as_completed():
     ]
     import asyncio
     from uuid import uuid4
-    asyncio.run(svc.complete(uuid4()))
+    asyncio.run(svc.complete(uuid4(), uuid4()))
     # Verify the update set status=completed and cleared the lease
     call_args = svc._client.table.return_value.update.call_args
     update_row = call_args[0][0]
@@ -286,7 +306,7 @@ def test_fail_with_attempts_under_max_requeues():
     re-queued with status=pending and a backoff. The next
     attempt will be eligible at next_attempt_at=now()+backoff."""
     svc = _service_with_mocked_client()
-    svc._client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+    svc._client.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
         {"attempts": 1, "max_attempts": 5}
     ]
     svc._client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
@@ -294,7 +314,7 @@ def test_fail_with_attempts_under_max_requeues():
     ]
     import asyncio
     from uuid import uuid4
-    new_status = asyncio.run(svc.fail(uuid4(), "boom", backoff_seconds=4))
+    new_status = asyncio.run(svc.fail(uuid4(), uuid4(), "boom", backoff_seconds=4))
     assert new_status == JobStatus.PENDING
     call_args = svc._client.table.return_value.update.call_args
     update_row = call_args[0][0]
@@ -304,7 +324,7 @@ def test_fail_with_attempts_under_max_requeues():
 
 def test_fail_with_attempts_at_max_goes_to_dead_letter():
     svc = _service_with_mocked_client()
-    svc._client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+    svc._client.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
         {"attempts": 5, "max_attempts": 5}
     ]
     svc._client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
@@ -312,13 +332,13 @@ def test_fail_with_attempts_at_max_goes_to_dead_letter():
     ]
     import asyncio
     from uuid import uuid4
-    new_status = asyncio.run(svc.fail(uuid4(), "exhausted", backoff_seconds=0))
+    new_status = asyncio.run(svc.fail(uuid4(), uuid4(), "exhausted", backoff_seconds=0))
     assert new_status == JobStatus.DEAD_LETTER
 
 
 def test_fail_truncates_long_error_messages():
     svc = _service_with_mocked_client()
-    svc._client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+    svc._client.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
         {"attempts": 1, "max_attempts": 5}
     ]
     svc._client.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
@@ -327,7 +347,7 @@ def test_fail_truncates_long_error_messages():
     import asyncio
     from uuid import uuid4
     long_error = "x" * 5000
-    asyncio.run(svc.fail(uuid4(), long_error, backoff_seconds=4))
+    asyncio.run(svc.fail(uuid4(), uuid4(), long_error, backoff_seconds=4))
     call_args = svc._client.table.return_value.update.call_args
     update_row = call_args[0][0]
     # The last_error must be truncated to <= 1000 chars to fit
@@ -360,7 +380,83 @@ def test_dispatcher_dispatches_claimed_job_to_handler():
     processed = asyncio.run(dispatcher.dispatch_one())
     assert processed is True
     handler.assert_awaited_once_with(job)
-    outbox.complete.assert_awaited_once_with(job_id=job.id)
+    outbox.complete.assert_awaited_once_with(
+        job_id=job.id, lease_token=job.lease_token
+    )
+
+
+def test_dispatcher_renews_lease_for_long_running_handler():
+    outbox = MagicMock()
+    job = _outbox_job()
+    outbox.claim = AsyncMock(return_value=ClaimResult(job=job, lease_seconds=1))
+    outbox.extend_lease = AsyncMock(return_value=True)
+    outbox.complete = AsyncMock()
+    outbox.fail = AsyncMock()
+    dispatcher = JobDispatcher(outbox)
+
+    async def handler(_job):
+        await asyncio.sleep(1.1)
+
+    dispatcher.register(JobType.DOCUMENT_PROCESSING, handler)
+    processed = asyncio.run(dispatcher.dispatch_one())
+
+    assert processed is True
+    outbox.extend_lease.assert_awaited()
+    outbox.complete.assert_awaited_once_with(
+        job_id=job.id, lease_token=job.lease_token
+    )
+
+
+def test_dispatcher_stops_handler_when_lease_fencing_fails():
+    outbox = MagicMock()
+    job = _outbox_job()
+    outbox.claim = AsyncMock(return_value=ClaimResult(job=job, lease_seconds=1))
+    outbox.extend_lease = AsyncMock(return_value=False)
+    outbox.complete = AsyncMock()
+    outbox.fail = AsyncMock()
+    dispatcher = JobDispatcher(outbox)
+    cancelled = asyncio.Event()
+
+    async def handler(_job):
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    dispatcher.register(JobType.DOCUMENT_PROCESSING, handler)
+    processed = asyncio.run(dispatcher.dispatch_one())
+
+    assert processed is True
+    assert cancelled.is_set()
+    outbox.complete.assert_not_awaited()
+    outbox.fail.assert_not_awaited()
+
+
+def test_dispatcher_stops_handler_when_lease_renewal_errors():
+    outbox = MagicMock()
+    job = _outbox_job()
+    outbox.claim = AsyncMock(return_value=ClaimResult(job=job, lease_seconds=1))
+    outbox.extend_lease = AsyncMock(side_effect=RuntimeError("queue unavailable"))
+    outbox.complete = AsyncMock()
+    outbox.fail = AsyncMock()
+    dispatcher = JobDispatcher(outbox)
+    cancelled = asyncio.Event()
+
+    async def handler(_job):
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    dispatcher.register(JobType.DOCUMENT_PROCESSING, handler)
+    processed = asyncio.run(dispatcher.dispatch_one())
+
+    assert processed is True
+    assert cancelled.is_set()
+    outbox.complete.assert_not_awaited()
+    outbox.fail.assert_not_awaited()
 
 
 def test_dispatcher_returns_false_when_no_job():

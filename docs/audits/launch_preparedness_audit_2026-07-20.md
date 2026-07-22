@@ -382,3 +382,32 @@ The following issues remain open and still prevent a public launch:
 **Prepared by:** Kimi Code CLI agent  
 **Method:** instruction-stack load → static backend/mobile audits via subagents → docs inventory → serve-sim iOS Simulator runtime verification → synthesis with existing 07-20 audits → focused P0 bug fixes and re-verification.  
 **Confidence in verdict:** High — the onboarding loop, consent API, release script, and migration blocker were each fixed and verified; the remaining open blockers are clearly scoped and do not require further debugging to identify.
+
+## Addendum — CI/release-gate implementation (2026-07-21)
+
+The earlier P1-07 gap is now implemented in `.github/workflows/ci.yml`: CI has
+a pinned Flutter 3.32.2 analyze/test/release-build job, and the Docker job
+publishes an immutable commit-SHA tag instead of only a mutable `:latest` tag.
+The hosted GitHub workflow has not been executed from this local session, so
+the implementation is Tier 1 static evidence until the next workflow run.
+
+The original flake8/black/isort gate was also replaced with a pinned critical
+static-safety gate (`ruff` `E9`/`F821` plus `compileall`) because the legacy
+configuration reported broad historical style debt across unrelated files.
+Formatting/import cleanup remains tracked debt; correctness checks now have a
+bounded, executable contract.
+
+## Addendum — billing and remote substrate status correction (2026-07-21)
+
+The earlier P0-06 wording is superseded by the current code and migration
+evidence: RevenueCat webhook authentication, idempotency, ordering, durable
+outbox reconciliation, and server-authoritative entitlement precedence are now
+implemented and covered by focused tests. The remote project now contains the
+billing ledger, policy-slot reservation, Q&A usage tables, and their service
+RPCs. Real RevenueCat sandbox delivery and external deployment remain Tier 3/4
+gates; they are not claimed as complete here.
+
+The Android signing-secret issue remains open and requires explicit credential
+rotation plus history cleanup approval. Migration-ledger reconciliation is also
+open: current remote objects are present, but the remote history is not a full
+mirror of the repository migration directory.

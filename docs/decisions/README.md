@@ -1,5 +1,8 @@
 # Decision Records Index
 
+- [ADR-2026-07-21-06 — Deployed launch health gate](ADR-2026-07-21-06-deployed-launch-health-gate.md)
+- [ADR-2026-07-21-07 — Remote Supabase migration-ledger reconciliation](ADR-2026-07-21-07-remote-supabase-migration-ledger-reconciliation.md)
+
 This file lists every architectural, product, integration, data-pipeline, payment, customer-facing, or operational decision made in CoverWise, with a link to the full decision record. Records follow the `motto_v4.md` decision-record schema (decision, date, context, options, chosen path, why, tradeoffs, assumptions, risks, validation, rollback, revisit triggers, links).
 
 A decision that is not recorded will be rediscovered and debated again.
@@ -24,6 +27,10 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-19-12 | 2026-07-19 | Operator trust model = 6 roles, server-enforced RBAC, audit trail, reason-required, TTL, revocation; OIDC deferred | **Accepted (revision 1, operator sign-off 2026-07-19)** | [link](./ADR-2026-07-19-12-operator-trust-model.md) |
 | ADR-2026-07-21-01 | 2026-07-21 | Canonical CoverWise user journey map separates ideal/current/future/rejected journeys and preserves evidence tiers | Accepted | [link](./ADR-2026-07-21-01-canonical-user-journey-map.md) |
 | ADR-2026-07-21-03 | 2026-07-21 | Value-first guest access with an account conversion boundary; account-first remains an experiment decision | Proposed | [link](./ADR-2026-07-21-03-guest-first-account-conversion.md) |
+| ADR-2026-07-21-04 | 2026-07-21 | Governed evaluation and scheduled retention execution | Accepted for implementation | [link](./ADR-2026-07-21-04-governed-evaluation-and-retention-execution.md) |
+| ADR-2026-07-21-05 | 2026-07-21 | Capability-routed document intelligence and source evidence | Proposed for implementation | [link](./ADR-2026-07-21-05-document-intelligence-router-and-evidence-contract.md) |
+| ADR-2026-07-21-06 | 2026-07-21 | Deployed launch verification requires full service health | Accepted for implementation | [link](./ADR-2026-07-21-06-deployed-launch-health-gate.md) |
+| ADR-2026-07-21-07 | 2026-07-21 | Reconcile remote Supabase migration history before normal pushes | Accepted for implementation | [link](./ADR-2026-07-21-07-remote-supabase-migration-ledger-reconciliation.md) |
 | ADR-2026-07-21-04 | 2026-07-21 | Governed evaluation manifests and scheduled retention execution | Accepted for implementation | [link](./ADR-2026-07-21-04-governed-evaluation-and-retention-execution.md) |
 | ADR-2026-07-21-05 | 2026-07-21 | Capability-routed document intelligence with one source-preserving CIR and evidence contract | Proposed for implementation | [link](./ADR-2026-07-21-05-document-intelligence-router-and-evidence-contract.md) |
 

@@ -164,7 +164,7 @@ class _UpgradeScreenState extends ConsumerState<UpgradeScreen> {
     final billing = ref.read(billingAdapterProvider);
     final opened = await billing.manageSubscription();
     if (!opened && context.mounted) {
-      CoverWiseSnackBar.error(context, 'Could not open subscription settings');
+      CoverWiseSnackBar.error(context, 'Could not open subscription settings', operation: 'manage subscription');
     }
   }
 }
@@ -494,7 +494,7 @@ class _PlanCard extends ConsumerWidget {
 
       if (!context.mounted) return;
 
-      if (result != null) {
+      if (result?.planTier == tier) {
         AnalyticsService.track('plan_purchase_completed', {
           'plan_tier': tier.name,
         });
@@ -504,8 +504,12 @@ class _PlanCard extends ConsumerWidget {
       } else {
         AnalyticsService.track('plan_purchase_failed', {
           'plan_tier': tier.name,
-          'reason': 'user_cancelled',
+          'reason': 'not_completed',
         });
+        CoverWiseSnackBar.info(
+          context,
+          'Purchase was not completed. No plan changes were made.',
+        );
       }
     } catch (e) {
       if (!context.mounted) return;
@@ -513,8 +517,10 @@ class _PlanCard extends ConsumerWidget {
         'plan_tier': tier.name,
         'reason': 'error',
       });
-      final msg = AppError.userMessage(e);
-      CoverWiseSnackBar.error(context, msg.isEmpty ? 'Purchase was cancelled.' : msg);
+      final msg = AppError.contextual(error: e, operation: 'purchase');
+      if (msg.isNotEmpty) {
+        CoverWiseSnackBar.error(context, msg, operation: 'purchase plan');
+      }
     } finally {
       onEndPurchase();
     }

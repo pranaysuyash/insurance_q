@@ -22,6 +22,13 @@ MAX_IMAGE_PIXELS: Final = 40_000_000
 SUPPORTED_EXTENSIONS: Final = frozenset(
     {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp"}
 )
+# These formats are supported by the internal text-processing path for
+# fixtures, migrations, and explicitly composed non-upload workflows. They
+# are intentionally not public policy-upload formats until their product
+# validation and evidence UX are designed.
+TEXT_FALLBACK_EXTENSIONS: Final = frozenset(
+    {".txt", ".md", ".csv", ".json", ".xml", ".html"}
+)
 
 
 class UploadValidationError(ValueError):

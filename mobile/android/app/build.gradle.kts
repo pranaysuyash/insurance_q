@@ -14,6 +14,23 @@ val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
+val productionReleaseBuild = System.getenv("COVERWISE_RELEASE_BUILD") == "true"
+val requiredSigningProperties = listOf("storePassword", "keyPassword", "keyAlias", "storeFile")
+val missingSigningProperties = requiredSigningProperties.filterNot(keystoreProperties::containsKey)
+val configuredStoreFile = keystoreProperties.getProperty("storeFile")
+val releaseStoreFile = configuredStoreFile?.let {
+    val configured = File(it)
+    if (configured.isAbsolute) configured else rootProject.file(it)
+}
+if (productionReleaseBuild) {
+    if (missingSigningProperties.isNotEmpty() || releaseStoreFile == null || !releaseStoreFile.isFile) {
+        throw GradleException(
+            "Production release requires mobile/android/key.properties with " +
+                "storePassword, keyPassword, keyAlias, and an existing storeFile; " +
+                "refusing to fall back to the debug keystore."
+        )
+    }
+}
 
 android {
     namespace = "com.coverwise.app"
@@ -35,7 +52,7 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            storeFile = releaseStoreFile
             storePassword = keystoreProperties["storePassword"] as String?
         }
     }

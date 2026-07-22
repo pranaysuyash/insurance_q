@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,6 +10,7 @@ from src.models.user import User
 from src.services.identity_link_service import begin as begin_identity_link
 from src.services.identity_link_service import complete as complete_identity_link
 from src.services.identity_link_service import fail as fail_identity_link
+from src.utils.runtime_config import supabase_server_key
 
 router = APIRouter(prefix="/user", tags=["user"])
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -166,6 +168,21 @@ def export_account(current_user: User = Depends(get_current_user)):
     return _account_export(current_user)
 
 
+@router.get("/account/deletion-status")
+def account_deletion_status(current_user: User = Depends(get_current_user)):
+    """Read the authenticated account's latest durable deletion state."""
+    if not current_user.is_account:
+        raise HTTPException(status_code=403, detail="Only account users can read deletion status")
+    if os.getenv("ENVIRONMENT", "development").lower() != "production":
+        return {"status": "none", "request_id": None}
+    try:
+        from src.services.account_lifecycle_service import get_deletion_status
+
+        return get_deletion_status(current_user.uid)
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="Account deletion status is temporarily unavailable") from error
+
+
 @router.delete("/account", status_code=202)
 def delete_account(current_user: User = Depends(get_current_user)):
     """Request deletion of the user's account and all associated data.
@@ -195,7 +212,10 @@ def delete_account(current_user: User = Depends(get_current_user)):
             outbox = JobOutboxService.from_env()
             import asyncio
             existing_job = asyncio.run(outbox.find_by_payload_field(
-                JobType.ACCOUNT_DELETION, "request_id", request["id"]
+                JobType.ACCOUNT_DELETION,
+                "request_id",
+                request["id"],
+                active_only=True,
             ))
             if existing_job is None:
                 try:
@@ -207,7 +227,10 @@ def delete_account(current_user: User = Depends(get_current_user)):
                     # Concurrent retries are converged by the unique payload
                     # index; re-read before treating the request as failed.
                     existing_job = asyncio.run(outbox.find_by_payload_field(
-                        JobType.ACCOUNT_DELETION, "request_id", request["id"]
+                        JobType.ACCOUNT_DELETION,
+                        "request_id",
+                        request["id"],
+                        active_only=True,
                     ))
                     if existing_job is None:
                         raise
@@ -255,7 +278,7 @@ def delete_account(current_user: User = Depends(get_current_user)):
         from supabase import create_client
 
         supabase_url = os.getenv("SUPABASE_URL", "")
-        service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+        service_role_key = supabase_server_key()
 
         if supabase_url and service_role_key:
             admin_client = create_client(supabase_url, service_role_key)

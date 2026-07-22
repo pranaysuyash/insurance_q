@@ -27,12 +27,48 @@ for url_name in COVERWISE_API_BASE_URL COVERWISE_PRIVACY_POLICY_URL COVERWISE_TE
   fi
 done
 
+for public_value_name in COVERWISE_API_BASE_URL COVERWISE_PRIVACY_POLICY_URL COVERWISE_TERMS_OF_SERVICE_URL SUPABASE_URL SUPABASE_PUBLISHABLE_KEY REVENUECAT_API_KEY; do
+  public_value="${!public_value_name}"
+  if [[ "${public_value}" == *"..."* || "${public_value}" == *"example.com"* || "${public_value}" == *"your-"* || "${public_value}" == *"project.supabase.co"* ]]; then
+    echo "${public_value_name} contains a placeholder value" >&2
+    exit 2
+  fi
+done
+if [[ "${SUPABASE_URL}" != https://* ]]; then
+  echo "SUPABASE_URL must start with https://" >&2
+  exit 2
+fi
+if [[ "${REVENUECAT_API_KEY}" == sk_* || "${REVENUECAT_API_KEY}" == atk_* ]]; then
+  echo "REVENUECAT_API_KEY must be a public SDK key, not a secret or OAuth credential" >&2
+  exit 2
+fi
+
 if [[ ! "${COVERWISE_SUPPORT_EMAIL}" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; then
   echo "COVERWISE_SUPPORT_EMAIL must be a valid email address" >&2
   exit 2
 fi
 
-cd "$(dirname "$0")/../mobile"
+repo_root=$(git -C "$(dirname "$0")/.." rev-parse --show-toplevel)
+mobile_root="$repo_root/mobile"
+cd "$mobile_root"
+
+# A production artifact must never silently fall back to the debug keystore.
+# The historical root-level android/key.properties is not a valid signing
+# source for this Flutter module and must be rotated/removed separately.
+for tracked_key_properties in \
+  "$repo_root/android/key.properties" \
+  "$mobile_root/android/key.properties"; do
+  relative_key_properties="${tracked_key_properties#"$repo_root/"}"
+  if git -C "$repo_root" ls-files --error-unmatch "$relative_key_properties" >/dev/null 2>&1; then
+    echo "refusing release: tracked ${relative_key_properties} must be rotated and removed from version control" >&2
+    exit 2
+  fi
+done
+if [[ ! -f "$mobile_root/android/key.properties" ]]; then
+  echo "refusing release: mobile/android/key.properties is required for production signing" >&2
+  exit 2
+fi
+export COVERWISE_RELEASE_BUILD=true
 flutter analyze
 flutter test
 flutter build appbundle --release \

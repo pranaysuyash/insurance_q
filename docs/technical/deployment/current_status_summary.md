@@ -7,6 +7,14 @@
 
 ### ✅ Play Store Ready
 - **Flutter App Bundle**: `mobile/build/app/outputs/bundle/release/app-release.aab` (26.6MB) ✅ **READY**
+
+## Addendum (2026-07-21)
+
+The bundle statement above is historical staging evidence, not a current file
+presence claim. The ignored `mobile/build/` output was moved to Trash after a
+live disk-pressure check; regenerate the bundle with real release values after
+the machine has sufficient free space. No source or signing material was
+removed.
 - **Release APK**: `mobile/build/app/outputs/flutter-apk/app-release.apk` (51.5MB) ✅ **READY**
 - **API Integration**: Flutter app configured for Azure backend
 - **Offline Functionality**: Robust local storage with SQLite fallback
@@ -163,3 +171,25 @@ The Insurance Policy Assistant app is **READY FOR PLAY STORE DEPLOYMENT**. While
 - Iterative improvement approach
 
 **Ready to launch! 🚀** 
+
+## Current evidence correction — 2026-07-21
+
+The conclusion above is a historical deployment snapshot and is superseded by
+the executable launch record in
+`docs/review/launch_execution_status_2026-07-21.md`. The current checkout has
+strong local evidence, including 407 backend tests, 636 mobile tests, a clean
+Flutter analyzer, a clean local Supabase schema, and passing local launch
+verification. It is not yet a production-launch approval: the remote schema,
+production secrets, real RevenueCat delivery, release signing, and external
+deployment remain unverified. The historical text is retained for provenance;
+the current launch decision must follow the dated execution record.
+
+## Current evidence addendum — 2026-07-21
+
+The remote CoverWise project has since been checked through its read-only
+Management API path. All 46 repository-declared tables are present, including
+the production policy-slot and Q&A usage substrate, and the six corresponding
+reservation RPCs are present with service-role-only execution. The canonical
+remote schema verifier passes. This closes the earlier remote-schema absence
+statement, but does not close provider credentials, release signing, external
+deployment, real RevenueCat delivery, or migration-ledger reconciliation.

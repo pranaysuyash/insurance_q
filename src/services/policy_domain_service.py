@@ -5,11 +5,12 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from typing import Any, Optional
+from src.utils.runtime_config import supabase_server_key
 
 
 def _client() -> Optional[Any]:
     url = os.getenv("SUPABASE_URL", "").strip()
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    key = supabase_server_key()
     if not url or not key:
         if os.getenv("ENVIRONMENT", "development").lower() == "production":
             raise RuntimeError("Supabase policy domain is required in production")

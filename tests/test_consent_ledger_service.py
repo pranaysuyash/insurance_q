@@ -54,13 +54,14 @@ def test_constructor_rejects_empty_inputs():
 # --- 2. ConsentType enum matches SQL CHECK ---
 
 def test_consent_type_enum_matches_sql_check():
-    """The SQL CHECK lists 4 consent types. The enum must
+    """The SQL CHECK lists the consent types. The enum must
     match exactly. Drift here means a write that the DB
     rejects (the trigger is the append-only enforcement;
     the CHECK is the type validation)."""
     expected = {
-        "privacy_policy", "analytics",
-        "marketing_emails", "camera_access",
+        "privacy_policy", "document_processing", "analytics",
+        "marketing_emails", "camera_access", "evaluation_dataset",
+        "model_improvement",
     }
     actual = {ct.value for ct in ConsentType}
     assert actual == expected

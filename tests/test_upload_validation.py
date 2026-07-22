@@ -4,7 +4,11 @@ import fitz
 import pytest
 from PIL import Image
 
-from src.utils.upload_validation import UploadValidationError, validate_upload_content
+from src.utils.upload_validation import (
+    TEXT_FALLBACK_EXTENSIONS,
+    UploadValidationError,
+    validate_upload_content,
+)
 
 
 def _image_bytes(image_format: str = "PNG") -> bytes:
@@ -36,6 +40,13 @@ def test_rejects_unsupported_office_documents_instead_of_binary_fallback():
     with pytest.raises(UploadValidationError) as error:
         validate_upload_content("policy.docx", b"PK\x03\x04")
     assert error.value.code == "unsupported_file_type"
+
+
+def test_text_fallback_formats_are_explicit_and_not_public_upload_formats():
+    assert TEXT_FALLBACK_EXTENSIONS == {".txt", ".md", ".csv", ".json", ".xml", ".html"}
+    assert TEXT_FALLBACK_EXTENSIONS.isdisjoint(
+        {".docx", ".xlsx", ".pptx", ".eml", ".bin"}
+    )
 
 
 def test_rejects_pdf_over_the_page_budget():

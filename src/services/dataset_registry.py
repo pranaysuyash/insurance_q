@@ -9,9 +9,18 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
+from src.utils.runtime_config import supabase_server_key
+
 
 class DatasetRegistryError(Exception):
     """Dataset registry configuration or contract error."""
+
+
+_PURPOSE_CONSENT_TYPE = {
+    "evaluation": "evaluation_dataset",
+    "benchmark": "evaluation_dataset",
+    "training": "model_improvement",
+}
 
 
 class DatasetRegistry:
@@ -29,7 +38,7 @@ class DatasetRegistry:
 
     @classmethod
     def from_env(cls) -> "DatasetRegistry":
-        return cls(os.getenv("SUPABASE_URL", ""), os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""))
+        return cls(os.getenv("SUPABASE_URL", ""), supabase_server_key())
 
     async def create_release(
         self,
@@ -72,17 +81,65 @@ class DatasetRegistry:
             raise DatasetRegistryError(
                 "customer-derived dataset items require consent_record_id"
             )
+        if source_document_id and (not owner_id or not consent_record_id):
+            raise DatasetRegistryError(
+                "source-document dataset items require owner_id and consent_record_id"
+            )
+        if source_chunk_id is not None and not source_document_id:
+            raise DatasetRegistryError(
+                "source_chunk_id requires source_document_id"
+            )
+        if source_document_id:
+            source = (
+                self._client.table("documents")
+                .select("owner_id")
+                .eq("id", source_document_id)
+                .limit(1)
+                .execute()
+            )
+            if not source.data or source.data[0].get("owner_id") != owner_id:
+                raise DatasetRegistryError(
+                    "source document is missing or owned by a different principal"
+                )
         release = (
             self._client.table("dataset_releases")
-            .select("status,purpose")
+            .select("status,purpose,consent_policy_version")
             .eq("id", str(release_id))
             .limit(1)
             .execute()
         )
         if not release.data:
             raise DatasetRegistryError("dataset release does not exist")
-        if release.data[0]["status"] != "draft":
+        release_header = release.data[0]
+        if release_header["status"] != "draft":
             raise DatasetRegistryError("dataset items can only be added to draft releases")
+
+        if owner_id:
+            expected_consent_type = _PURPOSE_CONSENT_TYPE[release_header["purpose"]]
+            consent_policy_version = release_header.get("consent_policy_version")
+            if not consent_policy_version:
+                raise DatasetRegistryError(
+                    "customer-derived releases require consent_policy_version"
+                )
+            consent = (
+                self._client.table("v_current_consent")
+                .select("id,user_id,consent_type,granted,policy_version")
+                .eq("user_id", owner_id)
+                .eq("consent_type", expected_consent_type)
+                .limit(1)
+                .execute()
+            )
+            if (
+                not consent.data
+                or consent.data[0].get("id") != consent_record_id
+                or consent.data[0].get("user_id") != owner_id
+                or consent.data[0].get("consent_type") != expected_consent_type
+                or consent.data[0].get("granted") is not True
+                or consent.data[0].get("policy_version") != consent_policy_version
+            ):
+                raise DatasetRegistryError(
+                    "current consent does not authorize this dataset purpose"
+                )
         response = self._client.table("dataset_items").insert({
             "release_id": str(release_id),
             "owner_id": owner_id,

@@ -53,7 +53,8 @@ class HiveTestHelper {
       return _testDirectory!.path;
     });
 
-    _testDirectory ??= await Directory.systemTemp.createTemp('coverwise-hive-tests-');
+    _testDirectory ??=
+        await Directory.systemTemp.createTemp('coverwise-hive-tests-');
     await Hive.initFlutter(_testDirectory!.path);
 
     for (final name in _boxNames) {
@@ -68,14 +69,10 @@ class HiveTestHelper {
   /// Safe to call even if boxes aren't open.
   static Future<void> tearDown() async {
     AnalyticsService.dispose();
-    try {
-      // Do not close boxes individually, Hive.close() and box.close() are known to hang
-      // in some test environments due to isolate deadlocks. The directory will be cleared on next run anyway.
-      final dir = _testDirectory;
-      if (dir != null && dir.existsSync()) {
-        await dir.delete(recursive: true);
-      }
-      _testDirectory = null;
-    } catch (_) {}
+    // Do not close boxes individually, and do not await recursive deletion of
+    // an open Hive directory. Both operations can deadlock the test isolate.
+    // The directory is intentionally process-scoped temporary test data; the
+    // OS/test runner owns its cleanup after the isolate exits.
+    _testDirectory = null;
   }
 }

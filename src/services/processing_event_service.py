@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import Any, Optional
 
+from src.utils.runtime_config import supabase_server_key
+
 
 class ProcessingEventService:
     def __init__(self, client: Optional[Any] = None):
@@ -12,7 +14,7 @@ class ProcessingEventService:
             self._client = client
             return
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        key = supabase_server_key()
         if not url or not key:
             raise RuntimeError("Supabase processing event configuration is required")
         from supabase import create_client

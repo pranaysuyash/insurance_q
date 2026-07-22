@@ -87,11 +87,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     if (field == 'start_date' || field == 'end_date') {
       if (!isValidDate(value)) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enter a valid date (DD/MM/YYYY, MM/DD/YYYY, or DD-MM-YYYY)'),
-            duration: Duration(seconds: 3),
-          ),
+        CoverWiseSnackBar.warning(
+          context,
+          'Please enter a valid date (DD/MM/YYYY, MM/DD/YYYY, or DD-MM-YYYY)',
         );
         return;
       }
@@ -258,12 +256,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
               // document preview at the cited page. v2 of the
               // highlight overlay (Trust Phase 2 follow-up) will
               // draw the cited span directly on the page image.
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Opening page $pageNumber from the source document…'),
-                  duration: const Duration(seconds: 2),
-                ),
+              CoverWiseSnackBar.info(
+                context,
+                'Opening page $pageNumber from the source document…',
               );
               _openDocumentPreview(context, ref, initialPage: pageNumber);
             },

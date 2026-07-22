@@ -1,0 +1,12 @@
+# Canonical production document-processing image.
+#
+# Keep the slim dependency contract in requirements.txt available for tooling,
+# but the customer-facing API image must be able to process scanned documents
+# without silently degrading to "digital PDF only" behavior. This profile adds
+# the same pinned local OCR runtime used by the strict document benchmark.
+-r requirements.txt
+
+pdf2image==1.17.0
+torch==2.1.0
+torchvision==0.16.0
+python-doctr[torch]==0.7.0

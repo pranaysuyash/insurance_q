@@ -29,6 +29,10 @@ def _skipped_stage(reason: str = "service unavailable"):
     return {"status": "skipped", "reason": reason}
 
 
+def _partial_stage(reason: str = "some pages unresolved"):
+    return {"status": "partial", "reason": reason}
+
+
 def test_full_mode_with_all_stages_completed_is_ready():
     stages = {
         "file_storage": _completed_stage(),
@@ -49,6 +53,19 @@ def test_full_mode_with_ocr_failure_is_ocr_required():
     }
     state = derive_document_state("full", stages, policy_summary_present=False)
     assert state == "ocr_required", f"expected ocr_required, got {state}"
+
+
+def test_mixed_document_with_unresolved_scan_pages_is_partial():
+    stages = {
+        "file_storage": _completed_stage(),
+        "ocr": _partial_stage(),
+        "policy_extraction": _skipped_stage("upstream partial text"),
+        "rag_ingestion": _skipped_stage("upstream partial text"),
+    }
+
+    state = derive_document_state("full", stages, policy_summary_present=False)
+
+    assert state == "partial"
 
 
 def test_full_mode_with_password_required_is_password_required():

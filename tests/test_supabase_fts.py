@@ -79,12 +79,23 @@ async def test_search_fts_document_ids_filter(vector_store, mock_supabase_client
 
 
 @pytest.mark.asyncio
+async def test_upsert_requires_owner_scope(vector_store):
+    with pytest.raises(ValueError, match="Supabase upsert requires an owner_id"):
+        await vector_store.upsert(
+            "doc-1",
+            [{"source_text": "policy text", "embedding_model": "test-model"}],
+            [[0.1] * 1536],
+        )
+
+
+@pytest.mark.asyncio
 async def test_upsert_rejects_noncanonical_embedding_dimension(vector_store):
     with pytest.raises(ValueError, match="1536-dimensional"):
         await vector_store.upsert(
             "doc-1",
             [{"source_text": "policy text", "embedding_model": "test-model"}],
             [[0.1, 0.2]],
+            owner_id="owner-1",
         )
 
 
@@ -125,3 +136,60 @@ async def test_adjacent_chunks_filter_targets_by_owner(vector_store, mock_supaba
     table.select.return_value.in_.return_value.eq.assert_called_with(
         "owner_id", "owner-1"
     )
+
+
+@pytest.mark.asyncio
+async def test_adjacent_chunks_falls_back_to_owner_scoped_chunk_order(vector_store):
+    class Query:
+        def __init__(self, rows, filters=None):
+            self.rows = rows
+            self.filters = filters or {}
+
+        def select(self, _columns):
+            return self
+
+        def in_(self, key, values):
+            self.filters[key] = set(values)
+            return self
+
+        def eq(self, key, value):
+            self.filters[key] = value
+            return self
+
+        def execute(self):
+            rows = []
+            for row in self.rows:
+                if "id" in self.filters and not any(
+                    str(row.get("id")) == str(value) for value in self.filters["id"]
+                ):
+                    continue
+                if "owner_id" in self.filters and row.get("owner_id") != self.filters["owner_id"]:
+                    continue
+                if "document_id" in self.filters and row.get("document_id") != self.filters["document_id"]:
+                    continue
+                if "chunk_index" in self.filters and row.get("chunk_index") not in self.filters["chunk_index"]:
+                    continue
+                rows.append(row)
+            return SimpleNamespace(data=rows)
+
+    rows = [
+        {"id": 1, "owner_id": "owner-1", "document_id": "doc-1", "chunk_index": 1,
+         "source_text": "source one", "retrieval_text": "context one", "metadata": {},
+         "section_type": "general"},
+        {"id": 2, "owner_id": "owner-1", "document_id": "doc-1", "chunk_index": 2,
+         "source_text": "source two", "retrieval_text": "context two", "metadata": {},
+         "section_type": "benefit"},
+    ]
+
+    class Client:
+        def table(self, name):
+            if name == "chunk_links":
+                return Query([])
+            return Query(rows)
+
+    vector_store._client = Client()
+    result = await vector_store.get_adjacent_chunks(["1"], owner_id="owner-1")
+
+    assert [hit.id for hit in result] == ["2"]
+    assert result[0].payload["text_content"] == "context two"
+    assert result[0].payload["source_text"] == "source two"

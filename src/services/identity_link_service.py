@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import lru_cache
 
+from src.utils.runtime_config import supabase_server_key
+
 
 DB_PATH = "insurance_app.db"
 
@@ -29,7 +31,7 @@ class IdentityLink:
 @lru_cache(maxsize=1)
 def _supabase_client():
     url = os.getenv("SUPABASE_URL", "").strip()
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    key = supabase_server_key()
     if not url or not key:
         return None
     from supabase import create_client

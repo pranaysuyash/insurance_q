@@ -12,6 +12,8 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from src.utils.runtime_config import supabase_server_key
+
 
 class DocumentObjectStore:
     def put(self, document_id: str, owner_id: str, filename: str, content: bytes) -> str:
@@ -233,7 +235,7 @@ def create_document_object_store() -> DocumentObjectStore:
     if backend == "supabase":
         return SupabaseDocumentObjectStore(
             os.getenv("SUPABASE_URL", "").strip(),
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
+            supabase_server_key(),
             os.getenv("SUPABASE_STORAGE_BUCKET", "coverwise-documents").strip(),
         )
     raise RuntimeError(f"Unsupported DOCUMENT_OBJECT_STORE_BACKEND: {backend}")

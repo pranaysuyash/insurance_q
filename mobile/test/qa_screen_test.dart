@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:coverwise/models/document_model.dart';
@@ -11,6 +12,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:dio/dio.dart';
+import 'package:coverwise/providers/service_providers.dart';
+import 'package:coverwise/services/query_service.dart';
+
+class _BlockingQueryService extends QueryService {
+  _BlockingQueryService() : super(Dio());
+
+  int callCount = 0;
+  final Completer<Map<String, dynamic>> response =
+      Completer<Map<String, dynamic>>();
+
+  @override
+  Future<Map<String, dynamic>> queryDocument(String query,
+      {String? documentId}) {
+    callCount++;
+    return response.future;
+  }
+}
 
 void main() {
   setUpAll(() async {
@@ -50,17 +69,19 @@ void main() {
     }
   });
 
-  tearDownAll(() async {
-  });
+  tearDownAll(() async {});
 
   Widget buildQaScreen({
     List<InsuranceDocument> documents = const <InsuranceDocument>[],
     String? initialDocumentId,
+    QueryService? queryService,
   }) {
     return ProviderScope(
       overrides: [
         documentsProvider.overrideWith((ref) async => documents),
         selectedDocumentProvider.overrideWith((ref) => initialDocumentId),
+        if (queryService != null)
+          queryServiceProvider.overrideWithValue(queryService),
       ],
       child: MaterialApp(
         home: QaScreen(initialDocumentId: initialDocumentId),
@@ -149,6 +170,32 @@ void main() {
       await tester.pump();
 
       expect(find.text('What is my deductible?'), findsOneWidget);
+    });
+
+    testWidgets(
+        'ignores a second keyboard submission while a question is in flight',
+        (tester) async {
+      final queryService = _BlockingQueryService();
+      await tester.pumpWidget(buildQaScreen(queryService: queryService));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Your question'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'What is covered?');
+      await tester.showKeyboard(find.byType(TextField));
+
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump();
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump();
+
+      expect(queryService.callCount, 1);
+
+      queryService.response.complete({
+        'answer': 'Emergency care is covered.',
+        'sources': <String>[],
+      });
+      await tester.pump(const Duration(milliseconds: 100));
     });
   });
 

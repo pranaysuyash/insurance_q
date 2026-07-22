@@ -33,6 +33,30 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
+async def _health_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    """Answer Cloud Run liveness/readiness probes without touching the queue."""
+    try:
+        request = await asyncio.wait_for(reader.read(4096), timeout=2.0)
+        request_line = request.splitlines()[0].decode("ascii", errors="ignore") if request else ""
+        parts = request_line.split(" ")
+        path = parts[1] if len(parts) >= 2 else "/"
+        status = "200 OK" if path in {"/", "/healthz", "/readyz"} else "404 Not Found"
+        body = b'{"status":"ready","worker":"outbox"}' if status == "200 OK" else b'{"detail":"not found"}'
+        response = (
+            f"HTTP/1.1 {status}\r\n"
+            "Content-Type: application/json\r\n"
+            f"Content-Length: {len(body)}\r\n"
+            "Connection: close\r\n\r\n"
+        ).encode("ascii") + body
+        writer.write(response)
+        await writer.drain()
+    except (asyncio.TimeoutError, ConnectionError):
+        log.debug("worker health client disconnected before response")
+    finally:
+        writer.close()
+        await writer.wait_closed()
+
+
 def _register_handlers(dispatcher: JobDispatcher) -> None:
     """Import and register all known job handlers. Each module
     that exposes a handler must call dispatcher.register() at
@@ -72,7 +96,14 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
     from src.services.account_lifecycle_service import process_deletion
 
     async def handle_account_deletion(job):
-        process_deletion(job.payload["request_id"], job.payload["account_uid"])
+        # The account lifecycle service uses the synchronous Supabase client.
+        # Keep its network I/O off the event loop so the worker can continue
+        # serving health probes and lease/retry control while deletion runs.
+        await asyncio.to_thread(
+            process_deletion,
+            job.payload["request_id"],
+            job.payload["account_uid"],
+        )
 
     dispatcher.register(JobType.ACCOUNT_DELETION, handle_account_deletion)
     log.info(
@@ -103,10 +134,17 @@ async def _main() -> None:
         loop.add_signal_handler(sig, _on_signal)
 
     poll_interval = float(os.getenv("OUTBOX_POLL_INTERVAL_SECONDS", "1.0"))
-    await dispatcher.run(
-        poll_interval_seconds=poll_interval,
-        stop_condition=stop.is_set,
-    )
+    port = int(os.getenv("PORT", "8080"))
+    health_server = await asyncio.start_server(_health_client, "0.0.0.0", port)
+    log.info("outbox worker health listener started on port %d", port)
+    try:
+        await dispatcher.run(
+            poll_interval_seconds=poll_interval,
+            stop_condition=stop.is_set,
+        )
+    finally:
+        health_server.close()
+        await health_server.wait_closed()
     log.info("outbox dispatcher worker exiting cleanly")
 
 

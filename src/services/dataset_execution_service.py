@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Awaitable, Callable, Optional
 from uuid import UUID
 
@@ -23,6 +24,7 @@ class DatasetExecutionError(RuntimeError):
 
 EvaluationResult = dict[str, Any]
 Evaluator = Callable[[dict[str, Any]], Awaitable[EvaluationResult]]
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _bounded_metrics(value: Any) -> dict[str, Any]:
@@ -46,6 +48,43 @@ def _bounded_metrics(value: Any) -> dict[str, Any]:
         else:
             raise DatasetExecutionError("evaluator metrics contain unsupported content")
     return safe
+
+
+def _canonical_output_bytes(output: Any) -> bytes:
+    """Serialize evaluator output deterministically for lineage hashing."""
+    if isinstance(output, bytes):
+        return output
+    if isinstance(output, bytearray):
+        return bytes(output)
+    if isinstance(output, str):
+        return output.encode("utf-8")
+    try:
+        return json.dumps(
+            output,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as error:
+        raise DatasetExecutionError(
+            "evaluator output must be text, bytes, or JSON-serializable"
+        ) from error
+
+
+def _output_hash(result: EvaluationResult) -> Optional[str]:
+    """Return a canonical output hash without accepting raw evaluator output."""
+    supplied = result.get("output_hash")
+    if supplied is not None:
+        if not isinstance(supplied, str) or not _SHA256_HEX.fullmatch(supplied):
+            raise DatasetExecutionError("evaluator output_hash must be SHA-256 hex")
+    output = result.get("output")
+    if output is not None:
+        computed = hashlib.sha256(_canonical_output_bytes(output)).hexdigest()
+        if supplied is not None and supplied != computed:
+            raise DatasetExecutionError("evaluator output_hash does not match output")
+        return computed
+    return supplied
 
 
 class DatasetExecutionService:
@@ -108,11 +147,7 @@ class DatasetExecutionService:
                         if not 0 <= score <= 1:
                             raise DatasetExecutionError("evaluator score must be between 0 and 1")
                         scores.append(score)
-                    output_hash = result.get("output_hash")
-                    if output_hash is None and result.get("output") is not None:
-                        output_hash = hashlib.sha256(
-                            str(result["output"]).encode("utf-8")
-                        ).hexdigest()
+                    output_hash = _output_hash(result)
                     self._client.table("model_run_results").upsert({
                         "model_run_id": str(run_id),
                         "dataset_item_id": str(item["id"]),

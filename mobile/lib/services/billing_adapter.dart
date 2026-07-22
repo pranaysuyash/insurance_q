@@ -17,9 +17,9 @@ import 'entitlement_service.dart';
 /// 2. Sync entitlement state from RevenueCat to our EntitlementService
 /// 3. Map provider-specific product IDs to our PlanTier / QaPackType enums
 ///
-/// RevenueCat handles receipt validation, subscription management, and
-/// cross-device sync. Our EntitlementService remains the local source of
-/// truth for feature gating (fast, offline-capable).
+/// RevenueCat handles store receipt validation and subscription management.
+/// The server ledger verifies consumable grants and is authoritative for Q&A;
+/// EntitlementService is only a local mirror for responsive UI.
 class BillingAdapter {
   final EntitlementService _entitlementService;
   static bool _initialized = false;
@@ -109,6 +109,7 @@ class BillingAdapter {
       final customerInfo = await Purchases.getCustomerInfo();
       await _applyCustomerInfo(customerInfo);
       await _syncServerEntitlement(customerInfo);
+      await _syncServerPackBalance();
     } catch (e) {
       debugPrint('BillingAdapter: syncEntitlement failed: $e');
     }
@@ -177,6 +178,60 @@ class BillingAdapter {
     }
   }
 
+  /// Reconcile consumable packs from the server-owned ledger.
+  ///
+  /// A successful empty response is meaningful and clears stale local packs.
+  /// A failed or unverified response leaves the mirror untouched so a
+  /// temporary outage cannot erase a user's locally visible history.
+  Future<bool> _syncServerPackBalance() async {
+    try {
+      final response = await DocumentService.authenticatedDio.get(
+        AppConfig.qaPackBalanceEndpoint.replaceFirst(AppConfig.baseUrl, ''),
+      );
+      final data = response.data;
+      if (response.statusCode != 200 || data is! Map || data['verified'] != true) {
+        debugPrint('BillingAdapter: server pack balance is not verified');
+        return false;
+      }
+
+      final rawPacks = data['packs'];
+      if (rawPacks is! List) return false;
+      final packs = <QaPack>[];
+      for (final raw in rawPacks) {
+        if (raw is! Map) continue;
+        final productId = raw['product_id']?.toString();
+        final type = productId == null ? null : _packProductMap[productId];
+        final remaining = raw['questions_remaining'];
+        final purchasedAt = DateTime.tryParse(raw['purchased_at']?.toString() ?? '');
+        final expiresAt = DateTime.tryParse(raw['expires_at']?.toString() ?? '');
+        if (type == null || remaining is! num || purchasedAt == null || expiresAt == null) {
+          debugPrint('BillingAdapter: skipped malformed server pack grant');
+          continue;
+        }
+        final boundedRemaining = remaining.toInt().clamp(0, type.questionCount);
+        if (boundedRemaining == 0 || !expiresAt.isAfter(DateTime.now())) continue;
+        packs.add(QaPack(
+          type: type,
+          questionsRemaining: boundedRemaining,
+          purchasedAt: purchasedAt,
+          expiresAt: expiresAt,
+        ));
+      }
+      await _entitlementService.replacePacks(packs);
+      AnalyticsService.track('qa_pack_balance_reconciled', {
+        'pack_count': packs.length,
+        'questions_remaining': packs.fold<int>(
+          0,
+          (sum, pack) => sum + pack.questionsRemaining,
+        ),
+      });
+      return true;
+    } catch (e) {
+      debugPrint('BillingAdapter: server pack balance sync deferred: $e');
+      return false;
+    }
+  }
+
   // ── Subscription purchases ────────────────────────────────────────
 
   /// Attempt to purchase a plan upgrade.
@@ -237,9 +292,13 @@ class BillingAdapter {
 
       await Purchases.purchase(PurchaseParams.package(package));
 
-      // Consumable packs are confirmed — add to entitlement
-      await _entitlementService.addPack(pack);
-      debugPrint('BillingAdapter: purchased ${pack.name} pack');
+      // Store completion is not a server grant. The webhook may still be
+      // queued, so only a verified readback may add the local mirror.
+      final reconciled = await _syncServerPackBalance();
+      debugPrint(
+        'BillingAdapter: purchased ${pack.name} pack; '
+        'server_reconciled=$reconciled',
+      );
       return _entitlementService.current();
     } catch (e) {
       debugPrint('BillingAdapter: pack purchase error: $e');
@@ -270,6 +329,7 @@ class BillingAdapter {
     try {
       final customerInfo = await Purchases.restorePurchases();
       await _applyCustomerInfo(customerInfo);
+      await _syncServerPackBalance();
       debugPrint('BillingAdapter: purchases restored');
       return _entitlementService.current();
     } catch (e) {

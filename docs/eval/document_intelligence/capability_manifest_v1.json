@@ -1,0 +1,163 @@
+{
+  "schema_version": "document-intelligence-benchmark.v1",
+  "manifest_id": "coverwise-document-intelligence-v1",
+  "created": "2026-07-21",
+  "privacy": {
+    "default_report_contains_source_text": false,
+    "customer_documents_allowed": false,
+    "note": "Use synthetic or explicitly consented fixtures only. Reports contain hashes and metrics by default."
+  },
+  "cases": [
+    {
+      "id": "digital_pdf_native",
+      "kind": "fixture",
+      "fixture": "tests/test_data/sample_insurance.pdf",
+      "input_type": "pdf",
+      "required_capabilities": ["native_text", "layout"],
+      "expected_tokens": ["Insurance Policy", "#12345"],
+      "acceptance": [
+        "embedded text is extracted without OCR",
+        "page and block provenance is retained",
+        "expected policy tokens are present"
+      ]
+    },
+    {
+      "id": "synthetic_mixed_native",
+      "kind": "generated_mixed_pdf",
+      "input_type": "pdf",
+      "required_capabilities": ["native_text", "layout", "table", "figure"],
+      "expected_tokens": ["Health policy schedule", "500000"],
+      "acceptance": [
+        "layout blocks are emitted",
+        "table and table-cell nodes preserve row/column coordinates",
+        "embedded image is preserved as a hashed figure artifact"
+      ]
+    },
+    {
+      "id": "synthetic_scan_doctr",
+      "kind": "generated_scan",
+      "input_type": "png",
+      "required_capabilities": ["scanned_ocr", "image_artifact"],
+      "expected_tokens": ["Health Policy", "500000", "POLICY-TEST-001"],
+      "profile": "doctr",
+      "evidence_tier": 2,
+      "acceptance": [
+        "OCR recovers expected tokens from a generated scan",
+        "the output remains marked as scanned OCR rather than native text",
+        "the result is not treated as insurance-field accuracy"
+      ]
+    },
+    {
+      "id": "synthetic_mixed_scan_pdf_doctr",
+      "kind": "generated_mixed_scan_pdf",
+      "input_type": "pdf",
+      "required_capabilities": ["native_text", "scanned_ocr", "layout"],
+      "expected_tokens": ["NATIVE-001", "Health Policy", "POLICY-TEST-001"],
+      "profile": "doctr",
+      "evidence_tier": 2,
+      "acceptance": [
+        "native text remains source-authoritative on the digital page",
+        "image-only page is routed through the local OCR profile",
+        "both page classes remain observable in the CIR",
+        "unresolved image-only pages fail the case instead of being omitted"
+      ]
+    },
+    {
+      "id": "synthetic_form_native",
+      "kind": "generated_form_pdf",
+      "input_type": "pdf",
+      "required_capabilities": ["native_text", "layout", "form"],
+      "expected_tokens": ["Policy number", "POL-123"],
+      "acceptance": [
+        "AcroForm field name, value, type, flags, and geometry are preserved",
+        "form structure is reported as observed native evidence",
+        "no semantic field meaning is inferred from the label"
+      ]
+    },
+    {
+      "id": "synthetic_docx_native",
+      "kind": "generated_docx_native",
+      "input_type": "docx",
+      "required_capabilities": ["native_text", "table", "figure"],
+      "required_node_types": ["heading", "table", "table_cell"],
+      "expected_tokens": ["Health Policy", "Hospitalization", "500000"],
+      "evidence_tier": 2,
+      "acceptance": [
+        "DOCX paragraphs and headings are preserved as source text nodes",
+        "table cells preserve row and column identity",
+        "the document remains source-hashed and CIR-linked"
+      ]
+    },
+    {
+      "id": "synthetic_html_native",
+      "kind": "generated_html_native",
+      "input_type": "html",
+      "required_capabilities": ["native_text", "table", "figure"],
+      "required_node_types": ["heading", "table", "table_cell"],
+      "expected_tokens": ["Health Policy", "Hospitalization", "500000"],
+      "evidence_tier": 2,
+      "acceptance": [
+        "HTML headings and paragraphs remain source nodes",
+        "HTML table cells preserve row and column identity",
+        "external image references are not fetched or misrepresented as local artifacts"
+      ]
+    },
+    {
+      "id": "synthetic_eml_native",
+      "kind": "generated_eml_native",
+      "input_type": "eml",
+      "required_capabilities": ["native_text", "figure"],
+      "required_node_types": ["heading", "text_block", "figure"],
+      "expected_tokens": ["POL-123"],
+      "evidence_tier": 2,
+      "acceptance": [
+        "message subject and body remain source-linked nodes",
+        "image attachment bytes are hash-preserved",
+        "attachments are not merged into message text"
+      ]
+    }
+  ],
+  "capability_gates": [
+    {
+      "capability": "scanned_ocr",
+      "status": "synthetic_tier2_measured_corpus_pending",
+      "profiles": ["doctr", "Surya", "PaddleOCR/PP-Structure"],
+      "evidence_required": ["word accuracy", "page provenance", "p95 latency", "timeout and partial-success behavior"]
+    },
+    {
+      "capability": "forms",
+      "status": "native_form_structure_ready_specialist_scan_pending",
+      "profiles": ["Azure Document Intelligence", "Google Document AI", "AWS Textract", "Paddle KIE"],
+      "evidence_required": ["key/value geometry", "selection-mark accuracy", "privacy and cost approval"]
+    },
+    {
+      "capability": "formulas",
+      "status": "benchmark_pending",
+      "profiles": ["MinerU", "Paddle formula recognition", "Nougat", "Mathpix/Pix2Text"],
+      "evidence_required": ["LaTeX/MathML fidelity", "source crop linkage", "model and weight license review"]
+    },
+    {
+      "capability": "figures_and_charts",
+      "status": "native_artifact_ready_vlm_annotation_pending",
+      "profiles": ["native image preservation", "Mistral annotations", "Gemini image understanding"],
+      "evidence_required": ["original artifact hash", "bounded derived annotation", "no generated description used as policy evidence"]
+    },
+    {
+      "capability": "multilingual_and_handwriting",
+      "status": "benchmark_pending",
+      "profiles": ["Surya", "PaddleOCR", "managed document intelligence"],
+      "evidence_required": ["script-level accuracy", "uncertainty labeling", "manual-review recovery"]
+    },
+    {
+      "capability": "office_and_email_structure",
+      "status": "docx_html_eml_tier2_measured_other_formats_pending",
+      "profiles": ["python-docx-native", "html-native", "email-native", "Docling", "Unstructured"],
+      "evidence_required": [
+        "paragraph and heading structure",
+        "table and cell relationships",
+        "embedded artifact lineage",
+        "format-specific relationship preservation"
+      ]
+    }
+  ]
+}

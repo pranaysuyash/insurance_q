@@ -24,6 +24,7 @@ async def run_document_processing_job(
     file_content: bytes,
     pdf_password: Optional[str] = None,
     on_device_ocr_text: Optional[str] = None,
+    terminal_failure_on_exception: bool = True,
 ) -> Optional[dict[str, Any]]:
     """Claim, process, and persist one owner-scoped document job.
 
@@ -47,6 +48,12 @@ async def run_document_processing_job(
         )
         document = repository.get(document_id, owner_id)
         if document:
+            # Deletion fences processing while the expensive pipeline is in
+            # flight. Do not recreate derived state or overwrite the deleting
+            # marker after the delete path has taken ownership.
+            if document.status == "deleting":
+                log.info("document_processing_persistence_skipped_deleting document_id=%s", document_id)
+                return None
             status = str(result.get("status") or "failed")
             document.status = status
             document.processing_lease_expires_at = None
@@ -61,8 +68,16 @@ async def run_document_processing_job(
         log.exception("document_processing_job_failed document_id=%s", document_id)
         document = repository.get(document_id, owner_id)
         if document:
-            document.status = "failed"
-            document.error_message = "Document processing did not complete. Please retry the upload."
+            if terminal_failure_on_exception:
+                document.status = "failed"
+                document.error_message = "Document processing did not complete. Please retry the upload."
+            else:
+                # The outbox will retry this handler. Returning to `received`
+                # is essential: claim_processing only leases received or
+                # stale-processing documents, so leaving a retryable failure
+                # as `failed` would make every later delivery a no-op.
+                document.status = "received"
+                document.error_message = None
             document.processing_lease_expires_at = None
             repository.update(document)
         raise

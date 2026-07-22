@@ -5,8 +5,8 @@ append-only. The Flutter app's existing local Hive box becomes
 a cache; the server is the source of truth.
 
 The schema has a fixed enum for consent_type (privacy_policy,
-analytics, marketing_emails, camera_access). Adding a new
-type requires:
+document_processing, analytics, marketing_emails, camera_access,
+evaluation_dataset, model_improvement). Adding a new type requires:
   1. Adding the new value to the ConsentType enum here.
   2. Adding the new value to the SQL CHECK in
      supabase/migrations/2026_07_19_consent_ledger.sql.
@@ -22,14 +22,17 @@ from pydantic import BaseModel, Field
 
 
 class ConsentType(str, Enum):
-    """The 4 consent types v1 supports. The enum must match
+    """The 5 consent types v1 supports. The enum must match
     the SQL CHECK exactly; a drift here means a write that
     the DB rejects."""
 
     PRIVACY_POLICY = "privacy_policy"
+    DOCUMENT_PROCESSING = "document_processing"
     ANALYTICS = "analytics"
     MARKETING_EMAILS = "marketing_emails"
     CAMERA_ACCESS = "camera_access"
+    EVALUATION_DATASET = "evaluation_dataset"
+    MODEL_IMPROVEMENT = "model_improvement"
 
 
 class ConsentRecord(BaseModel):

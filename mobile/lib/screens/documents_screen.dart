@@ -15,6 +15,7 @@ import '../providers/entitlement_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/app_state_store.dart';
 import '../services/consent_ledger.dart';
+import '../services/consent_sync_service.dart';
 import '../services/contact_service.dart';
 import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
@@ -61,6 +62,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   bool _showUploadDetails = false;
   bool _demoPolicyPreloaded = false;
   int? _selectedFileSize;
+
+  Future<void> _syncProcessingConsent() async {
+    try {
+      // The local ledger remains the immediate offline gate. This generic
+      // principal-scoped bridge also retries onboarding privacy/analytics
+      // decisions, not only document-processing consent.
+      await ConsentSyncService().syncAll();
+    } catch (error) {
+      debugPrint('server consent sync deferred: ${error.runtimeType}');
+    }
+  }
 
   @override
   void initState() {
@@ -115,8 +127,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     'jpeg',
     'png',
   };
-
-
 
   Future<void> _pickFile() async {
     setState(() {
@@ -323,6 +333,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       }
     }
 
+    await _syncProcessingConsent();
+
     setState(() {
       _isUploading = true;
       _isReadingOnDevice = !kIsWeb && _useOnDeviceOcr;
@@ -458,7 +470,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         } else {
           // Offline/queued - honest message
           final message = isQueuedOnly
-              ? '$selectedName saved locally. It will be processed when you\'re back online.'
+              ? '$selectedName saved locally. ${S.docsUploadRequired}.'
               : '$selectedName saved locally (offline mode)';
           CoverWiseSnackBar.warning(context, message);
           PhoneCaptureSheet.maybeShow(context);
@@ -501,25 +513,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     setState(() => _isUploading = true);
     try {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Refreshing document types...'),
-            duration: Duration(seconds: 2)),
-      );
+      CoverWiseSnackBar.info(context, S.docsRefreshingTypes);
       await ref.read(documentServiceProvider).refreshAllDocumentTypes();
       ref.invalidate(documentsProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Document types refreshed successfully!'),
-            backgroundColor: Colors.green),
+      CoverWiseSnackBar.success(
+        context,
+        S.docsTypesRefreshed,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(AppError.userMessage(e)),
-            backgroundColor: Colors.red),
+      CoverWiseSnackBar.error(
+        context,
+        AppError.userMessage(e),
+        operation: 'refresh document types',
       );
     } finally {
       if (mounted) setState(() => _isUploading = false);
