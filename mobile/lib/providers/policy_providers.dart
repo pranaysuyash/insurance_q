@@ -2,22 +2,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../models/policy_summary.dart';
 import '../services/policy_extraction_service.dart';
+import '../utils/ref_state.dart';
 import 'service_providers.dart';
 
 final policyExtractionServiceProvider = Provider<PolicyExtractionService>((ref) {
   return PolicyExtractionService(ref.watch(queryServiceProvider));
 });
 
-final policySummariesProvider = StateNotifierProvider<PolicySummariesNotifier, List<PolicySummary>>((ref) {
-  return PolicySummariesNotifier(ref.watch(policyExtractionServiceProvider));
-});
+final policySummariesProvider = NotifierProvider<PolicySummariesNotifier, List<PolicySummary>>(PolicySummariesNotifier.new);
 
-class PolicySummariesNotifier extends StateNotifier<List<PolicySummary>> {
-  final PolicyExtractionService _service;
-
-  PolicySummariesNotifier(this._service) : super([]) {
+class PolicySummariesNotifier extends Notifier<List<PolicySummary>> {
+  @override
+  List<PolicySummary> build() {
+    ref.watch(policyExtractionServiceProvider);
     _loadSummaries();
+    return state;
   }
+
+  PolicyExtractionService get _service =>
+      ref.read(policyExtractionServiceProvider);
 
   void _loadSummaries() {
     var summaries = _service.getAllSummaries();
@@ -85,13 +88,13 @@ final claimGuideProvider = Provider.family<ClaimGuide?, (String, String?)>((ref,
 });
 
 /// Search query state for cross-document search
-final searchQueryProvider = StateProvider<String>((ref) => '');
+final searchQueryProvider = refStateProvider<String>('');
 
 /// Filter by policy type
-final searchTypeFilterProvider = StateProvider<String?>((ref) => null);
+final searchTypeFilterProvider = refStateProvider<String?>(null);
 
 /// Filter by status (active, expiring, expired, all)
-final searchStatusFilterProvider = StateProvider<String>((ref) => 'all');
+final searchStatusFilterProvider = refStateProvider<String>('all');
 
 /// Derived: filtered and ranked search results across all documents
 final searchResultsProvider = Provider<List<PolicySummary>>((ref) {
@@ -178,7 +181,7 @@ final uniqueDocumentTypesProvider = Provider<List<String>>((ref) {
 });
 
 /// Theme mode — incrementing this counter triggers a rebuild of MaterialApp.
-final themeModeProvider = StateProvider<int>((ref) => 0);
+final themeModeProvider = refStateProvider<int>(0);
 
 // Demo data for bootstrap mode
 List<PolicySummary> get demoPolicySummaries => [

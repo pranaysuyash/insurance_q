@@ -25,6 +25,7 @@ from src.api.document import (
 from src.utils.runtime_access import require_nonproduction
 from src.utils.runtime_config import allowed_cors_origins, production_configuration_errors
 from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
+from src.services.qa_usage_service import QaUsageService, production_qa_usage_enabled
 
 # Import RAG components and enhanced document processing
 from typing import Dict, Any, List, Optional, Union
@@ -32,6 +33,7 @@ import sys
 import logging
 import os
 import asyncio
+from uuid import UUID, uuid4
 from contextlib import asynccontextmanager
 
 # Set up logging
@@ -59,6 +61,7 @@ app.add_middleware(
 # Initialize services
 rag_pipeline = None
 document_processing_service = None
+qa_usage_service: QaUsageService | None = None
 
 # Health-check embedding probe cache (avoids calling OpenAI on every poll)
 _last_embedding_probe = 0.0
@@ -69,10 +72,13 @@ class QueryRequest(BaseModel):
     query: str
     filters: Optional[Dict[str, Any]] = None
     _cache_buster: Optional[Union[int, str]] = None
+    request_id: Optional[UUID] = None
 
 class QueryResponse(BaseModel):
     answer: str
-    sources: List[str] = Field(default_factory=list)
+    # Keep accepting legacy string sources while allowing the canonical
+    # mobile client to receive page/document navigation metadata.
+    sources: List[Union[str, Dict[str, Any]]] = Field(default_factory=list)
     confidence: Optional[float] = None
     citations: List[Dict[str, Any]] = Field(default_factory=list)
     missing_information: List[str] = Field(default_factory=list)
@@ -84,12 +90,21 @@ class QueryResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global rag_pipeline, document_processing_service
+    global rag_pipeline, document_processing_service, qa_usage_service
 
     is_production = os.environ.get("ENVIRONMENT", "development").lower() == "production"
     configuration_errors = production_configuration_errors(os.environ)
     if configuration_errors:
         raise RuntimeError("Invalid production configuration: " + "; ".join(configuration_errors))
+
+    if production_qa_usage_enabled():
+        try:
+            qa_usage_service = QaUsageService.from_env()
+            app.state.qa_usage_service = qa_usage_service
+            logger.info("server Q&A usage ledger configured")
+        except Exception as error:
+            qa_usage_service = None
+            raise RuntimeError("Production Q&A usage ledger initialization failed") from error
 
     # Durable document processing is mandatory in production. Development may
     # use the legacy in-process compatibility path when Supabase is absent.
@@ -158,10 +173,11 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("Production document processing initialization failed") from e
         print("⚠️ Document processing init failed; continuing only in development", file=sys.stderr)
     
-    # Durable recovery is safe in every environment: documents are claimed
-    # through the repository before work begins, so parallel Cloud Run
-    # instances cannot process the same lease concurrently.
-    if document_processing_service:
+    # Production recovery belongs exclusively to the durable outbox worker.
+    # The API must not scan and execute received documents in-process, or it
+    # becomes a second worker outside queue retry/dead-letter observability.
+    # Development retains the repository-lease compatibility scan.
+    if document_processing_service and not is_production:
         loop = asyncio.get_event_loop()
         loop.create_task(_recover_durable_document_processing())
         # Legacy disk scanning is strictly local-development compatibility.
@@ -323,6 +339,7 @@ async def health_check():
     probe is cached for 60s to avoid hammering OpenAI on every health check.
     """
     import time
+    from src.ocr.capability_registry import capability_registry_snapshot
 
     global _last_embedding_probe, _embedding_probe_result
 
@@ -337,6 +354,7 @@ async def health_check():
                 "document_processing_status": doc_processing_status,
                 "version": "2.0.0",
                 "detail": "RAG pipeline not initialized",
+                "document_capabilities": capability_registry_snapshot(),
             },
         )
 
@@ -364,6 +382,7 @@ async def health_check():
             "embedding_probe": _embedding_probe_result,
             "document_processing_status": doc_processing_status,
             "version": "2.0.0",
+            "document_capabilities": capability_registry_snapshot(),
         },
     )
 
@@ -373,7 +392,66 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
     Root-level query endpoint that mobile app expects.
     Now uses the integrated document processing service with actual RAG.
     """
+    qa_reservation = None
+
+    def release_qa_reservation() -> None:
+        nonlocal qa_reservation
+        if qa_reservation is None:
+            return
+        service, owner_id, request_id = qa_reservation
+        try:
+            service.release(owner_id=owner_id, request_id=request_id)
+        except Exception as error:
+            logger.error(
+                "qa_usage_release_failed error_type=%s", type(error).__name__
+            )
+        finally:
+            qa_reservation = None
+
+    def finalize_qa_reservation() -> bool:
+        nonlocal qa_reservation
+        if qa_reservation is None:
+            return True
+        service, owner_id, request_id = qa_reservation
+        try:
+            service.finalize(owner_id=owner_id, request_id=request_id)
+            qa_reservation = None
+            return True
+        except Exception as error:
+            logger.error(
+                "qa_usage_finalize_failed error_type=%s", type(error).__name__
+            )
+            release_qa_reservation()
+            return False
+
     try:
+        if qa_usage_service is not None:
+            request_id = request.request_id or uuid4()
+            try:
+                usage = qa_usage_service.reserve(
+                    owner_id=current_user.uid,
+                    request_id=request_id,
+                )
+            except Exception as error:
+                logger.error("qa_usage_reservation_failed error_type=%s", type(error).__name__)
+                return QueryResponse(
+                    answer="",
+                    sources=[],
+                    error="qa_usage_unavailable",
+                )
+            if not bool(usage.get("allowed")):
+                logger.info(
+                    "qa_question_blocked owner=%s reason=%s",
+                    current_user.uid[:12],
+                    usage.get("reason", "qa_budget_exhausted"),
+                )
+                return QueryResponse(
+                    answer="",
+                    sources=[],
+                    error="qa_budget_exhausted",
+                )
+            qa_reservation = (qa_usage_service, current_user.uid, request_id)
+
         logger.info(
             "document_query_received owner=%s query_length=%s has_document_filter=%s",
             current_user.uid[:12],
@@ -382,6 +460,7 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
         )
         
         if not document_processing_service:
+            release_qa_reservation()
             return QueryResponse(
                 answer="I'm sorry, but the document processing system is currently unavailable. Please try again later or contact support.",
                 sources=[],
@@ -407,6 +486,7 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
         # Handle the response format
         if isinstance(result, dict):
             if result.get("status") == "error":
+                release_qa_reservation()
                 return QueryResponse(
                     answer="I encountered an error while processing your question. Please try rephrasing your question or try again later.",
                     sources=[],
@@ -436,22 +516,39 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
                 retrieval_strategy = result.get("retrieval_strategy")
                 embedding_model_used = result.get("embedding_model_used")
             
-            # Format sources for mobile app
+            # Format sources for mobile app. Preserve only customer-safe
+            # navigation/relevance metadata; immutable source text remains an
+            # internal verifier input and is not duplicated into the API
+            # response.
             formatted_sources = []
             if isinstance(sources, list):
                 for source in sources:
                     if isinstance(source, dict):
                         if "text" in source:
-                            formatted_sources.append(source["text"])
+                            formatted_sources.append({
+                                key: source.get(key)
+                                for key in (
+                                    "index", "id", "document_id", "filename",
+                                    "page_number", "page_artifact_id", "section",
+                                    "section_type", "bbox", "text",
+                                )
+                                if key in source
+                            })
                         elif "content" in source:
-                            formatted_sources.append(source["content"])
+                            formatted_sources.append({"text": source["content"]})
                         elif "source_text" in source:
-                            formatted_sources.append(source["source_text"])
+                            formatted_sources.append({"text": source["source_text"]})
                         else:
-                            formatted_sources.append(str(source))
+                            formatted_sources.append({"text": str(source)})
                     else:
                         formatted_sources.append(str(source))
             
+            if not finalize_qa_reservation():
+                return QueryResponse(
+                    answer="",
+                    sources=[],
+                    error="qa_usage_unavailable",
+                )
             return QueryResponse(
                 answer=answer,
                 sources=formatted_sources,
@@ -467,6 +564,7 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
             )
         
         # Fallback if result format is unexpected
+        release_qa_reservation()
         return QueryResponse(
             answer="I received your question but couldn't process it in the expected format. Please try again.",
             sources=[],
@@ -474,6 +572,7 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
         )
         
     except Exception as e:
+        release_qa_reservation()
         logger.error("document_query_failed error_type=%s", type(e).__name__)
         return QueryResponse(
             answer="I encountered an unexpected error while processing your question. Please try again later.",

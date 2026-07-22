@@ -38,8 +38,7 @@ class S {
   static String resultCount(int count) =>
       '$count result${count == 1 ? '' : 's'}';
 
-  static String dayCount(int count) =>
-      '$count day${count == 1 ? '' : 's'}';
+  static String dayCount(int count) => '$count day${count == 1 ? '' : 's'}';
 
   static String expiresInDays(int days) =>
       'Expires in $days day${days == 1 ? '' : 's'}';
@@ -72,7 +71,8 @@ class S {
   static String qaAllDocuments(int count) => 'All Documents ($count)';
   static const String qaSingleDocument = 'Single Document';
   static const String qaNoDocumentSelected = 'No document selected';
-  static const String qaSearchAllPolicies = 'Search across all your uploaded policies';
+  static const String qaSearchAllPolicies =
+      'Search across all your uploaded policies';
 
   // QA — Custom Question Tab
   static const String qaAskAboutDescription =
@@ -105,7 +105,8 @@ class S {
       'Source $index • page $page';
   static const String qaPolicyDoesNotEstablish =
       'What the policy does not establish';
-  static String qaAnswerReadyFor(String question) => 'Answer ready for $question';
+  static String qaAnswerReadyFor(String question) =>
+      'Answer ready for $question';
 
   // QA — Snackbar / Errors
   static String qaCouldNotGetAnswer(String error) =>
@@ -128,7 +129,7 @@ class S {
       'No subscription needed. Pay once, ask questions.';
   static const String qaPacksYourPacks = 'Your packs';
   static const String qaPacksPurchasedSuccess =
-      'Pack purchased! You can now ask more questions.';
+      'Purchase received. Questions appear after server confirmation.';
   static const String qaPacksHowTheyWork = 'How packs work';
 
   static const String qaPacksFaqQ1 = 'When are questions deducted?';
@@ -140,14 +141,14 @@ class S {
   static const String qaPacksFaqQ3 = 'Can I have multiple packs?';
   static const String qaPacksFaqA3 =
       'Yes! Multiple packs stack. Questions are consumed from the earliest-expiring pack first (FIFO).';
-  static const String qaPacksFaqQ4 = 'What happens if I upgrade to a subscription?';
+  static const String qaPacksFaqQ4 =
+      'What happens if I upgrade to a subscription?';
   static const String qaPacksFaqA4 =
       'Your pack questions remain active and are used after your monthly subscription quota is exhausted.';
 
   static String qaPacksQuestionsAvailable(int count) =>
       '$count questions available';
-  static String qaPacksFromMonthlyPlan(int count) =>
-      '$count from monthly plan';
+  static String qaPacksFromMonthlyPlan(int count) => '$count from monthly plan';
   static String qaPacksFromPacks(int count) => '$count from packs';
   static String qaPacksFromMonthlyAndPacks(int monthly, int packs) =>
       '$monthly from monthly plan · $packs from packs';
@@ -156,8 +157,10 @@ class S {
   static String qaPacksQuestionsEach(int count, String price) =>
       '$count questions · $price each';
   static String qaPacksPackPurchased(String name, int count) =>
-      '$name pack purchased! $count questions added.';
+      'Purchase received. Your $name questions will appear after server confirmation.';
   static const String qaPacksPurchaseCancelled = 'Purchase was cancelled.';
+  static const String qaPacksPurchaseNotCompleted =
+      'Purchase was not completed. No questions were added.';
   static String qaPacksPackRemaining(String type) => '$type pack';
   static String qaPacksRemaining(int remaining, int total) =>
       '$remaining/$total left';
@@ -170,7 +173,8 @@ class S {
   static const String familyEmptySubtitle =
       'Upload insurance documents to auto-detect family members, or add one manually.';
   static const String familyAddMember = 'Add Family Member';
-  static const String familyLibraryError = 'Your policy library could not be loaded.';
+  static const String familyLibraryError =
+      'Your policy library could not be loaded.';
   static const String familyMembersReadError =
       'Covered family members could not be read from your policies.';
   static const String familyPeopleCovered = 'People covered';
@@ -237,13 +241,15 @@ class S {
   static const String insuranceCardsShareFooter =
       'Verify current details with the insurer and the source policy document.';
   static const String insuranceCardsPhoneError = 'Could not open the phone app';
-  static const String insuranceCardsShareError = 'Could not open sharing options';
+  static const String insuranceCardsShareError =
+      'Could not open sharing options';
 
   // ─── Renewal Calendar Screen ──────────────────────────────────────
 
   static const String renewalTitle = 'Renewal Calendar';
   static const String renewalEmptyTitle = 'No policies tracked';
-  static const String renewalEmptySubtitle = 'Choose a policy file to track renewal dates.';
+  static const String renewalEmptySubtitle =
+      'Choose a policy file to track renewal dates.';
   static const String renewalHeaderTitle = 'Never miss a renewal';
   static const String renewalHeaderSubtitle =
       'See what needs attention first and keep insurer contact details close.';
@@ -287,7 +293,8 @@ class S {
 
   static String settingsCurrentPlan(String plan) => 'Current plan: $plan';
   static const String settingsQaPacks = 'Q&A Packs';
-  static String settingsQuestionsInPacks(int count) => '$count questions in packs';
+  static String settingsQuestionsInPacks(int count) =>
+      '$count questions in packs';
   static const String settingsBuyQuestions =
       'Buy questions without a subscription';
   static const String settingsRenews = 'Renews';
@@ -333,14 +340,16 @@ class S {
 
   static const String profileTitle = 'Profile';
   static const String profileDefaultHeader = 'Your CoverWise profile';
-  static const String profileLinkedHeader = 'Linked and ready across your devices.';
+  static const String profileLinkedHeader =
+      'Linked and ready across your devices.';
   static const String profileUnlinkedHeader =
       'Your policy workspace currently stays on this device.';
   static const String profileCreateAccount = 'Create a secure account';
   static const String profileRestoreWorkspace =
       'Restore this policy workspace across devices';
   static const String profileSignedInAccount = 'Signed-in account';
-  static const String profileWorkspaceLinked = 'Workspace is linked to your account';
+  static const String profileWorkspaceLinked =
+      'Workspace is linked to your account';
   static const String profilePhoneNumber = 'Phone number';
   static const String profileNotLinked = 'Not linked';
   static const String profileSecureSession = 'Secure session';
@@ -356,7 +365,8 @@ class S {
   static const String profileDeleteAccount = 'Delete account';
   static const String profileDeleteAccountSubtitle =
       'Permanently remove account and all server data';
-  static const String profileCreateAccountFirst = 'Create an account first to delete it';
+  static const String profileCreateAccountFirst =
+      'Create an account first to delete it';
   static const String profileFooter =
       'CoverWise helps you understand your policies. It does not sell insurance.';
 
@@ -387,6 +397,16 @@ class S {
       'Do not assume server deletion is complete. Local data on this device was not affected and can be cleared from the privacy screen.';
   static String profileDeleteRequested(String status) =>
       'Account deletion requested. Status: $status. Check the privacy screen for details.';
+  static const String profileDeletionStatusTitle = 'Account deletion status';
+  static const String profileDeletionStatusPending =
+      'Deletion is queued. Your account remains active until server erasure is verified.';
+  static const String profileDeletionStatusRunning =
+      'Deletion is being processed. New account writes are paused while erasure runs.';
+  static const String profileDeletionStatusFailed =
+      'The last deletion attempt needs attention. The server has not claimed complete erasure.';
+  static const String profileDeletionStatusRefresh = 'Refresh status';
+  static const String profileDeletionStatusUnavailable =
+      'Deletion status is temporarily unavailable.';
   static String profileInFlightWarning(int count, String names) =>
       '$count document${count == 1 ? ' is' : 's are'} still processing: $names. '
       'Please wait for processing to complete before deleting your account.';
@@ -443,29 +463,41 @@ class S {
   static const String accountResend = 'Resend';
   static const String accountForgotPassword = 'Forgot password?';
   static const String accountResendVerification = 'Resend verification email';
-  static String accountSwitchToSignIn(bool isSignUp) =>
-      isSignUp ? 'Already have an account? Sign in' : 'New to CoverWise? Create an account';
+  static String accountSwitchToSignIn(bool isSignUp) => isSignUp
+      ? 'Already have an account? Sign in'
+      : 'New to CoverWise? Create an account';
   static const String accountGoogleSignIn = 'Continue with Google';
   static const String accountAuthNotConfigured =
       'Account auth is not configured for this build.';
   static const String accountEnterEmail = 'Please enter your email address.';
-  static const String accountPasswordTooShort = 'Password must be at least 8 characters.';
-  static const String accountInvalidEmail = 'Please enter a valid email address.';
-  static const String accountCheckEmail = 'Check your email to confirm the account, then sign in.';
-  static const String accountIncorrectCredentials = 'Incorrect email or password. Please try again.';
-  static const String accountAlreadyRegistered = 'An account with this email already exists. Try signing in.';
+  static const String accountPasswordTooShort =
+      'Password must be at least 8 characters.';
+  static const String accountInvalidEmail =
+      'Please enter a valid email address.';
+  static const String accountCheckEmail =
+      'Check your email to confirm the account, then sign in.';
+  static const String accountIncorrectCredentials =
+      'Incorrect email or password. Please try again.';
+  static const String accountAlreadyRegistered =
+      'An account with this email already exists. Try signing in.';
   static const String accountPasswordRequirements =
       'Password does not meet requirements. Use at least 8 characters.';
   static String accountCouldNotAction(bool signUp) =>
       'Could not ${signUp ? 'create' : 'sign in'} the account. Check your details and try again.';
-  static const String accountEnterEmailFirst = 'Enter your email above first, then tap Forgot password.';
-  static const String accountResetEmailSent = 'Password reset email sent. Check your inbox.';
-  static const String accountCouldNotReset = 'Could not send reset email. Check your email and try again.';
+  static const String accountEnterEmailFirst =
+      'Enter your email above first, then tap Forgot password.';
+  static const String accountResetEmailSent =
+      'Password reset email sent. Check your inbox.';
+  static const String accountCouldNotReset =
+      'Could not send reset email. Check your email and try again.';
   static const String accountEnterEmailResend =
       'Enter your email above first, then tap Resend verification.';
-  static const String accountVerificationSent = 'Verification email sent. Check your inbox.';
-  static const String accountCouldNotVerify = 'Could not send verification email. Try again later.';
-  static const String accountCouldNotGoogle = 'Could not sign in with Google. Please try again.';
+  static const String accountVerificationSent =
+      'Verification email sent. Check your inbox.';
+  static const String accountCouldNotVerify =
+      'Could not send verification email. Try again later.';
+  static const String accountCouldNotGoogle =
+      'Could not sign in with Google. Please try again.';
 
   // ─── Notification Preferences Screen ──────────────────────────────
 
@@ -493,14 +525,25 @@ class S {
   // ─── Documents Screen / List ──────────────────────────────────────
 
   static const String docsTitle = 'Documents';
-  static String docsSlotsUsed(int count) => '$count of 5 free policy slots used';
+  static String docsSlotsUsed(int count) =>
+      '$count of 5 free policy slots used';
   static const String docsTypeChanged = 'Type changed to';
-  static const String docsRemovedLocal = 'Removed from this device. The server copy was not affected.';
+  static const String docsRemovedLocal =
+      'Removed from this device. The server copy was not affected.';
   static const String docsReplaceSuccess = 'Document replaced successfully';
   static const String docsPreview = 'Preview';
+  static const String docsDownloadSource = 'Download source';
   static const String docsChangeType = 'Change type';
   static const String docsAskQuestions = 'Ask Questions';
   static const String docsReadingPolicy = 'Reading policy';
+  static const String docsUploadRequired = 'Server upload required';
+  static const String docsRetryUpload = 'Retry upload';
+  static const String docsNeedsAttention = 'Needs attention';
+  static const String docsReadyForQuestions = 'Ready for questions';
+  static const String docsSaved = 'Saved';
+  static const String docsRefreshingTypes = 'Refreshing document types...';
+  static const String docsTypesRefreshed =
+      'Document types refreshed successfully!';
   static const String docsReplace = 'Replace';
   static const String docsRemoveFromDevice = 'Remove from this device';
   static const String docsRemoveFromDeviceTitle = 'Remove from this device?';
@@ -514,18 +557,26 @@ class S {
   static const String docsReplaceDocument = 'Replace Document';
   static const String docsCurrentDocument = 'Current Document';
   static const String docsSelectReplacement = 'Select Replacement File';
+  static String docsReplaceWillDelete(String filename) =>
+      'This will delete "$filename" and replace it with the new file.';
+  static const String docsReplaceAnalysisLost =
+      "The old document's analysis will be lost. The new document will be processed fresh.";
+  static String docsUploadedDate(String date) => 'Uploaded: $date';
+  static const String docsClearReplacement = 'Clear replacement file';
 
   // ─── Terms of Service Screen ──────────────────────────────────────
 
   static const String tosTitle = 'Terms of Service';
   static const String tosCopySuccess = 'Terms of service copied to clipboard';
-  static const String tosLoadError = 'The terms of service could not be loaded.';
+  static const String tosLoadError =
+      'The terms of service could not be loaded.';
 
   // ─── Privacy Policy Screen ────────────────────────────────────────
 
   static const String privacyTitle = 'Privacy Policy';
   static const String privacyCopySuccess = 'Privacy policy copied to clipboard';
-  static const String privacyLoadError = 'The privacy policy could not be loaded.';
+  static const String privacyLoadError =
+      'The privacy policy could not be loaded.';
 
   // ─── Processing Status Screen ─────────────────────────────────────
 
@@ -535,8 +586,10 @@ class S {
   static const String processingFinishingUp = 'Finishing up';
   static const String processingReceivedDesc = 'Your policy has been received';
   static const String processingProcessingDesc = 'Reading and extracting text';
-  static const String processingCategorisingDesc = 'Determining policy type and insurer';
-  static const String processingFinishingUpDesc = 'Making your policy searchable';
+  static const String processingCategorisingDesc =
+      'Determining policy type and insurer';
+  static const String processingFinishingUpDesc =
+      'Making your policy searchable';
 
   // ─── Onboarding Screen ────────────────────────────────────────────
 
@@ -587,8 +640,68 @@ class S {
   static const String fileTypeUnsupported =
       'This file type is not supported. Please choose a PDF or image.';
 
+  // ─── Document Sort / Filter ──────────────────────────────────────
+  static const String docsSortLabel = 'Sort';
+  static const String docsFilterLabel = 'Filter';
+  static const String docsSortDateNewest = 'Newest first';
+  static const String docsSortDateOldest = 'Oldest first';
+  static const String docsSortNameAZ = 'Name A–Z';
+  static const String docsSortNameZA = 'Name Z–A';
+  static const String docsSortType = 'By type';
+  static const String docsFilterAll = 'All types';
+  static String docsFilterResultCount(int count, int total) =>
+      '$count of $total policies';
+
+  // ─── Document Rename ─────────────────────────────────────────────
+  static const String docsRenameTitle = 'Rename policy';
+  static const String docsRenameHint = 'Enter a new name';
+  static const String docsRenameSave = 'Save';
+  static const String docsRenameSuccess = 'Policy renamed';
+  static const String docsRenameEmpty = 'Name cannot be empty';
+
   // ─── What-If Calculator ───────────────────────────────────────────
 
   static const String whatIfTitle = 'What-If Calculator';
-  static const String whatIfDescription = 'Explore how different coverage options affect your estimated costs.';
+  static const String whatIfDescription =
+      'Explore how different coverage options affect your estimated costs.';
+
+  // ─── Source References (P3-09) ───────────────────────────────────
+  static const String qaViewSource = 'View source';
+  static const String qaViewSourcePage = 'View on page';
+  static const String qaNoSourceDocument = 'Source document unavailable';
+  static String qaSourcePageLabel(Object page) => 'Page $page';
+  static const String qaRelevanceTooltip =
+      'How closely this source matches your question';
+
+  // ─── Batch Upload (P3-05) ─────────────────────────────────────────
+  static const String batchPickMultiple = 'Select multiple files';
+  static String batchUploadingPendingCount(int count) => 'Uploading $count files…';
+  static String batchUploadingProgress(int done, int total) =>
+      'Uploaded $done of $total';
+  static const String batchCompleted = 'All files uploaded';
+  static String batchCompletedCount(int count) =>
+      '$count files uploaded successfully';
+  static const String batchSomeFailed = 'Some uploads failed';
+  static String batchFailedCount(int failed, int total) =>
+      '$failed of $total files failed';
+  static String batchFileTooLargeMB(int maxMB) => 'This file exceeds the $maxMB MB limit and will be skipped';
+  static const String batchFileUnsupported = 'Unsupported file type — skipped';
+  static const String batchDuplicateSkipped = 'Duplicate — skipped';
+  static const String batchRetryFailed = 'Retry failed uploads';
+  static const String batchDone = 'Done';
+  static const String batchAddMore = 'Add more files';
+  static const String batchSelectAll = 'Select all';
+
+  // ─── Family Visualization (P3-10) ──────────────────────────────────
+  static const String familyVisTitle = 'Coverage map';
+  static const String familyVisHeader = 'Who is covered?';
+  static const String familyVisSubtitle = 'See which family members are covered by which policies.';
+  static const String familyVisMembers = 'Family members';
+  static const String familyVisPolicies = 'Policies';
+  static const String familyVisEmptyTitle = 'No coverage data yet';
+  static const String familyVisEmptySubtitle = 'Upload policies and add family members to see your coverage map.';
+  static String familyVisNoPolicies(String name) =>
+      'No policies listing $name yet.';
+  static const String familyVisSeeMap = 'View coverage map';
 }
+

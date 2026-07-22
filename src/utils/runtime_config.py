@@ -5,6 +5,22 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 
+def supabase_server_key() -> str:
+    """Return the server-only Supabase key under either supported name.
+
+    ``SUPABASE_SERVICE_ROLE_KEY`` remains the internal compatibility name;
+    Supabase's current project configuration exposes the same capability as
+    ``SUPABASE_SECRET_KEY``. This helper keeps direct service construction
+    consistent with the application entrypoint normalization.
+    """
+    import os
+
+    return (
+        os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        or os.environ.get("SUPABASE_SECRET_KEY", "").strip()
+    )
+
+
 def normalize_supabase_environment() -> None:
     """Accept Supabase's modern secret-key name at the server boundary.
 
@@ -33,21 +49,30 @@ def allowed_cors_origins(environment: str, configured_origins: str) -> list[str]
     return ["*"]
 
 
-def production_configuration_errors(environment: Mapping[str, str]) -> list[str]:
+def production_configuration_errors(
+    environment: Mapping[str, str],
+    *,
+    profile: str = "api",
+) -> list[str]:
     """Return safe, field-level launch configuration errors without secrets."""
     if environment.get("ENVIRONMENT", "development").lower() != "production":
         return []
+    if profile not in {"api", "worker"}:
+        return [f"unsupported production configuration profile: {profile}"]
 
     errors: list[str] = []
     required = (
-        "OPENAI_API_KEY",
         "SUPABASE_URL",
+        "OPENAI_API_KEY",
         "SUPABASE_SERVICE_ROLE_KEY",
-        "ANONYMOUS_AUTH_SIGNING_KEY",
-        "PUBLIC_SITE_URL",
-        "ALLOWED_ORIGINS",
-        "REVENUECAT_WEBHOOK_AUTHORIZATION",
+        "PROCESSING_PAYLOAD_ENCRYPTION_KEY",
     )
+    if profile == "api":
+        required += (
+            "ANONYMOUS_AUTH_SIGNING_KEY",
+            "PUBLIC_SITE_URL",
+            "REVENUECAT_WEBHOOK_AUTHORIZATION",
+        )
     for name in required:
         value = environment.get(name, "").strip()
         if name == "SUPABASE_SERVICE_ROLE_KEY" and not value:
@@ -65,19 +90,23 @@ def production_configuration_errors(environment: Mapping[str, str]) -> list[str]
         if environment.get(name, "").strip().lower() != value:
             errors.append(f"{name} must be {value}")
 
-    key = environment.get("ANONYMOUS_AUTH_SIGNING_KEY", "")
-    if key and len(key) < 32:
-        errors.append("ANONYMOUS_AUTH_SIGNING_KEY must be at least 32 characters")
+    if profile == "api":
+        key = environment.get("ANONYMOUS_AUTH_SIGNING_KEY", "")
+        if key and len(key) < 32:
+            errors.append("ANONYMOUS_AUTH_SIGNING_KEY must be at least 32 characters")
 
-    public_site_url = environment.get("PUBLIC_SITE_URL", "").strip()
-    if public_site_url and not public_site_url.startswith("https://"):
-        errors.append("PUBLIC_SITE_URL must use https")
-    try:
-        origins = allowed_cors_origins("production", environment.get("ALLOWED_ORIGINS", ""))
-        if public_site_url.rstrip("/") not in {origin.rstrip("/") for origin in origins}:
-            errors.append("PUBLIC_SITE_URL must be included in ALLOWED_ORIGINS")
-    except RuntimeError as error:
-        errors.append(str(error))
+        public_site_url = environment.get("PUBLIC_SITE_URL", "").strip()
+        if public_site_url and not public_site_url.startswith("https://"):
+            errors.append("PUBLIC_SITE_URL must use https")
+        try:
+            origins = allowed_cors_origins("production", environment.get("ALLOWED_ORIGINS", ""))
+            if public_site_url.rstrip("/") not in {origin.rstrip("/") for origin in origins}:
+                errors.append("PUBLIC_SITE_URL must be included in ALLOWED_ORIGINS")
+        except RuntimeError as error:
+            errors.append(str(error))
+    processing_key = environment.get("PROCESSING_PAYLOAD_ENCRYPTION_KEY", "")
+    if processing_key and len(processing_key) < 32:
+        errors.append("PROCESSING_PAYLOAD_ENCRYPTION_KEY must be at least 32 characters")
     if environment.get("LOG_LEVEL", "INFO").upper() == "DEBUG":
         errors.append("LOG_LEVEL cannot be DEBUG in production")
     return errors

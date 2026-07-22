@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
+from src.utils.runtime_config import supabase_server_key
+
 
 class ModelLineageError(Exception):
     pass
@@ -26,7 +28,7 @@ class ModelLineageService:
 
     @classmethod
     def from_env(cls) -> "ModelLineageService":
-        return cls(os.getenv("SUPABASE_URL", ""), os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""))
+        return cls(os.getenv("SUPABASE_URL", ""), supabase_server_key())
 
     async def start_run(
         self,

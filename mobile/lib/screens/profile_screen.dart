@@ -87,9 +87,40 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  DeletionStatus? _deletionStatus;
+  bool _loadingDeletionStatus = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _refreshDeletionStatus());
+  }
+
+  Future<void> _refreshDeletionStatus() async {
+    if (!mounted || !AuthService.hasAccountSession) return;
+    setState(() => _loadingDeletionStatus = true);
+    try {
+      final status = await AuthService.getDeletionStatus();
+      if (mounted) setState(() => _deletionStatus = status);
+    } catch (_) {
+      if (mounted) setState(() => _deletionStatus = null);
+    } finally {
+      if (mounted) setState(() => _loadingDeletionStatus = false);
+    }
+  }
+
+  String _deletionStatusMessage(DeletionStatus status) {
+    switch (status.status) {
+      case 'pending':
+        return S.profileDeletionStatusPending;
+      case 'running':
+        return S.profileDeletionStatusRunning;
+      case 'failed':
+        return S.profileDeletionStatusFailed;
+      default:
+        return '';
+    }
   }
 
   Future<void> _signOut() async {
@@ -191,8 +222,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       final String snackMessage;
       if (result.isComplete) {
-        snackMessage =
-            S.profileDeleteComplete(result.deletedDocuments, result.deletedStorageFiles);
+        snackMessage = S.profileDeleteComplete(
+            result.deletedDocuments, result.deletedStorageFiles);
       } else if (result.isPartial) {
         snackMessage = S.profileDeletePartial(result.failedStages);
       } else {
@@ -209,7 +240,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       CoverWiseSnackBar.error(this.context,
-          AppError.contextual(error: e, operation: 'account_deletion'));
+          AppError.contextual(error: e, operation: 'account_deletion'),
+          operation: 'account deletion');
     }
   }
 
@@ -217,7 +249,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final accountUser = ref.watch(currentUserProvider);
     final docsAsync = ref.watch(documentsProvider);
-    final documents = docsAsync.valueOrNull ?? const <InsuranceDocument>[];
+    final documents = docsAsync.asData?.value ?? const <InsuranceDocument>[];
     final box = Hive.box(AppStateStore.boxName);
     final phone = box.get(AppStateStore.phoneNumberKey) as String?;
     final themeMode = AppStateRepository.getThemeMode();
@@ -229,9 +261,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           CoverWisePageHeader(
             title: phone ?? S.profileDefaultHeader,
-            subtitle: phone != null
-                ? S.profileLinkedHeader
-                : S.profileUnlinkedHeader,
+            subtitle:
+                phone != null ? S.profileLinkedHeader : S.profileUnlinkedHeader,
             trailing: CoverWiseIconBadge(
               icon: phone != null
                   ? Icons.verified_user_rounded
@@ -265,6 +296,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onPressed: _signOut,
                   child: Text(S.signOut),
                 ),
+              ),
+            ),
+          if (accountUser != null && _deletionStatus?.isActionable == true)
+            CoverWiseSurface(
+              child: ListTile(
+                leading: const Icon(Icons.sync_problem_rounded,
+                    color: Color(0xFFE58726)),
+                title: Text(S.profileDeletionStatusTitle),
+                subtitle: Text(_deletionStatusMessage(_deletionStatus!)),
+                trailing: _loadingDeletionStatus
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : TextButton(
+                        onPressed: _refreshDeletionStatus,
+                        child: Text(S.profileDeletionStatusRefresh),
+                      ),
               ),
             ),
           CoverWiseSurface(

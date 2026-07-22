@@ -272,3 +272,42 @@ def test_account_export_returns_metadata_without_source_contents(monkeypatch):
     assert "file_path" not in data["documents"][0]
     assert "source_files" in data
     assert data["source_downloads"] == []
+
+
+def test_production_deletion_ignores_dead_lettered_job_history(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    from src.api import user as user_api
+
+    monkeypatch.setattr(user_api, "verify_supabase_token", _make_account_token_verifier())
+    monkeypatch.setattr(
+        "src.services.account_lifecycle_service.create_deletion_request",
+        lambda _uid: {"id": "request-1"},
+    )
+
+    class FakeOutbox:
+        calls = []
+
+        async def find_by_payload_field(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+            return None
+
+        async def enqueue(self, request):
+            self.calls.append(("enqueue", request.payload))
+
+    fake = FakeOutbox()
+    monkeypatch.setattr(
+        "src.services.job_outbox_service.JobOutboxService.from_env",
+        classmethod(lambda cls: fake),
+    )
+
+    app = FastAPI()
+    app.include_router(user_router)
+    with TestClient(app) as client:
+        response = client.delete(
+            "/user/account", headers={"Authorization": "Bearer account-token"}
+        )
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "deletion_requested"
+    assert fake.calls[0][1] == {"active_only": True}
+    assert fake.calls[1][0] == "enqueue"

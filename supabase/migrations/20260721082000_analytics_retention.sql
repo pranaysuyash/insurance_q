@@ -1,6 +1,11 @@
 -- Canonical analytics retention primitive. Scheduling is an operator/deploy
 -- concern; this function is the only production deletion boundary.
 
+-- Legal Hold Flag: Prevents deletion of records marked with legal hold
+alter table public.analytics_events 
+  add column legal_hold boolean not null default false;
+
+-- Enhanced retention function with legal hold awareness
 create or replace function public.purge_analytics_events(p_cutoff timestamptz)
 returns bigint
 language plpgsql
@@ -9,15 +14,21 @@ set search_path = public
 as $$
 declare deleted_count bigint;
 begin
-  if p_cutoff >= now() then
-    raise exception 'analytics retention cutoff must be in the past';
-  end if;
-  delete from public.analytics_events where received_at < p_cutoff;
-  get diagnostics deleted_count = row_count;
-  return deleted_count;
+    if p_cutoff >= now() then
+        raise exception 'analytics retention cutoff must be in the past';
+    end if;
+    
+    -- Delete only events not under legal hold and older than cutoff
+    delete from public.analytics_events 
+    where received_at < p_cutoff
+    and legal_hold = false;
+
+    get diagnostics deleted_count = row_count;
+    return deleted_count;
 end;
 $$;
 
+-- Revoke and grant permissions (unchanged from original)
 revoke all on function public.purge_analytics_events(timestamptz)
-  from public, anon, authenticated;
+    from public, anon, authenticated;
 grant execute on function public.purge_analytics_events(timestamptz) to service_role;

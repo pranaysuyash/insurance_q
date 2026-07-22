@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from src.utils.runtime_config import supabase_server_key
+
 
 class AnalyticsRetentionError(RuntimeError):
     pass
@@ -18,10 +20,7 @@ class AnalyticsRetentionService:
     def from_env(cls) -> "AnalyticsRetentionService":
         import os
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = (
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-            or os.getenv("SUPABASE_SECRET_KEY", "").strip()
-        )
+        key = supabase_server_key()
         if not url or not key:
             raise AnalyticsRetentionError("Supabase analytics retention requires server credentials")
         from supabase import create_client

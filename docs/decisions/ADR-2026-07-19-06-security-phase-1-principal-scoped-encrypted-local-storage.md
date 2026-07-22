@@ -244,3 +244,21 @@ The KDF parameters are a tuning parameter, not a contract.
   - `mobile/lib/services/app_state_repository.dart` (the existing Hive consumer; the per-box migration is the follow-up)
   - `mobile/lib/services/auth_service.dart` (the existing Supabase Auth integration; the principal key derivation uses the existing access token)
 - **Motto v3 alignment:** §0.1 (no parallel paths; one key source, one KDF), §0.4 (acceptance contract; the KDF parameters and the migration entry point are the contract), §0.5 (evidence tiers; T2 unit + T0 real-device), §0.7 (AI output boundary; the KDF is a well-known primitive, not an invented one), §0.10 (observability is delivery; the migration is observable via the per-user flag in `flutter_secure_storage`), §0.12 (this document).
+
+## Addendum — stable DEK initialization and claim boundary (2026-07-21)
+
+The implementation has superseded the original JWT-derived design described
+above. The current contract is a stable random 256-bit DEK stored in secure
+storage under the stable principal ID; JWT rotation does not affect local
+decryption. Principal initialization now publishes the new principal only
+after DEK acquisition succeeds.
+
+Anonymous-to-account claim copying now allowlists user workspace boxes,
+excludes session identifiers from carried app state, and does not copy
+analytics or entitlement mirrors. Workspace reset propagates physical box
+deletion failures instead of treating all failures as harmless missing files.
+This prevents a failed transition from being reported as successful while an
+old principal's workspace may remain on disk.
+
+Evidence remains Tier 2 pending the focused verification run; real-device
+two-account switching and interrupted migration recovery remain Tier 3/4 gates.

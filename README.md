@@ -176,9 +176,9 @@ AZURE_SUBSCRIPTION_ID=your_subscription_id
 ## 🧪 Testing
 
 ### Test Coverage
-- **Backend Tests**: 350 passed, 1 deployment-gated integration test skipped
+- **Backend Tests**: 378 passed, 1 deployment-gated integration test skipped
 - **API Integration**: Run through the live staging API and targeted Supabase checks
-- **Flutter Tests**: 594 passed in the current verified suite
+- **Flutter Tests**: 636 passed in the current full suite (`--concurrency=1`); `flutter analyze --no-fatal-infos` also passes
 - **Performance**: Response times < 2 seconds
 
 ### Running Tests
@@ -197,7 +197,7 @@ flutter test
 ## 🚀 Deployment
 
 ### Play Store Deployment
-1. **App Bundle Ready**: `mobile/build/app/outputs/bundle/release/app-release.aab`
+1. **App Bundle Build Proof**: The release bundle was built successfully in the last staging run; the ignored `mobile/build/` outputs were later removed to recover disk pressure and must be regenerated before distribution.
 2. **Follow Checklist**: [Play Store Deployment Guide](docs/technical/deployment/play_store_deployment_checklist.md)
 3. **Upload to Play Console**: Use the App Bundle for optimal delivery
 

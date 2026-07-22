@@ -27,8 +27,10 @@ void main() {
           ConsentPurpose.documentProcessing);
       expect(ConsentPurpose.fromString('analytics'),
           ConsentPurpose.analytics);
-      expect(ConsentPurpose.fromString('lead_capture'),
-          ConsentPurpose.leadCapture);
+      expect(ConsentPurpose.fromString('marketing_emails'),
+          ConsentPurpose.marketingEmails);
+      expect(ConsentPurpose.fromString('privacy_policy'),
+          ConsentPurpose.privacyPolicy);
     });
 
     test('fromString returns null for unknown purpose', () {
@@ -39,7 +41,8 @@ void main() {
     test('value getter returns correct string', () {
       expect(ConsentPurpose.documentProcessing.value, 'document_processing');
       expect(ConsentPurpose.analytics.value, 'analytics');
-      expect(ConsentPurpose.leadCapture.value, 'lead_capture');
+      expect(ConsentPurpose.marketingEmails.value, 'marketing_emails');
+      expect(ConsentPurpose.privacyPolicy.value, 'privacy_policy');
     });
   });
 
@@ -108,13 +111,13 @@ void main() {
 
     test('fromJson deserializes correctly', () {
       final json = {
-        'purpose': 'lead_capture',
+        'purpose': 'marketing_emails',
         'version': 'v1',
         'granted': true,
         'timestamp': '2026-07-15T12:30:00.000',
       };
       final record = ConsentRecord.fromJson(json);
-      expect(record.purpose, ConsentPurpose.leadCapture);
+      expect(record.purpose, ConsentPurpose.marketingEmails);
       expect(record.version, 'v1');
       expect(record.granted, isTrue);
       expect(record.revokedAt, isNull);
@@ -195,7 +198,7 @@ void main() {
       );
       expect(ledger.hasConsent(ConsentPurpose.documentProcessing), isTrue);
       expect(ledger.hasConsent(ConsentPurpose.analytics), isFalse);
-      expect(ledger.hasConsent(ConsentPurpose.leadCapture), isFalse);
+      expect(ledger.hasConsent(ConsentPurpose.marketingEmails), isFalse);
     });
 
     test('revokeConsent revokes the latest active record', () async {
@@ -327,12 +330,12 @@ void main() {
 
     test('hasConsent returns the latest state after grant then revoke', () async {
       await ledger.recordConsent(
-        purpose: ConsentPurpose.leadCapture,
+        purpose: ConsentPurpose.marketingEmails,
         version: 'v1',
         granted: true,
       );
-      await ledger.revokeConsent(ConsentPurpose.leadCapture);
-      expect(ledger.hasConsent(ConsentPurpose.leadCapture), isFalse);
+      await ledger.revokeConsent(ConsentPurpose.marketingEmails);
+      expect(ledger.hasConsent(ConsentPurpose.marketingEmails), isFalse);
     });
 
     test('consent persists across ConsentLedger instances', () async {

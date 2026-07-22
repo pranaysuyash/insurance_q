@@ -23,13 +23,152 @@ import '../utils/app_error.dart';
 import '../widgets/shared/error_widget.dart';
 import 'document_preview_screen.dart';
 
-class DocumentsList extends ConsumerWidget {
+/// Sort modes for the document list.
+enum DocsSortMode {
+  dateDesc('date_desc'),
+  dateAsc('date_asc'),
+  nameAsc('name_asc'),
+  nameDesc('name_desc'),
+  type('type');
+
+  final String value;
+  const DocsSortMode(this.value);
+
+  static DocsSortMode fromString(String? value) {
+    return DocsSortMode.values.firstWhere(
+      (m) => m.value == value,
+      orElse: () => DocsSortMode.dateDesc,
+    );
+  }
+}
+
+/// Applies the active sort mode to the document list.
+@visibleForTesting
+List<InsuranceDocument> applySort(
+    List<InsuranceDocument> docs, DocsSortMode mode) {
+  final sorted = List<InsuranceDocument>.from(docs);
+  switch (mode) {
+    case DocsSortMode.dateDesc:
+      sorted.sort((a, b) => b.uploadedOn.compareTo(a.uploadedOn));
+    case DocsSortMode.dateAsc:
+      sorted.sort((a, b) => a.uploadedOn.compareTo(b.uploadedOn));
+    case DocsSortMode.nameAsc:
+      sorted.sort((a, b) =>
+          a.filename.toLowerCase().compareTo(b.filename.toLowerCase()));
+    case DocsSortMode.nameDesc:
+      sorted.sort((a, b) =>
+          b.filename.toLowerCase().compareTo(a.filename.toLowerCase()));
+    case DocsSortMode.type:
+      sorted.sort((a, b) {
+        final ta = canonicalTypeName(classifyPolicyType(a.documentType));
+        final tb = canonicalTypeName(classifyPolicyType(b.documentType));
+        final cmp = ta.compareTo(tb);
+        return cmp != 0 ? cmp : b.uploadedOn.compareTo(a.uploadedOn);
+      });
+  }
+  return sorted;
+}
+
+/// Applies the active type filter to the document list.
+@visibleForTesting
+List<InsuranceDocument> applyFilter(
+    List<InsuranceDocument> docs, String? filterType) {
+  if (filterType == null || filterType.isEmpty) return docs;
+  return docs.where((d) {
+    final t = canonicalTypeName(classifyPolicyType(d.documentType));
+    return t.toLowerCase() == filterType.toLowerCase();
+  }).toList();
+}
+
+/// Collects the distinct document types present in the list (for the filter chips).
+@visibleForTesting
+List<String> distinctTypes(List<InsuranceDocument> docs) {
+  final types = <String>{};
+  for (final d in docs) {
+    types.add(canonicalTypeName(classifyPolicyType(d.documentType)));
+  }
+  final list = types.toList()..sort();
+  return list;
+}
+
+/// A policy can be queried from the server even when its source PDF is not
+/// cached on this device. Pending uploads remain ineligible until they have a
+/// stable remote identity.
+@visibleForTesting
+bool canAskQuestions(InsuranceDocument document, {required bool isReady}) {
+  return isReady &&
+      (document.localFilePath != null || document.remoteId != null);
+}
+
+class DocumentsList extends ConsumerStatefulWidget {
   final Function(String)? onDocumentSelectedForQA;
 
   const DocumentsList({super.key, this.onDocumentSelectedForQA});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DocumentsList> createState() => _DocumentsListState();
+}
+
+class _DocumentsListState extends ConsumerState<DocumentsList> {
+  late DocsSortMode _sortMode;
+  String? _filterType;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  void _loadPreferences() {
+    final box = Hive.box(AppStateStore.boxName);
+    _sortMode = DocsSortMode.fromString(
+        box.get(AppStateStore.docsSortModeKey) as String?);
+    _filterType = box.get(AppStateStore.docsFilterTypeKey) as String?;
+  }
+
+  Future<void> _saveSortMode(DocsSortMode mode) async {
+    setState(() => _sortMode = mode);
+    final box = Hive.box(AppStateStore.boxName);
+    await box.put(AppStateStore.docsSortModeKey, mode.value);
+  }
+
+  Future<void> _saveFilterType(String? type) async {
+    setState(() => _filterType = type);
+    final box = Hive.box(AppStateStore.boxName);
+    await box.put(AppStateStore.docsFilterTypeKey, type);
+  }
+
+  Future<void> _downloadAndPreview(
+      BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    try {
+      final cached = await ref
+          .read(documentServiceProvider)
+          .cacheRemoteSource(document.id);
+      ref.invalidate(documentsProvider);
+      if (!context.mounted || cached.localFilePath == null) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DocumentPreviewScreen(
+            filePath: cached.localFilePath!,
+            filename: cached.filename,
+            documentId: cached.remoteId,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('We could not download the source document. Please retry.'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final documentsAsync = ref.watch(documentsProvider);
 
     return documentsAsync.when(
@@ -54,12 +193,17 @@ class DocumentsList extends ConsumerWidget {
           );
         }
 
+        // Apply sort + filter
+        final filtered = applyFilter(documents, _filterType);
+        final sorted = applySort(filtered, _sortMode);
+
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(documentsProvider),
           child: Column(
             children: [
+              // Slot count
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                 child: Semantics(
                   label: S.docsSlotsUsed(documents.length),
                   child: Row(
@@ -72,7 +216,10 @@ class DocumentsList extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          S.docsSlotsUsed(documents.length),
+                          _filterType != null
+                              ? S.docsFilterResultCount(
+                                  filtered.length, documents.length)
+                              : S.docsSlotsUsed(documents.length),
                           style: Theme.of(context)
                               .textTheme
                               .labelMedium
@@ -86,154 +233,226 @@ class DocumentsList extends ConsumerWidget {
                   ),
                 ),
               ),
+              // Sort / Filter bar
+              _SortFilterBar(
+                sortMode: _sortMode,
+                filterType: _filterType,
+                availableTypes: distinctTypes(documents),
+                onSortChanged: _saveSortMode,
+                onFilterChanged: _saveFilterType,
+              ),
+              // Document list
               Expanded(
-                child: ListView.builder(
-                  itemCount: documents.length,
-                  itemBuilder: (context, index) {
-                    final doc = documents[index];
-                    final processingState = doc.processingState;
-                    final isReady = processingState == 'completed' ||
-                        processingState == 'ready';
-                    final typeColor = colorForDocumentType(doc.documentType);
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      child: ExpansionTile(
-                        tilePadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
-                        childrenPadding:
-                            const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        leading: CoverWiseIconBadge(
-                          icon: iconForDocumentType(doc.documentType),
-                          color: typeColor,
-                          size: 46,
-                        ),
-                        title: Text(doc.filename,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            '${doc.formattedUploadDate} • ${_processingLabel(processingState)}',
+                child: sorted.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.filter_list_off_rounded,
+                                  size: 48,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No policies match this filter',
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: () => _saveFilterType(null),
+                                child: const Text('Clear filter'),
+                              ),
+                            ],
                           ),
                         ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      )
+                    : ListView.builder(
+                        itemCount: sorted.length,
+                        itemBuilder: (context, index) {
+                          final doc = sorted[index];
+                          final processingState = doc.processingState;
+                          final isReady = processingState == 'completed' ||
+                              processingState == 'ready';
+                          final typeColor =
+                              colorForDocumentType(doc.documentType);
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
+                            child: ExpansionTile(
+                              tilePadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
+                              childrenPadding:
+                                  const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              leading: CoverWiseIconBadge(
+                                icon: iconForDocumentType(doc.documentType),
+                                color: typeColor,
+                                size: 46,
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(doc.filename,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700)),
+                                  ),
+                                  InkWell(
+                                    onTap: () =>
+                                        _renameDocument(context, ref, doc),
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(4),
+                                      child:
+                                          Icon(Icons.edit_outlined, size: 16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  '${doc.formattedUploadDate} • ${_processingLabel(processingState)}',
+                                ),
+                              ),
                               children: [
-                                _metadataRow(context, 'Local ID', doc.id),
-                                if (doc.remoteId != null)
-                                  _metadataRow(
-                                      context, 'Backend ID', doc.remoteId!),
-                                _metadataRow(context, 'Type',
-                                    doc.documentType ?? 'Unknown'),
-                                _metadataRow(context, 'Upload Date',
-                                    doc.formattedUploadDate),
-                                _metadataRow(context, 'Analysis Date',
-                                    doc.formattedAnalyzedDate),
-                                if (doc.size != null)
-                                  _metadataRow(
-                                      context, 'Size', doc.formattedFileSize),
-                                const SizedBox(height: 16),
-                                Wrap(
-                                  alignment: WrapAlignment.end,
-                                  spacing: 4,
-                                  runSpacing: 4,
-                                  children: [
-                                    if (doc.localFilePath != null)
-                                      TextButton.icon(
-                                        icon: const Icon(Icons.visibility),
-                                        label: Text(S.docsPreview),
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  DocumentPreviewScreen(
-                                                filePath: doc.localFilePath!,
-                                                filename: doc.filename,
-                                              ),
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _metadataRow(context, 'Local ID', doc.id),
+                                      if (doc.remoteId != null)
+                                        _metadataRow(context, 'Backend ID',
+                                            doc.remoteId!),
+                                      _metadataRow(context, 'Type',
+                                          doc.documentType ?? 'Unknown'),
+                                      _metadataRow(context, 'Upload Date',
+                                          doc.formattedUploadDate),
+                                      _metadataRow(context, 'Analysis Date',
+                                          doc.formattedAnalyzedDate),
+                                      if (doc.size != null)
+                                        _metadataRow(context, 'Size',
+                                            doc.formattedFileSize),
+                                      const SizedBox(height: 16),
+                                      Wrap(
+                                        alignment: WrapAlignment.end,
+                                        spacing: 4,
+                                        runSpacing: 4,
+                                        children: [
+                                          if (doc.localFilePath != null)
+                                            TextButton.icon(
+                                              icon:
+                                                  const Icon(Icons.visibility),
+                                              label: Text(S.docsPreview),
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        DocumentPreviewScreen(
+                                                      filePath:
+                                                          doc.localFilePath!,
+                                                      filename: doc.filename,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
                                             ),
-                                          );
-                                        },
+                                          if (doc.localFilePath == null &&
+                                              doc.remoteId != null)
+                                            TextButton.icon(
+                                              icon: const Icon(
+                                                  Icons.download_outlined),
+                                              label:
+                                                  Text(S.docsDownloadSource),
+                                              onPressed: () =>
+                                                  _downloadAndPreview(
+                                                      context, ref, doc),
+                                            ),
+                                          if (doc.syncState == 'pending_upload')
+                                            TextButton.icon(
+                                              icon: const Icon(
+                                                  Icons.cloud_upload_outlined),
+                                              label: Text(S.docsRetryUpload),
+                                              onPressed: () =>
+                                                  _retryUpload(context, ref),
+                                            ),
+                                          TextButton.icon(
+                                            icon: const Icon(
+                                                Icons.category_outlined),
+                                            label: Text(S.docsChangeType),
+                                            onPressed: () =>
+                                                _changeDocumentType(
+                                                    context, ref, doc),
+                                          ),
+                                          if (canAskQuestions(doc,
+                                              isReady: isReady))
+                                            TextButton.icon(
+                                              icon: const Icon(
+                                                  Icons.forum_outlined),
+                                              label: Text(isReady
+                                                  ? S.docsAskQuestions
+                                                  : S.docsReadingPolicy),
+                                              onPressed: isReady
+                                                  ? () {
+                                                      if (widget
+                                                              .onDocumentSelectedForQA !=
+                                                          null) {
+                                                        widget.onDocumentSelectedForQA!(
+                                                            doc.id);
+                                                      } else {
+                                                        Navigator.pushNamed(
+                                                            context, '/qa',
+                                                            arguments: doc.id);
+                                                      }
+                                                    }
+                                                  : null,
+                                            ),
+                                          Tooltip(
+                                            message:
+                                                'Replace is temporarily disabled. The old document is still on CoverWise servers and will be cleared with the next account sync (see Security Phase 3).',
+                                            child: TextButton.icon(
+                                              icon: const Icon(
+                                                  Icons.find_replace_outlined),
+                                              label: Text(S.docsReplace),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor:
+                                                    Theme.of(context)
+                                                        .colorScheme
+                                                        .tertiary
+                                                        .withValues(
+                                                            alpha: 0.38),
+                                              ),
+                                              onPressed: null,
+                                            ),
+                                          ),
+                                          TextButton.icon(
+                                            icon: const Icon(
+                                                Icons.delete_outline),
+                                            label: Text(S.docsDeletePolicy),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: Theme.of(context)
+                                                  .colorScheme
+                                                  .error,
+                                            ),
+                                            onPressed: () => _deleteDocument(
+                                                context, ref, doc),
+                                          ),
+                                        ],
                                       ),
-                                    TextButton.icon(
-                                      icon: const Icon(Icons.category_outlined),
-                                      label: Text(S.docsChangeType),
-                                      onPressed: () => _changeDocumentType(context, ref, doc),
-                                    ),
-                                    if (doc.localFilePath != null)
-                                      TextButton.icon(
-                                        icon: const Icon(Icons.forum_outlined),
-                                        label: Text(isReady
-                                            ? S.docsAskQuestions
-                                            : S.docsReadingPolicy),
-                                        onPressed: isReady
-                                            ? () {
-                                                if (onDocumentSelectedForQA !=
-                                                    null) {
-                                                  onDocumentSelectedForQA!(
-                                                      doc.id);
-                                                } else {
-                                                  Navigator.pushNamed(
-                                                      context, '/qa',
-                                                      arguments: doc.id);
-                                                }
-                                              }
-                                            : null,
-                                      ),
-                                    // Security audit P0-03 (2026-07-18):
-                                    // "Replace" uploads a new server
-                                    // document and only removes the old
-                                    // local record. The old server
-                                    // document remains in Supabase,
-                                    // Supabase Storage, and the RAG
-                                    // index. Disabling until the
-                                    // server-side orphan is handled in
-                                    // Security Phase 3.
-                                    Tooltip(
-                                      message:
-                                          'Replace is temporarily disabled. The old document is still on CoverWise servers and will be cleared with the next account sync (see Security Phase 3).',
-                                      child: TextButton.icon(
-                                        icon: const Icon(
-                                            Icons.find_replace_outlined),
-                                        label: Text(S.docsReplace),
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .tertiary
-                                              .withValues(alpha: 0.38),
-                                        ),
-                                        onPressed: null,
-                                      ),
-                                    ),
-                                    TextButton.icon(
-                                      icon: const Icon(Icons.delete_outline),
-                                      // Remote-first deletion is canonical:
-                                      // the local record is removed only after
-                                      // the server confirms the deletion.
-                                      label: Text(S.docsDeletePolicy),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor:
-                                            Theme.of(context).colorScheme.error,
-                                      ),
-                                      onPressed: () =>
-                                          _deleteDocument(context, ref, doc),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           ),
@@ -242,13 +461,80 @@ class DocumentsList extends ConsumerWidget {
     );
   }
 
+  Future<void> _renameDocument(
+      BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final controller = TextEditingController(text: document.filename);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(S.docsRenameTitle),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: S.docsRenameHint,
+            border: const OutlineInputBorder(),
+          ),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) {
+            if (controller.text.trim().isNotEmpty) Navigator.pop(ctx, true);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(S.cancel),
+          ),
+          FilledButton(
+            onPressed: controller.text.trim().isEmpty
+                ? null
+                : () => Navigator.pop(ctx, true),
+            child: Text(S.docsRenameSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (confirmed != true || !context.mounted) return;
+
+    final newName = controller.text.trim();
+    if (newName.isEmpty || newName == document.filename) return;
+
+    final updated = InsuranceDocument(
+      id: document.id,
+      remoteId: document.remoteId,
+      filename: newName,
+      uploadedOn: document.uploadedOn,
+      documentType: document.documentType,
+      insurer: document.insurer,
+      status: document.status,
+      syncState: document.syncState,
+      processingState: document.processingState,
+      processingConsentVersion: document.processingConsentVersion,
+      processingCompletedAt: document.processingCompletedAt,
+      size: document.size,
+      localFilePath: document.localFilePath,
+      policyHolders: document.policyHolders,
+    );
+    try {
+      await ref.read(documentServiceProvider).updateDocumentType(updated);
+      ref.invalidate(documentsProvider);
+      if (!context.mounted) return;
+      CoverWiseSnackBar.success(context, S.docsRenameSuccess);
+    } catch (e) {
+      if (!context.mounted) return;
+      CoverWiseSnackBar.error(context, AppError.userMessage(e),
+          operation: 'rename policy');
+    }
+  }
+
   Future<void> _changeDocumentType(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
     final currentType = classifyPolicyType(document.documentType);
-    final newType = await showDocumentTypePicker(context, currentType: currentType);
+    final newType =
+        await showDocumentTypePicker(context, currentType: currentType);
     if (newType == null || newType == currentType) return;
-    // Persist the corrected type locally so the next getDocuments() call
-    // reflects the user's choice without waiting for a backend re-classify.
     final updated = InsuranceDocument(
       id: document.id,
       remoteId: document.remoteId,
@@ -259,6 +545,7 @@ class DocumentsList extends ConsumerWidget {
       status: document.status,
       syncState: document.syncState,
       processingState: document.processingState,
+      processingConsentVersion: document.processingConsentVersion,
       processingCompletedAt: document.processingCompletedAt,
       size: document.size,
       localFilePath: document.localFilePath,
@@ -268,29 +555,12 @@ class DocumentsList extends ConsumerWidget {
       await ref.read(documentServiceProvider).updateDocumentType(updated);
       ref.invalidate(documentsProvider);
       if (!context.mounted) return;
-      CoverWiseSnackBar.success(context, '${S.docsTypeChanged} ${canonicalTypeName(newType)}');
+      CoverWiseSnackBar.success(
+          context, '${S.docsTypeChanged} ${canonicalTypeName(newType)}');
     } catch (e) {
       if (!context.mounted) return;
-      CoverWiseSnackBar.error(context, AppError.userMessage(e));
-    }
-  }
-
-  // Security audit P0-03 (2026-07-18): the Replace button is disabled
-  // in the document list, so this handler is currently unreachable from
-  // the UI. The handler is preserved for Security Phase 3, which will
-  // re-enable Replace once the old server document is atomically
-  // deleted server-side. Removing the handler now would lose the
-  // navigation contract that _DocumentReplaceScreen relies on.
-  // ignore: unused_element
-  Future<void> _replaceDocument(
-      BuildContext context, WidgetRef ref, InsuranceDocument document) async {
-    if (context.mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => _DocumentReplaceScreen(document: document),
-        ),
-      );
+      CoverWiseSnackBar.error(context, AppError.userMessage(e),
+          operation: 'change document type');
     }
   }
 
@@ -317,22 +587,20 @@ class DocumentsList extends ConsumerWidget {
         final success =
             await ref.read(documentServiceProvider).deleteDocument(document.id);
         if (success) {
-          // Cascade: remove derived data and invalidate all dependents
-          // so the UI stays consistent (dashboard, QA, summaries, family).
-          ref.read(policySummariesProvider.notifier).deleteSummary(document.id);
-
-          // Clear stale selected document pointer if it pointed at this doc
-          final selectedId = AppStateRepository.getSelectedDocumentId();
-          if (selectedId == document.id) {
-            await AppStateRepository.setSelectedDocumentId(null);
-            ref.read(selectedDocumentProvider.notifier).state = null;
+          final documentIds = {document.id, document.backendId};
+          for (final documentId in documentIds) {
+            await ref
+                .read(policySummariesProvider.notifier)
+                .deleteSummary(documentId);
           }
 
-          // Invalidate the document list (all screens watching rebuild)
-          ref.invalidate(documentsProvider);
+          final selectedId = AppStateRepository.getSelectedDocumentId();
+          await AppStateRepository.clearDocumentReferences(documentIds);
+          if (selectedId != null && documentIds.contains(selectedId)) {
+            ref.read(selectedDocumentProvider.notifier).setState(null);
+          }
 
-          // Invalidate family members (auto-detected ones may have come
-          // from this document)
+          ref.invalidate(documentsProvider);
           refreshManualFamilyMembers(ref);
 
           if (!context.mounted) return;
@@ -340,8 +608,33 @@ class DocumentsList extends ConsumerWidget {
         }
       } catch (e) {
         if (!context.mounted) return;
-        CoverWiseSnackBar.error(context, AppError.contextual(error: e, operation: 'delete_document'));
+        CoverWiseSnackBar.error(context,
+            AppError.contextual(error: e, operation: 'delete_document'),
+            operation: 'delete policy');
       }
+    }
+  }
+
+  Future<void> _retryUpload(BuildContext context, WidgetRef ref) async {
+    try {
+      final result =
+          await ref.read(documentServiceProvider).retryPendingUploads();
+      ref.invalidate(documentsProvider);
+      if (!context.mounted) return;
+      if ((result['synced'] ?? 0) > 0) {
+        CoverWiseSnackBar.success(context, 'Policy upload resumed.');
+      } else if ((result['pending'] ?? 0) > 0) {
+        CoverWiseSnackBar.info(context,
+            'The connection is still unavailable. We will retry again.');
+      } else if ((result['failed'] ?? 0) > 0) {
+        CoverWiseSnackBar.error(
+            context, 'This policy needs attention before it can be uploaded.',
+            operation: 'retry policy upload');
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      CoverWiseSnackBar.error(context, AppError.userMessage(e),
+          operation: 'retry policy upload');
     }
   }
 
@@ -365,18 +658,177 @@ class DocumentsList extends ConsumerWidget {
     switch (state) {
       case 'received':
       case 'processing':
-        return 'Reading policy';
+        return S.docsReadingPolicy;
       case 'pending':
       case 'pending_upload':
-        return 'Server upload required';
+        return S.docsUploadRequired;
       case 'failed':
-        return 'Needs attention';
+        return S.docsNeedsAttention;
       case 'completed':
       case 'ready':
-        return 'Ready for questions';
+        return S.docsReadyForQuestions;
       default:
-        return 'Saved';
+        return S.docsSaved;
     }
+  }
+}
+
+/// Compact sort / filter bar with horizontal chips.
+class _SortFilterBar extends StatelessWidget {
+  final DocsSortMode sortMode;
+  final String? filterType;
+  final List<String> availableTypes;
+  final ValueChanged<DocsSortMode> onSortChanged;
+  final ValueChanged<String?> onFilterChanged;
+
+  const _SortFilterBar({
+    required this.sortMode,
+    required this.filterType,
+    required this.availableTypes,
+    required this.onSortChanged,
+    required this.onFilterChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      child: SizedBox(
+        height: 40,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            // Sort chip
+            _SortFilterChip(
+              icon: Icons.sort,
+              label: S.docsSortLabel,
+              isActive: sortMode != DocsSortMode.dateDesc,
+              onTap: () => _showSortPicker(context),
+            ),
+            const SizedBox(width: 6),
+            // "All" filter chip to clear type filter
+            FilterChip(
+              label:
+                  Text(S.docsFilterAll, style: const TextStyle(fontSize: 12)),
+              selected: filterType == null,
+              onSelected: (selected) {
+                onFilterChanged(null);
+              },
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            // Type filter chips (one per distinct type)
+            for (final type in availableTypes) ...[
+              const SizedBox(width: 6),
+              FilterChip(
+                label: Text(type, style: const TextStyle(fontSize: 12)),
+                selected: filterType == type,
+                onSelected: (selected) {
+                  onFilterChanged(selected ? type : null);
+                },
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSortPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(S.docsSortLabel,
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            _sortOption(ctx, DocsSortMode.dateDesc, S.docsSortDateNewest),
+            _sortOption(ctx, DocsSortMode.dateAsc, S.docsSortDateOldest),
+            _sortOption(ctx, DocsSortMode.nameAsc, S.docsSortNameAZ),
+            _sortOption(ctx, DocsSortMode.nameDesc, S.docsSortNameZA),
+            _sortOption(ctx, DocsSortMode.type, S.docsSortType),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sortOption(BuildContext ctx, DocsSortMode mode, String label) {
+    final isSelected = sortMode == mode;
+    return ListTile(
+      leading: Icon(
+        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: isSelected ? Theme.of(ctx).colorScheme.primary : null,
+      ),
+      title: Text(label),
+      onTap: () {
+        onSortChanged(mode);
+        Navigator.pop(ctx);
+      },
+    );
+  }
+}
+
+/// Small action chip used by the sort / filter bar.
+class _SortFilterChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _SortFilterChip({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? scheme.primary : scheme.outlineVariant,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 16,
+                color: isActive
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isActive
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -422,11 +874,10 @@ class _DocumentReplaceScreenState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-                'This will delete "${widget.document.filename}" and replace it with the new file.'),
+            Text(S.docsReplaceWillDelete(widget.document.filename)),
             const SizedBox(height: 8),
-            const Text(
-              "The old document's analysis will be lost. The new document will be processed fresh.",
+            Text(
+              S.docsReplaceAnalysisLost,
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -476,7 +927,6 @@ class _DocumentReplaceScreenState
         return;
       }
 
-      // Refresh document list
       ref.invalidate(documentsProvider);
       ref.invalidate(policySummariesProvider);
 
@@ -514,7 +964,8 @@ class _DocumentReplaceScreenState
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Text(widget.document.filename),
-                    Text('Uploaded: ${widget.document.formattedUploadDate}',
+                    Text(
+                        S.docsUploadedDate(widget.document.formattedUploadDate),
                         style:
                             const TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
@@ -529,7 +980,7 @@ class _DocumentReplaceScreenState
                   title: Text(_selectedFile!.path.split('/').last),
                   trailing: IconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: 'Clear replacement file',
+                    tooltip: S.docsClearReplacement,
                     onPressed: () => setState(() => _selectedFile = null),
                   ),
                 ),

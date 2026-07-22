@@ -55,6 +55,7 @@ class InsuranceDocument {
   final String? status;
   final String syncState;
   final String processingState;
+  final String? processingConsentVersion;
   final int schemaVersion;
   final DateTime? processingCompletedAt;
   final int? size;
@@ -71,6 +72,7 @@ class InsuranceDocument {
     this.status = 'completed',
     this.syncState = 'synced',
     this.processingState = 'ready',
+    this.processingConsentVersion,
     this.schemaVersion = 1,
     this.processingCompletedAt,
     this.size,
@@ -86,22 +88,23 @@ class InsuranceDocument {
           .map((holder) => PolicyHolder.fromJson(holder))
           .toList();
     }
-    
+
     return InsuranceDocument(
       id: json['local_id'] ?? json['id'] ?? '',
       remoteId: json['remote_id'] ?? json['document_id'],
       filename: json['filename'] ?? '',
-      uploadedOn: json['upload_date'] != null 
-          ? DateTime.parse(json['upload_date']) 
+      uploadedOn: json['upload_date'] != null
+          ? DateTime.parse(json['upload_date'])
           : DateTime.now(),
       documentType: json['document_type'],
       insurer: json['insurer'],
       status: json['status'] ?? 'completed',
       syncState: json['sync_state'] ?? 'synced',
       processingState: json['processing_state'] ?? json['status'] ?? 'ready',
+      processingConsentVersion: json['processing_consent_version'],
       schemaVersion: json['schema_version'] ?? 1,
-      processingCompletedAt: json['processing_completed_at'] != null 
-          ? DateTime.parse(json['processing_completed_at']) 
+      processingCompletedAt: json['processing_completed_at'] != null
+          ? DateTime.parse(json['processing_completed_at'])
           : null,
       size: json['size'],
       localFilePath: json['local_file_path'],
@@ -121,11 +124,13 @@ class InsuranceDocument {
       'status': status,
       'sync_state': syncState,
       'processing_state': processingState,
+      'processing_consent_version': processingConsentVersion,
       'schema_version': schemaVersion,
       'processing_completed_at': processingCompletedAt?.toIso8601String(),
       'size': size,
       'local_file_path': localFilePath,
-      'policy_holders': policyHolders?.map((holder) => holder.toJson()).toList(),
+      'policy_holders':
+          policyHolders?.map((holder) => holder.toJson()).toList(),
     };
   }
 
@@ -140,16 +145,16 @@ class InsuranceDocument {
   String get formattedUploadDate {
     return '${uploadedOn.day}/${uploadedOn.month}/${uploadedOn.year}';
   }
-  
+
   String get formattedAnalyzedDate {
-    return processingCompletedAt != null 
+    return processingCompletedAt != null
         ? '${processingCompletedAt!.day}/${processingCompletedAt!.month}/${processingCompletedAt!.year}'
         : 'Not analyzed';
   }
-  
+
   String get formattedFileSize {
     if (size == null) return 'Unknown';
-    
+
     if (size! < 1024) {
       return '$size B';
     } else if (size! < 1024 * 1024) {
@@ -162,4 +167,35 @@ class InsuranceDocument {
   String get backendId => remoteId ?? id;
 
   bool get isSynced => remoteId != null && syncState == 'synced';
-} 
+
+  InsuranceDocument copyWith({
+    String? remoteId,
+    String? documentType,
+    String? insurer,
+    String? status,
+    String? syncState,
+    String? processingState,
+    String? processingConsentVersion,
+    DateTime? processingCompletedAt,
+  }) {
+    return InsuranceDocument(
+      id: id,
+      remoteId: remoteId ?? this.remoteId,
+      filename: filename,
+      uploadedOn: uploadedOn,
+      documentType: documentType ?? this.documentType,
+      insurer: insurer ?? this.insurer,
+      status: status ?? this.status,
+      syncState: syncState ?? this.syncState,
+      processingState: processingState ?? this.processingState,
+      processingConsentVersion:
+          processingConsentVersion ?? this.processingConsentVersion,
+      schemaVersion: schemaVersion,
+      processingCompletedAt:
+          processingCompletedAt ?? this.processingCompletedAt,
+      size: size,
+      localFilePath: localFilePath,
+      policyHolders: policyHolders,
+    );
+  }
+}

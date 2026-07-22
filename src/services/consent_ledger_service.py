@@ -23,6 +23,7 @@ from src.models.consent import (
     CurrentConsent,
     RecordConsentRequest,
 )
+from src.utils.runtime_config import supabase_server_key
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class ConsentLedgerService:
     @staticmethod
     def from_env() -> "ConsentLedgerService":
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        key = supabase_server_key()
         if not url or not key:
             raise ConsentLedgerUnavailable(
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set"

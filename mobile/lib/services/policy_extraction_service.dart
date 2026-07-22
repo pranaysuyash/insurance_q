@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import '../config/app_config.dart';
 import '../models/policy_summary.dart';
 import '../utils/policy_type.dart';
+import 'policy_extraction_helpers.dart';
 import 'query_service.dart';
 
 class PolicyExtractionService {
@@ -91,86 +92,14 @@ class PolicyExtractionService {
     }
   }
 
-  String _clean(String? text) {
-    if (text == null) return '';
-    var cleaned = text.trim();
-    cleaned = cleaned.replaceAll(RegExp(r'^(answer|the|this|it is|it.s)\s+', caseSensitive: false), '');
-    cleaned = cleaned.replaceAll(RegExp(r'\.$'), '');
-    return cleaned.trim();
-  }
+  // Pure helper methods delegated to policy_extraction_helpers.dart so they
+  // can be unit-tested without a Dio or Hive dependency.
 
-  String? _cleanEmail(String? text) {
-    if (text == null) return null;
-    final cleaned = text.trim().toLowerCase();
-    if (cleaned.contains('not listed') || cleaned.contains('not available') || cleaned.isEmpty) {
-      return null;
-    }
-    final emailRegex = RegExp(r'[\w.+-]+@[\w-]+\.[\w.-]+');
-    final match = emailRegex.firstMatch(cleaned);
-    return match?.group(0);
-  }
-
-  double? _parseAmount(String? text) {
-    if (text == null || text.isEmpty) return null;
-    final cleaned = text.toLowerCase().replaceAll(RegExp(r'[^\d.]'), '');
-    if (cleaned.isEmpty) return null;
-    final amount = double.tryParse(cleaned);
-    if (amount == null) return null;
-    if (text.toLowerCase().contains('lakh') || text.toLowerCase().contains('l')) {
-      return amount * 100000;
-    }
-    if (text.toLowerCase().contains('crore') || text.toLowerCase().contains('cr')) {
-      return amount * 10000000;
-    }
-    if (text.toLowerCase().contains('thousand') || text.toLowerCase().contains('k')) {
-      return amount * 1000;
-    }
-    return amount;
-  }
-
-  DateTime? _parseDate(String? text) {
-    if (text == null || text.isEmpty) return null;
-    final cleaned = text.trim();
-    final patterns = [
-      RegExp(r'(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})'),
-      RegExp(r'(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{2,4})', caseSensitive: false),
-    ];
-    for (final pattern in patterns) {
-      final match = pattern.firstMatch(cleaned);
-      if (match != null) {
-        try {
-          if (pattern == patterns[0]) {
-            final day = int.parse(match.group(1)!);
-            final month = int.parse(match.group(2)!);
-            var year = int.parse(match.group(3)!);
-            if (year < 100) year += 2000;
-            return DateTime(year, month, day);
-          } else {
-            final day = int.parse(match.group(1)!);
-            final monthMap = {
-              'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-              'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
-            };
-            final month = monthMap[match.group(2)!.toLowerCase().substring(0, 3)] ?? 1;
-            var year = int.parse(match.group(3)!);
-            if (year < 100) year += 2000;
-            return DateTime(year, month, day);
-          }
-        } catch (_) {}
-      }
-    }
-    return null;
-  }
-
-  List<String> _splitLines(String? text) {
-    if (text == null || text.isEmpty) return [];
-    return text
-        .split(RegExp(r'[\n•\-]\s*'))
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty && s.length > 3)
-        .take(10)
-        .toList();
-  }
+  String _clean(String? text) => cleanText(text);
+  String? _cleanEmail(String? text) => extractEmail(text);
+  double? _parseAmount(String? text) => parseAmount(text);
+  DateTime? _parseDate(String? text) => parseDate(text);
+  List<String> _splitLines(String? text) => splitLines(text);
 
   Future<void> saveSummary(PolicySummary summary) async {
     final existing = getAllSummaries();

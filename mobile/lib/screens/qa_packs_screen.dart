@@ -8,6 +8,7 @@ import '../theme/coverwise_theme.dart';
 import '../services/analytics_service.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../utils/app_error.dart';
+import '../localization/app_localizations.dart';
 
 /// Screen where users can browse and purchase pay-per-Q&A packs.
 ///
@@ -30,7 +31,7 @@ class _QaPacksScreenState extends ConsumerState<QaPacksScreen> {
     final packState = ref.watch(qaPackStateProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Q&A Packs'),
+        title: const Text(S.qaPacksTitle),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -169,7 +170,8 @@ class _CurrentBalanceCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            if (packState.hasSubscriptionQuestions && packState.hasPackQuestions)
+            if (packState.hasSubscriptionQuestions &&
+                packState.hasPackQuestions)
               Text(
                 '${packState.subscriptionQuestionsRemaining} from monthly plan · '
                 '${packState.packQuestionsRemaining} from packs',
@@ -316,9 +318,8 @@ class _PackCard extends ConsumerWidget {
                 SizedBox(
                   height: 32,
                   child: FilledButton(
-                    onPressed: isPurchasing
-                        ? null
-                        : () => _purchasePack(context, ref),
+                    onPressed:
+                        isPurchasing ? null : () => _purchasePack(context, ref),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
@@ -359,12 +360,19 @@ class _PackCard extends ConsumerWidget {
         });
         ref.read(entitlementProvider.notifier).refresh();
         onSuccess();
-        CoverWiseSnackBar.success(context, '${pack.displayName} pack purchased! ${pack.questionCount} questions added.');
+        CoverWiseSnackBar.success(
+          context,
+          S.qaPacksPackPurchased(pack.displayName, pack.questionCount),
+        );
       } else {
         AnalyticsService.track('qa_pack_purchase_failed', {
           'pack_type': pack.name,
-          'reason': 'user_cancelled',
+          'reason': 'not_completed',
         });
+        CoverWiseSnackBar.info(
+          context,
+          S.qaPacksPurchaseNotCompleted,
+        );
       }
     } catch (e) {
       if (!context.mounted) return;
@@ -372,8 +380,10 @@ class _PackCard extends ConsumerWidget {
         'pack_type': pack.name,
         'reason': 'error',
       });
-      final msg = AppError.userMessage(e);
-      CoverWiseSnackBar.error(context, msg.isEmpty ? 'Purchase was cancelled.' : msg);
+      final msg = AppError.contextual(error: e, operation: 'purchase');
+      if (msg.isNotEmpty) {
+        CoverWiseSnackBar.error(context, msg, operation: 'purchase Q&A pack');
+      }
     } finally {
       onEndPurchase();
     }
@@ -416,7 +426,8 @@ class _ActivePackTile extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 6,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
               ),
             ),
             const SizedBox(height: 6),
@@ -424,7 +435,9 @@ class _ActivePackTile extends StatelessWidget {
               'Expires in $daysLeft day${daysLeft == 1 ? '' : 's'}',
               style: TextStyle(
                 fontSize: 12,
-                color: daysLeft <= 7 ? Colors.orange : Theme.of(context).colorScheme.onSurfaceVariant,
+                color: daysLeft <= 7
+                    ? Colors.orange
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -433,4 +446,3 @@ class _ActivePackTile extends StatelessWidget {
     );
   }
 }
-

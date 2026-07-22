@@ -19,6 +19,7 @@ The trust audit's Phase 1 acceptance is:
      honest UI for an unavailable substrate).
 """
 
+import hashlib
 import os
 import sys
 from unittest.mock import MagicMock
@@ -159,11 +160,11 @@ def test_source_span_rejects_empty_text():
 # --- 4. enums match the SQL CHECK constraints ---
 
 def test_span_type_enum_matches_sql_check():
-    """The SQL CHECK constraint lists: paragraph, table_cell,
-    header, footer, list_item, other. The enum must match
-    exactly. A drift here means a write that the DB rejects."""
+    """The typed source-span vocabulary must match the SQL CHECK constraint."""
     expected = {
-        "paragraph", "table_cell", "header", "footer", "list_item", "other",
+        "text_block", "sentence", "paragraph", "heading", "line", "word",
+        "table_cell", "table", "formula", "form_field", "caption", "annotation",
+        "header", "footer", "list_item", "other",
     }
     actual = {s.value for s in SpanType}
     assert actual == expected
@@ -216,6 +217,91 @@ def test_append_page_artifact_rejects_empty_bytes():
                 page_image_bytes=b"",
             )
         )
+
+
+def test_append_page_artifact_replays_same_immutable_row():
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+    existing_id = uuid.uuid4()
+    image = b"same-page"
+    image_uri = "coverwise-documents/doc/pages/1.png"
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [{
+        "id": str(existing_id),
+        "image_uri": image_uri,
+        "sha256": hashlib.sha256(image).hexdigest(),
+    }]
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+
+    result = asyncio.run(
+        svc.append_page_artifact(
+            document_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            page_number=1,
+            page_image_bytes=image,
+            image_uri=image_uri,
+        )
+    )
+
+    assert result == existing_id
+    client.table.return_value.insert.assert_not_called()
+
+
+def test_append_page_artifact_rejects_replay_with_different_bytes():
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [{
+        "id": str(uuid.uuid4()),
+        "image_uri": "coverwise-documents/doc/pages/1.png",
+        "sha256": "0" * 64,
+    }]
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+
+    with pytest.raises(EvidenceSubstrateError, match="page_artifact conflict"):
+        asyncio.run(
+            svc.append_page_artifact(
+                document_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                page_number=1,
+                page_image_bytes=b"different-page",
+                image_uri="coverwise-documents/doc/pages/1.png",
+            )
+        )
+
+
+def test_append_source_spans_replays_existing_logical_spans():
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+    span_id = uuid.uuid4()
+    row = {
+        "id": str(span_id),
+        "span_text": "Policy number: POL-001",
+        "bbox_json": {"x": 1, "y": 2, "w": 3, "h": 4, "page_w": 612, "page_h": 792},
+        "span_type": "paragraph",
+        "confidence": 0.9,
+        "parser_version": "parser-v1",
+    }
+    client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [row]
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+
+    result = asyncio.run(
+        svc.append_source_spans(
+            uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            [SourceSpan(
+                span_text=row["span_text"],
+                bbox_json=row["bbox_json"],
+                span_type=SpanType.PARAGRAPH,
+                confidence=row["confidence"],
+                parser_version=row["parser_version"],
+            )],
+        )
+    )
+
+    assert result == [span_id]
+    client.table.return_value.insert.assert_not_called()
 
 
 def test_append_extracted_field_rejects_empty_field_name():

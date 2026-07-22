@@ -44,10 +44,8 @@ final billingInitProvider = FutureProvider<void>((ref) async {
 
 /// Exposes the current entitlement state, rebuilds when [EntitlementNotifier]
 /// updates it.
-final entitlementProvider =
-    StateNotifierProvider<EntitlementNotifier, Entitlement>((ref) {
-  return EntitlementNotifier(ref.watch(entitlementServiceProvider));
-});
+final entitlementProvider = NotifierProvider<EntitlementNotifier, Entitlement>(
+  EntitlementNotifier.new);
 
 /// Derived provider for pack-specific state, rebuilds when entitlement changes.
 final qaPackStateProvider = Provider<QaPackState>((ref) {
@@ -84,10 +82,14 @@ class QaPackState {
   });
 }
 
-class EntitlementNotifier extends StateNotifier<Entitlement> {
-  final EntitlementService _service;
+class EntitlementNotifier extends Notifier<Entitlement> {
+  @override
+  Entitlement build() {
+    ref.watch(entitlementServiceProvider);
+    return _service.current();
+  }
 
-  EntitlementNotifier(this._service) : super(_service.current());
+  EntitlementService get _service => ref.read(entitlementServiceProvider);
 
   /// Refresh from local storage (e.g., after app resume or billing event).
   void refresh() {

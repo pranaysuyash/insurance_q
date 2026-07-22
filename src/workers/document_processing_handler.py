@@ -23,6 +23,7 @@ handlers and must be migrated deliberately.
 from __future__ import annotations
 
 import logging
+import os
 
 from src.models.job_outbox import OutboxJob
 
@@ -68,8 +69,22 @@ async def handle_document_processing(job: OutboxJob) -> None:
     if not document:
         raise ValueError("document_processing job document is missing or not owned by owner_id")
     file_content = create_document_object_store().get(object_reference)
-    pdf_password = payload.get("pdf_password")
-    on_device_ocr_text = payload.get("on_device_ocr_text")
+    envelope = payload.get("processing_inputs_envelope")
+    if envelope:
+        from src.utils.secure_processing_payload import decrypt_processing_inputs
+
+        processing_inputs = decrypt_processing_inputs(
+            document_id=str(document_id), envelope=str(envelope)
+        )
+        pdf_password = processing_inputs.get("pdf_password")
+        on_device_ocr_text = processing_inputs.get("on_device_ocr_text")
+    else:
+        if os.getenv("ENVIRONMENT", "development").lower() == "production" and (
+            payload.get("pdf_password") or payload.get("on_device_ocr_text")
+        ):
+            raise ValueError("plaintext processing inputs are forbidden in production jobs")
+        pdf_password = payload.get("pdf_password")
+        on_device_ocr_text = payload.get("on_device_ocr_text")
 
     log.info(
         "document_processing_job_started job_id=%s document_id=%s owner=%s",
@@ -107,6 +122,7 @@ async def handle_document_processing(job: OutboxJob) -> None:
         file_content=file_content,
         pdf_password=pdf_password,
         on_device_ocr_text=on_device_ocr_text,
+        terminal_failure_on_exception=job.attempts >= job.max_attempts,
     )
     log.info(
         "document_processing_job_completed job_id=%s document_id=%s status=%s",

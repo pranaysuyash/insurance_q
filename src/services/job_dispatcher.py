@@ -29,6 +29,10 @@ log = logging.getLogger(__name__)
 JobHandler = Callable[[OutboxJob], Awaitable[None]]
 
 
+class JobLeaseLost(RuntimeError):
+    """The worker no longer owns the durable job lease."""
+
+
 class JobDispatcher:
     """Maps job_type -> handler. Owns the dispatch loop."""
 
@@ -63,12 +67,22 @@ class JobDispatcher:
             )
             await self._outbox.fail(
                 job_id=job.id,
+                lease_token=job.lease_token,
                 error=f"no handler registered for job_type={job.job_type}",
                 backoff_seconds=60,
             )
             return True
         try:
-            await handler(job)
+            await self._run_with_lease_heartbeat(handler, job, claim.lease_seconds)
+        except JobLeaseLost:
+            # A successor owns the row now. Do not call fail/complete with the
+            # stale token; those writes must remain fenced by the database.
+            log.warning(
+                "stale worker stopped job_id=%s job_type=%s",
+                job.id,
+                job.job_type,
+            )
+            return True
         except Exception as error:
             log.warning(
                 "handler for %s failed (job_id=%s, attempts=%d): %s",
@@ -77,6 +91,7 @@ class JobDispatcher:
             backoff = _exponential_backoff(job.attempts)
             new_status = await self._outbox.fail(
                 job_id=job.id,
+                lease_token=job.lease_token,
                 error=str(error),
                 backoff_seconds=backoff,
             )
@@ -86,8 +101,66 @@ class JobDispatcher:
                     job.id, job.job_type, job.attempts,
                 )
             return True
-        await self._outbox.complete(job_id=job.id)
+        await self._outbox.complete(job_id=job.id, lease_token=job.lease_token)
         return True
+
+    async def _run_with_lease_heartbeat(
+        self,
+        handler: JobHandler,
+        job: OutboxJob,
+        lease_seconds: int,
+    ) -> None:
+        """Run a handler while renewing its durable queue lease.
+
+        Document parsing, account erasure, and provider reconciliation can
+        exceed the initial lease. Without renewal, a second worker can reclaim
+        the row while the first handler is still mutating downstream state.
+        """
+        task = asyncio.create_task(handler(job))
+        heartbeat_seconds = max(1, lease_seconds // 2)
+        try:
+            while True:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.shield(task), timeout=heartbeat_seconds
+                    )
+                    return
+                except asyncio.TimeoutError:
+                    try:
+                        renewed = await self._outbox.extend_lease(
+                            job_id=job.id,
+                            lease_token=job.lease_token,
+                            lease_seconds=lease_seconds,
+                        )
+                        if not renewed:
+                            log.warning(
+                                "job lease renewal lost job_id=%s job_type=%s",
+                                job.id,
+                                job.job_type,
+                            )
+                            raise JobLeaseLost(
+                                f"lease lost for job {job.id}"
+                            )
+                    except JobLeaseLost:
+                        raise
+                    except Exception as error:
+                        log.warning(
+                            "job lease renewal failed job_id=%s error_type=%s",
+                            job.id,
+                            type(error).__name__,
+                        )
+                        # A renewal error means ownership is no longer
+                        # observable. Continuing could let this worker mutate
+                        # downstream state after another worker reclaims the
+                        # row. Stop and let durable reclaim choose the retry
+                        # owner.
+                        raise JobLeaseLost(
+                            f"lease renewal failed for job {job.id}"
+                        ) from error
+        finally:
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
 
     async def run(
         self,

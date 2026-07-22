@@ -138,8 +138,8 @@ cat > service-config.json << EOF
     "AutoDeploymentsEnabled": false
   },
   "InstanceConfiguration": {
-    "Cpu": "0.25 vCPU",
-    "Memory": "0.5 GB"
+    "Cpu": "1 vCPU",
+    "Memory": "4 GB"
   }
 }
 EOF

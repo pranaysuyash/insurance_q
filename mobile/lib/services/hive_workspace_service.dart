@@ -25,6 +25,24 @@ class HiveWorkspaceService {
     'entitlements',
   ];
 
+  /// Boxes whose user-facing workspace may move during the explicit
+  /// anonymous-to-account claim. Analytics is install/session telemetry and
+  /// entitlements are server authority; neither may cross a principal
+  /// boundary by copying local records.
+  static const Set<String> _claimPreservedBoxNames = {
+    LocalStorageService.documentsBoxName,
+    AppStateStore.boxName,
+    'resolved_gaps',
+    'consent_ledger',
+    'qa_history',
+    'field_overrides_box',
+  };
+
+  static const Set<String> _sessionKeys = {
+    AppStateStore.sessionIdKey,
+    AppStateStore.sessionCreatedKey,
+  };
+
   static Future<void> openForActivePrincipal() async {
     final cipher = HiveAesCipher(PrincipalKeyService().getOrThrow());
     await Hive.openBox<String>(
@@ -40,11 +58,28 @@ class HiveWorkspaceService {
     await Hive.openBox<String>('entitlements', encryptionCipher: cipher);
   }
 
-  /// Discard the current workspace and reopen it for [principalId].
+  /// Reopen the current workspace for [principalId].
   ///
-  /// This is called only after the caller has intentionally cleared local
-  /// account data during sign-out or account transition.
-  static Future<void> resetForPrincipal(String principalId) async {
+  /// Ordinary principal switches discard the previous workspace. An explicit
+  /// anonymous-to-account claim may set [preserveCurrentWorkspace] to carry
+  /// the local documents and metadata into the newly encrypted workspace.
+  static Future<void> resetForPrincipal(
+    String principalId, {
+    bool preserveCurrentWorkspace = false,
+  }) async {
+    final workspaceEntries = <String, Map<dynamic, dynamic>>{};
+    if (preserveCurrentWorkspace) {
+      for (final boxName in _claimPreservedBoxNames) {
+        if (Hive.isBoxOpen(boxName)) {
+          workspaceEntries[boxName] = {
+            for (final key in Hive.box(boxName).keys)
+              if (boxName != AppStateStore.boxName ||
+                  !_sessionKeys.contains(key))
+                key: Hive.box(boxName).get(key),
+          };
+        }
+      }
+    }
     if (Hive.isBoxOpen(AppStateStore.boxName)) {
       await SessionService.clearSession();
     }
@@ -52,13 +87,17 @@ class HiveWorkspaceService {
       if (Hive.isBoxOpen(boxName)) {
         await Hive.box(boxName).close();
       }
-      try {
-        await Hive.deleteBoxFromDisk(boxName);
-      } catch (_) {
-        // Fresh installs may not have a file for every logical box.
-      }
+      await Hive.deleteBoxFromDisk(boxName);
     }
     await PrincipalKeyService().initForPrincipal(principalId);
     await openForActivePrincipal();
+    if (preserveCurrentWorkspace) {
+      for (final entry in workspaceEntries.entries) {
+        final box = Hive.box(entry.key);
+        for (final record in entry.value.entries) {
+          await box.put(record.key, record.value);
+        }
+      }
+    }
   }
 }

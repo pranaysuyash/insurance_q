@@ -132,7 +132,8 @@ void main() {
         error: Exception('FileSystemException'),
         operation: 'delete_document',
       );
-      expect(msg, contains('remove this document'));
+      expect(msg, contains('complete policy deletion'));
+      expect(msg, contains('local copy is still available'));
     });
 
     test('clear_data returns contextual message', () {

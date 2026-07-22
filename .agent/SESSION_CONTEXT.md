@@ -1,6 +1,6 @@
 # Session Context
 
-- Generated: 2026-07-21T10:28:31Z
+- Generated: 2026-07-22T08:35:52Z
 - Project: `medpiper/insurance_app`
 - Provider: `local`
 - Model: `BAAI/bge-m3`

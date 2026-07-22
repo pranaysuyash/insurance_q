@@ -198,7 +198,7 @@ class AppError {
     // For operations where the generic message is already good enough,
     // return it directly. For operations where we can be more specific:
     if (operation == 'delete_document') {
-      return 'Could not remove this document from your device. Please try again.';
+      return 'Could not complete policy deletion. The local copy is still available; please try again.';
     }
     if (operation == 'clear_data') {
       return 'Could not clear all local data. Please try again or restart the app.';
@@ -217,5 +217,3 @@ class AppError {
     return generic;
   }
 }
-
-

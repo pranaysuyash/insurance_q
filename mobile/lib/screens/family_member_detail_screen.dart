@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/document_model.dart';
 import '../providers/family_providers.dart';
+import '../utils/app_error.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../services/app_state_repository.dart';
@@ -106,7 +107,11 @@ class _FamilyMemberDetailScreenState
       CoverWiseSnackBar.success(context, 'Member updated');
     } catch (e) {
       if (!mounted) return;
-      CoverWiseSnackBar.error(context, 'Could not update member: $e');
+      CoverWiseSnackBar.error(
+        context,
+        AppError.contextual(error: e, operation: 'update family member'),
+        operation: 'update family member',
+      );
     }
   }
 

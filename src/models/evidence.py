@@ -18,8 +18,18 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class SpanType(str, Enum):
+    TEXT_BLOCK = "text_block"
+    SENTENCE = "sentence"
     PARAGRAPH = "paragraph"
+    HEADING = "heading"
+    LINE = "line"
+    WORD = "word"
     TABLE_CELL = "table_cell"
+    TABLE = "table"
+    FORMULA = "formula"
+    FORM_FIELD = "form_field"
+    CAPTION = "caption"
+    ANNOTATION = "annotation"
     HEADER = "header"
     FOOTER = "footer"
     LIST_ITEM = "list_item"

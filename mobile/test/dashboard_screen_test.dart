@@ -8,25 +8,18 @@ import 'package:coverwise/providers/policy_providers.dart';
 import 'package:coverwise/screens/dashboard_screen.dart';
 import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/services/local_storage_service.dart';
-import 'package:coverwise/services/policy_extraction_service.dart';
-import 'package:coverwise/services/query_service.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-class _FakeExtractionService extends PolicyExtractionService {
-  final List<PolicySummary> _summaries;
-  _FakeExtractionService(this._summaries) : super(QueryService(Dio()));
-  @override
-  List<PolicySummary> getAllSummaries() => _summaries;
-}
-
 class _FakeSummariesNotifier extends PolicySummariesNotifier {
-  _FakeSummariesNotifier(List<PolicySummary> summaries)
-      : super(_FakeExtractionService(summaries));
+  final List<PolicySummary> _summaries;
+  _FakeSummariesNotifier(this._summaries);
+
+  @override
+  List<PolicySummary> build() => _summaries;
 }
 
 List<InsuranceDocument> _testDocuments() => [
@@ -115,10 +108,10 @@ void main() {
         documentsProvider
             .overrideWith((ref) async => documents ?? _testDocuments()),
         mergedFamilyMembersProvider.overrideWith(
-          (ref, _) async => <String, PolicyHolder>{},
+          (_, __) async => <String, PolicyHolder>{},
         ),
         policySummariesProvider.overrideWith(
-          (ref) => _FakeSummariesNotifier(summaries ?? _testSummaries()),
+          () => _FakeSummariesNotifier(summaries ?? _testSummaries()),
         ),
         recentQuestionsProvider.overrideWithValue(recentQuestions),
       ],
@@ -282,7 +275,7 @@ void main() {
             throw Exception('Network error');
           }),
           policySummariesProvider.overrideWith(
-            (ref) => _FakeSummariesNotifier([]),
+            () => _FakeSummariesNotifier([]),
           ),
           recentQuestionsProvider.overrideWithValue(const []),
         ],

@@ -1,7 +1,23 @@
 import 'package:coverwise/services/server_consent_service.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  Dio testDio() {
+    final dio = Dio();
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) => handler.reject(
+        DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+        ),
+      ),
+    ));
+    return dio;
+  }
+
   group('ServerConsentRecord', () {
     test('parses a known consent_type from JSON', () {
       final r = ServerConsentRecord.fromJson({
@@ -26,8 +42,7 @@ void main() {
       expect(r.createdAt.day, 19);
     });
 
-    test('handles a missing ip_address (the Flutter app may not have it)',
-        () {
+    test('handles a missing ip_address (the Flutter app may not have it)', () {
       final r = ServerConsentRecord.fromJson({
         'id': '00000000-0000-0000-0000-000000000001',
         'user_id': 'user-1',
@@ -56,10 +71,14 @@ void main() {
       expect(r.granted, isFalse);
     });
 
-    test('knownConsentTypes has exactly 4 types in v1', () {
-      expect(ServerConsentRecord.knownConsentTypes.length, 4);
+    test('knownConsentTypes has exactly 7 types in v1', () {
+      expect(ServerConsentRecord.knownConsentTypes.length, 7);
       expect(
         ServerConsentRecord.knownConsentTypes.contains('privacy_policy'),
+        isTrue,
+      );
+      expect(
+        ServerConsentRecord.knownConsentTypes.contains('document_processing'),
         isTrue,
       );
       expect(
@@ -74,10 +93,17 @@ void main() {
         ServerConsentRecord.knownConsentTypes.contains('camera_access'),
         isTrue,
       );
+      expect(
+        ServerConsentRecord.knownConsentTypes.contains('evaluation_dataset'),
+        isTrue,
+      );
+      expect(
+        ServerConsentRecord.knownConsentTypes.contains('model_improvement'),
+        isTrue,
+      );
     });
 
-    test('rejects an unknown consent_type by surfacing the raw value',
-        () {
+    test('rejects an unknown consent_type by surfacing the raw value', () {
       // The Flutter side does not enforce the consent_type
       // enum; the server is the source of truth. An unknown
       // type from the server is shown as-is. The cache
@@ -85,7 +111,7 @@ void main() {
       final r = ServerConsentRecord.fromJson({
         'id': '00000000-0000-0000-0000-000000000003',
         'user_id': 'user-1',
-        'consent_type': 'biometric_data',  // not in v1 enum
+        'consent_type': 'biometric_data', // not in v1 enum
         'granted': true,
         'policy_version': 'v1.0',
         'ip_address': null,
@@ -101,23 +127,23 @@ void main() {
   });
 
   group('ServerConsentService type signature', () {
-    test('recordConsent returns Future<String?>', () {
-      final svc = ServerConsentService();
-      // ignore: unused_local_variable
+    test('recordConsent returns Future<String?>', () async {
+      final svc = ServerConsentService(dio: testDio());
       final future = svc.recordConsent(
         consentType: 'analytics',
         granted: true,
         policyVersion: 'v1.0',
       );
       expect(future, isA<Future<String?>>());
+      expect(await future, isNull);
     });
 
     test('getCurrentConsentAll returns Future<List<ServerConsentRecord>?>',
-        () {
-      final svc = ServerConsentService();
-      // ignore: unused_local_variable
+        () async {
+      final svc = ServerConsentService(dio: testDio());
       final future = svc.getCurrentConsentAll();
       expect(future, isA<Future<List<ServerConsentRecord>?>>());
+      expect(await future, isNull);
     });
   });
 }

@@ -21,6 +21,17 @@ REQUIRED_TABLES = (
 )
 
 
+def _error_label(error: Exception) -> str:
+    """Return a safe diagnostic label without serializing credentials or payloads."""
+    code = getattr(error, "code", None)
+    if isinstance(code, str) and code:
+        return code
+    status = getattr(error, "status", None)
+    if isinstance(status, int):
+        return f"HTTP_{status}"
+    return type(error).__name__
+
+
 def main() -> int:
     url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
     secret = (
@@ -38,7 +49,7 @@ def main() -> int:
             service.table(table).select("*").limit(0).execute()
             tables[table] = "present"
         except Exception as error:
-            tables[table] = f"missing_or_unqueryable:{type(error).__name__}"
+            tables[table] = f"missing_or_unqueryable:{_error_label(error)}"
 
     request = urllib.request.Request(
         f"{url}/auth/v1/settings",

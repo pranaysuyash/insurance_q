@@ -224,9 +224,9 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               // Record lead capture consent if contact info is provided.
               final hasContact = _emailController.text.trim().isNotEmpty ||
                   _phoneController.text.trim().isNotEmpty;
-              if (hasContact && !ledger.hasConsent(ConsentPurpose.leadCapture)) {
+              if (hasContact && !ledger.hasConsent(ConsentPurpose.marketingEmails)) {
                 ledger.recordConsent(
-                  purpose: ConsentPurpose.leadCapture,
+                  purpose: ConsentPurpose.marketingEmails,
                   version: AppConfig.privacyPolicyVersion,
                   granted: true,
                 );

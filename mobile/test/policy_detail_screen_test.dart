@@ -3,26 +3,18 @@ import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/providers/policy_providers.dart';
 import 'package:coverwise/screens/policy_detail_screen.dart';
-import 'package:coverwise/services/policy_extraction_service.dart';
-import 'package:coverwise/services/query_service.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 /// Minimal PolicyExtractionService that returns a fixed list of summaries.
-class _FakeExtractionService extends PolicyExtractionService {
+class _FakeSummariesNotifier extends PolicySummariesNotifier {
   final List<PolicySummary> _summaries;
-  _FakeExtractionService(this._summaries) : super(QueryService(Dio()));
+  _FakeSummariesNotifier(this._summaries);
 
   @override
-  List<PolicySummary> getAllSummaries() => _summaries;
-}
-
-class _FakeSummariesNotifier extends PolicySummariesNotifier {
-  _FakeSummariesNotifier(List<PolicySummary> summaries)
-      : super(_FakeExtractionService(summaries));
+  List<PolicySummary> build() => _summaries;
 }
 
 /// Full policy summary with all fields populated.
@@ -78,7 +70,7 @@ void main() {
     return ProviderScope(
       overrides: [
         policySummariesProvider.overrideWith(
-          (ref) => _FakeSummariesNotifier(
+          () => _FakeSummariesNotifier(
             summaries ?? [_fullSummary()],
           ),
         ),

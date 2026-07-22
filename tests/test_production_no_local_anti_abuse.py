@@ -9,3 +9,11 @@ def test_production_startup_guards_legacy_sqlite_anti_abuse_initialization():
     text = ast.get_source_segment(source, function)
     assert "if not is_production" in text
     assert "Production anti-abuse uses canonical Supabase rate-limit RPCs" in text
+
+
+def test_production_startup_does_not_run_api_document_recovery_worker():
+    source = Path("src/app/main.py").read_text()
+    tree = ast.parse(source)
+    function = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "lifespan")
+    text = ast.get_source_segment(source, function)
+    assert "if document_processing_service and not is_production" in text

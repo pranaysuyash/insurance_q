@@ -32,3 +32,18 @@ def test_guest_cannot_be_rebound_to_another_account(isolated_identity_db):
     links.begin("anon:guest-2", "account-1")
     with pytest.raises(ValueError, match="already linked"):
         links.begin("anon:guest-2", "account-2")
+
+
+def test_supabase_secret_key_is_accepted_by_direct_service_use(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "server-secret")
+    fake_client = object()
+
+    monkeypatch.setattr(
+        "supabase.create_client",
+        lambda url, key: fake_client,
+    )
+    links.clear_cache()
+    assert links._supabase_client() is fake_client
+    links.clear_cache()

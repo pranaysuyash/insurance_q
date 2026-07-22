@@ -11,6 +11,7 @@ import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import 'add_family_member_dialog.dart';
 import 'family_member_detail_screen.dart';
+import 'family_visualization_screen.dart';
 
 class FamilyScreen extends StatelessWidget {
   const FamilyScreen({super.key});
@@ -157,13 +158,31 @@ class _FamilyList extends ConsumerWidget {
                   )),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.person_add_alt_1_rounded),
-                    label: Text(S.familyAddButton),
-                    onPressed: onAdd,
-                  ),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.tonalIcon(
+                        icon: const Icon(Icons.account_tree_outlined, size: 18),
+                        label: Text(S.familyVisSeeMap),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FamilyVisualizationScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.person_add_alt_1_rounded),
+                        label: Text(S.familyAddButton),
+                        onPressed: onAdd,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

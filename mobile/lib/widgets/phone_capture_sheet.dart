@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 import '../services/analytics_service.dart';
 import '../services/app_state_store.dart';
 import 'shared/coverwise_components.dart';
+import 'shared/coverwise_snackbar.dart';
 import '../theme/coverwise_motion.dart';
 
 /// Progressive phone-number capture, shown as a bottom sheet AFTER the user
@@ -83,15 +84,13 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
         'phone_capture_completed', {'method': 'manual_entry'});
     if (!mounted) return;
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        // Security audit P0-13: honest copy. The phone number is
-        // stored only on this device and is not used to identify an
-        // account, enable cross-device access, or back up policies
-        // until a verified account/restore contract exists.
-        content: Text('Phone number saved on this device only.'),
-        duration: Duration(seconds: 3),
-      ),
+    // Security audit P0-13: honest copy. The phone number is stored only on
+    // this device and is not used to identify an account, enable cross-device
+    // access, or back up policies until a verified account/restore contract
+    // exists.
+    CoverWiseSnackBar.info(
+      context,
+      'Phone number saved on this device only.',
     );
   }
 

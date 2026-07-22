@@ -15,6 +15,7 @@ import '../providers/entitlement_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/app_state_store.dart';
 import '../services/consent_ledger.dart';
+import '../services/consent_sync_service.dart';
 import '../services/contact_service.dart';
 import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
@@ -29,6 +30,7 @@ import '../widgets/usage_stats_widget.dart';
 import '../widgets/shared/coverwise_components.dart';
 import 'documents_list.dart';
 import 'processing_status_screen.dart';
+import '../models/batch_upload_entry.dart';
 
 class DocumentsScreen extends ConsumerStatefulWidget {
   /// When true, the file picker opens automatically on mount.
@@ -50,6 +52,7 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 }
 
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
+  // ── Single-file state (kept for backward compat with onboarding/CTA flow)
   File? _selectedFile;
   WebPickedFile? _selectedWebFile;
   bool _isUploading = false;
@@ -61,6 +64,23 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   bool _showUploadDetails = false;
   bool _demoPolicyPreloaded = false;
   int? _selectedFileSize;
+
+  // ── Batch upload state (P3-05)
+  final List<BatchUploadEntry> _batchEntries = [];
+  bool _batchUploading = false;
+  int _batchCompleted = 0;
+  int _batchFailed = 0;
+
+  Future<void> _syncProcessingConsent() async {
+    try {
+      // The local ledger remains the immediate offline gate. This generic
+      // principal-scoped bridge also retries onboarding privacy/analytics
+      // decisions, not only document-processing consent.
+      await ConsentSyncService().syncAll();
+    } catch (error) {
+      debugPrint('server consent sync deferred: ${error.runtimeType}');
+    }
+  }
 
   @override
   void initState() {
@@ -115,8 +135,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     'jpeg',
     'png',
   };
-
-
 
   Future<void> _pickFile() async {
     setState(() {
@@ -215,7 +233,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     if (selectedFile == null && selectedWebFile == null) return;
 
     final currentPolicyCount =
-        ref.read(documentsProvider).valueOrNull?.length ?? 0;
+        ref.read(documentsProvider).asData?.value.length ?? 0;
     final entitlementReason = ref
         .read(entitlementProvider.notifier)
         .checkAction('upload_policy', currentPolicyCount: currentPolicyCount);
@@ -278,50 +296,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
     if (!mounted) return;
 
-    // Consent: ask once, store permanently. On subsequent uploads, skip the dialog.
-    final box = Hive.box(AppStateStore.boxName);
-    final storedConsent = box.get('processing_consent_version') as String?;
+    // Consent: ask once per device, stored permanently.
+    final consentVersion = await _ensureConsent();
+    if (consentVersion == null) return;
 
-    String consentVersion;
-    if (storedConsent != null) {
-      consentVersion = storedConsent;
-      // Record in the purpose-specific consent ledger for auditability.
-      // The dialog also records consent, so check first to avoid duplicates.
-      final ledger = ConsentLedger();
-      if (!ledger.hasConsent(ConsentPurpose.documentProcessing)) {
-        await ledger.recordConsent(
-          purpose: ConsentPurpose.documentProcessing,
-          version: consentVersion,
-          granted: true,
-        );
-      }
-    } else {
-      // First upload - show consent + optional contact capture.
-      // The dialog records consent in the ledger on submission, so we only
-      // persist the Hive key here.
-      final savedContact = await ContactService.getSavedContact();
-      if (!mounted) return;
-      final leadInfo = await showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (context) => LeadCaptureDialog(
-          initialEmail: savedContact['email'],
-          initialPhone: savedContact['phone'],
-          isRequired: false,
-        ),
-      );
-
-      if (leadInfo == null && mounted) return;
-
-      consentVersion = leadInfo!['processing_consent_version'] as String;
-      await box.put('processing_consent_version', consentVersion);
-
-      if (leadInfo['save'] == true) {
-        await ContactService.saveContact(
-            email: leadInfo['email'],
-            phone: leadInfo['phone'],
-            saveForFuture: true);
-      }
-    }
+    await _syncProcessingConsent();
 
     setState(() {
       _isUploading = true;
@@ -458,7 +437,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         } else {
           // Offline/queued - honest message
           final message = isQueuedOnly
-              ? '$selectedName saved locally. It will be processed when you\'re back online.'
+              ? '$selectedName saved locally. ${S.docsUploadRequired}.'
               : '$selectedName saved locally (offline mode)';
           CoverWiseSnackBar.warning(context, message);
           PhoneCaptureSheet.maybeShow(context);
@@ -497,29 +476,345 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     });
   }
 
+  void _clearBatch() {
+    setState(() {
+      _batchEntries.clear();
+      _batchCompleted = 0;
+      _batchFailed = 0;
+      _batchUploading = false;
+    });
+  }
+
+  /// Obtain or establish document-processing consent.
+  ///
+  /// Returns the consent version string, or `null` if the user cancelled.
+  /// Shared between single-file upload and batch upload to avoid duplication.
+  Future<String?> _ensureConsent() async {
+    final box = Hive.box(AppStateStore.boxName);
+    final storedConsent = box.get('processing_consent_version') as String?;
+
+    if (storedConsent != null) {
+      final ledger = ConsentLedger();
+      if (!ledger.hasConsent(ConsentPurpose.documentProcessing)) {
+        await ledger.recordConsent(
+          purpose: ConsentPurpose.documentProcessing,
+          version: storedConsent,
+          granted: true,
+        );
+      }
+      return storedConsent;
+    }
+
+    // First upload — show consent + optional contact capture.
+    final savedContact = await ContactService.getSavedContact();
+    if (!mounted) return null;
+    final leadInfo = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => LeadCaptureDialog(
+        initialEmail: savedContact['email'],
+        initialPhone: savedContact['phone'],
+        isRequired: false,
+      ),
+    );
+    if (leadInfo == null) return null;
+
+    final version = leadInfo['processing_consent_version'] as String;
+    await box.put('processing_consent_version', version);
+
+    if (leadInfo['save'] == true) {
+      await ContactService.saveContact(
+        email: leadInfo['email'],
+        phone: leadInfo['phone'],
+        saveForFuture: true,
+      );
+    }
+
+    return version;
+  }
+
+  /// Open multi-file picker and validate each selected file.
+  Future<void> _pickFiles() async {
+    setState(() {
+      _uploadError = null;
+      _ocrResult = null;
+    });
+
+    final typeGroup = XTypeGroup(
+      label: 'Documents',
+      uniformTypeIdentifiers: ['com.adobe.pdf', 'public.image'],
+      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+    );
+
+    if (kIsWeb) {
+      final picked = await WebFilePicker.pickFiles();
+      if (picked == null || picked.isEmpty || !mounted) return;
+
+      final entries = <BatchUploadEntry>[];
+      for (final file in picked) {
+        final ext = file.name.split('.').last.toLowerCase();
+        if (!_supportedExtensions.contains(ext)) {
+          entries.add(BatchUploadEntry(
+            fileName: file.name,
+            fileSizeBytes: file.bytes.length,
+            isWebFile: true,
+            state: BatchUploadState.skipped,
+            errorMessage: S.batchFileUnsupported,
+          ));
+          continue;
+        }
+        if (file.bytes.length > AppConfig.maxUploadFileSizeBytes) {
+          entries.add(BatchUploadEntry(
+            fileName: file.name,
+            fileSizeBytes: file.bytes.length,
+            isWebFile: true,
+            state: BatchUploadState.skipped,
+            errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+          ));
+          continue;
+        }
+        entries.add(BatchUploadEntry(
+          fileName: file.name,
+          fileSizeBytes: file.bytes.length,
+          isWebFile: true,
+          webFileBytes: file.bytes,
+          webFileName: file.name,
+        ));
+      }
+
+      if (entries.isEmpty) return;
+      setState(() {
+        _batchEntries
+          ..clear()
+          ..addAll(entries);
+        _batchCompleted = 0;
+        _batchFailed = 0;
+      });
+      return;
+    }
+
+    // Native: use openFiles() for multi-select.
+    final files = await openFiles(acceptedTypeGroups: [typeGroup]);
+    if (files.isEmpty || !mounted) return;
+
+    final entries = <BatchUploadEntry>[];
+    for (final xFile in files) {
+      final ext = xFile.path.split('.').last.toLowerCase();
+      if (!_supportedExtensions.contains(ext)) {
+        entries.add(BatchUploadEntry(
+          fileName: xFile.path.split('/').last,
+          fileSizeBytes: 0,
+          state: BatchUploadState.skipped,
+          errorMessage: S.batchFileUnsupported,
+        ));
+        continue;
+      }
+      try {
+        final size = await File(xFile.path).length();
+        if (!mounted) return;
+        if (size > AppConfig.maxUploadFileSizeBytes) {
+          entries.add(BatchUploadEntry(
+            fileName: xFile.path.split('/').last,
+            fileSizeBytes: size,
+            state: BatchUploadState.skipped,
+            errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+          ));
+          continue;
+        }
+        entries.add(BatchUploadEntry(
+          fileName: xFile.path.split('/').last,
+          fileSizeBytes: size,
+          localFilePath: xFile.path,
+        ));
+      } catch (e) {
+        entries.add(BatchUploadEntry(
+          fileName: xFile.path.split('/').last,
+          fileSizeBytes: 0,
+          state: BatchUploadState.failed,
+          errorMessage: e.toString(),
+        ));
+      }
+    }
+
+    if (entries.isEmpty) return;
+    setState(() {
+      _batchEntries
+        ..clear()
+        ..addAll(entries);
+      _batchCompleted = 0;
+      _batchFailed = 0;
+    });
+  }
+
+  /// Upload all batch entries sequentially, updating per-file status.
+  Future<void> _uploadBatch() async {
+    if (_batchEntries.isEmpty) return;
+    final pending = _batchEntries
+        .where((e) => e.state == BatchUploadState.pending)
+        .toList();
+    if (pending.isEmpty) return;
+
+    // Entitlement check: prompt paywall immediately if already at limit.
+    final currentPolicyCount =
+        ref.read(documentsProvider).asData?.value.length ?? 0;
+    final limit = ref.read(entitlementProvider).limits.maxPolicies;
+    if (currentPolicyCount >= limit) {
+      if (mounted) {
+        PaywallScreen.show(context, limitType: PaywallLimitType.documents);
+      }
+      return;
+    }
+
+    // Consent: ask once for the entire batch.
+    final consentVersion = await _ensureConsent();
+    if (consentVersion == null) return;
+
+    await _syncProcessingConsent();
+
+    setState(() {
+      _batchUploading = true;
+      _batchCompleted = 0;
+      _batchFailed = 0;
+    });
+
+    AnalyticsService.track('batch_upload_started', {
+      'file_count': pending.length,
+    });
+
+    for (final entry in pending) {
+      if (!mounted) return;
+
+      // Check entitlement before each upload in case limit was reached.
+      final nowCount =
+          ref.read(documentsProvider).asData?.value.length ?? 0;
+      if (nowCount >= limit) {
+        entry.state = BatchUploadState.skipped;
+        entry.errorMessage = 'Plan limit reached';
+        _batchFailed++;
+        if (mounted) setState(() {});
+        continue;
+      }
+
+      setState(() => entry.state = BatchUploadState.uploading);
+
+      // Duplicate check before uploading (non-fatal; proceed on any error).
+      final isDuplicate = entry.localFilePath != null
+          ? await ref
+              .read(documentServiceProvider)
+              .checkForDuplicateDocument(File(entry.localFilePath!))
+          : entry.isWebFile
+              ? await ref
+                  .read(documentServiceProvider)
+                  .checkForDuplicateDocumentByName(
+                      entry.webFileName ?? entry.fileName)
+              : null;
+      if (!mounted) return;
+      if (isDuplicate != null) {
+        entry.state = BatchUploadState.skipped;
+        entry.errorMessage = S.batchDuplicateSkipped;
+        continue;
+      }
+
+      try {
+        Map<String, dynamic> result;
+        if (entry.isWebFile && entry.webFileBytes != null) {
+          result = await ref.read(documentServiceProvider).uploadWebDocument(
+                filename: entry.webFileName ?? entry.fileName,
+                bytes: Uint8List.fromList(entry.webFileBytes!),
+                processingConsentVersion: consentVersion,
+              );
+        } else if (entry.localFilePath != null) {
+          result =
+              await ref.read(documentServiceProvider).uploadDocumentWithLimitCheck(
+                File(entry.localFilePath!),
+                processingConsentVersion: consentVersion,
+                documentLimit: limit,
+              );
+        } else {
+          entry.state = BatchUploadState.failed;
+          entry.errorMessage = 'File not found';
+          _batchFailed++;
+          if (mounted) setState(() {});
+          continue;
+        }
+
+        if (!mounted) return;
+        if (result['error'] != null) {
+          entry.state = BatchUploadState.failed;
+          entry.errorMessage =
+              result['message']?.toString() ?? result['error'].toString();
+          _batchFailed++;
+        } else {
+          entry.state = BatchUploadState.completed;
+          entry.result = result;
+          _batchCompleted++;
+          if (mounted) ref.invalidate(documentsProvider);
+        }
+      } catch (e) {
+        entry.state = BatchUploadState.failed;
+        entry.errorMessage = 'Upload failed';
+        _batchFailed++;
+      }
+
+      if (mounted) setState(() {});
+    }
+
+    AnalyticsService.track('batch_upload_completed', {
+      'completed': _batchCompleted,
+      'failed': _batchFailed,
+      'total': pending.length,
+    });
+
+    if (mounted) {
+      setState(() => _batchUploading = false);
+      ref.invalidate(documentsProvider);
+
+      if (_batchFailed == 0) {
+        CoverWiseSnackBar.success(
+          context,
+          S.batchCompletedCount(_batchCompleted),
+        );
+      } else {
+        CoverWiseSnackBar.warning(
+          context,
+          S.batchFailedCount(_batchFailed, _batchEntries.length),
+        );
+      }
+    }
+  }
+
+  /// Retry only the failed entries in the current batch.
+  void _retryFailedBatch() {
+    setState(() {
+      for (final entry in _batchEntries) {
+        if (entry.state == BatchUploadState.failed) {
+          entry.state = BatchUploadState.pending;
+          entry.errorMessage = null;
+          entry.result = null;
+        }
+      }
+      _batchFailed = 0;
+    });
+    _uploadBatch();
+  }
+
   Future<void> _refreshDocumentTypes() async {
     setState(() => _isUploading = true);
     try {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Refreshing document types...'),
-            duration: Duration(seconds: 2)),
-      );
+      CoverWiseSnackBar.info(context, S.docsRefreshingTypes);
       await ref.read(documentServiceProvider).refreshAllDocumentTypes();
       ref.invalidate(documentsProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Document types refreshed successfully!'),
-            backgroundColor: Colors.green),
+      CoverWiseSnackBar.success(
+        context,
+        S.docsTypesRefreshed,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(AppError.userMessage(e)),
-            backgroundColor: Colors.red),
+      CoverWiseSnackBar.error(
+        context,
+        AppError.userMessage(e),
+        operation: 'refresh document types',
       );
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -556,8 +851,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: UsageStatsWidget(),
           ),
-          // Upload section: compact when documents exist, prominent when empty.
-          if (showExpandedUpload)
+          // Upload section: batch progress when batch is active, single-file when selected, CTAs otherwise.
+          if (_batchEntries.isNotEmpty)
+            _BatchUploadProgress(
+              entries: _batchEntries,
+              isUploading: _batchUploading,
+              completed: _batchCompleted,
+              failed: _batchFailed,
+              onUpload: _uploadBatch,
+              onRetryFailed: _retryFailedBatch,
+              onClear: _clearBatch,
+              onAddMore: _pickFiles,
+              formatFileSize: _formatFileSize,
+            )
+          else if (showExpandedUpload)
             Flexible(
               fit: FlexFit.loose,
               child: SingleChildScrollView(
@@ -602,7 +909,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                                   children: [
                                     Text(
                                       _selectedWebFile?.name ??
-                                          _selectedFile!.path.split('/').last,
+                                          _selectedFile?.path.split('/').last ??
+                                          'Policy',
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w600),
@@ -771,7 +1079,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               ),
             )
           else if (!hasDocuments)
-            // Empty state: prominent upload CTA
+            // Empty state: prominent upload CTAs
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
@@ -788,6 +1096,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                         textStyle: const TextStyle(fontSize: 16),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                      label: Text(S.batchPickMultiple),
+                      onPressed: _pickFiles,
+                    ),
                     const SizedBox(height: 12),
                     const _FileTypeHint(),
                   ],
@@ -795,20 +1109,37 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               ),
             )
           else
-            // Documents exist: compact "Add new" button
+            // Documents exist: compact buttons
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.tonalIcon(
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add new policy'),
-                  onPressed: _pickFile,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Add new policy'),
+                      onPressed: _pickFile,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                      label: Text(S.batchPickMultiple),
+                      onPressed: _pickFiles,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           const SizedBox(height: 8),
@@ -897,6 +1228,238 @@ class _HintChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Batch Upload Progress Widget (P3-05) ─────────────────────────────────
+
+class _BatchUploadProgress extends StatelessWidget {
+  final List<BatchUploadEntry> entries;
+  final bool isUploading;
+  final int completed;
+  final int failed;
+  final VoidCallback onUpload;
+  final VoidCallback onRetryFailed;
+  final VoidCallback onClear;
+  final VoidCallback onAddMore;
+  final String Function(int) formatFileSize;
+
+  const _BatchUploadProgress({
+    required this.entries,
+    required this.isUploading,
+    required this.completed,
+    required this.failed,
+    required this.onUpload,
+    required this.onRetryFailed,
+    required this.onClear,
+    required this.onAddMore,
+    required this.formatFileSize,
+  });
+
+  int get _pendingCount =>
+      entries.where((e) => e.state == BatchUploadState.pending).length;
+
+  bool get _allDone =>
+      entries.every((e) => e.isTerminal);
+  double get _progress => entries.isEmpty
+      ? 0
+      : (completed + failed +
+              entries.where((e) => e.state == BatchUploadState.skipped).length) /
+          entries.length;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Flexible(
+      fit: FlexFit.loose,
+      child: SingleChildScrollView(
+        child: CoverWiseSurface(
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Icon(Icons.playlist_add_check_rounded,
+                        size: 20, color: cs.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+isUploading
+                             ? S.batchUploadingProgress(completed + failed, entries.length)
+                            : _allDone
+                                ? (failed == 0
+                                    ? S.batchCompleted
+                                    : S.batchSomeFailed)
+                            : '${entries.length} files selected',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: isUploading ? null : onClear,
+                      tooltip: S.batchDone,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Overall progress bar
+                if (isUploading)
+                  Column(
+                    children: [
+                      LinearProgressIndicator(value: _progress > 0 ? _progress : null),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${completed + failed} / ${entries.length}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (isUploading) const SizedBox(height: 12),
+
+                // Per-file list
+                ...entries.map((entry) => _BatchFileTile(
+                  entry: entry,
+                  formatFileSize: formatFileSize,
+                )),
+
+                const SizedBox(height: 12),
+
+                // Action buttons
+                Row(
+                  children: [
+                    if (!isUploading && !_allDone)
+                      Expanded(
+                        child: FilledButton.icon(
+                          icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                          label: Text(S.batchUploadingPendingCount(_pendingCount)),
+                          onPressed: onUpload,
+                        ),
+                      ),
+                    if (!isUploading && _allDone && failed > 0) ...[
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: Text(S.batchRetryFailed),
+                          onPressed: onRetryFailed,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (!isUploading && _allDone)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: Text(S.batchAddMore),
+                          onPressed: onAddMore,
+                        ),
+                      ),
+                    if (isUploading)
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            S.batchUploadingProgress(completed + failed, entries.length),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A single file row in the batch upload progress list.
+class _BatchFileTile extends StatelessWidget {
+  final BatchUploadEntry entry;
+  final String Function(int) formatFileSize;
+
+  const _BatchFileTile({
+    required this.entry,
+    required this.formatFileSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    IconData icon;
+    Color iconColor;
+    Widget? trailing;
+
+    switch (entry.state) {
+      case BatchUploadState.pending:
+        icon = Icons.description_outlined;
+        iconColor = cs.onSurfaceVariant;
+        break;
+      case BatchUploadState.uploading:
+      case BatchUploadState.ocrProcessing:
+        icon = Icons.cloud_upload_outlined;
+        iconColor = cs.primary;
+        trailing = const SizedBox(
+          width: 16, height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+        break;
+      case BatchUploadState.completed:
+        icon = Icons.check_circle_outline;
+        iconColor = Colors.green;
+        break;
+      case BatchUploadState.failed:
+        icon = Icons.error_outline;
+        iconColor = cs.error;
+        break;
+      case BatchUploadState.skipped:
+        icon = Icons.block;
+        iconColor = cs.onSurfaceVariant.withValues(alpha: 0.5);
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        leading: Icon(icon, size: 20, color: iconColor),
+        title: Text(
+          entry.fileName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(
+          entry.statusLabel + (entry.fileSizeBytes > 0 ? ' · ${formatFileSize(entry.fileSizeBytes)}' : ''),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 11,
+            color: entry.state == BatchUploadState.failed
+                ? cs.error
+                : cs.onSurfaceVariant,
+          ),
+        ),
+        trailing: trailing,
       ),
     );
   }

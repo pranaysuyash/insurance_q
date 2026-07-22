@@ -24,7 +24,8 @@ class AppConfig {
       'PRIVACY_POLICY_VERSION', defaultValue: 'development-unversioned');
 
   // RevenueCat public API key — platform-specific, injected at build time.
-  // iOS uses SUPABASE_PUBLISHABLE_KEY_*, Android uses SUPABASE_PUBLISHABLE_KEY_*.
+  // Release builds must use the public SDK key for the target store platform;
+  // never embed a RevenueCat secret or OAuth credential in the client.
   static const String revenuecatApiKey = String.fromEnvironment(
     'REVENUECAT_API_KEY',
     defaultValue: '',
@@ -69,6 +70,7 @@ class AppConfig {
   static String get usageStatsEndpoint => '$baseUrl/documents/usage-stats';
   static String get docsEndpoint => '$baseUrl/docs';
   static String get subscriptionSyncEndpoint => '$baseUrl/subscription/sync';
+  static String get qaPackBalanceEndpoint => '$baseUrl/subscription/qa-balance';
 
   // App configuration
   static const String appName = 'CoverWise';

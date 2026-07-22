@@ -11,42 +11,21 @@ Widget _wrap(Widget child, {List<PolicySummary>? summaries}) {
     overrides: [
       if (summaries != null)
         policySummariesProvider.overrideWith(
-          (ref) => _FakeSummariesNotifier(summaries),
+          () => _FakeSummariesNotifier(summaries),
         ),
     ],
     child: MaterialApp(home: child),
   );
 }
 
-/// Minimal StateNotifier that returns a fixed list of summaries.
-class _FakeSummariesNotifier extends StateNotifier<List<PolicySummary>>
-    implements PolicySummariesNotifier {
-  _FakeSummariesNotifier(super.initial);
+/// Minimal Notifier that returns a fixed list of summaries.
+class _FakeSummariesNotifier extends PolicySummariesNotifier {
+  _FakeSummariesNotifier(this._initial);
+
+  final List<PolicySummary> _initial;
 
   @override
-  Future<PolicySummary?> extractForDocument(String documentId, String documentType) async => null;
-
-  @override
-  Future<void> fetchFromBackend(String documentId, String documentType) async {}
-
-  @override
-  Future<void> deleteSummary(String documentId) async {}
-
-  @override
-  PolicySummary? getForDocument(String documentId) =>
-      state.where((s) => s.documentId == documentId).firstOrNull;
-
-  @override
-  List<PolicySummary> get expiringSoon =>
-      state.where((s) => s.isExpiringSoon).toList();
-
-  @override
-  List<PolicySummary> get expired =>
-      state.where((s) => s.isExpired).toList();
-
-  @override
-  List<PolicySummary> get active =>
-      state.where((s) => s.isActive).toList();
+  List<PolicySummary> build() => _initial;
 }
 
 void main() {

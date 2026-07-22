@@ -56,7 +56,7 @@ az acr login --name "$AZURE_ACR_NAME"
 
 # 2. Building and Pushing the Docker Image
 echo "Step 2: Building and pushing Docker image ${FULL_IMAGE_URI}..."
-echo "Using original requirements.txt with extended timeouts for large package downloads..."
+echo "Using the OCR-enabled production dependency profile with extended timeouts..."
 echo "This may take 10-15 minutes due to PyTorch (865MB) download..."
 echo "Ensuring docker buildx is available..."
 docker buildx create --use || true # Attempt to create and use a builder, continue if it already exists
@@ -65,7 +65,7 @@ docker buildx create --use || true # Attempt to create and use a builder, contin
 echo "Creating Dockerfile with extended timeouts for large ML packages..."
 cat > Dockerfile.full << 'EOF'
 # Use Python 3.11 slim image
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -74,29 +74,33 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    software-properties-common \
-    git \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
     libfontconfig1 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
     libice6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (for better Docker caching)
-COPY requirements.txt .
+COPY requirements.txt requirements-production-ocr.txt .
 
 # Install Python dependencies with very long timeout for PyTorch download
 # Timeout set to 3000 seconds (50 minutes) to handle PyTorch (865MB)
 # Default connection timeout (30s) + read timeout (3000s) + 10 retries
 RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.1.0 torchvision==0.16.0 && \
     pip install --no-cache-dir \
     --timeout 3000 \
     --retries 10 \
     --default-timeout=3000 \
-    -r requirements.txt
+    -r requirements-production-ocr.txt
 
 # Copy application code
 COPY src/ src/
@@ -243,4 +247,4 @@ echo "   - Frontend: ${FRONTEND_SERVICE_PUBLIC_URL}/health"
 echo "3. Update your Flutter app in 'mobile/lib/services/api_service.dart' to use: ${FRONTEND_SERVICE_PUBLIC_URL}"
 echo "4. Monitor logs via: az webapp log tail --resource-group ${AZURE_RESOURCE_GROUP} --name <app-name>"
 echo ""
-echo "🚀 All three services should now be fully functional with OCR capabilities!" 
+echo "🚀 All three services should now be fully functional with OCR capabilities!"

@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/field_citation.dart';
 import '../widgets/not_yet_extracted_section.dart';
+import '../widgets/shared/coverwise_snackbar.dart';
 
 /// The claim-assistance entry point (Trust audit ADR-09 thin
 /// slice).
@@ -364,13 +365,10 @@ class _GenericClaimProcessCard extends StatelessWidget {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Could not open the browser. Search for your insurer\'s '
-            'claim process online.',
-          ),
-        ),
+      CoverWiseSnackBar.error(
+        context,
+        'Could not open the browser. Search for your insurer\'s claim process online.',
+        operation: 'open claim process',
       );
     }
   }
@@ -487,10 +485,10 @@ class _IRDIAEscalationCard extends StatelessWidget {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open the browser. Visit bimabharosa.irdai.gov.in'),
-        ),
+      CoverWiseSnackBar.error(
+        context,
+        'Could not open the browser. Visit bimabharosa.irdai.gov.in',
+        operation: 'open Bima Bharosa',
       );
     }
   }

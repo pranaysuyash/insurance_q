@@ -216,6 +216,13 @@ paths. This is Tier 2 evidence. Persisted CIR-to-source-span resolution,
 real multi-page Docling output, and specialist table/formula/form adapters
 remain Tier 3 gates.
 
+The reusable capability manifest subsequently ran its generated doctr scan
+case successfully: `Health Policy`, `500000`, and `POLICY-TEST-001` were all
+recovered in 2.314 seconds. The report is
+`docs/review/evidence/local-model-eval/document-capability-manifest-2026-07-21.json`;
+it contains hashes and metrics, not source text. This remains Tier 2 synthetic
+evidence, not an insurance-corpus accuracy claim.
+
 ## Addendum (2026-07-12) — current model discovery and encrypted inputs
 
 An authenticated Hugging Face credential was validated from the local machine

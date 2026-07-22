@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/qa_models.dart';
 import '../services/app_state_store.dart';
+import '../utils/ref_state.dart';
 
 const _qaHistoryBoxKey = 'qa_history';
 
-final isLoadingProvider = StateProvider<bool>((ref) => false);
-final currentAnswerProvider = StateProvider<QaAnswer?>((ref) => null);
+final isLoadingProvider = refStateProvider<bool>(false);
+final currentAnswerProvider = refStateProvider<QaAnswer?>(null);
 
 final List<QuestionCategory> _categories = [
   QuestionCategory(
@@ -169,16 +170,16 @@ final questionCategoriesProvider = Provider<List<QuestionCategory>>((ref) {
   return _categories;
 });
 
-final selectedDocumentProvider = StateProvider<String?>((ref) => null);
+final selectedDocumentProvider = refStateProvider<String?>(null);
 
-final qaHistoryProvider =
-    StateNotifierProvider<QaHistoryNotifier, List<QaPair>>((ref) {
-  return QaHistoryNotifier();
-});
+final qaHistoryProvider = NotifierProvider<QaHistoryNotifier, List<QaPair>>(
+  QaHistoryNotifier.new);
 
-class QaHistoryNotifier extends StateNotifier<List<QaPair>> {
-  QaHistoryNotifier() : super([]) {
+class QaHistoryNotifier extends Notifier<List<QaPair>> {
+  @override
+  List<QaPair> build() {
     _loadHistory();
+    return state;
   }
 
   Future<void> _loadHistory() async {

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/document_model.dart';
 import '../services/app_state_repository.dart';
+import '../utils/ref_state.dart';
 import 'service_providers.dart';
 
 /// Auto-detected family members, derived from uploaded policy documents.
@@ -34,7 +35,7 @@ final autoFamilyMembersProvider = FutureProvider.family<
 
 /// Bump this to force [mergedFamilyMembersProvider] to reload manual members
 /// from storage after an add/remove.
-final _manualMembersRevisionProvider = StateProvider<int>((ref) => 0);
+final _manualMembersRevisionProvider = refStateProvider<int>(0);
 
 /// Manually-added family members, loaded from local storage. These are members
 /// the user added themselves (e.g. a dependent with their own separate policy
@@ -68,7 +69,8 @@ final mergedFamilyMembersProvider = FutureProvider.family<
 
 /// Helpers to mutate the manual member list and refresh listeners.
 void refreshManualFamilyMembers(WidgetRef ref) {
-  ref.read(_manualMembersRevisionProvider.notifier).state++;
+  final current = ref.read(_manualMembersRevisionProvider);
+  ref.read(_manualMembersRevisionProvider.notifier).setState(current + 1);
 }
 
 Future<void> addManualFamilyMember(WidgetRef ref, PolicyHolder member) async {

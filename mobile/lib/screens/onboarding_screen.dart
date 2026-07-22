@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
 import '../services/consent_ledger.dart';
 import '../services/analytics_service.dart';
+import '../services/consent_sync_service.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
 import '../widgets/shared/coverwise_mark.dart';
@@ -19,8 +21,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _currentPage = 0;
-  bool _analyticsConsent = true; // Default ON — matches analytics fail-open.
-  bool _consentToggled = false; // Track if user explicitly changed the toggle.
+  bool _analyticsConsent = false; // Optional analytics is explicit opt-in.
   bool _acceptedTerms = false; // Must be true to proceed from last page.
 
   static const _pages = [
@@ -83,25 +84,35 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _recordConsentState() async {
+    final ledger = ConsentLedger();
     try {
-      final ledger = ConsentLedger();
-      // Record analytics consent only if user explicitly toggled the switch.
-      if (_consentToggled) {
-        await ledger.recordConsent(
-          purpose: ConsentPurpose.analytics,
-          version: 'analytics-v1',
-          granted: _analyticsConsent,
-        );
-        AnalyticsService.refreshConsentCache();
-      }
-      // Always record terms acceptance — the user must check the box.
+      // Record an explicit analytics decision, including an opt-out. This
+      // keeps the UI choice and the fail-closed analytics gate aligned.
       await ledger.recordConsent(
-        purpose: ConsentPurpose.termsAccepted,
-        version: 'terms-v1',
+        purpose: ConsentPurpose.analytics,
+        version: 'analytics-v1',
+        granted: _analyticsConsent,
+      );
+      AnalyticsService.refreshConsentCache();
+
+      // The local ledger is the immediate offline cache. The server append
+      // below is attempted separately so an unavailable backend does not
+      // strand first-run onboarding.
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.privacyPolicy,
+        version: AppConfig.privacyPolicyVersion,
         granted: _acceptedTerms,
       );
     } catch (e) {
-      // Best-effort — don't block onboarding.
+      debugPrint('onboarding local consent write deferred: ${e.runtimeType}');
+    }
+
+    try {
+      await ConsentSyncService().syncAll();
+    } catch (e) {
+      // Cache-first onboarding remains usable offline. Upload and later
+      // account/session sync paths retry the consent bridge where applicable.
+      debugPrint('onboarding server consent sync deferred: ${e.runtimeType}');
     }
   }
 
@@ -212,7 +223,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Anonymous usage stats',
+                                  'Anonymous usage stats (optional)',
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: theme.colorScheme.onSurface,
@@ -235,7 +246,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             onChanged: (value) {
                               setState(() {
                                 _analyticsConsent = value;
-                                _consentToggled = true;
                               });
                             },
                           ),

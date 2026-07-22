@@ -7,35 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Fake StateNotifier that exposes an empty list without needing a real service.
+/// Fake Notifier that exposes an empty list without needing a real service.
 /// Must implement [PolicySummariesNotifier] because [policySummariesProvider]
-/// is typed as a StateNotifierProvider for policy summaries.
-final class _FakeSummariesNotifier extends StateNotifier<List<PolicySummary>>
-    implements PolicySummariesNotifier {
-  _FakeSummariesNotifier() : super(const []);
-
+/// is typed as a Notifier for policy summaries.
+class _FakeSummariesNotifier extends PolicySummariesNotifier {
   @override
-  Future<PolicySummary?> extractForDocument(
-          String documentId, String documentType) async =>
-      null;
-
-  @override
-  Future<void> fetchFromBackend(String documentId, String documentType) async {}
-
-  @override
-  Future<void> deleteSummary(String documentId) async {}
-
-  @override
-  PolicySummary? getForDocument(String documentId) => null;
-
-  @override
-  List<PolicySummary> get expiringSoon => const [];
-
-  @override
-  List<PolicySummary> get expired => const [];
-
-  @override
-  List<PolicySummary> get active => const [];
+  List<PolicySummary> build() => const [];
 }
 
 /// Minimal InsuranceDocument for tests that need the incident list to render.
@@ -49,7 +26,7 @@ final _dummyDoc = InsuranceDocument(
 Widget _harnessEmpty(Widget child, {ThemeMode mode = ThemeMode.light}) {
   return ProviderScope(
     overrides: [
-      policySummariesProvider.overrideWith((ref) => _FakeSummariesNotifier()),
+      policySummariesProvider.overrideWith(() => _FakeSummariesNotifier()),
       documentsProvider
           .overrideWith((ref) async => const <InsuranceDocument>[]),
     ],
@@ -66,7 +43,7 @@ Widget _harnessEmpty(Widget child, {ThemeMode mode = ThemeMode.light}) {
 Widget _harnessWithData(Widget child, {ThemeMode mode = ThemeMode.light}) {
   return ProviderScope(
     overrides: [
-      policySummariesProvider.overrideWith((ref) => _FakeSummariesNotifier()),
+      policySummariesProvider.overrideWith(() => _FakeSummariesNotifier()),
       documentsProvider.overrideWith((ref) async => [_dummyDoc]),
     ],
     child: MaterialApp(

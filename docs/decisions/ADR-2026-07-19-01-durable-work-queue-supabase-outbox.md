@@ -187,3 +187,27 @@ The outbox is the durable substrate; the worker is the delivery layer. They are 
   - `infra/supabase/001_coverwise_schema.sql` (existing lease pattern; outbox reuses it)
   - `supabase/migrations/2026_07_18_revops_tables.sql` (existing `processed_webhook_events` and `failed_subscription_writes`; these become aliases in the outbox dispatcher)
 - **Motto v3 alignment:** §0.1 (no parallel paths), §0.5 (evidence tiers — T1 SQL, T2 service-layer tests, T0 real-Supabase load), §0.10 (observability is delivery — `v_outbox_health` view), §0.12 (this document).
+
+## Addendum — lease renewal failure behavior (2026-07-21)
+
+The dispatcher now treats any lease-renewal exception as loss of observable
+ownership. It cancels the handler and does not call `complete` or `fail` with
+the stale token; the durable row is reclaimed after lease expiry. This is
+deliberately fail-closed because continuing downstream mutation after a
+renewal outage could create concurrent duplicate work. Worker/outbox tests
+cover both an explicit fencing loss and a renewal exception; remote
+multi-worker reclaim remains a Tier 3 verification gate.
+
+## Addendum — document retry state alignment (2026-07-21)
+
+The document-processing handler now distinguishes retryable outbox failures
+from the final attempt. A retryable exception clears the processing lease and
+returns the document to `received`, because the canonical claim RPC only leases
+received or stale-processing documents. The final allowed attempt persists
+`failed` for user-visible recovery and operator triage. This keeps queue state,
+document state, and the next-claim predicate aligned without adding a second
+processing pipeline.
+
+Targeted document-processing and owner-isolation coverage passes 19 tests;
+live worker retry/dead-letter and operator dashboard behavior remain open
+Tier 3/4 evidence.

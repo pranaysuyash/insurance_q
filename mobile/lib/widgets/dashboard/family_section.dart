@@ -4,6 +4,7 @@ import '../../models/document_model.dart';
 import '../../providers/family_providers.dart';
 import '../../services/analytics_service.dart';
 import '../../screens/add_family_member_dialog.dart';
+import '../shared/coverwise_snackbar.dart';
 
 class FamilySection extends ConsumerWidget {
   final List<InsuranceDocument> documents;
@@ -37,9 +38,7 @@ class FamilySection extends ConsumerWidget {
                 if (member != null) {
                   await addManualFamilyMember(ref, member);
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Added ${member.name}.')),
-                  );
+                  CoverWiseSnackBar.success(context, 'Added ${member.name}.');
                 }
               },
             ),

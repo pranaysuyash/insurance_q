@@ -4,15 +4,16 @@ import 'package:coverwise/screens/processing_status_screen.dart';
 
 void main() {
   group('ProcessingStage enum', () {
-    test('has exactly 7 stages in correct order', () {
-      expect(ProcessingStage.values.length, 7);
+    test('has exactly 8 stages in correct order', () {
+      expect(ProcessingStage.values.length, 8);
       expect(ProcessingStage.values[0], ProcessingStage.received);
       expect(ProcessingStage.values[1], ProcessingStage.processing);
       expect(ProcessingStage.values[2], ProcessingStage.extraction);
       expect(ProcessingStage.values[3], ProcessingStage.classification);
       expect(ProcessingStage.values[4], ProcessingStage.indexing);
       expect(ProcessingStage.values[5], ProcessingStage.complete);
-      expect(ProcessingStage.values[6], ProcessingStage.failed);
+      expect(ProcessingStage.values[6], ProcessingStage.partial);
+      expect(ProcessingStage.values[7], ProcessingStage.failed);
     });
 
     test('step values are sequential for pipeline stages', () {
@@ -25,6 +26,7 @@ void main() {
 
     test('terminal stages share step 5', () {
       expect(ProcessingStage.complete.step, 5);
+      expect(ProcessingStage.partial.step, 5);
       expect(ProcessingStage.failed.step, 5);
     });
 

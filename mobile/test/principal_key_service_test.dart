@@ -142,5 +142,15 @@ void main() {
       expect(contract.$1, contains('256-bit'));
       expect(contract.$4, contains('not derived from JWT'));
     });
+
+    test('legacy migration deletes the Hive box before new-key reopen', () {
+      // The production migration receives an empty path from startup because
+      // Hive owns the default directory. Its source-level contract must use
+      // Hive.deleteBoxFromDisk rather than silently skipping deletion.
+      final source = File('lib/services/principal_key_service.dart')
+          .readAsStringSync();
+      expect(source, contains('Hive.deleteBoxFromDisk(boxName)'));
+      expect(source, contains('rethrow;'));
+    });
   });
 }

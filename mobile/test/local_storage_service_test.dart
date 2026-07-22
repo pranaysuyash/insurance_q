@@ -94,7 +94,29 @@ void main() {
     expect(await service.getDocuments(), isEmpty);
   });
 
-  test('removes only the known bundled demo record outside demo mode', () async {
+  test('pending uploads retain consent and are discoverable for reconciliation',
+      () async {
+    final service = LocalStorageService();
+    final file = File('${tempDir.path}/queued-policy.pdf');
+    await file.writeAsBytes([3, 4, 5]);
+
+    final saved = await service.saveDocument(
+      file,
+      syncState: 'pending_upload',
+      processingState: 'pending',
+      processingConsentVersion: 'processing-v7',
+      status: 'pending',
+    );
+
+    final pending = await service.getPendingUploads();
+    expect(pending, hasLength(1));
+    expect(pending.single.id, saved.id);
+    expect(pending.single.processingConsentVersion, 'processing-v7');
+    expect(pending.single.localFilePath, isNotNull);
+  });
+
+  test('removes only the known bundled demo record outside demo mode',
+      () async {
     final demo = InsuranceDocument(
       id: LocalStorageService.bundledDemoDocumentId,
       remoteId: LocalStorageService.bundledDemoDocumentId,

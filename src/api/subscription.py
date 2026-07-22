@@ -350,6 +350,16 @@ async def revenuecat_webhook(
         # event types without making old deployments retry forever.
         return {"status": "ignored", "event_id": event_id, "event_type": event_type}
 
+    # Consumable purchases are handled only by the server-owned pack
+    # catalogue. An unknown non-renewing product must not fall through to
+    # subscription reconciliation and downgrade an existing subscription.
+    if event_type == "NON_RENEWING_PURCHASE" and plan_tier == "free":
+        return {
+            "status": "unsupported_product",
+            "event_id": event_id,
+            "event_type": event_type,
+        }
+
     if use_remote_billing():
         try:
             outbox = JobOutboxService.from_env()
@@ -483,6 +493,7 @@ def get_subscription_status(
                 "expires_at": None,
                 "synced_at": None,
                 "source": "default",
+                "verified": False,
             }
         return {
             "plan_tier": row.get("plan_tier", "free"),
@@ -491,6 +502,7 @@ def get_subscription_status(
             "expires_at": row.get("expires_at"),
             "synced_at": row.get("synced_at"),
             "source": row.get("source", "client_sync"),
+            "verified": bool(row.get("verified", False)),
             "is_expired": not bool(row.get("is_active")),
         }
 
@@ -522,42 +534,47 @@ def get_subscription_status(
                 "source": "revenuecat_webhook",
             }
 
-        row = conn.execute(
-            """
-            SELECT plan_tier, product_id, expires_at, is_active, synced_at
-            FROM subscription_sync
-            WHERE user_uid = ? AND is_active = 1
-            ORDER BY synced_at DESC
-            LIMIT 1
-            """,
-            (current_user.uid,),
-        ).fetchone()
-
-        if row is None:
-            return {
-                "plan_tier": "free",
-                "is_active": True,
-                "product_id": None,
-                "expires_at": None,
-                "synced_at": None,
-            }
-
-        # Check if subscription has expired
-        is_expired = False
-        if row["expires_at"]:
-            try:
-                expires = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
-                is_expired = datetime.now(timezone.utc) > expires
-            except (ValueError, TypeError):
-                pass
-
+        # Client-sync rows are intentionally not an entitlement grant. They
+        # remain available for reconciliation/diagnostics, but server gates
+        # use the verified webhook row above or the free-tier default.
         return {
-            "plan_tier": row["plan_tier"] if not is_expired else "free",
-            "is_active": bool(row["is_active"]) and not is_expired,
-            "product_id": row["product_id"],
-            "expires_at": row["expires_at"],
-            "synced_at": row["synced_at"],
-            "is_expired": is_expired,
+            "plan_tier": "free",
+            "is_active": True,
+            "product_id": None,
+            "expires_at": None,
+            "synced_at": None,
+            "source": "default_unverified",
+            "verified": False,
+            "is_expired": False,
         }
     finally:
         conn.close()
+
+
+@router.get("/qa-balance")
+def get_qa_pack_balance(
+    current_user: User = Depends(get_current_user),
+):
+    """Return the authenticated user's server-authoritative active pack balance."""
+    if use_remote_billing():
+        try:
+            balance = BillingLedger.from_env().get_qa_pack_balance(current_user.uid)
+        except Exception as error:
+            logger.error("Supabase Q&A pack balance unavailable: %s", type(error).__name__)
+            raise HTTPException(status_code=503, detail="Q&A pack ledger unavailable") from error
+        return {
+            "packs": balance.get("packs", []),
+            "pack_questions_remaining": int(balance.get("pack_questions_remaining", 0)),
+            "source": "qa_pack_grants",
+            "verified": True,
+        }
+
+    # Local development has no equivalent durable consumable ledger. Returning
+    # an explicitly unverified empty balance prevents it from masquerading as
+    # proof that a remote purchase was absent.
+    return {
+        "packs": [],
+        "pack_questions_remaining": 0,
+        "source": "local_unavailable",
+        "verified": False,
+    }

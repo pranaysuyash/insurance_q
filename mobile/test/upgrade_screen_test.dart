@@ -85,9 +85,7 @@ Widget buildUpgradeScreen({
   return ProviderScope(
     overrides: [
       entitlementServiceProvider.overrideWithValue(fakeService),
-      entitlementProvider.overrideWith(
-        (ref) => EntitlementNotifier(fakeService),
-      ),
+      entitlementProvider.overrideWith(EntitlementNotifier.new),
       billingAdapterProvider.overrideWithValue(fakeBilling),
       billingInitProvider.overrideWith((ref) async {
         if (billingState is AsyncError) {

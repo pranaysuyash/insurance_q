@@ -916,6 +916,34 @@ and filter target chunks by owner. A missing owner scope causes expansion to be
 skipped. Focused retrieval/RAG tests pass; deployed cross-owner link traversal
 and policy verification remain open.
 
+## Addendum — adjacent-link producer gap (2026-07-21)
+
+The retrieval trace found that Supabase adjacent expansion reads the canonical
+`chunk_links` table, but no active ingestion path writes `adjacent` links. A
+clean deployment can therefore pass owner-fence tests while returning no
+adjacent context at all. The next coherent stage must select one canonical
+producer—deterministic chunk-index adjacency or an explicit link-generation
+stage—with idempotency, deletion behavior, and held-out context-quality
+verification before claiming the feature is available.
+
+Owner fencing is implemented; adjacent-context availability remains unverified
+Tier 3/4 work.
+
+## Addendum — deterministic adjacent-context stage (2026-07-21)
+
+The adjacent-link producer gap now has a first canonical implementation stage.
+Supabase expansion prefers explicit owner-scoped `chunk_links`; when no
+materialized adjacent link exists, it resolves neighboring `chunk_index`
+values within the same owner and document. Adjacent hits now preserve
+`source_text` separately from `retrieval_text`, preventing contextualized text
+from becoming citation evidence. Existing graph links remain the extension
+point for semantic/structural relations.
+
+Verification: Supabase FTS, RAG, and owner-isolation tests pass 9 Supabase
+tests plus the adjacent RAG/owner checks; compilation and `git diff --check`
+pass (Tier 2). Remote link traversal, deletion, and held-out context-quality
+verification remain Tier 3/4 gates.
+
 ## Addendum — durable document-processing adoption (2026-07-21)
 
 The accepted outbox-only contract had drifted from code: production upload
@@ -1065,8 +1093,9 @@ claim that all policy data remains local.
 
 Verification: Flutter analysis passed; the focused profile, documents, and
 renewal suite passed 23 tests; `git diff --check` passed. The broader Flutter
-suite was recorded at 588 passed at that earlier checkpoint; the latest full
-run is 594 passed. This is Tier 2 evidence for the changed
+suite was recorded at 588 passed at that earlier checkpoint; a subsequent
+checkpoint reached 594, and the latest deterministic full run is 595 passed.
+This is Tier 2 evidence for the changed
 mobile contracts. Full device-matrix accessibility and authenticated
 production-runtime behavior remain open Tier 3/4 gates.
 
@@ -1142,7 +1171,1711 @@ was scrolled into view. The product now uses an expanded dropdown layout; the
 test asserts the typed control and its visible language label.
 
 Verification: the full backend suite passed 350 tests with 1 intentional skip;
-the full Flutter suite passed 594 tests; the focused upload-layout suite passed
-19 tests; and `git diff --check` passed. This is Tier 2 evidence. Device
+the full Flutter suite passed 594 tests at that earlier checkpoint; the
+focused upload-layout suite passed 19 tests; and `git diff --check` passed.
+This is Tier 2 evidence. Device
 matrix, authenticated deployed runtime, and real provider execution remain
 open higher-tier gates.
+
+## Addendum — remote-first document deletion contract (2026-07-21)
+
+The document deletion journey had a confirmed contract mismatch. The service
+already called the authenticated `DELETE /documents/{id}` endpoint before
+removing local state, but the UI and privacy screen still described local-only
+removal. The UI now says `Delete policy`, explains that deletion is remote-first,
+and keeps the local copy when the server fails. The client also uses the
+document's stored `backendId`/remote ID rather than assuming the local Hive ID
+is the server identifier.
+
+Verification: the remote-first deletion test passed, Flutter analysis passed,
+and the full Flutter suite remains green at 595 tests when run with one worker.
+This is Tier 2 evidence;
+an authenticated deployed delete, retry/503 recovery, and post-delete remote
+artifact audit remain Tier 3/4 gates.
+
+## Addendum — deterministic full-suite confirmation after deletion changes (2026-07-21)
+
+The first post-change parallel Flutter run produced five compile-load failures
+while workers observed an incomplete localization surface. The source contains
+the referenced catalog members, and the affected focused suites were already
+green. A deterministic single-worker run removed the compilation race without
+requiring a product rollback.
+
+Verification: `flutter analyze --no-pub` passed with no issues; the complete
+Flutter suite passed 595 tests with `--concurrency=1` at that earlier checkpoint; the backend suite remains
+359 passed with 1 intentional deployment-gated skip; and `git diff --check`
+passed. Parallel Flutter execution remains a tooling/test-isolation risk to
+investigate separately; authenticated deployed deletion and remote artifact
+cleanup remain Tier 3/4 gates.
+
+## Addendum — native document capability adapter and benchmark manifest (2026-07-21)
+
+The document-intelligence path now has a deterministic native-PDF specialist in
+`src/ocr/native_pdf.py`. It emits text-layout blocks, table/table-cell geometry,
+and hashed embedded-image figure nodes into the existing CIR. The versioned
+manifest is `docs/eval/document_intelligence/capability_manifest_v1.json`, with
+`tools/evaluate_document_capabilities.py` as the reusable evaluator.
+
+The two local/synthetic cases pass: native text/layout and mixed native
+text/layout/table/figure extraction. The report contains hashes and metrics,
+not source text, by default. OCR, forms, formulas, multilingual/handwriting,
+and VLM figure annotation remain explicit pending gates; no vendor score is
+being promoted to product evidence.
+
+## Addendum — CIR hash-format provenance guard (2026-07-21)
+
+The new CIR contract previously checked hash length but accepted arbitrary
+characters. Source-artifact and page-artifact hashes now require canonical
+lowercase SHA-256 hexadecimal form, preventing malformed provenance identifiers
+from entering the evidence boundary.
+
+Verification: the document-intelligence, benchmark, and contract suites passed
+12 tests; affected modules compiled; and `git diff --check` passed. This is Tier
+2 contract evidence. It does not prove durable CIR persistence or authenticated
+page-level citation resolution, which remain Tier 3 gates.
+
+## Addendum — governed evaluation output-hash boundary (2026-07-21)
+
+The approved-manifest execution path accepted a caller-supplied `output_hash`
+without checking that it was a hash. That weakened the hash/metric-only
+contract: a faulty evaluator could write raw output into the results field.
+The service now accepts only canonical lowercase SHA-256 values, or derives
+the hash from an in-memory output; invalid values become item-level errors.
+
+Verification: dataset execution, registry, and model-lineage tests passed 12
+tests; the affected service compiled; and `git diff --check` passed. A real
+approved release, provider execution, and operator replay remain Tier 3/5
+gates.
+
+The generated local doctr scan case now passes as Tier 2 evidence: all three
+expected tokens were recovered in 2.314 seconds. The durable report is
+`docs/review/evidence/local-model-eval/document-capability-manifest-2026-07-21.json`.
+This does not close the OCR gate; the consented corpus, multilingual/handwriting
+coverage, p95 behavior, and production deployment checks remain open.
+
+## Addendum — comprehensive RAG exploration baseline (2026-07-21)
+
+The broad RAG research pass is now captured in
+[`docs/technical/rag_comprehensive_exploration_2026-07-21.md`](../technical/rag_comprehensive_exploration_2026-07-21.md).
+The companion [primary-source research register](../research/rag_primary_sources_2026-07-21.md)
+records the background research pass and source-by-source evidence boundary.
+It covers the full flow from source ingestion through parsing, structure-aware
+chunking, embeddings, sparse/dense/hybrid retrieval, query transformation,
+fusion, reranking, context assembly, structured generation, citation
+verification, evaluation, security, privacy, observability, cost/latency,
+vector stores, frameworks, managed RAG platforms, and advanced patterns such as
+parent-child, hierarchical, contextual, GraphRAG, agentic, and multimodal RAG.
+
+The durable architectural conclusion is that RAG must remain three explicit
+layers — model, pipeline, and data/configuration — with immutable `source_text`
+as citation truth and separate `retrieval_text` for search enrichment. Dense
+and lexical retrieval remain complementary legs; owner/document/version
+filters must apply before retrieval and graph expansion; reranking and
+advanced techniques are evaluation-gated; and every customer-visible answer
+must pass structured-output and citation verification.
+
+### Current repo map and evidence boundary
+
+Static inspection of the current checkout confirms that the canonical path now
+contains or represents dense retrieval, local FTS5/BM25, RRF-style merging,
+query classification, query variants/RAG Fusion, HyDE, optional cross-encoder
+reranking, multi-granularity sentence/paragraph records, section taxonomy,
+chunk links, contextual retrieval gating, immutable source/retrieval text,
+citation verification, versioned cache invalidation, and privacy-safe retrieval
+audit persistence. The relevant owners are `src/rag/pipeline.py`,
+`src/services/supabase_vector_store.py`, `src/services/citation_verifier.py`,
+`src/services/retrieval_audit_service.py`, the document-processing service, and
+the timestamped Supabase migrations.
+
+This is Tier 1 evidence unless a focused test is named. It does not prove
+applied remote migrations, live provider execution, deployed latency, real
+document quality, or authenticated cross-owner runtime behaviour.
+
+### Highest-leverage open exploration/implementation gates
+
+1. Prove Supabase/Qdrant retrieval-contract parity, including owner filters,
+   source fields, embedding model/version/dimension, empty states, adjacency,
+   and deletion.
+2. Resolve the launch-audit `httpx`/OpenAI `proxies` initialization failure and
+   make the local-provider startup contract explicit; align `.env.example` with
+   the canonical `text-embedding-3-small` configuration.
+3. Reconcile retrieval-trace citation status accounting with the actual
+   `citation_status` field and add a regression test for verified, approximate,
+   and rejected outcomes.
+4. Expand the versioned RAG evaluation corpus beyond the narrow fixture set:
+   exact lookups, semantic clauses, negatives, tables, cross-references,
+   multi-policy comparisons, stale versions, prompt injection, and owner
+   isolation.
+5. Prove parent/adjacent expansion, deduplication, section context, graph
+   deletion, and owner fencing end to end before adding a generated entity graph.
+6. Keep contextual retrieval disabled until a resumable backfill, source/evidence
+   contract, and held-out quality gate show improvement without faithfulness or
+   citation regression.
+
+### Value delivered
+
+- **User:** a clear path to policy answers that are searchable, source-linked,
+  explicit about insufficient evidence, and safer around private documents.
+- **Business/team:** one decision framework for selecting RAG techniques and
+  packages without creating a second production pipeline or making unsupported
+  insurance claims.
+- **Internal/operations:** an auditable map of current capabilities, source
+  contracts, evaluation gates, failure modes, provider choices, and exact next
+  closure triggers.
+
+### Prior chat/session material
+
+The research incorporates the available repo-local prior-session artifacts:
+`rag_pipeline_discussion_2026-07-20.md`,
+`rag_pipeline_exploration_map_2026-07-20.md`, and
+`docs/technical/ai_and_nlp/rag_implementation.md`. The user additionally
+supplied the two ChatGPT conversation records listed in the later addendum;
+their project-direction and learning context is now represented in the linked
+chat-session synthesis. A connector was not required because those records
+were provided directly in the task. Conversation material remains internal
+direction rather than verified external technical evidence.
+
+### Anything else?
+
+Yes. The evaluation corpus, parser outputs, chunk metadata, prompts, model
+contracts, and index versions are product data/configuration and must receive
+the same review, versioning, retention, access-control, and deletion treatment
+as application code. A better model cannot repair incorrect OCR, stale policy
+versions, missing page lineage, or a broken owner boundary.
+## Addendum — route-aware snackbar contract (2026-07-21)
+
+The shared snackbar migration now attaches its root `ScaffoldMessengerKey` to
+the canonical `MaterialApp`. Operation-qualified errors are dismissed by the
+root navigator observer on push, pop, and replace, so stale failure messages do
+not follow users into unrelated screens. Legacy raw snackbars remain outside
+this pass and require screen-by-screen migration.
+
+Verification: Flutter analyzer passed; the snackbar route regression, app smoke,
+and error-message suites passed 23 tests; and the deterministic full Flutter
+suite passed 596 tests. Parallel test isolation and device/accessibility proof
+remain open higher-tier checks.
+## Addendum — pending-upload copy contract (2026-07-21)
+
+The upload completion surface still implied automatic processing after
+reconnection even though no pending-upload consumer or connectivity worker is
+implemented. The message now states only what is verified: the file was saved
+locally and server upload is still required. This preserves the honest
+`queued locally, sync unverified` state until a durable retry owner exists.
+
+Verification: Flutter analyzer passed and the deterministic full Flutter suite
+passed 596 tests; automatic retry,
+backoff/idempotency, web-byte persistence, and post-restart reconciliation
+remain unverified higher-tier work.
+
+## Addendum — production release-signing boundary (2026-07-21)
+
+The mobile release path now resolves the repository root explicitly, checks
+both possible tracked `key.properties` locations, requires the canonical
+`mobile/android/key.properties` file, and sets a production-only Gradle gate
+before building an App Bundle. The launch playbook now calls this script rather
+than teaching a direct release build with a placeholder API endpoint.
+
+Verification: `bash -n tools/build_mobile_release.sh` passed; with dummy public
+configuration, the script exited 2 before invoking Flutter because the tracked
+root `android/key.properties` was detected. This is Tier 1/Tier 2 fail-closed
+evidence, not a distributable-build proof. Credential rotation, history
+cleanup, real keystore provisioning, and a real-value signed AAB remain open.
+
+## Addendum — mobile safe-error and deletion-language alignment (2026-07-21)
+
+The remote-first document deletion path still inherited an older local-only
+error message, and the Q&A response-error branch could render untrusted server
+text. The contextual deletion message now explains that server deletion failed
+while the local copy remains retryable; Q&A response errors now pass through
+`AppError.userMessage` before display.
+
+Verification: focused AppError, Q&A, snackbar, and Documents-screen suites
+passed 42 tests. The remaining raw `SnackBar` callers are a separate staged
+migration surface; authenticated server-error rendering remains unverified.
+
+## Addendum — governed evaluation hash consistency (2026-07-21)
+
+Evaluation output lineage now canonicalizes structured JSON and raw bytes/text
+separately, rejects non-JSON-serializable values, and rejects a supplied hash
+that does not match an accompanying output. A hash-only result remains
+accepted because the execution boundary cannot reconstruct content that the
+evaluator intentionally withheld.
+
+Verification: the focused dataset, document-intelligence, native-PDF, and
+capability-manifest suites passed 19 tests. Real provider execution and
+operator replay remain unverified.
+
+## Addendum — remote-first deletion failure propagation (2026-07-21)
+
+`DocumentService.deleteDocument` previously swallowed remote/local deletion
+exceptions and returned `false`, preventing the screen from showing its retry
+message. Failures now propagate while the local record remains intact; the
+screen owns the safe user-facing error. The root snackbar messenger key was
+also restored in the live parallel state and is now used by route dismissal.
+
+Verification: focused deletion, AppError, Q&A, snackbar, and Documents-screen
+suites passed 44 tests. Deployed authenticated 503/404 behavior and real local
+cleanup failure recovery remain unverified.
+
+## Addendum — current verification checkpoint (2026-07-21)
+
+After the deletion/error and deterministic evaluation changes, the full
+backend suite passed 363 tests with 1 deployment-gated skip, Flutter analyzer
+reported no issues, and the full Flutter suite passed 597 tests with one
+worker. This supersedes earlier numeric checkpoints while preserving them as
+historical evidence.
+
+## Addendum — canonical snackbar migration completion (2026-07-21)
+
+The remaining runtime raw snackbar callers in phone capture, family addition,
+document-type refresh, policy detail, and claim assistance were migrated to
+`CoverWiseSnackBar`. The helper is now the only runtime snackbar construction
+surface, so route dismissal and operation-qualified errors share one contract.
+
+Verification: analyzer passed and the affected claim-assistance,
+policy-detail, documents, and snackbar suites passed 41 tests. Device-level
+accessibility and route-transition proof remain higher-tier checks.
+
+## Addendum — durable worker event-loop and lease safety (2026-07-21)
+
+The outbox worker’s account-deletion handler now runs the synchronous Supabase
+lifecycle service through `asyncio.to_thread`, keeping health probes and queue
+control responsive. The dispatcher now renews the database lease at half the
+lease interval while long-running handlers execute, reducing duplicate
+processing after lease expiry.
+
+Verification: worker health, dispatcher, runtime-config, and shell-syntax
+checks passed; the focused backend worker suite passed 39 tests. A real Cloud
+Run health probe, multi-worker lease race, and deployed queue round trip remain
+Tier 3/4 gates.
+
+## Addendum — purchase and family-member failure contracts (2026-07-21)
+
+The upgrade and Q&A purchase journeys now distinguish a provider result that
+did not produce the requested entitlement from a completed purchase. Such
+results are recorded as `not_completed` and give the user an explicit
+no-change message; a successful plan purchase is accepted only when the
+returned entitlement matches the requested tier. User cancellation remains
+silent through the centralized billing error contract. Manual family-member
+save failures now use the safe contextual error mapper instead of exposing raw
+exception text.
+
+Verification: Flutter analyzer passed and the focused upgrade, Q&A entitlement,
+profile, and snackbar suites passed 62 tests. RevenueCat sandbox purchase,
+store cancellation, receipt verification, and server-enforced entitlement
+traversal remain unverified higher-tier gates.
+
+## Addendum — post-billing regression checkpoint (2026-07-21)
+
+The broader regression pass after the billing/error-contract changes passed
+365 backend tests with 1 deployment-gated skip and 40 warnings, and 597 Flutter
+tests with one worker. `git diff --check` also passed. These are Tier 2 checks;
+no live store transaction, authenticated remote entitlement read, Cloud Run
+probe, or production signing proof was claimed.
+
+## Addendum — release and CI contract hardening (2026-07-21)
+
+The release path now rejects obvious placeholder endpoints/keys, RevenueCat
+secret or OAuth credentials, and malformed production configuration before
+Flutter runs. Android production signing now requires all key properties and an
+existing keystore resolved relative to `mobile/android/`; non-production local
+release builds retain the debug fallback. CI now labels its release APK as a
+non-distributable compile smoke check rather than an unsigned artifact. The
+tool README now supplies all required release variables and labels the
+platform-specific RevenueCat public SDK key correctly.
+
+Verification: shell syntax passed; a valid-shaped configuration stopped before
+Flutter because the tracked root `android/key.properties` remains a release
+blocker; workflow YAML parsed; and `./gradlew :app:assembleRelease` passed with
+709 tasks. The build emitted dependency/SDK deprecation warnings. No signed
+production artifact was produced or claimed.
+
+## Addendum — evidence substrate replay safety (2026-07-21)
+
+The page-artifact path had a retry hole: the database enforces one row per
+document/page, but the service used blind inserts. If page creation succeeded
+before source-span persistence failed, a retry could hit the unique constraint
+and lose the page from the RAG linkage map. Page-artifact writes now return an
+identical existing row, reject a different image hash, and tolerate the
+concurrent unique-constraint race. Source-span writes now reconcile identical
+logical spans before inserting missing rows, preserving append-only history
+without sequential retry duplication.
+
+The processing failure path also stopped logging user-controlled filenames and
+stopped returning raw exception strings in OCR/RAG failure details; opaque
+document IDs and bounded error types are used instead.
+
+Verification: the focused evidence, document-intelligence, processing-job,
+mobile-OCR, and fallback suite passed 83 tests with 9 dependency warnings.
+Live Supabase replay, concurrent span-insert races, remote object retrieval,
+and page-level citation traversal remain Tier 3/4 gates.
+
+## Addendum — post-evidence regression checkpoint (2026-07-21)
+
+After the replay-safety and bounded-error changes, the full backend suite passed
+370 tests with 1 deployment-gated skip and 40 dependency warnings. This is the
+current backend checkpoint; live Supabase evidence replay and deployed
+page-level citation traversal remain higher-tier gates.
+## Addendum — source-span confidence preservation (2026-07-21)
+
+The CIR-to-evidence adapter previously treated a valid confidence of `0.0` as
+missing and replaced it with `1.0`. It now distinguishes null confidence from
+zero, preserving parser uncertainty instead of overstating evidence quality.
+
+Verification: the focused document-intelligence/CIR suite passed 13 tests; the
+full backend suite passed 359 tests with 1 intentional skip; affected modules
+compiled; and `git diff --check` passed. Durable remote source-span reads and
+authenticated page-level citation traversal remain Tier 3 gates.
+
+## Addendum — durable worker deployment contract (2026-07-21)
+
+The outbox worker was executable in-process but lacked a Cloud Run listener and
+was not represented by the deployment surface. It now exposes non-mutating
+`/healthz` and `/readyz` responses on `PORT`, while
+`tools/deploy_outbox_worker.sh` deploys it as a separate internal service with
+one minimum instance and concurrency one. The API and worker therefore have
+explicit separate runtime ownership: the API enqueues durable work and the
+worker claims and retries it.
+
+Verification: worker health/outbox tests pass 33 tests; the full backend suite
+passes 363 tests with 1 intentional deployment-gated skip. External Cloud Run
+deployment and a real post-deploy queued-job round trip remain unverified.
+
+## Addendum — current CI/error-path verification (2026-07-21)
+
+The document-processing error handlers now log the available filename context
+instead of referencing an undefined document ID, preventing OCR/PDF/text
+failure handling from raising a secondary `NameError`. CI now uses pinned
+Flutter checks, immutable container tags, Python compilation, and critical Ruff
+(`E9`, `F821`) safety checks; the old broad formatter gate remains historical
+style debt rather than a release claim.
+
+Verification: the full backend suite passed 365 tests with 1 deployment-gated
+skip; the critical Ruff and compilation checks passed locally. Hosted workflow
+execution remains unverified.
+
+## Addendum — local service truth recheck (2026-07-21)
+
+The current machine has a running Homebrew PostgreSQL 17.4 instance and Redis;
+`pg_isready` accepts connections. The standalone Postgres instance does not
+provide the `vector` extension required by the canonical Supabase pgvector
+contract, and the Docker daemon is currently unreachable. It is therefore a
+valid generic SQL diagnostic surface, not evidence that the Supabase migration,
+RLS, or vector stack is locally verified. No application migration was applied
+to the standalone database. The project `.venv` passed `uv pip check`.
+
+The canonical `.env.example` now uses `text-embedding-3-small`, documents the
+modern Supabase server-key alias and production launch fields, and is covered
+by a regression test. The full backend suite subsequently passed 370 tests with
+one deployment-gated skip.
+
+The Cloud Run deployment surface now binds RevenueCat webhook authorization
+from Secret Manager and validates the actual runtime env-file format before
+calling `gcloud`; the validator supports both dotenv and gcloud-compatible YAML
+without printing secret values.
+
+## Addendum — runtime env-file secret boundary (2026-07-21)
+
+The deployment preflight had accepted secret-named fields in the runtime env
+file even though Cloud Run receives that file through `--env-vars-file`. This
+created a parallel path that could expose OpenAI, Supabase, signing, or
+RevenueCat webhook credentials outside Secret Manager. The validator now
+rejects those names, including the modern `SUPABASE_SECRET_KEY` alias, before
+deployment. An explicit env file also overrides ambient shell values during
+validation so the check describes the actual deployment input.
+
+The launch playbook and platform decision record now document four Secret
+Manager bindings and seven required deployment variables, including the
+RevenueCat webhook authorization secret. This is Tier 2 evidence from focused
+validator tests, Python compilation, shell syntax, and diff hygiene; no Cloud
+Run deployment or Secret Manager binding was executed.
+
+The dedicated outbox worker deploy now resolves the repository root, validates
+the worker-specific production profile, and rejects secret-bearing runtime
+files before `gcloud`. Worker scope intentionally requires only its OpenAI and
+Supabase service secrets; API-only signing, CORS, and webhook-auth secrets are
+not mounted into the worker. A live worker deployment, health probe, reclaim
+race, and queued-job round trip remain Tier 3/4 gates.
+
+## Addendum — local/server document identity cleanup (2026-07-21)
+
+The document-list deletion journey had a local/server identity mismatch:
+summaries are keyed by the remote document ID after backend extraction, while
+the delete handler removed only the local Hive ID. It also cleared only the
+selected pointer, leaving last-uploaded or last-viewed references behind.
+Deletion now removes summaries for both IDs and clears all navigation pointers
+that match either identity after remote-first deletion succeeds.
+
+Verification: the new navigation-reference test passed, the focused document,
+policy-detail, and state suite passed 36 tests, and `flutter analyze` reported
+no issues. Live remote deletion plus cross-screen restart/deep-link behavior
+remain Tier 3/4 gates.
+
+The current remote Supabase probe found `model_run_results` missing with
+PostgREST `PGRST205`. The provided experimental token was rejected by the
+installed CLI, so remote migration application remains unverified and no
+remote mutation was attempted.
+
+## Addendum — ChatGPT conversation synthesis for RAG direction (2026-07-21)
+
+The user supplied two explicit prior ChatGPT conversation records for this
+exploration:
+
+- [`RAG exploration and documentation`](chatgpt-conversation://6a5f4613-bdfc-83e8-8bb2-c79af5788c04)
+- [`RAG app development guide`](chatgpt-conversation://6a4926d2-e31c-83e8-bdd0-edad22e10efe)
+
+Their durable project context is captured in
+[`docs/research/rag_chat_session_synthesis_2026-07-21.md`](../research/rag_chat_session_synthesis_2026-07-21.md)
+and linked from the canonical
+[`docs/technical/rag_comprehensive_exploration_2026-07-21.md`](../technical/rag_comprehensive_exploration_2026-07-21.md).
+
+### Direction preserved
+
+- Learn and build RAG as a complete system: ingestion, chunking, embeddings,
+  indexing, retrieval, generation, evaluation, operations, and UX—not merely a
+  vector database plus an LLM.
+- Treat PDFs and similar sources as multi-view evidence objects. Preserve a
+  canonical document model and derive typed section, table, OCR/image,
+  entity/metadata, layout/page, and structured-record views.
+- Keep parsing, extraction, chunking, and indexing as distinct contracts. A
+  shared typed chunk substrate is acceptable only when raw structured payloads,
+  modality, confidence, page/bounding-box lineage, and retrieval purpose are
+  retained.
+- Route queries by intent: exact/entity and numeric questions should use
+  structured or lexical paths; narrative questions can use section/dense
+  retrieval; visual questions need OCR/vision evidence; cross-document tasks
+  need explicit aggregation and evaluation.
+- Follow the build sequence: manual primitive -> serious document handling ->
+  hybrid/routed retrieval -> fixed eval harness -> product-grade workflow ->
+  selective agentic or multimodal expansion.
+
+### Evidence and closure boundary
+
+This is conversation-derived internal product and learning context (Tier 0/1
+direction), not independent technical proof. Primary papers and first-party
+documentation remain the evidence source for external claims. Repository
+implementation status is still bounded by static inspection and the targeted
+checks recorded in the canonical RAG document. The next high-value closure
+gates are end-to-end multi-view ingestion, typed retrieval routing, page/region
+citation traversal, owner fencing, deletion/version transitions, and a reviewed
+evaluation corpus covering exact, table, OCR, narrative, negative, and
+cross-document questions.
+
+### Value
+
+- User: a RAG workbench can teach the mechanics while showing which evidence
+  was retrieved and why an answer is grounded.
+- Team/business: the same multi-view substrate can support policy, claims,
+  document, and audit workflows without forcing every question through one
+  brittle text-search path.
+- Operations: typed lineage, confidence, retrieval intent, and evaluation
+  results make failures diagnosable and future model/index changes reviewable.
+
+## Addendum — document journey copy contract (2026-07-21)
+
+The newly introduced document upload-state and refresh copy now uses the
+incremental `S` catalog across the document list and upload flow. The catalog
+remains English-only and incremental; a complete localization migration is a
+separate exploration. The explicit `Server upload required` state preserves
+the distinction between local persistence and server availability.
+
+The replacement action remains visibly disabled until an atomic or
+compensating server-side replacement contract is proven.
+
+Verification: `flutter analyze` reported no issues; the focused document,
+policy-detail, deletion, and snackbar suite passed 52 tests. This is Tier 2
+evidence; real upload/offline/server-reconciliation behavior remains a Tier 3+
+gate.
+
+## Addendum — bounded document-processing failures (2026-07-21)
+
+The active document query and canonical OCR pipeline no longer return raw
+parser/RAG exception text to callers. User-facing responses are bounded and
+carry an exception class for diagnostic correlation; detailed stack traces
+remain in logs. This follows the same privacy and recovery contract as the
+document-processing service changes.
+
+Verification: the corrected fallback/document contract suite passed 52 tests
+with 5 dependency warnings. API-level response mapping, deployed log review,
+and production provider failures remain unverified Tier 3/4 gates.
+
+## Addendum — executable launch health and runtime capacity (2026-07-21)
+
+The canonical deployed verifier now gates on `/health` as well as liveness,
+readiness, identity, and owner isolation. The current staging API passes the
+identity/isolation checks but fails the full-health gate with HTTP 503 because
+the OpenAI embedding credential is invalid. This is now an executable launch
+blocker, not only a review note; see ADR-2026-07-21-06 and
+`tools/verify_deployed_launch.py`.
+
+The current machine also has a capacity constraint: overlapping Flutter
+processes plus generated build/compiler artifacts exhausted the root volume
+during a full-suite attempt. The 4.1 GB ignored `mobile/build/` output was
+moved to Trash, but other parallel Flutter processes remain outside this task's
+ownership. A fresh full mobile suite needs a quiet runner and adequate free
+space; the last completed full run remains historical evidence.
+
+## Addendum — processing-state and upload-identity reconciliation (2026-07-21)
+
+The J04/J05 trace was rechecked against the current route after the durable
+outbox deployment work landed. Production composition now enqueues the
+document-processing job through `JobOutboxService`; the in-process
+`BackgroundTasks` path is retained only for development compatibility when no
+outbox is configured. The earlier J02–J07 snapshot has been preserved and
+annotated rather than silently rewritten.
+
+The mobile processing screen previously treated capability-aware terminal
+states (`completed_no_summary`, `completed_summary_partial`,
+`completed_text_partial`, `indexing_failed`, and `partial`) as unknown. That
+made a legitimately partial document appear stuck at “Received” until the
+three-minute timeout. It now presents a terminal “Partially ready” state and
+lets the user inspect available policy information without implying that every
+field is verified.
+
+The document-type refresh/classification path now translates local Hive IDs to
+remote document IDs before querying the backend, preventing a returning-user
+classification request from targeting a non-existent local identifier.
+
+Verification: backend document-state/owner tests passed 17 tests; mobile
+processing-state mapping passed 34 tests; the processing-stage suite passed 27
+tests; and `flutter analyze` reported no issues. The full mobile suite had
+previously passed 612 tests before this change. A combined post-change run
+initially exhausted the machine's temporary disk while compiler artifacts were
+being generated; that environment failure was isolated and not treated as a
+code result. Live upload-to-worker, partial-result runtime, evidence readback,
+and two-owner Q&A remain Tier 3/4 gates.
+
+## Addendum — Q&A owner fencing and local hybrid-index migration (2026-07-21)
+
+The J07 trace found and closed a high-risk isolation gap in the local SQLite
+hybrid search compatibility path. The API routes derived `owner_id` from the
+verified principal, but local FTS did not persist or apply that filter before
+merging sparse results with dense retrieval. The canonical local index now
+stores `owner_id`, migrates older schemas additively, and applies owner scope
+to both FTS and LIKE fallback queries. Historical ownerless rows are excluded
+from owner-scoped searches rather than guessed into a tenant.
+
+This is a durable product-direction finding: identity fencing belongs at every
+retrieval layer, not only at the HTTP boundary. Supabase vector/FTS already
+fails closed without owner scope; Qdrant metadata filters remain in place.
+
+The caller inventory found the JSON `/query` route is the only repository
+mobile/frontend product caller. `/documents/query` is now explicitly marked
+as a deprecated, frozen form-compatible integration surface and emits a
+bounded warning. Retire it only after external integration inventory and a
+compatibility-window decision; do not add new callers.
+
+Verification: the focused RAG/owner/citation suite passed 29 tests with one
+existing HTTPX deprecation warning (Tier 2). A two-owner Q&A run against the
+deployed stack remains open (Tier 3/4), as does the decision on whether the
+form-compatible `/documents/query` surface should be deprecated after caller
+inventory or retained as a formally owned compatibility contract.
+
+## Addendum — Q&A duplicate suppression and citation navigation metadata (2026-07-21)
+
+The J07 trace then closed two response-contract gaps. `_askQuestion` now has a
+single in-flight boundary shared by button, keyboard, suggested, follow-up,
+and demo entry points, preventing concurrent entitlement checks and usage
+writes. The keyboard path previously bypassed the visual loading disable.
+
+Verified and approximate RAG citations now receive document/page lineage from
+the selected authoritative source rather than trusting model-supplied or null
+metadata. The canonical JSON `/query` surface preserves sanitized source
+objects for client display while keeping immutable `source_text` and generated
+`retrieval_text` out of the customer response. This makes page labels
+meaningful without widening the public evidence surface.
+
+Verification: mobile Q&A tests passed 10 tests and `flutter analyze` was clean;
+the backend RAG/owner/citation suite passed 30 tests with one existing HTTPX
+deprecation warning (Tier 2). Full citation tap-to-page behavior still needs a
+remote page-read integration run (Tier 3/4).
+
+## Addendum — evidence lineage enforcement (2026-07-21)
+
+The J06 substrate review confirmed a structural integrity gap: foreign keys
+ensured that `field_evidence`, `extracted_fields`, `page_artifacts`, and
+`source_spans` existed, but did not ensure that the rows belonged to the same
+document and page. The additive lineage migration adds a database trigger for
+both invariants and preflights existing data, failing migration rather than
+silently carrying known cross-document or cross-page links forward.
+
+The service layer remains useful for bounded errors and audit context, but the
+database is now the final authority for lineage. Append-only enforcement and
+versioned page replacement remain separate open decisions.
+
+Verification: evidence schema/service/owner tests passed 31 tests with two
+existing HTTPX deprecation warnings (Tier 1/2). No remote migration was run;
+Supabase execution and invalid-link integration tests remain Tier 3 gates.
+
+## Addendum — consent client authentication boundary (2026-07-21)
+
+The J02 consent trace found a raw Dio client in `ServerConsentService` that
+did not attach the app's bearer-token interceptor. The server-ledger bridge
+was therefore structurally present but unauthenticated. It now reuses the
+canonical `DocumentService.authenticatedDio` client, retaining constructor
+injection for tests.
+
+Verification: the server-consent Flutter suite passed 7 tests and the focused
+analyzer run was clean (Tier 2). The server-ledger contract remains open for a
+separate decision-driven pass: local `document_processing` consent and server
+`privacy_policy` consent vocabulary currently differ, and upload does not yet
+require a server-acknowledged consent record. Do not treat the client fix as
+server-first consent closure.
+
+## Addendum — document-processing consent synchronization (2026-07-21)
+
+The consent journey now shares the explicit `document_processing` purpose
+between local and server ledgers through an additive schema/model migration.
+After local consent is granted, upload attempts an authenticated server append
+for that policy version and caches the version only after receiving a record ID.
+Failures remain unsynced and retry on a later upload; a five-second timeout
+prevents unavailable consent infrastructure from making the upload journey
+hang.
+
+The server-sync cache key is principal-scoped using the authenticated account
+ID or current anonymous session ID, preventing a second account on the same
+device from inheriting another account's already-synced marker.
+
+This is intentionally cache-first, not a hidden hard gate: local consent is
+still the immediate offline processing authorization, and upload can proceed
+when the server ledger is unavailable. A hard server-acknowledgement decision
+requires an explicit offline/auth/recovery policy.
+
+Verification: backend consent/API/schema/upload tests passed 24 tests; the
+Flutter consent suite passed 7 tests and focused analysis was clean (Tier 2).
+Remote migration, upload, and ledger readback remain Tier 3/4 gates.
+
+## Addendum — durable outbox lease fencing (2026-07-21)
+
+The J04/J05 queue review found a stale-worker race: lease mutations used only
+the job ID, so an old worker could renew or complete a row after another
+worker reclaimed it. The additive lease-fencing migration adds a per-claim
+token, rotates it in claim/reclaim/requeue operations, and requires it for
+extend, complete, and fail writes.
+
+The dispatcher cancels the handler when renewal loses the token and avoids
+stale-token state transitions. This strengthens queue ownership but does not
+remove the need for idempotent handlers, since cancellation may follow partial
+downstream work.
+
+Verification: outbox, lease, worker-health, substrate-wiring, document-job,
+and owner-isolation tests passed 48 tests; compilation and diff hygiene passed
+(Tier 2). Remote multi-worker claim/reclaim execution remains Tier 3/4.
+
+## Addendum — native form structure in document intelligence (2026-07-21)
+
+The capability exploration now has executable evidence for born-digital PDF
+forms. `src/ocr/native_pdf.py` emits source-linked `form_field` nodes from
+PyMuPDF AcroForm widgets, preserving field name, type, value, flags, and
+geometry. The versioned capability manifest includes a synthetic form case,
+and the strict local evaluator passes it alongside native text, tables,
+figures, and doctr OCR.
+
+This does not claim scanned form understanding, selection-mark accuracy, or
+semantic key/value extraction. Those remain specialist benchmark gates with
+privacy, license, latency, and manual-review requirements.
+
+## Addendum — sentence-level source structure (2026-07-21)
+
+The CIR now derives conservative `sentence` nodes from page text. Each node
+retains the exact source substring, character offsets, parent text-block ID,
+parser profile, and an explicit `structural_only` segmentation status. It has
+no fabricated geometry, so the existing evidence substrate does not mistake a
+coarse sentence boundary for a highlightable page span. Language-specific and
+multilingual sentence segmentation remains a specialist benchmark decision.
+
+## Addendum — multilingual routing signal (2026-07-21)
+
+The CIR now observes Unicode script families in source text and records the
+families plus `unicode_name_observation.v1` in metadata. A document containing
+more than one observed family receives the `multilingual` capability. This is
+deliberately only a routing signal: it does not claim language identification,
+OCR accuracy, translation quality, or policy-field correctness.
+
+## Addendum — document deletion fencing and erasure completeness (2026-07-21)
+
+The lifecycle map now treats deletion as an explicit state transition, not
+only a sequence of best-effort side effects. Single-document deletion marks
+the owner-scoped metadata row `deleting` before derived/source cleanup, and
+the shared processing runner refuses new claims or terminal writes after that
+fence. The canonical artifact inventory is transitioned only after physical
+source deletion; inventory failure preserves metadata and returns a retryable
+503.
+
+Open exploration: verify the new account-erasure physical deletion of
+registered page-image/derived/embedding-cache references against the remote
+object store, including retry and audit-event behavior, before making any
+permanent-erasure claim. Also run a remote concurrency test for an
+already-running document pipeline racing single-document deletion.
+
+## Addendum — anonymous-to-account workspace continuity (2026-07-21)
+
+The identity map now distinguishes an intentional anonymous claim from an
+ordinary principal switch. Before account authentication emits its state
+event, the account flow records claim intent. The workspace transition then
+copies the open anonymous Hive entries into the newly encrypted account
+workspace; without that intent, the existing discard behavior prevents
+account A's local data from leaking into account B.
+
+Open verification: exercise local file readability, document metadata,
+navigation pointers, consent state, and restart behavior across an actual
+anonymous upload followed by account sign-in and server claim. A crash-safe
+encrypted-box migration proof is still required before calling local identity
+migration complete.
+
+## Addendum — J06/J07 focused-suite reconciliation (2026-07-21)
+
+The earlier map entry for citation and FTS verification was stale relative to
+the current worktree. The current focused suite now passes 70 tests across
+anonymous auth, document-state derivation, citation verification, evidence
+pipeline, and Supabase FTS adapter behavior, with three existing HTTPX
+deprecation warnings. This closes the local contract-test drift, but not the
+Tier 3/4 requirement for real two-principal retrieval, citation navigation,
+and unavailable-model/storage recovery.
+
+## Addendum — mixed native/OCR PDF truthfulness (2026-07-21)
+
+The canonical PDF extraction path now treats a mixed document as mixed: native
+text pages remain authoritative, image-only pages are sent through the shared
+local doctr OCR path when available, and the CIR records both page classes.
+If OCR cannot recover one or more image-only pages, the OCR stage is `partial`
+and document state is `partial`; the pipeline no longer reports the document as
+fully ready while silently omitting pages. The focused mixed-page regression
+passes, while corpus-level OCR accuracy and specialist scan/table recovery
+remain open benchmark gates.
+
+The doctr adapter now performs one bounded retry against the untouched page
+image when preprocessing yields no meaningful text. The retry is observable in
+logs and is covered by the mixed synthetic evaluator; it is a resilience path,
+not a claim of improved corpus-level OCR accuracy.
+
+## Addendum — onboarding consent convergence (2026-07-21)
+
+Onboarding now records an explicit analytics decision instead of showing the
+optional toggle ON while leaving the ledger undecided. Local terms and
+analytics records are written first; `ConsentSyncService` then converges the
+latest local decisions to the server ledger using principal-scoped signatures
+and retries at startup, onboarding completion, and upload. The local purpose
+`terms_accepted` maps to the server's auditable `privacy_policy` purpose.
+
+The chosen contract is cache-first and honest for offline onboarding. A real
+authenticated ledger append/readback, offline retry, and revocation replay
+remain Tier 3/4 gates.
+
+## Addendum — production upload fail-closed rollback (2026-07-21)
+
+The J04 map now records a single rollback boundary for any accepted source
+that lacks a durable processing work record. Enqueue failure, missing
+production outbox, and missing processing composition all mark the artifact
+inventory deleted, remove metadata, and delete the source before returning a
+retryable 503. Development-only in-process processing remains explicit and
+does not silently become the production contract.
+
+Remote object-store/inventory behavior and deployed composition validation
+remain Tier 3 gates.
+
+## Addendum — source/retrieval layer parity (2026-07-21)
+
+The backend parity trace found that the direct Qdrant payload and local SQLite
+fallback could retain only `text_content`, even though ingestion distinguishes
+immutable `source_text` from contextualized `retrieval_text`. Both backends now
+persist and return the two fields independently. The local index migrates old
+schemas additively; legacy rows are backfilled from `text_content` because the
+older index cannot recover a distinction it never stored.
+
+Verification: the focused RAG, Supabase FTS, and owner-isolation suite passes
+30 tests with one existing HTTPX deprecation warning; compilation and
+`git diff --check` pass (Tier 2). Clean deployed Qdrant/local migration,
+cross-backend parity, and held-out citation/context quality remain Tier 3/4
+gates.
+
+## Addendum — document-intelligence source recheck and Supabase key convergence (2026-07-21)
+
+The local XLSX catalog and first-party project sources were rechecked against
+the current code. The durable selection remains capability-routed rather than
+model-maximal: native extraction first, specialist OCR/layout/table/formula
+workers only when the quality gate and corpus evidence justify them, and VLM
+outputs only as bounded derived annotations with source geometry.
+
+The code audit also found that entrypoint normalization hid a direct-service
+configuration gap. Services now converge on `supabase_server_key()`, so the
+modern `SUPABASE_SECRET_KEY` is recognized consistently across direct service
+construction as well as the main API process. This removes a silent “configured
+in the environment but disabled in the worker/evidence path” failure mode.
+
+Verification: 33 targeted repository/config/storage tests passed; critical Ruff,
+Python compilation, and dependency checks passed. The local API launch verifier,
+local Supabase schema lint, and identity claim verifier remain green. Remote
+Supabase and production deployment gates are unchanged.
+
+## Addendum — reusable identity claim verification (2026-07-21)
+
+The anonymous-first option is now backed by an executable local acceptance
+check, not only a design statement. `tools/verify_local_identity_claim.py`
+proves the real local Auth signup, anonymous API identity, account bearer claim,
+profile convergence, and synthetic-account cleanup. This gives the product a
+reversible path: users can begin without registration while the system retains
+an auditable account transition when they choose persistence, sharing, export,
+or paid entitlements.
+
+The check is intentionally local-only. Production still requires deployed
+Auth, privacy/consent review, billing identity policy, and retention/erasure
+verification before treating anonymous identity as a launch promise.
+
+## Addendum — upload contact-field boundary audit (2026-07-21)
+
+The J02/J04 trace found a stale contract rather than a safe deletion: the
+Flutter `DocumentService` accepts optional email/phone parameters but does not
+send them in the upload multipart payload, while the backend still accepts
+`user_email`, `user_phone`, and `consent`, stores them as legacy metadata, and
+exposes a `lead_data` status field. The active mobile journey therefore keeps
+contact details local unless a future explicit share action is introduced.
+
+No code was removed because external integrations may still depend on the
+backend compatibility fields. Required decision: either deprecate the legacy
+fields after an external caller inventory, or define a distinct consent-ledger
+purpose and explicit user-facing sharing journey. Until then, customer-facing
+copy must not imply that upload contact capture is active.
+
+## Addendum — account-erasure write fence (2026-07-21)
+
+The account-lifecycle trace found a race between durable deletion inventory and
+new writes: a pending/running deletion request did not prevent document
+inserts or anonymous-to-account owner transfers from adding data after the
+worker read its inventory. Migration
+`20260721150000_account_deletion_write_fence.sql` adds a single Postgres
+trigger boundary for document inserts and `owner_id` changes. The API remains
+responsible for friendly request handling; the database is the authoritative
+race fence.
+
+Verification: account-fence, lifecycle, account-deletion, owner-isolation, and
+outbox tests pass 51 tests with six existing HTTPX deprecation warnings; Python
+compilation and `git diff --check` pass (Tier 2). A remote concurrent upload /
+claim-versus-erasure run remains Tier 3 evidence.
+
+## Addendum — erasure retry checkpoint (2026-07-21)
+
+The erasure worker now carries forward persisted `stage_state` when restarting
+a failed request. An auth-deletion checkpoint is honored, preventing a retry
+after successful `delete_user` from calling auth deletion again. Storage
+failure counters reset for the new attempt while prior progress remains
+operator-visible.
+
+Verification: lifecycle, write-fence, account-deletion, and worker tests pass
+12 tests with six existing HTTPX deprecation warnings; compilation and
+`git diff --check` pass (Tier 2). A fault-injected remote post-auth failure and
+outbox replay remains Tier 3 evidence.
+
+## Addendum — pending-deletion action boundary (2026-07-21)
+
+The authenticated-surface inventory found that the mobile client signs out
+immediately after a 202 deletion request. The database write fence blocks new
+document inserts and ownership transfers while the request is pending/running.
+Read-only document/query/export access and individual document deletion remain
+available to support user recovery and accelerated cleanup; no blanket route
+lock was added. A dedicated deletion-status readback and a deployed
+sign-in-again-while-pending journey remain open product/operator decisions.
+
+Verification: route/static inventory plus the account lifecycle and write-fence
+tests provide Tier 1/2 evidence; no deployed pending-state runtime was run.
+
+## Addendum — Supabase ingestion owner fence (2026-07-21)
+
+The backend parity trace found that `SupabaseVectorStore.upsert()` accepted a
+missing owner and stored an ownerless row (`owner_id = ""`). Such a row could
+not be retrieved through the owner-required RPC, creating silent ingestion
+success with an inaccessible artifact and weakening the shared ownership
+contract. Supabase ingestion now rejects missing or blank owners before any
+write. Qdrant/local compatibility paths remain separately scoped and retain
+their existing migration behavior.
+
+Verification: Supabase FTS, RAG, and document-owner tests pass 28 tests with
+one existing HTTPX deprecation warning; compilation and `git diff --check`
+pass (Tier 2). Remote cross-backend ingestion/retrieval/deletion parity remains
+Tier 3/4 evidence.
+
+## Addendum — rejected-citation trace preservation (2026-07-21)
+
+The citation-status correction exposed a second observability gap: rejected
+citations are intentionally removed from the customer response, so deriving
+trace counts only from surviving citations always reported zero rejected
+items. Query responses now carry private cache metadata for the verified,
+approximate, and rejected counts; the metadata is stripped before returning to
+the caller, while cache hits retain accurate audit accounting.
+
+Verification: the focused RAG/citation/audit suite passes 25 tests, including
+status-count coverage; compilation and `git diff --check` pass (Tier 2). Live
+Supabase trace readback and dashboard validation remain Tier 3 gates.
+
+## Addendum — production recovery ownership (2026-07-21)
+
+The J05 map now has one production processing owner: the durable outbox
+worker. API startup no longer scans and executes `received` documents in
+process; that compatibility recovery remains development-only. This keeps
+retry, lease, dead-letter, and operator visibility on the canonical queue.
+
+Deployed worker restart/reclaim and a real queued-document recovery run remain
+Tier 3/4 gates.
+
+## Addendum — typed room-rent extraction contract (2026-07-21)
+
+The J06 structured evidence extractor now uses `RoomRentCapExtraction` as its
+canonical Pydantic response contract. Bounded clause/display fields, typed
+validation, structured-call failure handling, and the existing exact-text
+honesty check now fail closed before any unverified value enters the evidence
+substrate.
+
+Verification: `tests/test_evidence_pipeline.py` passes 24 tests, including
+typed-output, bounded-payload, structured-error, and hallucinated-clause cases
+(Tier 2). Live provider schema enforcement, token/cost attribution, and corpus
+accuracy remain Tier 3/4 research gates.
+
+## Addendum — OpenAI/httpx startup-contract re-audit (2026-07-21)
+
+The older launch-audit note about an OpenAI/httpx `proxies` initialization
+failure was rechecked against the current dependency contract. Production pins
+`openai==1.3.0` and `httpx==0.27.2`; the OpenAI 1.3 client passes `proxies`, and
+httpx 0.27.2 exposes that parameter. The active environment also initializes
+successfully with `openai 1.109.1` and `httpx 0.27.2`, and the runtime/fallback
+configuration tests pass.
+
+Disposition: the local dependency-contract finding is closed, while a clean
+production-image install and startup probe remain Tier 3 evidence. The local
+provider fallback contract and real provider availability remain separate
+runtime gates.
+
+## Addendum — retrieval citation-status accounting (2026-07-21)
+
+The J07 retrieval trace counter had drifted from the canonical answer contract:
+`RAGCitation` and `answer_evidence` expose `citation_status`, while trace
+accounting looked for the obsolete `verification_status` key. Verified and
+approximate citations could therefore be returned correctly but recorded with
+zeroed trace counters. Accounting now reads `citation_status`, retaining only
+a bounded compatibility fallback for older injected objects.
+
+Verification: RAG, citation-verifier, and retrieval-audit tests pass 25 tests
+with one existing HTTPX deprecation warning; compilation and `git diff --check`
+pass (Tier 2). Live Supabase trace-readback and operator dashboard validation
+remain Tier 3 gates.
+
+## Addendum — source/retrieval layer parity (2026-07-21)
+
+The direct Qdrant payload and local SQLite fallback now preserve immutable
+`source_text` separately from contextualized `retrieval_text`. The local index
+migrates old schemas additively and backfills legacy rows from `text_content`,
+because the previous distinction is unrecoverable for those rows.
+
+Verification: the focused RAG, Supabase FTS, and owner-isolation suite passes
+30 tests with one existing HTTPX deprecation warning; compilation and
+`git diff --check` pass (Tier 2). Clean deployed migration, cross-backend
+parity, and held-out citation/context quality remain Tier 3/4 gates.
+
+## Addendum — offline upload reconciliation (2026-07-21)
+
+The earlier J03/J04 gap was concrete: a mobile offline upload was visible as
+`pending_upload`, but no consumer could deliver it later. The mobile path now
+retains the processing-consent version with the encrypted local document,
+discovers pending records, retries on app start and connectivity restoration,
+and exposes an explicit retry action in the document library. Successful retry
+binds the server document ID to the existing local record; it does not create a
+second local document. Transport failures remain pending, while a missing local
+artifact becomes an explicit failed state requiring attention.
+
+Verification: focused Flutter storage, retry/deletion, sorting, and processing
+tests pass 57 tests; targeted Flutter analysis reports no issues (Tier 2).
+Real device offline/reconnect, account-principal transition, server idempotency
+under repeated retry, and background delivery remain Tier 3/4 gates.
+
+## Addendum — cross-backend entitlement authority (2026-07-21)
+
+The entitlement trace found a source-of-truth split: local subscription status
+already treated RevenueCat webhook state as authoritative, while the remote
+`BillingLedger.get_status()` path returned a paid `client_sync` row as if it
+were a grant. Local and remote status handling now agree: client sync remains
+reconciliation telemetry, but only a verified webhook state can produce a paid
+server entitlement; otherwise the effective server tier is free.
+
+Verification: billing-ledger, subscription webhook, writeback, owner-isolation,
+and runtime-config tests pass 37 tests with three existing HTTPX deprecation
+warnings; compilation and `git diff --check` pass (Tier 2). A deployed paid
+entitlement read, real RevenueCat delivery, and usage reservation/consumption
+ledger remain Tier 3 work.
+
+## Addendum — server-authoritative Q&A usage and pack grants (2026-07-21)
+
+The Q&A trace found a second client-authority split: Hive deducted questions
+only after a successful response, while a purchase added consumable packs
+locally without a server grant or idempotent query charge. Production now has
+one Supabase ledger contract: verified RevenueCat non-renewing purchase events
+create idempotent pack grants; `reserve_qa_question` locks the owner, consumes
+subscription quota first and packs FIFO, and uses the client request UUID as a
+duplicate-charge fence. The API reserves before RAG execution, and the mobile
+client sends that UUID and surfaces server budget/verification failures.
+
+Verification: Q&A ledger, query-gate, billing, subscription, and runtime tests
+pass 21 backend tests with three existing HTTPX deprecation warnings; targeted
+Flutter analysis is clean and Q&A/pack/entitlement tests pass 63 tests (Tier 2).
+Fresh Supabase reset, real RevenueCat pack delivery, cross-device grant
+reconciliation, and deployed query retry/readback remain Tier 3/4 gates.
+
+## Addendum — server-authoritative policy-slot reservation (2026-07-21)
+
+The upload entitlement gap now has a production concurrency boundary. A
+Postgres RPC locks the owner, derives the policy limit from verified webhook
+state, counts active documents plus pending reservations, and returns a durable
+reservation. The upload route finalizes the reservation only after source and
+metadata persistence succeeds, and releases it on rollback. Stale pending
+reservations are reclaimable after 30 minutes. Client-side counts remain UX
+hints only.
+
+Verification: policy-slot adapter/contract, upload owner-isolation, processing,
+document-intelligence, billing, and subscription tests pass 43 tests with
+three existing HTTPX deprecation warnings; compilation and `git diff --check`
+pass (Tier 2). A fresh Supabase migration/reset, concurrent remote uploads,
+and deployed rollback/reclaim replay remain Tier 3 evidence.
+
+## Addendum — deletion status readback and pending re-entry (2026-07-21)
+
+The account-erasure journey now has a canonical status readback after the
+client signs out from a 202 deletion request. `GET /user/account/deletion-status`
+is account-only, owner-scoped, and returns only the latest lifecycle state and
+timestamps; stage checkpoints and internal error classes remain operator-only.
+The mobile profile reads this state after account re-entry and surfaces
+pending, running, or failed deletion without implying that erasure is
+complete. Development mode returns an explicit `none` state because it does
+not own the production durable lifecycle table.
+
+Verification: focused lifecycle/API tests pass 7 tests with three existing
+HTTPX deprecation warnings; the mobile deletion-status tests pass 2 tests and
+targeted Flutter analysis is clean (Tier 2). A deployed worker completion,
+sign-out/re-login journey against the live Supabase schema, and retry after a
+failed deletion remain Tier 3/4 gates.
+
+## Addendum — account re-entry document reconciliation (2026-07-21)
+
+The identity journey audit found a concrete cross-device break: account-scoped
+Hive storage was principal-safe, but the canonical mobile document provider
+read only local Hive and never hydrated the authenticated account's server
+document list. A second device could therefore sign in successfully and show
+an empty library despite server-owned policies. The document service now has
+one paginated account reconciliation path: a complete remote snapshot hydrates
+remote-only metadata, preserves unsent local uploads for retry, and removes
+local records only when their remote deletion is confirmed by a successful
+complete snapshot. Partial or malformed reads do not mutate local state.
+
+Verification: the new reconciliation tests pass 2 tests and targeted Flutter
+analysis is clean (Tier 2). Authenticated cross-device API/runtime proof,
+remote pagination at scale, and source-file download/recovery for remote-only
+documents remain Tier 3/4 gates.
+
+The same pass removed a hidden quota side effect: passive library loading no
+longer calls the Q&A endpoint to infer an unknown document type. Type refresh
+remains an explicit user-triggered action, so server-authoritative Q&A usage
+cannot be consumed by navigation or list rendering.
+
+Verification: the no-hidden-query regression passes and targeted Flutter
+analysis remains clean (Tier 2).
+
+Remote-only account policies also remain eligible for server-backed Q&A after
+hydration; the source-preview action stays unavailable when no local PDF exists.
+This preserves the distinction between searchable server evidence and a cached
+source artifact instead of hiding a valid account policy from the core answer
+journey.
+
+Verification: the document-action contract tests pass and targeted Flutter
+analysis remains clean (Tier 2).
+
+The affected document-screen test harness was also hardened: it no longer
+awaits recursive deletion of open Hive files, which had stalled the full suite
+during `tearDownAll`. The focused document screen now passes 11 tests, and the
+full Flutter suite completes with **646 tests passed**; full Flutter analysis
+also reports no issues. The test-only temporary directory is intentionally
+left to the process/test runner rather than risking an isolate deadlock.
+
+## Addendum — source-bearing document-intelligence spans (2026-07-21)
+
+The evidence contract now preserves capability distinctions beyond paragraphs:
+text blocks, sentences, headings, lines, words, tables/cells, formulas, form
+fields, captions, and annotations have explicit typed span values. Native image
+figures without source text remain page-artifact/layout evidence; the system
+does not invent a caption to make them highlightable. This keeps the evidence
+boundary aligned with the first principle that derived VLM output is not proof.
+
+Verification: 43 focused evidence/document-intelligence tests passed; local
+migrations through `20260721160000` applied successfully; the local schema
+remains lint-clean. The full backend regression then completed with **417
+passed, 1 skipped**.
+
+## Addendum — runtime capability registry (2026-07-21)
+
+Document intelligence now has one safe operator-facing capability snapshot:
+`/health` and `tools/inspect_document_capabilities.py` report active native/OCR
+profiles, optional parser package state, benchmark-pending boundaries, and
+explicit handwriting/formula/VLM limitations. This prevents the catalog from
+being mistaken for installed production capability and gives operators a
+concrete answer to “what can this instance process right now?”
+
+Verification: the registry CLI ran in the project venv; six runtime-health
+tests passed; critical Ruff and diff checks passed.
+
+Fresh runtime proof on current-code API port 8006 returned healthy liveness,
+readiness, and integrated health responses, with the registry states visible
+at runtime. OpenAI provider rejection was observed in the development logs and
+the local Ollama fallback completed startup; production OpenAI validity remains
+an external configuration gate.
+
+The operator registry now includes a separate `vlm_annotation` capability. It
+keeps configured-but-unverified OpenAI/Ollama profiles distinct from candidate
+Mistral/Gemini routes, because a text chat configuration does not prove image
+input support, structured coordinates, or source-grounded visual evidence.
+
+The full backend regression after exposing the registry completed with **422
+passed, 1 skipped**; the skip remains the intentionally deployment-gated Azure
+integration test.
+
+## Addendum — final local regression and mobile evidence (2026-07-21)
+
+The expanded current-code regression completed with **432 backend tests passed,
+1 intentionally skipped**, and the Flutter suite completed with **639 tests
+passed**. Flutter analysis, Ruff, dependency, compilation, and diff checks are
+clean. This confirms local implementation and regression health; it is not
+production deployment or remote-schema evidence.
+
+Fresh current-code API port 8007 health proof confirms the VLM registry is live,
+with OpenAI Vision/local Ollama explicitly configured-but-unverified and
+Mistral/Gemini explicitly candidate. This is the intended capability boundary:
+configuration visibility is operational evidence, not image-understanding
+quality evidence.
+
+## Addendum — local schema closure, remote gate isolated (2026-07-21)
+
+The local migration audit found and applied the two current pending migrations
+for policy-slot reservations and the server-authoritative Q&A usage ledger.
+Local schema lint is clean, local migration dry-run is up to date, and the
+corresponding tables/functions are present. The remaining `model_run_results`
+gap exists only on the remote project. The supplied `sbp_v0_...` experimental
+credential was tested but rejected by the Supabase CLI as an invalid Management
+API access token, so remote application requires a valid project-management
+token or direct database credential.
+
+The strict document-capability evaluator was rerun with the project virtual
+environment and doctr profile. All five executable cases passed, including
+scanned and mixed native/scanned pages, with zero unrun cases. This strengthens
+the local OCR evidence while preserving the benchmark boundary for real,
+multilingual, handwriting, formula, table-specialist, and VLM quality.
+
+## Addendum — deployment parity audit (2026-07-21)
+
+The production Docker path previously excluded the OCR runtime even though the
+local project venv included it. The canonical image now installs the pinned
+`requirements-production-ocr.txt` profile, and Cloud Run defaults to 4Gi for
+the model-bearing process. This is a first-principles correction: a scanned
+policy must not change behavior merely because it crossed environments. The
+next evidence tier is a successful container build and isolated runtime smoke.
+
+The first container smoke exposed a Linux-only Pango dependency gap
+(`libpangoft2-1.0-0`), which is now added to the canonical image. The corrected
+rebuild is pending because Docker Desktop stopped responding before export.
+This remains an explicit deployment-verification item, not an inferred pass.
+
+The generated AWS multi-architecture and Azure full-backend deployment paths
+were audited and aligned to the same production OCR profile and Linux runtime
+libraries. Their resource defaults now reflect the model-bearing image as
+well; container runtime proof remains pending Docker recovery.
+
+## Addendum — second-device source verification (2026-07-21)
+
+The account re-entry journey is now complete through source verification. The
+canonical documents router exposes an owner-scoped `GET
+/documents/{document_id}/source-url` contract that returns only a short-lived
+private download URL, filename, and expected size. It rejects another owner's
+document, documents with no source, and object-store environments that cannot
+issue a signed URL. Storage references never cross the customer API boundary.
+
+The mobile document service downloads the signed source, enforces the existing
+50 MB upload-size ceiling plus non-empty and expected-size checks, and persists
+only the local file path and metadata. The existing PDF/image preview is then
+reused. Remote-only account policies expose “Download source” beside their
+existing server-backed Q&A action; failed downloads leave the remote-only
+record unchanged.
+
+Verification: owner-isolation/source-access tests pass 14 tests; focused
+Flutter reconciliation/library/screen tests pass 16 tests; targeted Flutter
+analysis is clean (Tier 2). A real authenticated second-device download,
+signed-URL expiry, private-storage policy, and production object-store
+response remain Tier 3/4 gates.
+
+## Addendum — deployment contract regression and temporary-volume qualification (2026-07-21)
+
+The production-container contract tests pass. The full backend suite passes
+**442 tests with 1 intentional skip** when its temporary files are directed to
+`/tmp`; the 10,000-row analytics fixture fails only on the nearly-full default
+pytest temporary volume and passes under the explicit temporary location.
+Container runtime verification remains pending Docker Desktop recovery.
+
+## Addendum — Q&A reservation lifecycle and failed-request fairness (2026-07-21)
+
+The J07 server-authoritative usage path was re-audited as a financial/trust
+boundary. The first ledger implementation decremented usage at reservation
+time but had no recovery state, so an unavailable RAG service or provider
+failure could consume a question without producing an answer. The canonical
+ledger now distinguishes `reserved`, `consumed`, and `released` events. A
+successful query finalizes the reservation; known processing, unexpected
+format, and exception paths release it; pack balances are restored on release.
+The request UUID remains the idempotency key, including reopening a released
+reservation only when the budget is still available.
+
+The same ledger now reclaims reservations older than the bounded 15-minute
+execution window under the owner advisory lock. This covers the case where a
+provider outage prevents the API's compensating release call from completing;
+stale pack reservations are restored during reclaim.
+
+Verification: focused Q&A gate, service, contract, and owner-scope tests pass
+20 tests; Python compilation and diff checks pass (Tier 2). A real Supabase
+transaction/retry/release replay, concurrent reservation race, and deployed
+paid/pack readback remain Tier 3/4 gates. Until those run, production usage
+fairness is implementation-verified but not runtime-proven.
+
+The full backend regression after this correction completed with **444 passed,
+1 intentionally skipped**, using an isolated temporary directory. The existing
+44 dependency deprecation warnings remain non-failing; no new test failure was
+observed.
+
+## Addendum — sensitive processing-input envelope (2026-07-21)
+
+The J05 queue audit found that durable document-processing payloads excluded
+raw file bytes but still carried PDF passwords and optional on-device OCR text
+in plaintext JSONB. The canonical upload path now places those request-scoped
+inputs in an AES-GCM authenticated envelope bound to the document ID. The
+worker decrypts only in memory; production jobs reject legacy plaintext input
+fields. The envelope key is a required Secret Manager-bound production value
+for both API and worker profiles. Local compatibility processing can continue
+to pass the request-scoped values directly because it does not persist a queue
+payload.
+
+Verification: secure-payload, upload-queue, runtime-config, worker, outbox,
+and owner-isolation checks pass; the isolated full backend regression now
+completes with **450 passed, 1 intentionally skipped**. Python compilation,
+Ruff critical checks, deployment shell syntax, and diff checks pass (Tier 2).
+Secret Manager key
+rotation, encrypted-PDF worker replay, and production queue inspection remain
+Tier 3/4 gates.
+
+The Supabase CLI is installed at 2.109.1 and its command contract was checked.
+`supabase db lint --local --fail-on error` could not connect because the local
+Postgres instance is not running; no schema result is being inferred from that
+failure. Static migration assertions cover RLS, service-role grants, invoker
+functions, and lifecycle constraints. Re-run local lint and migration-list
+verification once the local database is available.
+
+The canonical deployed-launch verifier now accepts an optional internal
+`--worker-url` and fails its run when the outbox worker does not return the
+expected `/readyz` contract. The API-only launch check remains valid for public
+smoke runs; worker verification must execute from a network context permitted
+to reach the internal Cloud Run service.
+
+The parallel test surface was restored: serve-sim responds on port 3200, and
+current API health responds on ports 8006 and 8007. Port 8007 is the current
+VLM-registry process; port 8006 remains available for existing test sessions.
+
+## Addendum — RevenueCat consumable/subscription separation (2026-07-21)
+
+The billing diff was re-audited as a high-risk entitlement boundary. Verified
+RevenueCat webhooks remain the only server authority; client sync is telemetry
+and the mobile Hive entitlement remains an offline UX mirror. Event IDs fence
+duplicate delivery, provider timestamps fence stale delivery, and the outbox
+keeps remote webhook processing retryable and observable.
+
+The audit found one concrete downgrade path: an unknown
+`NON_RENEWING_PURCHASE` product could fall through to subscription processing
+and write a `free` state. The local fallback now returns
+`unsupported_product`, and migration
+`supabase/migrations/20260721200000_revenuecat_unknown_consumable_fence.sql`
+applies the same server-side fence while preserving pack-catalogue grants.
+
+Evidence: the targeted subscription webhook suite passes with the new unknown
+product regression; static migration and critical Python checks remain the
+required evidence for the production RPC. A live Supabase replay with a
+verified paid subscription, unknown consumable, duplicate delivery, and stale
+delivery is still a Tier 3/4 gate because local Postgres is unavailable.
+
+Open cross-device gap: a successful store-side pack purchase updates the local
+Hive mirror immediately, while the authoritative pack grant arrives through
+the asynchronous webhook. The user-visible balance must eventually converge
+from the server grant; a dedicated pack-balance readback/reconciliation
+contract is the hardening path. Do not treat the local pack as proof of server
+entitlement or as a substitute for the ledger.
+
+## Addendum — upload-slot identical-source concurrency (2026-07-21)
+
+The production policy-slot reservation path was checked after the broader
+server-side quota reservation work. Owner capacity was serialized correctly,
+but two identical uploads arriving while the first was still pending could
+reuse the same pending reservation and race at finalization.
+
+The canonical reservation RPC now returns `upload_in_progress` for that exact
+pending source/owner pair. The API returns HTTP 409 with a typed retryable
+error, while committed replays remain handled by source-hash idempotency and
+stale pending rows remain reclaimable after 30 minutes.
+
+Evidence: 18 focused policy/upload tests, compilation, critical Ruff, and diff
+checks pass (Tier 2). Live concurrent Supabase/Postgres replay and crash
+recovery across persistence/finalization remain Tier 3 gates.
+
+## Addendum — offline upload retry classification (2026-07-21)
+
+The offline-upload path now has a real reconciliation owner: persisted local
+pending records are retried at startup, reconnect, foreground/principal
+transition, and through a visible library action. Successful responses bind the
+server ID to the existing local record; missing sources become explicit
+failures. The processing-status view no longer closes the shared authenticated
+client.
+
+Retryable HTTP 408, 409 `upload_in_progress`, 429, and 5xx responses now remain
+pending instead of being marked terminally failed. Permanent validation,
+entitlement, and missing-file failures remain visible and actionable.
+
+Evidence: 69 focused Flutter document/reconciliation/status tests and clean
+Flutter analysis (Tier 2). Real offline/reconnect/restart/account-transition
+delivery and deployed duplicate replay remain Tier 3/4 gates.
+
+## Addendum — remote Supabase authority and migration path (2026-07-21)
+
+The remote migration lane was re-opened from live evidence rather than the
+previous CLI error. The project `.env` contains an experimental `sbp_` token
+that the installed CLI rejects as a legacy CLI access token, but the same
+credential is accepted by the Supabase Management API. The API listed the
+exact `coverwise` project and allowed a read-only schema query. It showed
+`model_run_results` as the only missing required table.
+
+The exact repository migration `20260721100000_model_run_results.sql` was then
+applied transactionally through the Management API migrations endpoint. A
+follow-up query confirmed the migration history entry, RLS, service-role-only
+ACL shape, and PostgREST visibility. The canonical verifier now passes with
+exit code 0. This supersedes the earlier “valid CLI token required” closure
+path; future remote migrations should use a valid CLI/PAT or the documented
+Management API migration endpoint, never an app secret key or ad-hoc REST
+table mutation.
+
+## Addendum — principal workspace migration and bootstrap ordering (2026-07-21)
+
+The encrypted local-workspace lifecycle was rechecked at startup and account
+transition. Legacy Hive migration now closes the old-key box and deletes it via
+`Hive.deleteBoxFromDisk` before reopening under the stable principal DEK. Any
+migration failure is fail-closed rather than allowing a new-key workspace to
+mask unreadable legacy data.
+
+The custom anonymous API identity remains distinct from the Supabase principal,
+but its warm-up now starts only after principal-scoped Hive and analytics are
+initialized. This preserves both ownership contracts without racing
+identity-created telemetry against an unopened app-state box.
+
+## Addendum — remote migration-history parity (2026-07-21)
+
+Live Management API inspection shows the remote CoverWise schema contains the
+expected application tables, including the newly applied
+`public.model_run_results`, but `supabase_migrations.schema_migrations` has
+only the generated row for that one migration. The older remote objects are
+therefore not represented by the normal repository migration ledger. This is a
+release-process and rollback-safety finding, not evidence that the current
+schema is unavailable.
+
+Before routine remote migrations resume, perform a read-only object/policy
+comparison against every repository migration, choose and document the
+authoritative baseline, and repair the ledger only through an explicitly
+reviewed database change. Do not run an unreviewed `supabase db push` against
+this project while the history is incomplete.
+
+## Addendum — production entitlement and Q&A parity closure (2026-07-21)
+
+The live feature configuration made policy-slot reservation and Q&A usage
+accounting production paths, so their missing remote substrate was a real
+contract gap rather than optional schema. The three existing repository
+migrations for policy reservations, Q&A grants, and reservation lifecycle were
+applied transactionally. A new read-only parity tool now confirms all 46 local
+tables and six production RPC functions are present remotely while preserving
+the migration-ledger warning for deliberate baseline reconciliation.
+
+Evidence: 15 focused principal/workspace-adjacent tests and clean Flutter
+analysis (Tier 2). Two-real-account in-process traversal, real legacy-box
+replay, and crash/restart migration recovery remain Tier 3/4 gates.
+
+## Addendum — account-erasure owner binding and dead-letter retry (2026-07-21)
+
+The destructive erasure worker now verifies that the request ID belongs to the
+account UID supplied by the trusted job payload before any lifecycle transition
+or data deletion. Request-state writes remain owner-scoped throughout the
+attempt and retry path.
+
+Production enqueue idempotency now distinguishes active jobs from historical
+completed/dead-lettered jobs. The new forward migration preserves history while
+allowing one new active retry for a dead-lettered deletion request; concurrent
+active requests remain uniquely fenced.
+
+Evidence: 44 focused deletion/lifecycle/outbox/API tests pass, with compilation,
+critical Ruff, and diff checks clean (Tier 2). Live migration/index replay,
+multi-worker retry, and physical artifact erasure remain Tier 3/4 gates.
+
+## Addendum — inventory-driven physical artifact deletion (2026-07-21)
+
+Account and single-document erasure now traverse the owner/document-scoped
+`document_artifacts` inventory across source, page, derived, and embedding
+objects. Physical deletion precedes each `deleted` transition, preserving
+retryable metadata on failure. Focused artifact/lifecycle/erasure/document
+tests passed 24/24 (Tier 2). Live deployed traversal, concurrent-worker proof,
+and an actual scheduled retention trigger remain open Tier 3/4 work.
+
+## Addendum — expanded remote integrity audit (2026-07-21)
+
+The live parity audit was strengthened from table/RPC presence to the complete
+repository-declared public object surface: functions, indexes, and triggers.
+The current CoverWise project matches that surface, including the latest
+RevenueCat unknown-consumable fence and account-deletion write fence. This
+closes the previously discovered remote integrity gaps; migration-history
+baseline parity remains a separate release-process risk.
+
+The expanded audit also detected a missing `job_outbox.lease_token` column and
+closed it through the canonical lease-fencing migration. Current remote parity
+is now green across tables, added columns, functions, indexes, and triggers;
+only migration-ledger history reconciliation remains open.
+
+## Addendum — current remote object and ledger audit (2026-07-21)
+
+The expanded read-only parity audit reports no missing local tables, functions,
+indexes, triggers, columns, policies, or extensions; all 46 remote public
+tables and the six required policy/Q&A reservation RPCs are present. The
+remote migration ledger contains nine Management-API-generated version IDs
+that do not match repository filenames. Object parity is green, but ledger
+baseline reconciliation remains an explicit release-process decision.
+
+## Addendum — deployed verifier mutation boundary (2026-07-21)
+
+The launch smoke verifier no longer creates anonymous identities by default.
+Its two-owner profile/list check is now explicitly authorized through
+`--allow-identity-creation`; the default health/auth rejection/CORS checks are
+non-mutating. Focused verifier coverage passes 5/5 (Tier 2). Deployed
+execution and lifecycle cleanup of any authorized test identities remain open.
+
+## Addendum — outbox lease renewal failure fence (2026-07-21)
+
+If lease renewal raises, the dispatcher now stops the handler rather than
+continuing without ownership proof. The row remains governed by durable lease
+expiry/reclaim, and stale workers cannot complete or fail it with an old token.
+Worker/outbox coverage passes 36/36 (Tier 2); remote multi-worker reclaim and
+downstream idempotency remain Tier 3 work.
+
+## Addendum — retention pass contract (2026-07-21)
+
+The retention maintenance command now exposes a bounded, directly testable
+pass contract for analytics purge, expired-artifact fencing, and cleanup of
+already-fenced objects. Its structured report preserves operator visibility;
+invalid retention windows and batch sizes fail before any deletion call.
+Focused retention/worker/upload coverage passed 28/28. Cloud scheduling,
+deployed observation, and staging recovery remain external evidence gates.
+
+## Addendum — governed dataset source-linkage consent fence (2026-07-21)
+
+Dataset items linked to a customer source document now require both owner
+identity and a consent-record reference; a source chunk cannot be registered
+without its parent document. Operator-authored synthetic items remain valid.
+Dataset-registry/execution/lineage coverage passes 18/18 (Tier 2). Live
+approved-release execution and withdrawal propagation remain Tier 3/5 work.
+
+## Addendum — schema-convergence and advisor hardening (2026-07-21)
+
+A local shadow-database diff exposed a real applied-function drift that object
+presence checks missed: the local `reserve_policy_upload_slot` lacked the
+pending-upload race guard. The issue was repaired with an additive migration,
+then applied and verified locally and remotely. The local database now reaches
+`supabase db diff --local` → `No schema changes found`.
+
+Supabase local advisors also found mutable function search paths and an
+init-plan-unsafe profile policy. Additive hardening migrations now pin all
+server retrieval/outbox/append-only functions to `search_path=public` and use
+the `auth.uid()` policy predicate inside a scalar subquery. The advisor result
+is reduced to the two extension-placement warnings for `vector` and
+`pg_trgm`; those remain a deliberate compatibility decision until a separate
+typed-retrieval migration proves that moving them is safe.
+
+Evidence: local diff clean, local advisors with only the two documented
+extension warnings, remote `pg_proc`/`pg_policies` readback, remote parity
+green, and 28 focused contract/integration tests passing (Tier 2/3).
+
+## Addendum — extension placement verified and implemented (2026-07-21)
+
+The extension-placement concern was resolved rather than accepted as a
+permanent exception. A transactionally rolled-back compatibility experiment
+proved that `vector` distance, trigram similarity, and the FTS RPC continue to
+work when both extensions live in the existing `extensions` schema. The
+additive migration `20260721250000_move_extensions_to_private_schema.sql` now
+performs that move and pins retrieval functions to `extensions, public`.
+
+Local advisors now return no issues, local replay diff is clean, and remote
+extension/function metadata matches. The parity tool tracks the latest
+per-function search path so a future migration cannot silently revert this
+hardening.
+
+## Principal claim boundary and fail-closed reset (2026-07-21)
+
+New exploration item: validate anonymous → account → sign-out → account-B
+across process restart and interrupted Hive transitions. The implementation
+now allowlists claim-preserved workspace boxes, excludes session identifiers,
+analytics, and entitlement mirrors, and fails reset when physical deletion
+fails. Closure requires focused Flutter coverage plus real-device Tier 3/4
+evidence and operator-readable recovery behavior. Focused coverage passes 15
+tests, the full Flutter suite passes 651 tests, and analysis is clean (Tier 2);
+the real-device gates remain open.
+
+## Cross-caller pending-upload retry coalescing (2026-07-21)
+
+New J04/J05 finding: retry ownership must be shared across service instances,
+not only guarded on one object. Startup, connectivity, auth transition, and
+manual retry now converge on one in-process reconciliation future. Closure
+still requires cross-process replay, server idempotency/crash evidence, and a
+real offline-to-reconnect device run.
+
+## Durable document retry state correction (2026-07-21)
+
+New J04/J05 backend finding: outbox retry state and document state must agree.
+Retryable worker exceptions now restore `received` so the next lease can claim
+the document; only the final attempt records `failed`. Closure requires full
+backend regression plus live retry/dead-letter evidence and operator-visible
+state transitions.
+
+## Consumable webhook ordering fence (2026-07-21)
+
+New J08 finding: subscription event ordering cannot suppress an independent
+paid pack grant. The additive RPC migration handles known `NON_RENEWING_PURCHASE`
+packs before subscription staleness checks, with provider-event idempotency
+preserved. Cross-device server balance readback and live ordered/duplicate
+RevenueCat replay remain the next evidence gates.
+
+## Server-authoritative Q&A pack readback (2026-07-21)
+
+New J08 closure step: the backend now exposes one authenticated
+`/subscription/qa-balance` read path backed by the service-role-only
+`get_qa_pack_balance` RPC. It returns only unexpired grants with remaining
+questions. Mobile Hive packs are now a reconciled mirror: a verified response
+replaces them, while webhook-pending or unavailable responses leave the prior
+mirror untouched. A store purchase is therefore not shown as spendable until
+the server grant exists. Remaining exploration: live two-device convergence,
+RevenueCat delayed/duplicate replay, anonymous-purchase transfer semantics,
+and operator visibility for pending grants.
+
+## Anonymous-to-account verified pack transfer (2026-07-21)
+
+The identity journey had a cross-layer ownership gap: documents/chunks moved
+on account conversion, but verified `qa_pack_grants` did not. The canonical
+`claim_anonymous_documents` RPC now moves pack ownership in the same atomic
+boundary. Validate with an anonymous store purchase, delayed webhook, account
+conversion, and authenticated balance readback; document operator recovery if
+the conversion is interrupted.
+
+## Document parser/OCR/VLM capability map (2026-07-21)
+
+The local exploration was refreshed from the supplied
+`document_parsers_extractors_catalog_2026_v2.xlsx`, existing CoverWise
+research, current implementation, and first-party project sources. The
+workbook is a 149-record discovery inventory, not an accuracy benchmark or
+package list. Its value is breadth across native text, scan OCR,
+layout/reading order, tables, forms/KIE, formulas, figures/charts,
+multilingual text, and document VLMs.
+
+The durable CoverWise decision is capability routing through the existing CIR
+and evidence substrate. Current code-backed closure is native text,
+exact-offset sentence structure, native page geometry/order, born-digital
+table/cell observations, embedded-image hashes, AcroForm fields, synthetic
+doctr scan OCR, and native DOCX/HTML/EML paragraphs, headings, tables/cells,
+image references, and attachment hashes. Open gates are semantic
+headings/hierarchy, scanned tables, scanned key/value and selection marks,
+formulas, handwriting, multilingual accuracy, PPTX/XLSX structure,
+and VLM image/chart annotations. The runtime
+registry reports each state through `tools/inspect_document_capabilities.py`.
+
+First-party rechecks retain three benchmark candidates by role: Docling for a
+broad local structured-document/CIR adapter experiment; Surya for local
+OCR/layout/reading-order/table/LaTeX comparison, respecting its printed-text
+and non-handwriting limits; and PaddleOCR PP-Structure/PaddleOCR-VL for
+layout/table/KIE/document-VLM comparison. MinerU, managed form APIs, and
+general VLMs remain isolated candidates because license/weights,
+residency/retention, cost, hardware, and failure recovery are product
+decisions.
+
+The closure path for every open capability is: versioned fixture -> parser
+profile -> source provenance/CIR adapter -> deterministic/schema validation ->
+latency and failure metrics -> privacy/license review -> operator-visible
+fallback -> promotion decision. No catalog entry becomes a launch dependency
+merely because it has a broad capability score.
+
+## Remote contract parity correction (2026-07-21)
+
+The live Supabase audit exposed and closed three semantic gaps that object
+presence alone missed: RevenueCat pack-event ordering, server-authoritative Q&A
+pack readback, and anonymous-to-account document/pack transfer. Exact reviewed
+migrations were applied and the post-apply audit is green across current
+repository-declared objects and function bodies. Migration-history provenance
+remains intentionally unresolved and is tracked by ADR-2026-07-21-07.
+
+The audit was then strengthened to compare named CHECK definitions. This
+closed a real remote source-span vocabulary drift through
+`20260721160000_source_span_capability_types.sql`; equivalent PostgreSQL
+`IN`/`ANY(ARRAY[...])` rendering is canonicalized, while allowed-value
+differences remain failures.
+
+## Empty OCR result terminal-state fence (2026-07-21)
+
+The capability-routing pass found a concrete trust failure: the legacy OCR
+adapter could return a successful envelope with zero extracted text, and the
+document service then relabeled it `completed`. The canonical pipeline now
+returns `no_text_extracted` with `scanned_ocr` capability metadata, and the
+document-processing boundary rejects any adapter-level `completed` result with
+empty text. This preserves the distinction between a usable native-text
+document, a partial mixed document, and an unreadable scan.
+
+Focused OCR/CIR/runtime coverage passes 23 tests (Tier 2). Real scanned
+insurance fixtures, OCR accuracy, handwriting/multilingual/table quality, and
+operator recovery remain separate benchmark and Tier 3/4 gates.
+
+## Billing confirmation copy contract (2026-07-21)
+
+The localization audit found stale Q&A-pack catalog text that claimed questions
+were already added after store completion. The catalog and pack screen now use
+server-confirmation wording, matching the asynchronous webhook/readback
+authority. This is a copy-trust correction, not a complete translation
+migration; the catalog remains English-only and incremental.
+
+## Purpose-bound governed dataset consent (2026-07-21)
+
+The governed dataset path now rejects customer-derived items unless the
+release has a pinned consent-policy version and the current consent view
+contains the exact referenced, granted consent record for the release purpose:
+`evaluation_dataset` for evaluation/benchmark and `model_improvement` for
+training. Historical `document_processing` consent is intentionally not reused
+as secondary-use authority. Operator-authored items remain eligible without a
+customer consent record. Customer-facing consent UI for these secondary-use
+purposes is still a separate product/legal gate.
+
+## Explicit text-fallback boundary (2026-07-21)
+
+The parser audit found that the document service's final fallback treated every
+unrecognized extension as UTF-8 text and discarded invalid bytes. That could
+turn unsupported structured formats such as XLSX, PPTX, or email containers
+into false successful extractions when the service was called outside the
+public upload validator. The service now shares an explicit text-fallback
+allowlist (`.txt`, `.md`, `.csv`, `.json`, `.xml`, `.html`), rejects unknown
+extensions, rejects NUL-containing binary content, and rejects invalid UTF-8.
+Public policy uploads remain PDF/image-only until each additional format has a
+validated parser and evidence UX. Focused format/parser coverage passes 28
+tests (Tier 2); malformed corpus and deployed recovery remain Tier 3/4 gates.
+
+## On-device OCR to evidence-artifact bridge (2026-07-21)
+
+The processing-to-review trace found that a mobile OCR sidecar could provide
+text while the image/PDF extraction result carried no page image. Production
+then queued substrate extraction, but the worker reloads page OCR only from
+persisted page artifacts; the job could therefore retry and dead-letter while
+the document itself appeared processed. Sidecar recovery now renders a
+canonical PNG page artifact from the original source before evidence enqueue.
+The source file remains authoritative; the sidecar supplies text only.
+Focused sidecar/evidence/outbox/state coverage passes 21 tests (Tier 2).
+Remote worker replay and authenticated review traversal remain Tier 3/4 gates.

@@ -10,10 +10,13 @@ import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import tempfile
+from io import BytesIO
 from pathlib import Path
 from uuid import UUID
 from src.utils.pdf_access import PdfPasswordError, unlock_pdf
 from src.models.document_intelligence import build_document_cir, sha256_bytes
+from src.utils.runtime_config import supabase_server_key
+from src.utils.upload_validation import TEXT_FALLBACK_EXTENSIONS
 
 # OCR imports
 try:
@@ -93,6 +96,17 @@ def derive_document_state(
         if stage.get("status") in FATAL_STAGE_STATUSES:
             failed_required.append(stage_name)
 
+    # A mixed document can have a usable native-text subset while one or more
+    # image-only pages remain unprocessed. Preserve that distinction instead
+    # of calling the whole document ready or converting it into a misleading
+    # terminal OCR failure.
+    if any(
+        isinstance(stages.get(stage_name), dict)
+        and stages[stage_name].get("status") == "partial"
+        for stage_name in required
+    ):
+        return "partial"
+
     # Special-case: password or OCR-class failure when OCR is the SOLE
     # required-stage failure. The user can fix by re-uploading with a
     # password or a text-based PDF. If other required stages also failed,
@@ -167,7 +181,7 @@ class DocumentProcessingService:
         self.document_repository = document_repository
         self.job_outbox_service = job_outbox_service
         self.processing_event_service = None
-        if os.getenv("SUPABASE_URL", "").strip() and os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip():
+        if os.getenv("SUPABASE_URL", "").strip() and supabase_server_key():
             try:
                 from src.services.processing_event_service import ProcessingEventService
                 self.processing_event_service = ProcessingEventService()
@@ -264,6 +278,7 @@ class DocumentProcessingService:
                         filename,
                         pdf_password=pdf_password,
                         on_device_ocr_text=on_device_ocr_text,
+                        document_id=document_id,
                     )
                 finally:
                     self._cleanup_temp_file(file_path)
@@ -483,6 +498,59 @@ class DocumentProcessingService:
             pass
         except OSError as error:
             logger.warning("document_processing_temp_file_cleanup_failed error_type=%s", type(error).__name__)
+
+    @staticmethod
+    def _reject_empty_extraction(result: Dict[str, Any], *, source: str) -> Dict[str, Any]:
+        """Keep adapter-level empty output from becoming a false success."""
+        if (
+            isinstance(result, dict)
+            and result.get("status") == "completed"
+            and not str(result.get("full_text") or "").strip()
+        ):
+            return {
+                **result,
+                "status": "failed",
+                "error": f"No text could be extracted from this {source}.",
+                "error_code": "no_text_extracted",
+                "capability": "scanned_ocr",
+                "full_text": "",
+            }
+        return result
+
+    @staticmethod
+    def _render_sidecar_image(file_path: str) -> Optional[bytes]:
+        """Create a canonical PNG page artifact for an image sidecar."""
+        try:
+            from PIL import Image
+
+            with Image.open(file_path) as image:
+                output = BytesIO()
+                image.convert("RGB").save(output, format="PNG")
+                return output.getvalue()
+        except Exception as error:
+            logger.warning(
+                "sidecar_image_render_failed error_type=%s", type(error).__name__
+            )
+            return None
+
+    @staticmethod
+    def _render_sidecar_pdf_page(file_path: str) -> Optional[bytes]:
+        """Render page one when sidecar text is the only scan recovery input."""
+        try:
+            import fitz
+
+            document = fitz.open(file_path)
+            try:
+                if document.page_count < 1:
+                    return None
+                return document[0].get_pixmap(dpi=150).tobytes("png")
+            finally:
+                document.close()
+        except Exception as error:
+            logger.warning(
+                "sidecar_pdf_render_failed error_type=%s", type(error).__name__
+            )
+            return None
     
     async def _extract_text(
         self,
@@ -490,6 +558,7 @@ class DocumentProcessingService:
         filename: str,
         pdf_password: Optional[str] = None,
         on_device_ocr_text: Optional[str] = None,
+        document_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Extract text from a document.
 
@@ -506,13 +575,97 @@ class DocumentProcessingService:
         # contain direct text; it never overrides embedded PDF text.
         mobile_ocr_text = on_device_ocr_text.strip() if on_device_ocr_text else ""
 
+        # --- DOCX: preserve native Office structure before generic text fallback ---
+        if file_extension == ".docx":
+            try:
+                from src.ocr.native_office import extract_native_docx_document
+
+                source_bytes = Path(file_path).read_bytes()
+                native_docx = extract_native_docx_document(source_bytes)
+                cir = build_document_cir(
+                    filename=filename,
+                    source_artifact_sha256=native_docx["source_artifact_sha256"],
+                    file_type="docx",
+                    page_texts=native_docx["page_texts"],
+                    parser_profile=native_docx["parser_profile"],
+                    observed_nodes=native_docx["nodes"],
+                    metadata={"logical_page_model": "document"},
+                )
+                return {
+                    "full_text": native_docx["full_text"],
+                    "page_texts": native_docx["page_texts"],
+                    "status": "completed",
+                    "method": "python-docx-native",
+                    "source_artifact_sha256": native_docx["source_artifact_sha256"],
+                    "cir": cir.model_dump(mode="json"),
+                }
+            except Exception as error:
+                logger.error(
+                    "docx_native_extraction_failed document_id=%s error_type=%s",
+                    document_id or "unknown",
+                    type(error).__name__,
+                )
+                return {
+                    "status": "failed",
+                    "error": "DOCX structure extraction failed",
+                    "error_type": type(error).__name__,
+                    "full_text": "",
+                }
+
+        # --- HTML/EML: preserve native structure before generic text fallback ---
+        if file_extension in {".html", ".htm", ".eml"}:
+            try:
+                from src.ocr.native_formats import (
+                    extract_native_eml_document,
+                    extract_native_html_document,
+                )
+
+                source_bytes = Path(file_path).read_bytes()
+                native_document = (
+                    extract_native_eml_document(source_bytes)
+                    if file_extension == ".eml"
+                    else extract_native_html_document(source_bytes)
+                )
+                cir = build_document_cir(
+                    filename=filename,
+                    source_artifact_sha256=native_document["source_artifact_sha256"],
+                    file_type=file_extension,
+                    page_texts=native_document["page_texts"],
+                    parser_profile=native_document["parser_profile"],
+                    observed_nodes=native_document["nodes"],
+                    metadata={"logical_page_model": "document"},
+                )
+                return {
+                    "full_text": native_document["full_text"],
+                    "page_texts": native_document["page_texts"],
+                    "status": "completed",
+                    "method": native_document["parser_profile"],
+                    "source_artifact_sha256": native_document["source_artifact_sha256"],
+                    "cir": cir.model_dump(mode="json"),
+                }
+            except Exception as error:
+                logger.error(
+                    "native_format_extraction_failed document_id=%s extension=%s error_type=%s",
+                    document_id or "unknown",
+                    file_extension,
+                    type(error).__name__,
+                )
+                return {
+                    "status": "failed",
+                    "error": "Native document structure extraction failed",
+                    "error_type": type(error).__name__,
+                    "full_text": "",
+                }
+
         # --- Image files: need OCR (not available in slim production image) ---
         if file_extension in ['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.webp']:
             if mobile_ocr_text:
                 page_texts = {1: mobile_ocr_text}
+                page_image = self._render_sidecar_image(file_path)
                 return {
                     "full_text": mobile_ocr_text,
                     "page_texts": page_texts,
+                    "page_images": {1: page_image} if page_image else {},
                     "status": "completed",
                     "method": "mobile_mlkit_text_recognition",
                     "provenance": "client_on_device_ocr_sidecar",
@@ -532,7 +685,9 @@ class DocumentProcessingService:
                     from src.ocr.image_processor import ImageProcessor
                     self.image_processor = ImageProcessor(ocr_pipeline=self._ocr_pipeline)
                 result = await self._run_in_executor(self.image_processor.process_image, file_path)
-                result["status"] = "completed"
+                result = self._reject_empty_extraction(result, source="image")
+                if result.get("status") != "failed":
+                    result["status"] = "completed"
                 return result
             except ImportError:
                 return {
@@ -543,12 +698,13 @@ class DocumentProcessingService:
             except Exception as e:
                 logger.error(
                     "image_ocr_failed document_id=%s error_type=%s",
-                    document_id,
+                    document_id or "unknown",
                     type(e).__name__,
                 )
                 return {
                     "status": "failed",
-                    "error": str(e),
+                    "error": "Image OCR failed",
+                    "error_type": type(e).__name__,
                     "full_text": "",
                 }
 
@@ -567,8 +723,8 @@ class DocumentProcessingService:
                         "error": error.message,
                         "full_text": "",
                     }
-                all_text = []
                 image_only_pages = 0
+                native_text_pages = set()
                 # Per-page text for the evidence pipeline. The key
                 # is the 1-based page number; the value is the
                 # page's text. Pages with no text (image-only
@@ -581,8 +737,8 @@ class DocumentProcessingService:
                 for page_index, page in enumerate(doc, start=1):
                     text = page.get_text()
                     if text and text.strip():
-                        all_text.append(text.strip())
                         page_texts[page_index] = text.strip()
+                        native_text_pages.add(page_index)
                     else:
                         image_only_pages += 1
                     # Render page as PNG for page_artifact (Layer 4).
@@ -595,7 +751,44 @@ class DocumentProcessingService:
                         pass  # rendering failed; page_artifact will lack image
                 doc.close()
 
-                full_text = "\n\n".join(all_text).strip()
+                ocr_pages = set()
+                ocr_unavailable_pages = []
+                if image_only_pages:
+                    image_page_numbers = set(page_images) - native_text_pages
+                    try:
+                        if self._ocr_pipeline is None:
+                            from src.ocr.pipeline import OCRPipeline
+                            self._ocr_pipeline = OCRPipeline()
+                        for page_number in sorted(image_page_numbers):
+                            page_image = page_images.get(page_number)
+                            if not page_image:
+                                ocr_unavailable_pages.append(page_number)
+                                continue
+                            ocr_text = await self._ocr_pipeline._get_ocr_text_for_image(
+                                page_image, page_number
+                            )
+                            if ocr_text.strip():
+                                page_texts[page_number] = ocr_text.strip()
+                                ocr_pages.add(page_number)
+                            else:
+                                ocr_unavailable_pages.append(page_number)
+                    except ImportError:
+                        ocr_unavailable_pages = sorted(image_page_numbers)
+                    except Exception as error:
+                        logger.warning(
+                            "mixed_pdf_ocr_failed document_id=%s error_type=%s",
+                            document_id or "unknown",
+                            type(error).__name__,
+                        )
+                        ocr_unavailable_pages = sorted(
+                            image_page_numbers - ocr_pages
+                        )
+
+                full_text = "\n\n".join(
+                    page_texts[page_number]
+                    for page_number in sorted(page_texts)
+                    if page_texts[page_number].strip()
+                ).strip()
 
                 if full_text:
                     method = "direct_text"
@@ -605,15 +798,26 @@ class DocumentProcessingService:
                     if image_only_pages > 0:
                         # Some pages had text, some didn't — partial extraction
                         logger.info(
-                            "PDF %s: extracted text from %d pages, %d image-only pages skipped",
-                            filename, len(all_text), image_only_pages,
+                            "PDF %s: extracted native text from %d pages, OCR text from %d pages, %d pages unresolved",
+                            filename, len(native_text_pages), len(ocr_pages), len(ocr_unavailable_pages),
                         )
+                    extraction_status = "partial" if ocr_unavailable_pages else "completed"
+                    if ocr_pages:
+                        method = "mixed_native_doctr_ocr"
+                    elif ocr_unavailable_pages:
+                        method = "native_text_partial"
+                    cir_profile = (
+                        "mixed_native_doctr_ocr" if ocr_pages else "native_pdf_text"
+                    )
                     return {
                         "full_text": full_text,
                         "page_texts": page_texts,
                         "page_images": page_images,
-                        "status": "completed",
+                        "status": extraction_status,
                         "method": method,
+                        "native_text_pages": sorted(native_text_pages),
+                        "ocr_pages": sorted(ocr_pages),
+                        "ocr_unavailable_pages": sorted(ocr_unavailable_pages),
                         "source_artifact_sha256": sha256_bytes(source_bytes),
                         "cir": build_document_cir(
                             filename=filename,
@@ -621,16 +825,20 @@ class DocumentProcessingService:
                             file_type=file_extension,
                             page_texts=page_texts,
                             page_images=page_images,
-                            parser_profile="native_pdf_text",
+                            parser_profile=cir_profile,
                             observed_nodes=native_nodes,
+                            native_text_pages=native_text_pages,
+                            ocr_pages=ocr_pages,
                         ).model_dump(mode="json"),
                     }
 
                 if mobile_ocr_text:
                     page_texts = {1: mobile_ocr_text}
+                    page_image = self._render_sidecar_pdf_page(file_path)
                     return {
                         "full_text": mobile_ocr_text,
                         "page_texts": page_texts,
+                        "page_images": {1: page_image} if page_image else {},
                         "status": "completed",
                         "method": "mobile_mlkit_text_recognition",
                         "provenance": "client_on_device_ocr_sidecar",
@@ -650,7 +858,9 @@ class DocumentProcessingService:
                         from src.ocr.pdf_processor import PDFProcessor
                         self.pdf_processor = PDFProcessor(ocr_pipeline=self._ocr_pipeline)
                     result = await self._run_in_executor(self.pdf_processor.process_pdf, file_path)
-                    result["status"] = "completed"
+                    result = self._reject_empty_extraction(result, source="PDF")
+                    if result.get("status") != "failed":
+                        result["status"] = "completed"
                     return result
 
                 try:
@@ -662,7 +872,9 @@ class DocumentProcessingService:
                         from src.ocr.pdf_processor import PDFProcessor
                         self.pdf_processor = PDFProcessor(ocr_pipeline=self._ocr_pipeline)
                     result = await self._run_in_executor(self.pdf_processor.process_pdf, file_path)
-                    result["status"] = "completed"
+                    result = self._reject_empty_extraction(result, source="PDF")
+                    if result.get("status") != "failed":
+                        result["status"] = "completed"
                     return result
                 except ImportError:
                     return {
@@ -674,7 +886,7 @@ class DocumentProcessingService:
             except Exception as e:
                 logger.warning(
                     "pdf_direct_text_extraction_failed document_id=%s error_type=%s",
-                    document_id,
+                    document_id or "unknown",
                     type(e).__name__,
                 )
                 # If PyMuPDF can't open it, try OCR pipeline as last resort
@@ -687,32 +899,55 @@ class DocumentProcessingService:
                         from src.ocr.pdf_processor import PDFProcessor
                         self.pdf_processor = PDFProcessor(ocr_pipeline=self._ocr_pipeline)
                     result = await self._run_in_executor(self.pdf_processor.process_pdf, file_path)
-                    result["status"] = "completed"
+                    result = self._reject_empty_extraction(result, source="PDF")
+                    if result.get("status") != "failed":
+                        result["status"] = "completed"
                     return result
                 except ImportError:
                     return {
                         "status": "failed",
-                        "error": f"Could not extract text from this PDF: {str(e)}",
+                        "error": "Could not extract text from this PDF",
+                        "error_type": type(e).__name__,
                         "full_text": "",
                     }
                 except Exception as ocr_err:
                     logger.error(
                         "pdf_ocr_fallback_failed document_id=%s error_type=%s",
-                        document_id,
+                        document_id or "unknown",
                         type(ocr_err).__name__,
                     )
                     return {
                         "status": "failed",
-                        "error": str(e),
+                        "error": "PDF text extraction failed",
+                        "error_type": type(e).__name__,
                         "full_text": "",
                     }
 
-        # --- Other text-based files (.txt, .csv, .json, etc.) ---
+        # --- Explicit text-based files only ---
+        # Do not treat an unknown extension as text. `errors="ignore"` used
+        # to make binary Office/email/archive content look like a successful
+        # extraction with silently discarded bytes. Public upload validation
+        # currently accepts only PDF/images; this allowlist remains useful for
+        # internal fixtures and explicitly composed text workflows.
+        if file_extension not in TEXT_FALLBACK_EXTENSIONS:
+            return {
+                "status": "failed",
+                "error_code": "unsupported_file_type",
+                "error": "This file format is not supported by the document text processor.",
+                "full_text": "",
+            }
+
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                text = f.read()
-            page_texts = {1: text}
             source_bytes = Path(file_path).read_bytes()
+            if b"\x00" in source_bytes:
+                return {
+                    "status": "failed",
+                    "error_code": "binary_content",
+                    "error": "This text file contains binary content and could not be read safely.",
+                    "full_text": "",
+                }
+            text = source_bytes.decode("utf-8")
+            page_texts = {1: text}
             return {
                 "full_text": text,
                 "page_texts": page_texts,
@@ -727,15 +962,28 @@ class DocumentProcessingService:
                     parser_profile="native_text",
                 ).model_dump(mode="json"),
             }
-        except Exception as e:
-            logger.error(
-                "text_extraction_failed document_id=%s error_type=%s",
-                document_id,
+        except UnicodeDecodeError as e:
+            logger.warning(
+                "text_extraction_invalid_encoding document_id=%s error_type=%s",
+                document_id or "unknown",
                 type(e).__name__,
             )
             return {
                 "status": "failed",
-                "error": str(e),
+                "error_code": "text_unreadable",
+                "error": "This text file is not valid UTF-8 and could not be read safely.",
+                "full_text": "",
+            }
+        except Exception as e:
+            logger.error(
+                "text_extraction_failed document_id=%s error_type=%s",
+                document_id or "unknown",
+                type(e).__name__,
+            )
+            return {
+                "status": "failed",
+                "error": "Text extraction failed",
+                "error_type": type(e).__name__,
                 "full_text": "",
             }
     
@@ -840,17 +1088,74 @@ class DocumentProcessingService:
                                 if cir
                                 else None,
                             )
+                            # Persist only source-grounded CIR nodes that have
+                            # both text and a page-relative geometry. Page
+                            # nodes, figures, and text blocks without a bbox
+                            # remain in layout_json but are not fabricated into
+                            # highlightable spans.
+                            from src.models.evidence import SourceSpan, SpanType
+
+                            span_nodes = []
+                            for node in cir_nodes:
+                                if int(node.get("page_number", 0)) != page_num:
+                                    continue
+                                source_text = str(node.get("source_text") or "").strip()
+                                bbox = node.get("bbox")
+                                if not source_text or not isinstance(bbox, dict):
+                                    continue
+                                node_type = str(node.get("node_type") or "")
+                                span_type_by_node = {
+                                    "text_block": SpanType.TEXT_BLOCK,
+                                    "layout_block": SpanType.TEXT_BLOCK,
+                                    "sentence": SpanType.SENTENCE,
+                                    "paragraph": SpanType.PARAGRAPH,
+                                    "heading": SpanType.HEADING,
+                                    "line": SpanType.LINE,
+                                    "word": SpanType.WORD,
+                                    "table_cell": SpanType.TABLE_CELL,
+                                    "table": SpanType.TABLE,
+                                    "formula": SpanType.FORMULA,
+                                    "form_field": SpanType.FORM_FIELD,
+                                    "caption": SpanType.CAPTION,
+                                    "annotation": SpanType.ANNOTATION,
+                                    "header": SpanType.HEADER,
+                                    "footer": SpanType.FOOTER,
+                                    "list_item": SpanType.LIST_ITEM,
+                                }
+                                span_type = span_type_by_node.get(
+                                    node_type, SpanType.OTHER
+                                )
+                                confidence_value = node.get("confidence")
+                                span_nodes.append(
+                                    SourceSpan(
+                                        span_text=source_text,
+                                        bbox_json=bbox,
+                                        span_type=span_type,
+                                        confidence=(
+                                            float(confidence_value)
+                                            if confidence_value is not None
+                                            else 1.0
+                                        ),
+                                        parser_version=str(
+                                            node.get("parser_version")
+                                            or (cir or {}).get("parser_version")
+                                            or "coverwise.document-intelligence.v1"
+                                        ),
+                                    )
+                                )
+                            if span_nodes:
+                                await substrate.append_source_spans(pa_id, span_nodes)
                             page_artifact_id_map[page_num] = str(pa_id)
                         except Exception as pa_err:
                             logger.warning(
                                 "page_artifact_create_failed document_id=%s "
-                                "page=%d error=%s",
-                                document_id, page_num, pa_err,
+                                "page=%d error_type=%s",
+                        document_id, page_num, type(pa_err).__name__,
                             )
                 except Exception as sub_err:
                     logger.warning(
-                        "page_artifact_setup_failed document_id=%s error=%s",
-                        document_id, sub_err,
+                        "page_artifact_setup_failed document_id=%s error_type=%s",
+                        document_id, type(sub_err).__name__,
                     )
                     page_artifact_id_map = None
 
@@ -905,7 +1210,8 @@ class DocumentProcessingService:
             )
             return {
                 "status": "failed",
-                "error": str(e)
+                "error": "RAG ingestion failed",
+                "error_type": type(e).__name__,
             }
     
     async def _extract_entity_blocks(self, text: str, document_id: str) -> List[Dict[str, Any]]:
@@ -997,7 +1303,7 @@ class DocumentProcessingService:
         scaffold when the substrate is empty.
         """
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        key = supabase_server_key()
         return bool(url) and bool(key)
     
     async def _update_status(self, document_id: str, stage: str, progress: int, error: str = None):
@@ -1078,5 +1384,6 @@ class DocumentProcessingService:
             logger.error("document_query_failed error_type=%s", type(e).__name__)
             return {
                 "status": "error",
-                "error": str(e)
+                "error": "The document query could not be completed.",
+                "error_type": type(e).__name__,
             }

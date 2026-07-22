@@ -469,20 +469,20 @@ void main() {
       final ledger = ConsentLedger();
 
       await ledger.recordConsent(
-        purpose: ConsentPurpose.termsAccepted,
+        purpose: ConsentPurpose.privacyPolicy,
         version: 'terms-v1',
         granted: true,
       );
 
-      expect(ledger.hasConsent(ConsentPurpose.termsAccepted), isTrue);
+      expect(ledger.hasConsent(ConsentPurpose.privacyPolicy), isTrue);
 
       await ledger.recordConsent(
-        purpose: ConsentPurpose.termsAccepted,
+        purpose: ConsentPurpose.privacyPolicy,
         version: 'terms-v1',
         granted: false,
       );
 
-      expect(ledger.hasConsent(ConsentPurpose.termsAccepted), isFalse);
+      expect(ledger.hasConsent(ConsentPurpose.privacyPolicy), isFalse);
     });
   });
 }

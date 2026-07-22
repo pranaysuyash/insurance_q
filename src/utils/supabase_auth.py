@@ -11,12 +11,13 @@ import os
 from functools import lru_cache
 
 from fastapi import HTTPException
+from src.utils.runtime_config import supabase_server_key
 
 
 @lru_cache(maxsize=1)
 def _auth_client():
     url = os.getenv("SUPABASE_URL", "").strip()
-    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    service_role_key = supabase_server_key()
     if not url or not service_role_key:
         raise RuntimeError(
             "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for account auth"

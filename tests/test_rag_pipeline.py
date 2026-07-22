@@ -16,6 +16,21 @@ def _make_hit(hit_id: str, score: float, text: str, **payload):
     )
 
 
+def test_retrieval_trace_reads_canonical_citation_status():
+    from src.rag.pipeline import _citation_status, _citation_status_counts
+
+    assert _citation_status({"citation_status": "verified"}) == "verified"
+    assert _citation_status({"citation_status": "approximate"}) == "approximate"
+    assert _citation_status({"citation_status": "rejected"}) == "rejected"
+    # Compatibility only: old injected objects can still be accounted for.
+    assert _citation_status({"verification_status": "verified"}) == "verified"
+    assert _citation_status_counts([
+        {"citation_status": "verified"},
+        {"citation_status": "approximate"},
+        {"citation_status": "rejected"},
+    ]) == {"verified": 1, "approximate": 1, "rejected": 1}
+
+
 def test_build_qdrant_filter_supports_document_and_list_filters():
     from src.rag.pipeline import RAGPipeline
 
@@ -77,6 +92,8 @@ def test_local_hybrid_index_returns_exact_match_candidates(tmp_path):
             "page_number": 2,
             "section": "coverage",
             "text_content": "Policy Number: POL-12345",
+            "source_text": "Policy Number: POL-12345",
+            "retrieval_text": "Policy Number: POL-12345",
             "embedding_model": "text-embedding-3-small",
             "embedding_timestamp": "2026-07-10T00:00:00Z",
         },
@@ -87,6 +104,94 @@ def test_local_hybrid_index_returns_exact_match_candidates(tmp_path):
     assert candidates
     assert candidates[0].id == "chunk-1"
     assert "POL-12345" in candidates[0].payload["text_content"]
+    assert candidates[0].payload["source_text"] == "Policy Number: POL-12345"
+    assert candidates[0].payload["retrieval_text"] == "Policy Number: POL-12345"
+
+
+def test_local_hybrid_index_preserves_source_and_retrieval_layers(tmp_path):
+    from src.rag.pipeline import RAGPipeline
+
+    conn = sqlite3.connect(tmp_path / "rag_hybrid_lineage.db")
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        "CREATE TABLE rag_chunks (lex_id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "point_id TEXT UNIQUE, document_id TEXT, owner_id TEXT, filename TEXT, "
+        "page_number INTEGER, section TEXT, text_content TEXT NOT NULL, "
+        "embedding_model TEXT, updated_at TEXT)"
+    )
+    conn.execute("CREATE VIRTUAL TABLE rag_chunks_fts USING fts5(point_id UNINDEXED, search_text)")
+    conn.commit()
+
+    pipeline = RAGPipeline.__new__(RAGPipeline)
+    pipeline.hybrid_index_enabled = True
+    pipeline.hybrid_index = conn
+    pipeline._upsert_hybrid_index(
+        "chunk-lineage",
+        {
+            "document_id": "doc-lineage",
+            "owner_id": "owner-lineage",
+            "text_content": "Contextual policy number POL-99999",
+            "source_text": "Policy number POL-99999",
+            "retrieval_text": "Contextual policy number POL-99999",
+        },
+    )
+
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(rag_chunks)")}
+    assert {"source_text", "retrieval_text"}.issubset(columns)
+    hits = pipeline._query_hybrid_index(
+        "What is policy number POL-99999?", filters={"owner_id": "owner-lineage"}
+    )
+    assert hits[0].payload["source_text"] == "Policy number POL-99999"
+    assert hits[0].payload["retrieval_text"] == "Contextual policy number POL-99999"
+
+
+def test_local_hybrid_index_enforces_owner_filter(tmp_path):
+    from src.rag.pipeline import RAGPipeline
+
+    db_path = tmp_path / "rag_hybrid_index_owner.db"
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        """
+        CREATE TABLE rag_chunks (
+            lex_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            point_id TEXT UNIQUE,
+            document_id TEXT,
+            filename TEXT,
+            page_number INTEGER,
+            section TEXT,
+            text_content TEXT NOT NULL,
+            embedding_model TEXT,
+            updated_at TEXT
+        )
+        """
+    )
+    conn.execute(
+        "CREATE VIRTUAL TABLE rag_chunks_fts USING fts5(point_id UNINDEXED, search_text)"
+    )
+    conn.commit()
+
+    pipeline = RAGPipeline.__new__(RAGPipeline)
+    pipeline.hybrid_index_enabled = True
+    pipeline.hybrid_index = conn
+
+    for point_id, owner_id in (("chunk-a", "owner-a"), ("chunk-b", "owner-b")):
+        pipeline._upsert_hybrid_index(
+            point_id,
+            {
+                "document_id": point_id,
+                "owner_id": owner_id,
+                "text_content": "deductible coverage amount",
+            },
+        )
+
+    candidates = pipeline._query_hybrid_index(
+        "What is the deductible amount?",
+        filters={"owner_id": "owner-a"},
+    )
+
+    assert [candidate.id for candidate in candidates] == ["chunk-a"]
+    assert candidates[0].payload["owner_id"] == "owner-a"
 
 
 @pytest.mark.asyncio
@@ -153,7 +258,7 @@ async def test_query_rag_reranks_sources_and_returns_structured_answer(monkeypat
     assert result["status"] == "success"
     assert result["result"]["answer"] == "Policy number is POL-12345."
     assert result["result"]["citations"] == [
-        {"source_index": 1, "quote": "Policy Number: POL-12345", "quote_source": "source_text", "document_id": None, "page_number": None, "citation_status": "verified"}
+        {"source_index": 1, "quote": "Policy Number: POL-12345", "quote_source": "source_text", "document_id": "doc-1", "page_number": 2, "citation_status": "verified"}
     ]
     assert result["result"]["retrieval_strategy"] == "dense_plus_local_fts"
     assert result["result"]["sources"][0]["text"] == "Policy Number: POL-12345"
@@ -225,6 +330,9 @@ async def test_ingest_document_data_bumps_query_cache_version():
 
     assert result["status"] == "success"
     pipeline.cache.incr.assert_called_once_with(pipeline.CACHE_VERSION_KEY)
+    qdrant_payload = pipeline.qdrant_client.upsert.call_args.kwargs["points"][0].payload
+    assert qdrant_payload["source_text"] == "Policy Number: POL-12345"
+    assert qdrant_payload["retrieval_text"] == "Policy Number: POL-12345"
 
 
 @pytest.mark.asyncio

@@ -43,7 +43,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // Debounce search input to avoid excessive recomputation on rapid keystrokes.
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      ref.read(searchQueryProvider.notifier).state = _searchController.text;
+      ref.read(searchQueryProvider.notifier).setState(_searchController.text);
     });
   }
 
@@ -52,7 +52,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _focusNode.requestFocus();
     // Bypass debounce for explicit clears — update immediately.
     _debounceTimer?.cancel();
-    ref.read(searchQueryProvider.notifier).state = '';
+    ref.read(searchQueryProvider.notifier).setState('');
   }
 
   @override
@@ -67,9 +67,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void deactivate() {
     // Cancel pending debounce and reset search state when leaving.
     _debounceTimer?.cancel();
-    ref.read(searchQueryProvider.notifier).state = '';
-    ref.read(searchTypeFilterProvider.notifier).state = null;
-    ref.read(searchStatusFilterProvider.notifier).state = 'all';
+    ref.read(searchQueryProvider.notifier).setState('');
+    ref.read(searchTypeFilterProvider.notifier).setState(null);
+    ref.read(searchStatusFilterProvider.notifier).setState('all');
     super.deactivate();
   }
 
@@ -118,10 +118,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             typeFilter: typeFilter,
             statusFilter: statusFilter,
             onTypeFilterChanged: (type) {
-              ref.read(searchTypeFilterProvider.notifier).state = type;
+              ref.read(searchTypeFilterProvider.notifier).setState(type);
             },
             onStatusFilterChanged: (status) {
-              ref.read(searchStatusFilterProvider.notifier).state = status;
+              ref.read(searchStatusFilterProvider.notifier).setState(status);
             },
           ),
           if (allSummaries.isNotEmpty)

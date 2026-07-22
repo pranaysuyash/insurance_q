@@ -8,8 +8,8 @@ import 'app_state_store.dart';
 /// and pay-per-Q&A packs.
 ///
 /// Reads and writes the current plan tier, usage counters, packs, and expiry
-/// to Hive. This is the single source of truth for "what can this user do?"
-/// on the client side. Backend verification is a separate concern (billing adapter).
+/// to Hive. This is a local mirror for responsive UI and offline continuity.
+/// The backend remains authoritative for protected Q&A usage and pack grants.
 class EntitlementService {
   static const _entitlementKey = 'entitlement_v1';
   static Box get _box => Hive.box(AppStateStore.boxName);
@@ -141,6 +141,16 @@ class EntitlementService {
       'EntitlementService: added ${type.name} pack '
       '(${type.questionCount}Q, expires ${pack.expiresAt.toIso8601String()})',
     );
+  }
+
+  /// Replace the local pack mirror with a successful server readback.
+  ///
+  /// This is intentionally separate from [addPack]: a store purchase is not
+  /// a server grant until the verified RevenueCat webhook is processed.
+  Future<void> replacePacks(List<QaPack> packs) async {
+    final ent = current();
+    await save(ent.copyWith(packs: List<QaPack>.unmodifiable(packs)));
+    debugPrint('EntitlementService: reconciled ${packs.length} server pack(s)');
   }
 
   /// Remove expired packs from the entitlement.

@@ -378,3 +378,15 @@ that model after classification. The projection is idempotent per document and
 does not persist OCR text or model-generated retrieval text. Production still
 needs a representative staging run to prove the projection against real
 classification output and policy-version supersession behavior.
+
+## Addendum — current upload and remote schema recheck (2026-07-21)
+
+The earlier `BackgroundTasks` upload finding is superseded: production upload
+uses the durable `document_processing` outbox job and fails closed when the
+outbox is unavailable; the in-process compatibility task is development-only.
+
+The read-only schema probe was rerun and returned exit code 0. All required
+tables, including `model_run_results`, were queryable and Auth returned HTTP
+200 with anonymous users disabled. Migration-ledger baseline parity and
+deployed runtime/recovery proof remain open; the table-absence finding is
+closed.

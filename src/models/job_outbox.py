@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -53,6 +54,7 @@ class OutboxJob(BaseModel):
     max_attempts: int = Field(ge=1)
     next_attempt_at: datetime
     lease_expires_at: Optional[datetime] = None
+    lease_token: UUID
     last_error: Optional[str] = None
     partition_key: Optional[int] = None
     created_at: datetime

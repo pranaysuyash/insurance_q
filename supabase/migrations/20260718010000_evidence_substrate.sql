@@ -59,7 +59,7 @@ create table if not exists public.source_spans (
   span_text text not null,
   bbox_json jsonb not null,
   span_type text not null
-    check (span_type in ('paragraph','table_cell','header','footer','list_item','other')),
+  check (span_type in ('paragraph','table_cell','header','footer','list_item','other')),
   confidence real not null check (confidence between 0 and 1),
   parser_version text not null,
   created_at timestamptz not null default now()

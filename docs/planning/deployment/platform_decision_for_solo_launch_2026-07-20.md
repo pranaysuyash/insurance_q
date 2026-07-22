@@ -30,8 +30,8 @@ but operationally **more complex than necessary** for a solo launch:
 - Two platforms (GCP + Supabase) = two accounts, two billing dashboards, two
   sets of credentials
 - GCP requires IAM, Secret Manager, Cloud Build, `gcloud auth`, project setup
-- The deploy script (`tools/deploy_cloud_run.sh`) has 6 required environment
-  variables + 3 secrets in Secret Manager
+- The deploy script (`tools/deploy_cloud_run.sh`) has 7 required environment
+  variables + 4 secrets in Secret Manager
 - Total setup time: 30-60 minutes for someone unfamiliar with GCP
 
 This is the right **long-term** architecture (scale-to-zero, global edge,
@@ -53,7 +53,7 @@ is provisioned (tables, pgvector, storage bucket all live).
 - **Scale-to-zero:** Yes (Cloud Run min-instances=0)
 - **Monetization-ready:** Not inherently; needs payment integration
 - **Pros:** Best long-term architecture, global edge, managed everything
-- **Cons:** Two platforms, GCP learning curve, 6 env vars + 3 secrets
+- **Cons:** Two platforms, GCP learning curve, 7 env vars + 4 secrets
 - **Migration effort from here:** ~30 min (create GCP project, secrets, deploy)
 - **When to use:** After product-market fit, when you need scale and reliability
 
@@ -176,3 +176,14 @@ If you're an agent giving a POV on this decision, consider:
 5. What's the migration cost if we outgrow Railway?
 
 Record your POV by appending to this file with a dated addendum.
+
+## Addendum — execution authority check (2026-07-21)
+
+The repository now has a verified local and remote Supabase substrate, but no
+authenticated Railway workspace. Railway and Fly CLIs report unauthenticated;
+GCP CLI is absent; Azure requires interactive reauthentication; AWS identity
+and ECR read access exist but App Runner operations are denied. This supports
+the decision to keep Railway + Supabase as the canonical solo-launch path and
+to avoid deploying the superseded AWS App Runner path merely because an AWS
+credential is present. Deployment remains an external authority gate, not an
+implementation gap.

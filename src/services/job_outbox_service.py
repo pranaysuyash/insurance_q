@@ -24,7 +24,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from src.models.job_outbox import (
     ClaimResult,
@@ -35,6 +35,7 @@ from src.models.job_outbox import (
     OutboxHealthSnapshot,
     OutboxJob,
 )
+from src.utils.runtime_config import supabase_server_key
 
 log = logging.getLogger(__name__)
 
@@ -88,10 +89,7 @@ class JobOutboxService:
     @staticmethod
     def from_env() -> "JobOutboxService":
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = (
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-            or os.getenv("SUPABASE_SECRET_KEY", "").strip()
-        )
+        key = supabase_server_key()
         if not url or not key:
             raise JobOutboxUnavailable(
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set"
@@ -128,23 +126,34 @@ class JobOutboxService:
         return UUID(response.data[0]["id"])
 
     async def find_by_payload_field(
-        self, job_type: JobType, field: str, value: str
+        self,
+        job_type: JobType,
+        field: str,
+        value: str,
+        *,
+        active_only: bool = False,
     ) -> Optional[UUID]:
         """Find an existing job by a bounded JSON payload identity.
 
         This supports idempotent retry of destructive workflows such as
-        account deletion without exposing raw table access to callers.
+        account deletion without exposing raw table access to callers. When
+        [active_only] is true, completed and dead-lettered history is ignored
+        so a failed durable request can be enqueued again.
         """
         if not field or not field.replace("_", "").isalnum():
             raise JobOutboxError("payload identity field must be alphanumeric")
-        response = (
+        query = (
             self._client.table("job_outbox")
             .select("id")
             .eq("job_type", job_type.value)
             .contains("payload", {field: value})
-            .limit(1)
-            .execute()
         )
+        if active_only:
+            query = query.in_(
+                "status",
+                [JobStatus.PENDING.value, JobStatus.RUNNING.value],
+            )
+        response = query.limit(1).execute()
         if not response.data:
             return None
         return UUID(response.data[0]["id"])
@@ -174,7 +183,9 @@ class JobOutboxService:
             return None
         return ClaimResult(job=job, lease_seconds=lease_seconds)
 
-    async def extend_lease(self, job_id: UUID, lease_seconds: int = 60) -> bool:
+    async def extend_lease(
+        self, job_id: UUID, lease_token: UUID, lease_seconds: int = 60
+    ) -> bool:
         """Extend the lease on a currently-running job. Returns
         True if the extension succeeded, False if the job is no
         longer in 'running' status (e.g. another worker reclaimed
@@ -191,13 +202,14 @@ class JobOutboxService:
             .update({"lease_expires_at": lease_iso})
             .eq("id", str(job_id))
             .eq("status", "running")
+            .eq("lease_token", str(lease_token))
             .execute()
         )
         return bool(response.data)
 
     # --- complete / fail / dead-letter ---
 
-    async def complete(self, job_id: UUID) -> None:
+    async def complete(self, job_id: UUID, lease_token: UUID) -> None:
         """Mark a job as successfully completed. The row is
         retained in the table for audit."""
         response = (
@@ -205,6 +217,7 @@ class JobOutboxService:
             .update({"status": "completed", "lease_expires_at": None})
             .eq("id", str(job_id))
             .eq("status", "running")
+            .eq("lease_token", str(lease_token))
             .execute()
         )
         if not response.data:
@@ -213,7 +226,11 @@ class JobOutboxService:
             )
 
     async def fail(
-        self, job_id: UUID, error: str, backoff_seconds: int
+        self,
+        job_id: UUID,
+        lease_token: UUID,
+        error: str,
+        backoff_seconds: int,
     ) -> JobStatus:
         """Mark a job as failed and either re-queue it (if
         attempts < max_attempts) or send it to dead_letter.
@@ -231,6 +248,8 @@ class JobOutboxService:
             self._client.table("job_outbox")
             .select("attempts, max_attempts")
             .eq("id", str(job_id))
+            .eq("status", "running")
+            .eq("lease_token", str(lease_token))
             .limit(1)
             .execute()
         )
@@ -257,10 +276,12 @@ class JobOutboxService:
                     "last_error": error[:1000],  # truncate to fit
                     "next_attempt_at": next_attempt_at,
                     "lease_expires_at": None,
+                    "lease_token": str(uuid4()),
                 }
             )
             .eq("id", str(job_id))
             .eq("status", "running")
+            .eq("lease_token", str(lease_token))
             .execute()
         )
         if not response.data:
@@ -330,6 +351,7 @@ class JobOutboxService:
                         timezone.utc
                     ).isoformat(),
                     "lease_expires_at": None,
+                    "lease_token": str(uuid4()),
                 }
             )
             .eq("id", str(job_id))

@@ -108,8 +108,11 @@ class PrincipalKeyService {
     if (principalId.isEmpty) {
       throw ArgumentError('principalId must not be empty');
     }
-    _principalId = principalId;
     final dek = await _getOrCreateDek(principalId);
+    // Publish the new principal only after secure-storage initialization has
+    // succeeded. A failed read/write must not leave callers with a principal
+    // label whose cached key is still null or belongs to the previous user.
+    _principalId = principalId;
     _cachedKey = dek;
   }
 
@@ -177,7 +180,11 @@ class PrincipalKeyService {
   /// source. The returned list is converted to a `Uint8List`
   /// of the requested length.
   static Uint8List _generateRandomBytes(int length) {
-    return Uint8List.fromList(Hive.generateSecureKey());
+    final generated = Hive.generateSecureKey();
+    if (generated.length == length) {
+      return Uint8List.fromList(generated);
+    }
+    return Uint8List.fromList(generated.take(length).toList());
   }
 
   // --- migration ---
@@ -267,7 +274,10 @@ class PrincipalKeyService {
       entries[key as String] = oldBox.get(key);
     }
     await oldBox.close();
-    // Delete the box file so the new open does not collide.
+    // Delete the old-key box file so the new open cannot collide with the
+    // existing Hive header/cipher. Startup passes an empty path because the
+    // default Hive directory is authoritative; callers with an explicit
+    // storage path may still provide it directly.
     if (boxPath.isNotEmpty) {
       try {
         final file = File(boxPath);
@@ -276,7 +286,10 @@ class PrincipalKeyService {
         }
       } catch (e) {
         debugPrint('migrateBox: failed to delete $boxPath: $e');
+        rethrow;
       }
+    } else {
+      await Hive.deleteBoxFromDisk(boxName);
     }
     // Reopen with the new key and write the entries.
     final newBox = await Hive.openBox(

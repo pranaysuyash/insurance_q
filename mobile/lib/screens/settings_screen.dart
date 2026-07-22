@@ -74,7 +74,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (selected != null && selected != current) {
       await AppStateRepository.setThemeMode(selected);
       // Trigger MaterialApp rebuild by incrementing the theme provider.
-      ref.read(themeModeProvider.notifier).state++;
+      final mode = ref.read(themeModeProvider);
+      ref.read(themeModeProvider.notifier).setState(mode + 1);
       if (mounted) setState(() {});
     }
   }
@@ -414,10 +415,16 @@ class _ConsentRecordRow extends StatelessWidget {
         return S.settingsConsentPolicyProcessing;
       case ConsentPurpose.analytics:
         return S.settingsConsentAnalytics;
-      case ConsentPurpose.leadCapture:
-        return S.settingsConsentLeadCapture;
-      case ConsentPurpose.termsAccepted:
+      case ConsentPurpose.marketingEmails:
+        return 'Marketing Emails';
+      case ConsentPurpose.privacyPolicy:
         return S.settingsConsentTermsAccepted;
+      case ConsentPurpose.cameraAccess:
+        return 'Camera Access';
+      case ConsentPurpose.evaluationDataset:
+        return 'Evaluation Dataset';
+      case ConsentPurpose.modelImprovement:
+        return 'Model Improvement';
     }
   }
 
@@ -427,10 +434,16 @@ class _ConsentRecordRow extends StatelessWidget {
         return Icons.description_outlined;
       case ConsentPurpose.analytics:
         return Icons.bar_chart_outlined;
-      case ConsentPurpose.leadCapture:
+      case ConsentPurpose.marketingEmails:
         return Icons.contact_mail_outlined;
-      case ConsentPurpose.termsAccepted:
+      case ConsentPurpose.privacyPolicy:
         return Icons.rule_outlined;
+      case ConsentPurpose.cameraAccess:
+        return Icons.camera_alt_outlined;
+      case ConsentPurpose.evaluationDataset:
+        return Icons.dataset_outlined;
+      case ConsentPurpose.modelImprovement:
+        return Icons.build_outlined;
     }
   }
 

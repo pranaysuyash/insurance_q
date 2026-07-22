@@ -9,6 +9,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from src.utils.runtime_config import supabase_server_key
+
 
 def use_remote_billing() -> bool:
     environment = os.getenv("ENVIRONMENT", "development").lower()
@@ -30,10 +32,7 @@ class BillingLedger:
     @classmethod
     def from_env(cls) -> "BillingLedger":
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = (
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-            or os.getenv("SUPABASE_SECRET_KEY", "").strip()
-        )
+        key = supabase_server_key()
         if not url or not key:
             raise RuntimeError("Supabase billing ledger requires server credentials")
         from supabase import create_client
@@ -131,4 +130,34 @@ class BillingLedger:
             .limit(1)
             .execute()
         )
-        return response.data[0] if response.data else None
+        if not response.data:
+            return None
+        row = response.data[0]
+        # Client sync is reconciliation telemetry, not proof of purchase.
+        # A remote deployment must not grant paid capability merely because a
+        # client claimed a RevenueCat state; only a verified webhook row is
+        # authoritative for server-side decisions.
+        if row.get("source") != "revenuecat_webhook":
+            return {
+                "plan_tier": "free",
+                "product_id": None,
+                "expires_at": None,
+                "is_active": True,
+                "synced_at": row.get("synced_at"),
+                "source": row.get("source", "client_sync"),
+                "verified": False,
+            }
+        return {**row, "verified": True}
+
+    def get_qa_pack_balance(self, user_uid: str) -> dict[str, Any]:
+        """Read the server-owned, currently spendable Q&A pack balance."""
+        response = self._client.rpc(
+            "get_qa_pack_balance",
+            {"p_owner_id": user_uid},
+        ).execute()
+        data = response.data
+        if isinstance(data, list):
+            data = data[0] if data else None
+        if not isinstance(data, dict):
+            raise RuntimeError("Supabase Q&A pack balance returned no result")
+        return data

@@ -11,6 +11,7 @@ from typing import Dict, Optional, Tuple, List
 import logging
 from functools import wraps
 import os
+from src.utils.runtime_config import supabase_server_key
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +280,7 @@ def check_supabase_rate_limits(
     from supabase import create_client
 
     url = os.getenv("SUPABASE_URL", "").strip()
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    key = supabase_server_key()
     if not url or not key:
         raise RuntimeError("Supabase rate limiting requires server credentials")
     client = create_client(url, key)
@@ -308,7 +309,7 @@ def get_supabase_rate_limit_stats(ip_address: str, session_id: str) -> Dict[str,
     from supabase import create_client
 
     url = os.getenv("SUPABASE_URL", "").strip()
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    key = supabase_server_key()
     if not url or not key:
         raise RuntimeError("Supabase rate limiting requires server credentials")
     client = create_client(url, key)

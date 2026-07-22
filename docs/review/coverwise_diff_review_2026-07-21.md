@@ -1013,6 +1013,69 @@ and prevents distinct same-batch events from colliding on `received_at`.
 past-cutoff purge RPC; scheduling, audit reporting, and live Supabase execution
 remain open.
 
+## J04/J05 upload composition and remote schema recheck (2026-07-21)
+
+The older diff-register statement that production upload still schedules
+`process_document_background` through FastAPI `BackgroundTasks` is stale. The
+current upload composition enqueues `JobType.DOCUMENT_PROCESSING` whenever the
+durable outbox is configured; production fails closed if that path is absent.
+The in-process background task remains an explicitly development-only
+compatibility path. The worker handler reads the source through the canonical
+object store and claims the durable processing lease before running the shared
+job runner.
+
+The read-only `tools/verify_supabase_schema.py` probe was rerun against the
+configured remote project and returned exit code 0: all required tables,
+including `model_run_results`, were queryable; Auth returned HTTP 200 with
+anonymous users disabled. This supersedes older addenda reporting that table
+as absent. Migration-ledger parity, live upload-to-worker recovery, and
+deployed runtime evidence remain separate gates.
+
+## Retention maintenance pass contract (2026-07-21)
+
+`tools/run_data_retention.py` now exposes one bounded `run_retention_pass()`
+contract for analytics purge, artifact expiry fencing, and deletion of already
+fenced objects. It validates inputs before invoking destructive services and
+returns the three-stage operator report. Focused retention/worker/upload
+coverage passed 28/28. Deployment scheduling and observed staging execution
+remain open Tier 3/4 gates.
+
+## Governed dataset source-linkage consent fence (2026-07-21)
+
+The registry previously gated consent only when `owner_id` was supplied. It
+now also gates `source_document_id` on owner and consent identity, and requires
+`source_document_id` for any `source_chunk_id`. This prevents customer-derived
+material from entering a governed release under an operator-authored shape.
+Dataset-registry, execution, and lineage tests pass 18/18; live provider
+execution and withdrawal propagation remain Tier 3/5 gates.
+
+## Remote integrity and migration-ledger recheck (2026-07-21)
+
+The read-only expanded parity audit now reports no missing local tables,
+functions, indexes, triggers, columns, policies, or extensions. It sees 46
+remote public tables and all six required policy/Q&A reservation RPCs. The
+remote migration ledger still contains nine Management-API-generated version
+IDs that do not match repository migration filenames; schema/object parity is
+therefore green, while migration-history parity remains a release-process
+warning requiring an explicitly reviewed baseline decision.
+
+## Deployment verifier side-effect correction (2026-07-21)
+
+`tools/verify_deployed_launch.py` previously created two anonymous users during
+its default run despite being described as non-mutating. Identity creation is
+now opt-in via `--allow-identity-creation`; the default smoke contract does
+not create users. Focused verifier coverage passes 5/5. Deployed execution and
+cleanup policy for explicitly authorized probe identities remain operational
+gates.
+
+## Outbox lease renewal failure fence (2026-07-21)
+
+The dispatcher now fails closed when lease renewal raises: it cancels the
+handler and allows durable reclaim to select the next owner. It does not call
+`complete` or `fail` with an unproven lease token. Worker/outbox coverage passes
+36/36; remote multi-worker contention and downstream idempotency remain Tier 3
+gates.
+
 The full Flutter suite now passes **588 tests** after removing a concurrent
 duplicate upload-size constant and making the initial-file widget test pump
 around the intentional indeterminate allowance spinner. Mobile advertises a
@@ -1186,7 +1249,8 @@ covered by its dedicated regression test.
 
 Verification: Flutter analysis passed; focused profile/documents/renewal tests
 passed 23 tests; `git diff --check` passed. The full Flutter suite is recorded
-at 588 passed at that earlier checkpoint. The latest full run is 594 passed.
+at 588 passed at that earlier checkpoint. A subsequent checkpoint reached 594;
+the latest deterministic full run is 595 passed.
 Remaining gaps are device-matrix/accessibility coverage and
 authenticated deployed-runtime proof.
 
@@ -1237,7 +1301,518 @@ to its available width. The associated test also scrolls the switch into view
 and uses a typed widget predicate, removing a false failure caused by hit-test
 and generic-type assumptions.
 
-Verification: backend full suite 350 passed, 1 intentional skip; Flutter full
-suite 594 passed; upload-layout suite 19 passed; and `git diff --check` passed.
+Verification: backend full suite 359 passed, 1 intentional skip; Flutter full
+suite 594 passed at that earlier checkpoint; upload-layout suite 19 passed; and
+`git diff --check` passed.
 Provider-backed, device-matrix, and authenticated deployed-runtime behavior
+remain unverified.
+
+## Explicit text-fallback boundary (2026-07-21)
+
+The document service no longer interprets every unknown extension as UTF-8
+text. It now shares an explicit internal text-format allowlist and returns
+typed failures for unsupported extensions, NUL-containing binary content, and
+invalid UTF-8. This closes a false-success path for direct/internal processing
+of structured Office/email/archive inputs while preserving existing PDF/image
+public upload scope. Focused coverage passes 28 tests (Tier 2); real malformed
+corpus and deployed recovery evidence remain open.
+
+## On-device OCR evidence-artifact bridge (2026-07-21)
+
+Mobile OCR sidecar recovery now emits a page-one PNG artifact derived from the
+original image/PDF. This closes the path where text was accepted and evidence
+extraction was queued without any persisted page artifact for the worker to
+reload, causing retries/dead-letter while the document status looked processed.
+Raw sidecar text remains out of the queue payload and the original source
+remains authoritative. Focused evidence/sidecar/outbox/state coverage passes
+21 tests (Tier 2); live worker replay and authenticated review remain open.
+
+## Addendum — document deletion identity and copy alignment (2026-07-21)
+
+The deletion path was rechecked against the actual API contract. The service
+now addresses the backend with `InsuranceDocument.backendId` (remote ID when
+present), while the UI and privacy screen describe the existing remote-first
+behavior instead of claiming that only local state is removed. Failed server
+deletions leave the local record available for retry.
+
+Verification: the dedicated remote-first deletion test passed; Flutter
+analysis passed; and the full Flutter suite passed 595 tests at that earlier
+checkpoint with
+`--concurrency=1`. Authenticated
+deployed deletion, 503 retry behavior, and remote artifact cleanup remain
+unverified.
+
+## Addendum — CIR hash-format provenance guard (2026-07-21)
+
+The new document-intelligence schema accepted any 64-character string as a
+source or page-artifact hash. Both fields now require canonical lowercase
+SHA-256 hexadecimal values, keeping malformed lineage identifiers out of the
+evidence contract.
+
+Verification: document-intelligence, benchmark, and contract tests passed 12
+tests; affected Python modules compiled; and `git diff --check` passed. Durable
+CIR persistence, real parser execution across customer document classes, and
+authenticated page-level citation resolution remain unverified.
+
+## Addendum — governed evaluation output-hash boundary (2026-07-21)
+
+The approved-manifest execution service previously trusted a caller-supplied
+`output_hash`. It now requires canonical lowercase SHA-256 hex or derives the
+hash from the in-memory output; malformed values are recorded only as an
+item-level error and cannot enter the results payload as raw content.
+
+Verification: dataset execution, registry, and model-lineage tests passed 12
+tests; the service compiled; and `git diff --check` passed. Real approved
+release/provider execution and operator replay remain unverified.
+
+## Addendum — deterministic full-suite confirmation after deletion changes (2026-07-21)
+
+The first post-change parallel Flutter run reported five compile-load failures
+because workers observed an incomplete localization surface during compilation.
+The current source contains all referenced catalog members, and the affected
+focused suites passed. The complete suite was rerun with one worker to remove
+that test-runner race; no product behavior failure remained.
+
+Verification: `flutter analyze --no-pub` passed with no issues; the full Flutter
+suite passed 595 tests using `--concurrency=1`; the backend suite passed 358
+tests with 1 intentional skip; and `git diff --check` passed. Parallel test
+isolation remains an operational hardening item, while authenticated deployed
+deletion, retry/503 behavior, and remote artifact cleanup remain unverified.
+## Addendum — route-aware snackbar contract (2026-07-21)
+
+The shared snackbar helper now has its root messenger key attached to the
+canonical `MaterialApp`, and the navigator observer clears stale snackbars on
+route transitions. Operation-qualified error text and route dismissal are
+covered by a focused widget regression; legacy raw snackbar callers remain a
+separate incremental migration surface.
+
+Verification: Flutter analyzer passed; the snackbar/app-smoke/error suite
+passed 23 tests; the deterministic full Flutter suite passed 596 tests; and
+`git diff --check` passed.
+## Addendum — pending-upload copy contract (2026-07-21)
+
+The upload completion surface was still promising automatic processing after
+reconnection without a pending-upload worker. Its message now says that the
+file is saved locally and server upload remains required. The implementation
+does not claim automatic sync until durable retry ownership, idempotency,
+backoff, web-byte persistence, and restart reconciliation are implemented.
+
+Verification: Flutter analyzer passed; the deterministic full Flutter suite
+passed 596 tests; and `git diff --check` passed. Automatic retry, idempotency,
+backoff, web-byte persistence, and restart reconciliation remain unverified.
+## Addendum — source-span confidence preservation (2026-07-21)
+
+The CIR-to-evidence adapter used a truthiness fallback that converted a real
+`0.0` parser confidence into `1.0`. The adapter now preserves zero and only
+defaults when confidence is absent, keeping uncertainty visible at the evidence
+boundary.
+
+Verification: the focused document-intelligence/CIR suite passed 13 tests; the
+full backend suite passed 359 tests with 1 intentional skip; affected modules
+compiled; and `git diff --check` passed.
+
+## Addendum — production release-signing boundary (2026-07-21)
+
+The release script’s repository-relative credential checks were hardened to
+inspect both `android/key.properties` and `mobile/android/key.properties`.
+Step 7 of the launch playbook now uses the canonical fail-closed App Bundle
+script and labels placeholder values as examples only; direct local release
+builds are documented separately as non-distributable.
+
+Verification: `bash -n tools/build_mobile_release.sh` passed. A dummy-config
+invocation exited 2 before Flutter with the expected tracked-root-credential
+refusal. The repository still tracks `android/key.properties`; credential
+rotation and history removal require explicit approval and remain a P0 release
+blocker. No signed production artifact was claimed.
+
+## Addendum — mobile safe-error and deletion-language alignment (2026-07-21)
+
+The changed document deletion flow now uses a remote-first failure message
+that preserves the local retry path. The changed Q&A error branch no longer
+renders a server-provided error string directly; it maps the value through the
+centralized safe-error contract before showing a snackbar.
+
+Verification: focused AppError, Q&A, snackbar, and Documents-screen suites
+passed 42 tests; analyzer and the deterministic full Flutter suite had already
+passed at the 596-test checkpoint before this small Dart change and require a
+fresh run before broader completion claims. Remaining raw snackbar callers and
+authenticated failure rendering remain open.
+
+## Addendum — governed evaluation hash consistency (2026-07-21)
+
+The evaluation boundary now hashes strings/bytes as supplied and structured
+JSON with sorted keys and stable separators. When both `output` and
+`output_hash` are present, the hash must match the canonical output bytes;
+otherwise the item becomes an error and raw output is not persisted. Hash-only
+results remain supported for privacy-preserving evaluators.
+
+Verification: focused dataset, document-intelligence, native-PDF, and
+capability-manifest suites passed 19 tests. Production provider execution,
+retry/replay, and remote `model_run_results` schema availability remain open.
+
+## Addendum — remote-first deletion failure propagation (2026-07-21)
+
+The live deletion service was swallowing exceptions, so the UI could not
+surface a failed remote deletion despite the remote-first contract. It now
+rethrows after preserving the local record; the contextual copy says the local
+copy remains available for retry. A parallel snackbar edit had also dropped
+the root messenger key; that compile regression was restored and route
+dismissal now uses the canonical key.
+
+Verification: focused deletion, AppError, Q&A, snackbar, and Documents-screen
+suites passed 44 tests. Analyzer and the full Flutter suite require a fresh
+run after this Dart change; deployed authenticated deletion remains open.
+
+## Addendum — current verification checkpoint (2026-07-21)
+
+Fresh post-change verification is now complete: Flutter analyzer passed with no
+issues; the deterministic full Flutter suite passed 597 tests with one worker;
+and the full backend suite passed 363 tests with 1 deployment-gated skip.
+These are current Tier 2 results; deployed authenticated deletion, remote
+evidence reads, and production signing remain higher-tier gates.
+
+## Addendum — canonical snackbar migration completion (2026-07-21)
+
+All remaining runtime raw snackbar callers were migrated to the shared helper,
+including phone capture, family addition, document-type refresh, policy-detail
+validation/page navigation, and claim-assistance browser failures. The only
+remaining `SnackBar` construction is inside the helper itself; the AppError
+documentation example is non-runtime documentation.
+
+Verification: Flutter analyzer passed; the affected suites passed 41 tests;
+the prior full Flutter run passed 597 tests with one worker. Device-level
+accessibility proof remains open.
+
+## Addendum — durable worker event-loop and lease safety (2026-07-21)
+
+The newly exposed worker path had a synchronous account-deletion handler inside
+the async dispatcher and no lease heartbeat. Account deletion now uses a
+thread hop, and long-running handlers renew their lease before it expires.
+
+Verification: worker health, dispatcher, runtime-config, and shell-syntax
+checks passed; the focused backend worker suite passed 39 tests. Cloud Run
+deployment, real Supabase claim/reclaim races, and post-deploy queue execution
+remain unverified.
+
+## Purchase and family-member failure contracts (2026-07-21)
+
+The current mobile billing journey had two misleading failure behaviors: a
+null provider result was analytically labeled `user_cancelled` even though it
+also represents unavailable offerings or another non-completed provider path,
+and a non-null result was treated as success without checking that it matched
+the requested plan tier. The upgrade and Q&A pack surfaces now use
+`not_completed` for null results, show an explicit no-change message, and keep
+user-initiated cancellation silent when the centralized mapper identifies it.
+Upgrade success additionally requires the returned tier to equal the requested
+tier. Manual family-member save failures now pass through `AppError` rather
+than interpolating the raw exception.
+
+Verification: analyzer passed; focused upgrade, Q&A entitlement, profile, and
+snackbar tests passed 62 tests. This is Tier 2 evidence only. RevenueCat
+sandbox/store behavior, receipt verification, backend entitlement enforcement,
+and authenticated cross-device reconciliation remain open Tier 3+ work.
+
+## Post-billing regression checkpoint (2026-07-21)
+
+The full backend suite passed **365 tests, 1 skipped, 40 warnings**; the full
+Flutter suite passed **597 tests** with one worker; Flutter analyzer passed; and
+`git diff --check` passed. The warnings are existing dependency deprecations
+reported by the test run, not new test failures. Live RevenueCat/store
+transactions, authenticated server entitlement reads, Cloud Run deployment and
+health probes, and production signing remain unverified.
+
+## Release and CI contract hardening (2026-07-21)
+
+The release script previously required more variables than its README example
+showed and accepted obvious placeholder values. It now validates all declared
+public release inputs, rejects known RevenueCat secret/OAuth prefixes, and
+retains the fail-closed tracked-key-properties check. Android Gradle signing
+now validates the complete property set and resolves/verifies the keystore
+path before production builds; local non-production release builds continue to
+use the debug fallback. CI’s release step is explicitly documented as a
+non-distributable compile smoke check.
+
+Verification: `bash -n tools/build_mobile_release.sh` passed; a valid-shaped
+release invocation exited 2 before Flutter because tracked
+`android/key.properties` remains present; workflow YAML parsed; and
+`./gradlew :app:assembleRelease` passed in 4m26s (709 tasks). The Gradle build
+reported dependency/SDK deprecation warnings. The production keystore rotation,
+credential history cleanup, and signed AAB verification remain open release
+gates.
+
+## Evidence substrate replay safety (2026-07-21)
+
+Static and test review found a partial-write failure mode in the newly changed
+page persistence path. `page_artifacts` has a unique `(document_id,
+page_number)` constraint, while `append_page_artifact` always inserted. A page
+could therefore survive a later span-write failure but become unrecoverable on
+retry. `append_page_artifact` now reconciles the immutable page hash and URI,
+returns the existing row for identical replay, rejects conflicting content,
+and handles the concurrent unique-constraint race. `append_source_spans`
+reconciles exact logical span fields before inserting only missing spans.
+
+The same pass restored opaque document IDs in processing logs and replaced raw
+OCR/RAG exception text in processing results with bounded user-safe messages
+and error classes.
+
+Verification: focused evidence/document-processing/OCR/fallback tests passed
+83 tests with 9 warnings. This is Tier 2 evidence. A live Supabase replay with
+an injected page/span partial failure, concurrent source-span writers, remote
+page-image readback, and authenticated citation traversal remain required
+before claiming production evidence durability.
+
+## Post-evidence regression checkpoint (2026-07-21)
+
+The full backend suite passed **370 tests, 1 skipped, 40 warnings** after the
+substrate replay and bounded-error changes. Focused evidence/OCR/document tests
+passed 83 tests. These are Tier 2 results; live Supabase replay, remote object
+readback, and production citation traversal remain unverified.
+
+## Document journey copy consistency (2026-07-21)
+
+The newly added document status strings are now reused by the upload/offline
+and refresh branches through the incremental `S` catalog. This is not a claim
+that the app has complete localization. Replacement remains visibly disabled
+because the current backend contract does not provide atomic replacement or a
+proven compensation path if new upload succeeds and old-document deletion
+fails.
+
+Verification: `flutter analyze` reported no issues; the focused document,
+policy-detail, deletion, and snackbar suite passed 52 tests. This is Tier 2
+evidence; real upload/offline/server-reconciliation behavior remains a Tier 3+
+gate.
+
+## Bounded document-processing failures (2026-07-21)
+
+The active document query and canonical OCR pipeline now return bounded
+user-safe failure messages plus typed error classes instead of raw parser or
+RAG exception text. Detailed failures remain in operator logs. This closes a
+customer-visible error leakage path without claiming deployed API behavior.
+
+Verification: the corrected fallback/document contract suite passed 52 tests
+with 5 dependency warnings. API-level response mapping, deployed log review,
+and production provider failures remain unverified Tier 3/4 gates.
+
+## Runtime env-file secret boundary (2026-07-21)
+
+Deployment preflight previously validated a runtime env file but did not reject
+secret-named fields inside it. Because Cloud Run consumes that file with
+`--env-vars-file`, this could bypass the intended Secret Manager-only boundary.
+The validator now rejects OpenAI, Supabase service/modern secret-key aliases,
+anonymous signing, and RevenueCat webhook secret names in the file, and gives
+the explicit file precedence over ambient shell values.
+
+Verification: 10 runtime-config tests passed; Python compilation, deployment
+shell syntax, and `git diff --check` passed. No Cloud Run deployment was run.
+
+## Outbox worker deployment contract (2026-07-21)
+
+The worker deployment script now resolves the repository root rather than
+depending on the caller's current directory. It uses the validator's worker
+profile, which checks the production backend contract and the non-secret env
+file while requiring only the worker's OpenAI and Supabase service bindings.
+API-only signing, CORS, and RevenueCat webhook-auth secrets are not mounted
+into the worker.
+
+Verification: 11 runtime-config tests passed; Python compilation, both deploy
+script syntax checks, and `git diff --check` passed. A live worker deployment,
+health probe, reclaim race, and queued-job round trip remain unverified.
+
+## Local/server document identity cleanup (2026-07-21)
+
+The document deletion journey now reconciles local Hive and remote document
+IDs. It removes cached summaries under both identities and clears selected,
+last-uploaded, and last-viewed pointers that refer to either ID, but only after
+the remote-first deletion succeeds.
+
+Verification: the new navigation-reference test passed; the focused document,
+policy-detail, and state suite passed 36 tests; and `flutter analyze` reported
+no issues. Live remote deletion and restart/deep-link behavior remain
+unverified.
+
+## Offline retry current-state reconciliation (2026-07-21)
+
+The earlier offline-upload finding is now partly superseded by the current
+implementation. `DocumentService.retryPendingUploads` consumes persisted local
+records, preserves the local identity while binding the returned remote ID,
+marks missing source files as explicit failures, and runs at startup,
+connectivity recovery, authenticated-principal transition, foreground resume,
+and from a visible Documents retry action. The processing-status screen also
+only cancels its own timer; it no longer closes the process-wide authenticated
+Dio client.
+
+The remaining failure-path gap was that retry classified HTTP 409
+`upload_in_progress` and transient 408/429/5xx responses as terminal failures.
+Those responses now retain `pending_upload` so the next reconnect or manual
+retry can reconcile them. Permanent validation, entitlement, and missing-file
+conditions remain explicit failures requiring user action.
+
+Verification: the focused document/reconciliation/processing-status suites pass
+69 tests and Flutter analysis is clean. A real offline → reconnect → server
+processing traversal across restart, account transition, duplicate delivery,
+and server-side source-hash replay remains Tier 3/4 evidence.
+
+## Upload-slot duplicate-concurrency correction (2026-07-21)
+
+The server-authoritative policy-slot reservation path was re-audited beyond
+the original client-only quota finding. The reservation table already
+serialized owner capacity and counted pending uploads, but an identical source
+arriving while another request was still pending could reuse the same pending
+reservation. Both callers could then persist independently and compete at the
+single finalize transition.
+
+The canonical RPC now returns `allowed=false, reason=upload_in_progress` for a
+same-owner, same-source pending reservation. The upload API maps that reason to
+a retryable HTTP 409 with a typed `upload_in_progress` code. Committed source
+replays continue through the existing document idempotency path; stale pending
+reservations remain reclaimable after the bounded 30-minute window.
+
+Verification: policy reservation, migration-contract, document owner-isolation,
+compilation, critical Ruff, and diff checks pass (**18 focused tests**). A
+concurrent two-request replay against live Supabase/Postgres, including the
+first request crashing between persistence and finalization, remains a Tier 3
+gate because local Postgres is unavailable.
+
+## Container platform contract assertion correction (2026-07-21)
+
+The full regression exposed a stale test assertion requiring the literal
+`PLATFORM="linux/amd64"` string. The canonical Dockerfile intentionally binds
+`ENV PLATFORM="${OCR_PLATFORM}"` so the runtime value follows the explicit
+`ARG OCR_PLATFORM=linux/amd64` target and remains correct for an approved target
+override. No production code consumes a hard-coded platform string; the test
+now checks the parameterized binding.
+
+Verification: the focused container/policy/upload suite passes 21 tests, and
+the full backend suite passes **454 tests with 1 intentional skip**. Existing
+dependency deprecation warnings remain non-failing.
+
+## Account-erasure owner binding and dead-letter retry correction (2026-07-21)
+
+The destructive account-deletion path was re-audited at its job/request
+boundary. `process_deletion(request_id, account_uid)` now reads and verifies
+the durable request owner before changing lifecycle state or deleting any
+account data; all subsequent request-state updates remain owner-scoped.
+
+The outbox idempotency lookup now supports `active_only`. Production deletion
+enqueue checks only pending/running jobs, while completed and dead-lettered
+rows remain historical audit records. A forward migration changes the unique
+request index to cover only active account-deletion jobs, allowing a failed
+dead-lettered request to receive a new retry job without creating parallel
+active destructive work.
+
+Verification: deletion lifecycle, API, outbox, retry-contract, compilation,
+critical Ruff, and diff checks pass (**44 focused tests**). Live Supabase
+request-owner enforcement, index migration with existing duplicate history,
+worker retry after dead-letter, and complete physical artifact erasure remain
+Tier 3/4 gates.
+
+## Inventory-driven physical artifact deletion (2026-07-21)
+
+Account deletion and single-document deletion now use canonical inventory
+traversal for all registered object kinds. Storage deletion precedes each
+per-artifact `deleted` transition, so a failed delete retains metadata for
+retry. Focused artifact/lifecycle/erasure/document coverage passes 24/24
+tests (Tier 2). Production storage traversal, multi-worker race proof, and
+wiring `mark_expired()` plus `delete_pending()` into a deployed scheduled path
+remain open.
+
+## Principal workspace migration and anonymous bootstrap correction (2026-07-21)
+
+The current principal lifecycle was re-audited against the earlier stale
+finding. Sign-out cleanup now clears analytics/contact state while the old
+workspace is still open, then resets the encrypted workspace and reinitializes
+the local principal; the processing-status screen and offline retry owner also
+use the shared lifecycle safely.
+
+Two concrete gaps remained. Startup passed an empty filesystem path to legacy
+Hive migration, causing the file-deletion branch to be skipped. The migration
+now calls `Hive.deleteBoxFromDisk(boxName)` after closing the old-key box before
+reopening it under the principal DEK. Migration errors now fail closed so the
+app cannot proceed with a new-key workspace while legacy data remains
+unreadable. The custom anonymous API-token warm-up was also moved until after
+principal-scoped Hive and analytics initialization, preventing identity-created
+telemetry from racing an unopened app-state box.
+
+Verification: principal-key, workspace-adjacent, and consent tests pass 15
+focused tests; Flutter analysis is clean. Real two-account same-process
+sign-out/re-entry, legacy encrypted-box replay on device, and crash-during-
+migration recovery remain Tier 3/4 gates.
+
+## Principal claim boundary and fail-closed reset (2026-07-21)
+
+The mobile workspace transition now carries user workspace only, removes
+session identifiers from copied app state, and excludes analytics and
+entitlement mirrors. Physical Hive deletion errors surface instead of being
+swallowed, preventing a false successful principal transition.
+
+Verification: focused principal/workspace/consent coverage passes 15 tests, the
+full Flutter suite passes 651 tests, and analyzer is clean (Tier 2). Real-device
+two-account isolation and interrupted migration recovery remain open gates.
+
+## Cross-caller pending-upload retry coalescing (2026-07-21)
+
+The pending-upload retry lock was instance-scoped even though lifecycle
+triggers create separate `DocumentService` objects. It now coalesces callers
+through a shared future, so one local source cannot be submitted concurrently
+by startup/reconnect/manual retry paths. Focused document retry and processing
+coverage passes 41 tests and analyzer is clean (Tier 2); cross-process and
+production crash-replay evidence remain open.
+
+## Durable document retry state correction (2026-07-21)
+
+The outbox previously requeued a processing exception while the document
+runner persisted `failed`, making the next claim impossible. Retryable durable
+failures now return the document to `received` with no lease; the last allowed
+attempt persists terminal `failed`. Targeted document-processing and owner
+isolation tests pass 19/19; full backend and live worker retry evidence remain
+open.
+
+## Consumable webhook ordering fence (2026-07-21)
+
+Known Q&A pack purchases are now processed before subscription-state timestamp
+ordering, preventing a delayed-but-valid pack event from being discarded as
+stale. The unique provider event remains the duplicate grant fence and unknown
+products remain unsupported. Billing/webhook/ledger contract coverage passes
+15 tests; live cross-device convergence and ordered replay remain open.
+
+## Server-authoritative Q&A pack readback (2026-07-21)
+
+Added the canonical authenticated `/subscription/qa-balance` endpoint and the
+service-role-only Supabase read RPC. The mobile billing adapter now reconciles
+packs on startup, account identification, purchase, and restore. It no longer
+adds a local pack from store completion alone; a pending webhook remains
+pending and is communicated as such. Focused backend and Flutter coverage
+passes, and touched Flutter analysis is clean (Tier 2). Live two-device and
+production webhook-delay evidence remains open.
+
+## Anonymous-to-account verified pack transfer (2026-07-21)
+
+The identity-link path now carries server-verified Q&A grants along with the
+document workspace. This removes a concrete case where an anonymous purchase
+could be paid and valid but disappear after account creation. The change is
+covered by migration contract checks; live store/account-link replay remains
+unverified.
+
+## Empty OCR success correction (2026-07-21)
+
+A scanned document that produced no OCR text could be mislabeled completed by
+the adapter boundary. The canonical OCR pipeline and document service now
+return an explicit `no_text_extracted` failure with capability metadata.
+Focused parser/CIR/runtime coverage passes 23 tests; live OCR quality and
+operator recovery remain unverified.
+
+## Billing confirmation copy contract (2026-07-21)
+
+The Q&A-pack catalog had a stale “questions added” success claim even though
+store completion precedes server webhook confirmation. The canonical catalog
+and pack screen now say that questions appear after server confirmation, with a
+focused copy contract test. Full localization and provider-backed UI behavior
+remain open.
+
+## Purpose-bound governed dataset consent (2026-07-21)
+
+Customer-derived evaluation/training items now require current, purpose-matched
+consent and a release consent-policy version; old document-processing consent
+cannot authorize secondary use. Focused dataset/consent coverage passes 33
+tests. The user-facing secondary-use grant flow and live Supabase readback
 remain unverified.

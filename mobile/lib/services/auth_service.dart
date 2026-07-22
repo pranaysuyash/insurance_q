@@ -26,6 +26,7 @@ class AuthService {
   static Box get _box => Hive.box(AppStateStore.boxName);
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   static bool _accountClientReady = false;
+  static bool _preserveAnonymousWorkspaceForClaim = false;
 
   static Future<void> initializeAccountClient() async {
     if (!AppConfig.hasSupabaseAuthConfig || _accountClientReady) return;
@@ -127,6 +128,19 @@ class AuthService {
     }
   }
 
+  /// Capture the anonymous-to-account intent before Supabase emits its auth
+  /// state event. The workspace listener uses this synchronous flag to avoid
+  /// racing token cleanup after a successful claim.
+  static Future<void> prepareAnonymousWorkspaceClaim() async {
+    _preserveAnonymousWorkspaceForClaim = await anonymousToken() != null;
+  }
+
+  static bool consumeAnonymousWorkspaceClaim() {
+    final preserve = _preserveAnonymousWorkspaceForClaim;
+    _preserveAnonymousWorkspaceForClaim = false;
+    return preserve;
+  }
+
   static Future<void> signOut() async {
     if (_accountClientReady) {
       await Supabase.instance.client.auth.signOut();
@@ -208,6 +222,24 @@ class AuthService {
     // out so they don't try to use the account.
     await signOut();
     return result;
+  }
+
+  /// Read the latest server-side deletion state after a user signs back in.
+  /// The backend scopes this query to the authenticated account and does not
+  /// expose stage checkpoints or internal error details.
+  static Future<DeletionStatus> getDeletionStatus() async {
+    if (!hasAccountSession) {
+      throw StateError('No account session to read deletion status');
+    }
+    final dio = Dio(BaseOptions(
+      baseUrl: AppConfig.baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
+    dio.interceptors.add(AuthInterceptor(dio));
+    final response = await dio.get('/user/account/deletion-status');
+    final data = (response.data as Map?)?.cast<String, dynamic>() ?? {};
+    return DeletionStatus.fromJson(data);
   }
 
   /// Reads only from platform secure storage. A one-time Hive migration avoids
@@ -342,6 +374,40 @@ class DeleteAccountResult {
   /// True iff the user should be told that some stages will
   /// remain visible to the user when the request is only partially complete.
   bool get isPartial => status == 'deletion_partial';
+}
+
+class DeletionStatus {
+  final String status;
+  final String? requestId;
+  final DateTime? requestedAt;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+  final DateTime? updatedAt;
+
+  const DeletionStatus({
+    required this.status,
+    this.requestId,
+    this.requestedAt,
+    this.startedAt,
+    this.completedAt,
+    this.updatedAt,
+  });
+
+  factory DeletionStatus.fromJson(Map<String, dynamic> json) {
+    DateTime? parse(Object? value) =>
+        value is String ? DateTime.tryParse(value) : null;
+    return DeletionStatus(
+      status: json['status'] as String? ?? 'unknown',
+      requestId: json['request_id'] as String?,
+      requestedAt: parse(json['requested_at']),
+      startedAt: parse(json['started_at']),
+      completedAt: parse(json['completed_at']),
+      updatedAt: parse(json['updated_at']),
+    );
+  }
+
+  bool get isActionable =>
+      status == 'pending' || status == 'running' || status == 'failed';
 }
 
 /// Dio interceptor: adds the anonymous auth header, auto-refreshes on 401.

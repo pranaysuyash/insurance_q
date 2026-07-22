@@ -140,7 +140,7 @@ cat > enhanced-service-config.json << EOF
   },
   "InstanceConfiguration": {
     "Cpu": "1024",
-    "Memory": "2048"
+    "Memory": "4096"
   },
   "HealthCheckConfiguration": {
     "Protocol": "HTTP",

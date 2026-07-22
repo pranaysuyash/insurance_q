@@ -168,12 +168,14 @@ class OCRPipeline:
     async def _process_pdf_with_mineru(self, pdf_path: str) -> Optional[Dict[str, Any]]:
         """Process a PDF using MinerU 2.5 for high-accuracy extraction.
 
-        MinerU is a 1.2B VLM that achieves SOTA on OmniDocBench (90.67),
-        outperforming Gemini 2.5 Pro. Best for complex insurance documents
-        with tables, multi-column layouts, and formulas.
+        MinerU is an optional broad parser candidate for complex documents
+        with tables, multi-column layouts, and formulas. Vendor/model scores
+        are not treated as CoverWise evidence; promotion requires the local
+        corpus, provenance, runtime, and license gates.
 
         Requires: pip install magic-pdf[full] and MINERU_ENABLED=true
-        License: AGPL-3.0 (PyMuPDF dependency — check commercial use)
+        License: review current code and model/weight terms before enabling;
+        do not infer a single license status from an older research note.
         """
         if not settings.mineru_enabled:
             return None
@@ -333,42 +335,63 @@ class OCRPipeline:
             logger.debug(f"Page {page_num}: Preparing image for doctr OCR.")
             pil_image = Image.open(io.BytesIO(image_bytes))
 
-            # Pre-processing: deskew, denoise, binarize (5-15% OCR accuracy improvement)
-            processed_image = self._preprocess_image(np.array(pil_image))
+            def _text_from_prediction(prediction: Any) -> tuple[str, list[str], float]:
+                exported_result = prediction.export()
+                page_text_parts: list[str] = []
+                confidences: list[float] = []
+                if exported_result and "pages" in exported_result and exported_result["pages"]:
+                    page_export = exported_result["pages"][0]
+                    for block in page_export.get("blocks", []):
+                        for line in block.get("lines", []):
+                            for word in line.get("words", []):
+                                page_text_parts.append(word.get("value", ""))
+                                confidence = word.get("confidence")
+                                if isinstance(confidence, (float, int)):
+                                    confidences.append(float(confidence))
+                            page_text_parts.append("\n")
+                average_confidence = (
+                    sum(confidences) / len(confidences) if confidences else 0.0
+                )
+                return (
+                    " ".join(page_text_parts).replace(" \n ", "\n").strip(),
+                    page_text_parts,
+                    average_confidence,
+                )
 
-            # doctr expects multi-channel HxWxC pages. Preprocessing returns
-            # a single-channel image for thresholding; restore the channel
-            # dimension before prediction so image OCR does not degrade to an
-            # empty result after a predictor shape error.
-            if processed_image.ndim == 2:
-                processed_image = np.repeat(processed_image[:, :, None], 3, axis=2)
+            original_image = np.asarray(pil_image.convert("RGB"))
 
-            doc_content = [processed_image]
+            # Run the untouched RGB page first. The detector/recognizer was
+            # trained on natural RGB page images, and thresholding can erase
+            # anti-aliased glyphs or punctuation (especially policy numbers).
+            # Preprocessing remains an explicit fallback for faint, noisy, or
+            # skewed scans rather than being allowed to replace readable text.
+            logger.debug(f"Page {page_num}: Sending original image to local doctr OCR predictor.")
+            ocr_text, page_text_parts, original_confidence = _text_from_prediction(
+                self.doctr_predictor([original_image])
+            )
 
-            logger.debug(f"Page {page_num}: Sending pre-processed image to local doctr OCR predictor.")
-            result = self.doctr_predictor(doc_content)
-            
-            # Extract text from the result
-            # The result object has a structure that needs to be navigated.
-            # result.export() gives a dictionary representation.
-            # We want to concatenate all text found on the page.
-            exported_result = result.export()
-            
-            page_text_parts = []
-            if exported_result and "pages" in exported_result and len(exported_result["pages"]) > 0:
-                page_export = exported_result["pages"][0] # We processed one image/page
-                for block in page_export.get("blocks", []):
-                    for line in block.get("lines", []):
-                        for word in line.get("words", []):
-                            page_text_parts.append(word.get("value", ""))
-                        page_text_parts.append("\n") # Add newline after each line for readability
-                    # page_text_parts.append("\n\n") # Add more space between blocks if needed
-            
-            ocr_text = " ".join(page_text_parts).replace(" \n ", "\n").strip() # Join words, handle newlines
+            # Confidence is used as a routing signal, not as a truth claim.
+            # A low-confidence RGB result gets one thresholded retry; retain
+            # whichever candidate has the stronger mean word confidence.
+            if len("".join(ocr_text.split())) < 5 or original_confidence < 0.75:
+                logger.info(
+                    "Page %d: original OCR confidence=%0.3f; retrying preprocessed image",
+                    page_num,
+                    original_confidence,
+                )
+                processed_image = self._preprocess_image(original_image)
 
-            # Alternative simpler text extraction:
-            # ocr_text = result.render() # This might include bounding box info, not just plain text.
-                                      # Or use result.pages[0].render()
+                # doctr expects multi-channel HxWxC pages. Preprocessing
+                # returns a single-channel thresholded image; restore the
+                # channel dimension before prediction.
+                if processed_image.ndim == 2:
+                    processed_image = np.repeat(processed_image[:, :, None], 3, axis=2)
+
+                processed_text, processed_parts, processed_confidence = _text_from_prediction(
+                    self.doctr_predictor([processed_image])
+                )
+                if processed_confidence > original_confidence or len("".join(ocr_text.split())) < 5:
+                    ocr_text, page_text_parts = processed_text, processed_parts
 
             logger.debug(f"Page {page_num}: doctr OCR extracted text length: {len(ocr_text)}")
             if not ocr_text and len(page_text_parts) > 0 : # If join resulted in empty but parts existed
@@ -496,7 +519,7 @@ class OCRPipeline:
             return []
 
     async def process_document(self, file_content: bytes, file_type: str, filename: str, layout_questions_config: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-        print(f"DEBUG_PRINT: process_document CALLED for {filename}", file=sys.stderr)
+        logger.debug("ocr_pipeline_process_document_started filename=%s", filename)
         logger.info(f"Starting document processing for: {filename}, type: {file_type}")
         start_time = time.time()
 
@@ -509,7 +532,7 @@ class OCRPipeline:
                     tmp_path = tmp.name
                 try:
                     docling_result = await self._process_pdf_with_docling(tmp_path)
-                    if docling_result is not None:
+                    if docling_result is not None and docling_result.get("full_text", "").strip():
                         logger.info(f"Docling processing succeeded for {filename}")
                         processing_time = time.time() - start_time
                         from src.models.document_intelligence import build_document_cir
@@ -552,7 +575,10 @@ class OCRPipeline:
                             "cir": docling_cir.model_dump(mode="json"),
                         }
                         return {"status": "success", "result": final_result}
-                    logger.info(f"Docling returned None for {filename}, falling back to standard pipeline")
+                    logger.info(
+                        "Docling produced no usable text for %s, falling back to standard pipeline",
+                        filename,
+                    )
                 except Exception as e:
                     logger.warning(f"Docling failed for {filename}: {e}, falling back to standard pipeline")
                 finally:
@@ -621,6 +647,18 @@ class OCRPipeline:
             processing_time = time.time() - start_time
             logger.info(f"Finished processing {filename} in {processing_time:.2f} seconds. Total pages: {page_count}.")
 
+            # Empty OCR output is not a successful extraction. Returning a
+            # success envelope here would let downstream policy extraction or
+            # RAG treat an unreadable scan as a valid, empty document.
+            if not combined_full_text:
+                return {
+                    "status": "error",
+                    "error": "No text could be extracted from this document.",
+                    "error_code": "no_text_extracted",
+                    "capability": "scanned_ocr",
+                    "filename": filename,
+                }
+
             page_texts = {
                 page_data["page_num"]: page_text
                 for page_data, page_text in zip(processed_pages, all_pages_full_text)
@@ -673,14 +711,31 @@ class OCRPipeline:
             return {"status": "success", "result": final_result}
         
         except ValueError as e: 
-            logger.error(f"File conversion failed for {filename}: {e}", exc_info=True)
-            return {"status": "error", "error": str(e), "filename": filename}
-        except Exception as e:
-            processing_time = time.time() - start_time
-            logger.error(f"Unhandled error in OCRPipeline.process_document for {filename} after {processing_time:.2f}s: {e}", exc_info=True)
+            logger.error(
+                "file_conversion_failed filename=%s error_type=%s",
+                filename,
+                type(e).__name__,
+                exc_info=True,
+            )
             return {
                 "status": "error",
-                "error": f"An unexpected error occurred during document processing: {str(e)}",
+                "error": "The document could not be converted for processing.",
+                "error_type": type(e).__name__,
+                "filename": filename,
+            }
+        except Exception as e:
+            processing_time = time.time() - start_time
+            logger.error(
+                "ocr_pipeline_failed filename=%s processing_time=%.2fs error_type=%s",
+                filename,
+                processing_time,
+                type(e).__name__,
+                exc_info=True,
+            )
+            return {
+                "status": "error",
+                "error": "The document could not be processed. Please try again.",
+                "error_type": type(e).__name__,
                 "filename": filename
             }
 

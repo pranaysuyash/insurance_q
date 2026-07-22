@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:coverwise/screens/qa_screen.dart';
 import 'package:coverwise/providers/questions_provider.dart';
+import 'package:coverwise/utils/ref_state.dart';
 
 /// Tests for the FollowUpChips widget.
 ///
@@ -20,7 +21,7 @@ void main() {
       home: Scaffold(
         body: ProviderScope(
           overrides: [
-            isLoadingProvider.overrideWith((ref) => isLoading),
+            isLoadingProvider.overrideWith(() => RefState<bool>(isLoading)),
           ],
           child: FollowUpChips(
             questions: questions,

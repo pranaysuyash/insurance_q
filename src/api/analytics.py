@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from src.api.user import get_current_user
 from src.models.user import User
 from src.services.analytics_identity import stable_event_id
+from src.utils.runtime_config import supabase_server_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -78,7 +79,7 @@ def _get_supabase_client():
         return _supabase_client
     _supabase_init_attempted = True
     url = os.environ.get("SUPABASE_URL", "").strip()
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    key = supabase_server_key()
     if not url or not key:
         logger.warning("Supabase not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing); analytics dual-write disabled")
         return None

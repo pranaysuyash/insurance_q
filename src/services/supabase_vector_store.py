@@ -48,6 +48,8 @@ class SupabaseVectorStore:
         embeddings: List[List[float]],
         owner_id: Optional[str] = None,
     ) -> int:
+        if not owner_id or not str(owner_id).strip():
+            raise ValueError("Supabase upsert requires an owner_id")
         rows = []
         for index, (block, embedding) in enumerate(zip(blocks, embeddings)):
             contract = self._embedding_contract(embedding, block)
@@ -193,30 +195,73 @@ class SupabaseVectorStore:
                 target_ids.append(tid)
                 
         target_ids = list(set(target_ids))
-        if not target_ids:
-            return []
-            
-        # Fetch the actual chunks
-        chunks_res = (
-            self._client.table("document_chunks")
-            .select("id, content, metadata, section_type, document_id")
-            .in_("id", target_ids)
-            .eq("owner_id", owner_id)
-            .execute()
-        )
-        
+        if target_ids:
+            # Fetch explicit graph targets.
+            chunks_res = (
+                self._client.table("document_chunks")
+                .select(
+                    "id, content, source_text, retrieval_text, metadata, "
+                    "section_type, document_id, chunk_index"
+                )
+                .in_("id", target_ids)
+                .eq("owner_id", owner_id)
+                .execute()
+            )
+            rows = chunks_res.data or []
+        elif link_type == "adjacent":
+            # Clean deployments may not yet contain materialized chunk_links.
+            # Use the canonical document/chunk order as the deterministic
+            # adjacent relation; owner and document predicates remain explicit.
+            seed_res = (
+                self._client.table("document_chunks")
+                .select("id, document_id, chunk_index")
+                .in_("id", chunk_ids)
+                .eq("owner_id", owner_id)
+                .execute()
+            )
+            neighbor_rows = []
+            for seed in seed_res.data or []:
+                index = seed.get("chunk_index")
+                document_id = seed.get("document_id")
+                if index is None or document_id is None:
+                    continue
+                neighbor_res = (
+                    self._client.table("document_chunks")
+                    .select(
+                        "id, content, source_text, retrieval_text, metadata, "
+                        "section_type, document_id, chunk_index"
+                    )
+                    .eq("owner_id", owner_id)
+                    .eq("document_id", document_id)
+                    .in_("chunk_index", [int(index) - 1, int(index) + 1])
+                    .execute()
+                )
+                neighbor_rows.extend(neighbor_res.data or [])
+            rows = neighbor_rows
+        else:
+            rows = []
+
         adjacent_chunks = []
-        for row in (chunks_res.data or []):
+        seen_ids = set(str(chunk_id) for chunk_id in chunk_ids)
+        for row in rows:
+            row_id = row.get("id")
+            if row_id is None or str(row_id) in seen_ids:
+                continue
+            seen_ids.add(str(row_id))
             metadata = dict(row.get("metadata") or {})
+            source_text = row.get("source_text") or row.get("content", "")
+            retrieval_text = row.get("retrieval_text") or row.get("content", "")
             metadata["document_id"] = row.get("document_id")
             metadata["owner_id"] = owner_id
-            metadata["text_content"] = row.get("content", "")
+            metadata["text_content"] = retrieval_text
+            metadata["source_text"] = source_text
+            metadata["retrieval_text"] = retrieval_text
             metadata["section_type"] = row.get("section_type", "general")
             metadata["is_adjacent_context"] = True
             
             adjacent_chunks.append(
                 SimpleNamespace(
-                    id=str(row.get("id")),
+                    id=str(row_id),
                     payload=metadata,
                     score=0.0
                 )

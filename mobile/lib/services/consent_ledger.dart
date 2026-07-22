@@ -9,11 +9,20 @@ enum ConsentPurpose {
   /// Analytics and usage tracking.
   analytics('analytics'),
 
-  /// Lead capture — storing email/phone for follow-up.
-  leadCapture('lead_capture'),
+  /// Marketing and lead capture emails.
+  marketingEmails('marketing_emails'),
 
-  /// Terms of Service acceptance during onboarding.
-  termsAccepted('terms_accepted');
+  /// Terms of Service and Privacy Policy acceptance.
+  privacyPolicy('privacy_policy'),
+
+  /// Camera access for page capture.
+  cameraAccess('camera_access'),
+
+  /// Consent to store processed documents in evaluation datasets.
+  evaluationDataset('evaluation_dataset'),
+
+  /// Consent to use documents for model improvements.
+  modelImprovement('model_improvement');
 
   final String value;
   const ConsentPurpose(this.value);

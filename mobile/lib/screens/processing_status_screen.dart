@@ -26,10 +26,12 @@ enum ProcessingStage {
       Colors.purple),
   classification(3, 'Categorising', 'Identifying the policy type and insurer',
       Icons.category, Colors.teal),
-  indexing(4, 'Finishing up', 'Preparing your policy for questions', Icons.search,
-      Colors.orange),
+  indexing(4, 'Finishing up', 'Preparing your policy for questions',
+      Icons.search, Colors.orange),
   complete(
       5, 'Complete', 'Your policy is ready', Icons.check_circle, Colors.green),
+  partial(5, 'Partially ready', 'Some policy details still need verification',
+      Icons.warning_amber_rounded, Colors.orange),
   failed(5, 'Failed', 'Something went wrong', Icons.error, Colors.red);
 
   final int step;
@@ -71,9 +73,16 @@ ProcessingStage stageFromState(String? state) {
     case 'creating_embeddings':
       return ProcessingStage.indexing;
     case 'completed':
-    case 'completed_with_errors':
     case 'ready':
       return ProcessingStage.complete;
+    case 'completed_no_summary':
+    case 'completed_summary_partial':
+    case 'completed_text_partial':
+    case 'summary_partial':
+    case 'indexing_failed':
+    case 'partial':
+    case 'completed_with_errors':
+      return ProcessingStage.partial;
     case 'failed':
       return ProcessingStage.failed;
     default:
@@ -97,10 +106,12 @@ class ProcessingStatusScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ProcessingStatusScreen> createState() => _ProcessingStatusScreenState();
+  ConsumerState<ProcessingStatusScreen> createState() =>
+      _ProcessingStatusScreenState();
 }
 
-class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen> {
+class _ProcessingStatusScreenState
+    extends ConsumerState<ProcessingStatusScreen> {
   Timer? _pollTimer;
   ProcessingStage _currentStage = ProcessingStage.received;
   String? _errorMessage;
@@ -148,7 +159,7 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
       // Try backend status endpoint first for real granular stage data.
       // Fall back to local Hive storage if the backend is unreachable.
       String? stageString;
-      
+
       try {
         final sessionId = await SessionService.getSessionId();
         final response = await _dio.get(
@@ -160,8 +171,8 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
         );
         if (response.statusCode == 200 && response.data is Map) {
           final data = response.data as Map<String, dynamic>;
-          stageString = data['processing_details']?['stage']?.toString()
-              ?? data['status']?.toString();
+          stageString = data['processing_details']?['stage']?.toString() ??
+              data['status']?.toString();
         }
       } catch (_) {
         // Backend unreachable — fall through to local storage.
@@ -203,6 +214,14 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
         return;
       }
 
+      if (newStage == ProcessingStage.partial) {
+        _pollTimer?.cancel();
+        if (mounted) {
+          setState(() => _currentStage = newStage);
+        }
+        return;
+      }
+
       if (newStage == ProcessingStage.failed) {
         _pollTimer?.cancel();
         if (mounted) {
@@ -230,6 +249,7 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
     return PopScope(
       canPop: _errorMessage != null ||
           _currentStage == ProcessingStage.failed ||
+          _currentStage == ProcessingStage.partial ||
           _currentStage == ProcessingStage.complete,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
@@ -239,8 +259,9 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Preparing your policy'),
-          automaticallyImplyLeading:
-              _errorMessage != null || _currentStage == ProcessingStage.failed,
+          automaticallyImplyLeading: _errorMessage != null ||
+              _currentStage == ProcessingStage.failed ||
+              _currentStage == ProcessingStage.partial,
         ),
         body: SafeArea(
           child: Column(
@@ -248,7 +269,9 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
               CoverWisePageHeader(
                 title: _currentStage == ProcessingStage.failed
                     ? 'We couldn\'t finish this file'
-                    : 'Turning pages into answers',
+                    : _currentStage == ProcessingStage.partial
+                        ? 'Your policy is partly ready'
+                        : 'Turning pages into answers',
                 subtitle: _errorMessage ?? _currentStage.description,
                 trailing: CoverWiseIconBadge(
                   icon: _currentStage == ProcessingStage.failed
@@ -299,7 +322,9 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
               Expanded(
                 child: _errorMessage != null
                     ? _buildErrorState(theme)
-                    : _buildStageProgress(theme),
+                    : _currentStage == ProcessingStage.partial
+                        ? _buildPartialState(theme)
+                        : _buildStageProgress(theme),
               ),
             ],
           ),
@@ -466,8 +491,50 @@ class _ProcessingStatusScreenState extends ConsumerState<ProcessingStatusScreen>
     );
   }
 
+  Widget _buildPartialState(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CoverWiseIconBadge(
+            icon: Icons.warning_amber_rounded,
+            color: theme.colorScheme.tertiary,
+            size: 68,
+          ),
+          const SizedBox(height: 16),
+          Text('Policy partly ready',
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Some details could not be verified yet. You can review the available policy information and ask questions about the source document.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('View available policy'),
+            onPressed: () => Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) =>
+                    PolicyDetailScreen(documentId: widget.documentId),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showDismissWarning() {
     if (_currentStage == ProcessingStage.complete ||
+        _currentStage == ProcessingStage.partial ||
         _currentStage == ProcessingStage.failed) {
       Navigator.of(context).pop();
       return;

@@ -38,6 +38,7 @@ def _node(
     bbox: tuple[float, float, float, float] | None = None,
     artifact_sha256: str | None = None,
     reading_order: int | None = None,
+    parent_id: str | None = None,
     attributes: dict[str, Any] | None = None,
 ) -> CIRNode:
     return CIRNode(
@@ -49,6 +50,7 @@ def _node(
         bbox=_bbox(bbox, page) if bbox else None,
         artifact_sha256=artifact_sha256,
         reading_order=reading_order,
+        parent_id=parent_id,
         parser_name="pymupdf_native",
         parser_version=parser_version,
         attributes=attributes or {},
@@ -100,6 +102,7 @@ def extract_native_pdf_nodes(
             for table_index, table in enumerate(tables):
                 matrix = table.extract()
                 table_id = f"page-{page_index}-table-{table_index}"
+                column_count = max((len(row) for row in matrix), default=0)
                 nodes.append(
                     _node(
                         node_id=table_id,
@@ -111,7 +114,7 @@ def extract_native_pdf_nodes(
                         reading_order=block_order,
                         attributes={
                             "rows": len(matrix),
-                            "columns": max((len(row) for row in matrix), default=0),
+                            "columns": column_count,
                             "matrix": matrix,
                             "detector": "pymupdf.find_tables",
                         },
@@ -119,7 +122,7 @@ def extract_native_pdf_nodes(
                 )
                 for row_index, row in enumerate(matrix):
                     for column_index, value in enumerate(row):
-                        cell_index = row_index * max(len(row), 1) + column_index
+                        cell_index = row_index * max(column_count, 1) + column_index
                         if cell_index >= len(table.cells):
                             continue
                         cell_bbox = table.cells[cell_index]
@@ -133,6 +136,7 @@ def extract_native_pdf_nodes(
                                 source_text=str(value).strip() if value is not None else None,
                                 bbox=tuple(cell_bbox) if cell_bbox else None,
                                 reading_order=block_order,
+                                parent_id=table_id,
                                 attributes={
                                     "table_id": table_id,
                                     "row_index": row_index,
@@ -171,6 +175,39 @@ def extract_native_pdf_nodes(
                         )
                     )
                     block_order += 1
+
+            # AcroForm widgets are deterministic structure present in the PDF
+            # itself. Preserve the field identity, value, type, flags, and
+            # geometry as evidence; do not infer semantics from the label.
+            try:
+                widgets = list(page.widgets() or [])
+            except (AttributeError, RuntimeError, ValueError):
+                widgets = []
+            for field_index, widget in enumerate(widgets):
+                rect = widget.rect
+                field_value = getattr(widget, "field_value", None)
+                field_name = getattr(widget, "field_name", None)
+                field_type = getattr(widget, "field_type_string", None)
+                nodes.append(
+                    _node(
+                        node_id=f"page-{page_index}-form-field-{field_index}",
+                        node_type="form_field",
+                        page_number=page_index,
+                        page=page,
+                        parser_version=parser_version,
+                        source_text=str(field_value) if field_value not in (None, "") else None,
+                        bbox=(rect.x0, rect.y0, rect.x1, rect.y1),
+                        reading_order=block_order,
+                        attributes={
+                            "field_name": field_name,
+                            "field_type": field_type,
+                            "field_flags": getattr(widget, "field_flags", None),
+                            "field_value": field_value,
+                            "source": "pymupdf.widgets",
+                        },
+                    )
+                )
+                block_order += 1
     finally:
         document.close()
 

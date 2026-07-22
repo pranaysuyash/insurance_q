@@ -27,6 +27,10 @@ class AppStateStore {
   // Coverage gap resolution tracking
   static const String resolvedGapsKey = 'resolved_gaps'; // Map<String, Map> of gapId -> resolution info
 
+  // Document sort/filter preferences
+  static const String docsSortModeKey = 'docs_sort_mode'; // 'date_desc', 'date_asc', 'name_asc', 'name_desc', 'type'
+  static const String docsFilterTypeKey = 'docs_filter_type'; // null = all, or document type string
+
   // Theme preference
   static const String themeModeKey = 'theme_mode'; // 'light', 'dark', or 'system'
 

@@ -24,7 +24,7 @@ final connectivityProvider =
 
 /// Convenience selector: true when the device has any active network path.
 final isOnlineProvider = Provider<bool>((ref) {
-  final results = ref.watch(connectivityProvider).valueOrNull;
+  final results = ref.watch(connectivityProvider).asData?.value;
   if (results == null || results.isEmpty) return false;
   return results.any((r) => r != ConnectivityResult.none);
 });

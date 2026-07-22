@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.api import subscription
+from src.models.user import User
 
 
 def _app(tmp_path, monkeypatch):
@@ -103,3 +104,55 @@ def test_older_webhook_event_cannot_regress_newer_state(tmp_path, monkeypatch):
     ).fetchone()
     conn.close()
     assert row == ("plus", 1)
+
+
+def test_unknown_non_renewing_product_cannot_downgrade_subscription(
+    tmp_path, monkeypatch
+):
+    app = _app(tmp_path, monkeypatch)
+    expiry = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp() * 1000)
+    with TestClient(app) as client:
+        headers = {"Authorization": "Bearer rc-test"}
+        purchased = client.post(
+            "/subscription/webhook",
+            json=_event("subscription-1", "INITIAL_PURCHASE", expiry=expiry),
+            headers=headers,
+        )
+        unknown_pack = _event("unknown-pack-1", "NON_RENEWING_PURCHASE")
+        unknown_pack["event"]["product_id"] = "coverwise_unknown_pack"
+        result = client.post(
+            "/subscription/webhook", json=unknown_pack, headers=headers
+        )
+
+    assert purchased.status_code == 200
+    assert result.status_code == 200
+    assert result.json()["status"] == "unsupported_product"
+    status = subscription.get_subscription_status(
+        current_user=User(uid="account-1", email=None, phone=None, display_name=None)
+    )
+    assert status["plan_tier"] == "plus"
+    assert status["is_active"] is True
+
+
+def test_client_sync_does_not_grant_paid_status_without_webhook(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(subscription, "DB_PATH", str(tmp_path / "billing.db"))
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("BILLING_LEDGER_BACKEND", "sqlite")
+    user = User(uid="account-client-only", email=None, phone=None, display_name=None)
+
+    subscription.sync_subscription(
+        subscription.SubscriptionSyncRequest(
+            plan_tier="family",
+            product_id="coverwise_family_monthly",
+            is_active=True,
+        ),
+        current_user=user,
+    )
+
+    result = subscription.get_subscription_status(current_user=user)
+
+    assert result["plan_tier"] == "free"
+    assert result["verified"] is False
+    assert result["source"] == "default_unverified"

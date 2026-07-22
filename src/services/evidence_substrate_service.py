@@ -17,6 +17,7 @@ src/services/document_repository.py.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
 from typing import Iterable, Optional
@@ -34,6 +35,7 @@ from src.models.evidence import (
     SpanType,
     ValueType,
 )
+from src.utils.runtime_config import supabase_server_key
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +54,27 @@ class EvidenceSubstrateUnavailable(EvidenceSubstrateError):
 
 def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _source_span_fingerprint(row: dict) -> str:
+    """Return a stable identity for one logical span.
+
+    The current schema predates an explicit span key, so the access layer
+    derives one from the immutable span fields while the schema remains
+    append-only. This makes sequential retries repair partial writes without
+    creating a second logical span.
+    """
+
+    payload = {
+        "span_text": row.get("span_text"),
+        "bbox_json": row.get("bbox_json"),
+        "span_type": row.get("span_type"),
+        "confidence": row.get("confidence"),
+        "parser_version": row.get("parser_version"),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
 
 
 class EvidenceSubstrateService:
@@ -85,7 +108,7 @@ class EvidenceSubstrateService:
     @staticmethod
     def from_env() -> "EvidenceSubstrateService":
         url = os.getenv("SUPABASE_URL", "").strip()
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        key = supabase_server_key()
         if not url or not key:
             raise EvidenceSubstrateUnavailable(
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set"
@@ -103,7 +126,11 @@ class EvidenceSubstrateService:
         layout_json: Optional[dict] = None,
         image_uri: Optional[str] = None,
     ) -> UUID:
-        """Write one page artifact. Returns the new page_artifact id.
+        """Write one page artifact. Returns its page_artifact id.
+
+        Replaying the same document/page and image is idempotent: the existing
+        row is returned. A replay with different bytes is rejected rather than
+        silently replacing source evidence.
 
         The image_uri is generated if not supplied, using the
         canonical storage path: coverwise-documents/{document_id}/pages/{page_number}.png
@@ -132,16 +159,52 @@ class EvidenceSubstrateService:
             "layout_json": layout_json,
             "sha256": sha,
         }
-        response = (
-            self._client.table("page_artifacts")
-            .insert(row)
-            .execute()
-        )
+        existing = self._find_page_artifact(document_id, page_number)
+        if existing is not None:
+            if existing.get("sha256") != sha or existing.get("image_uri") != image_uri:
+                raise EvidenceSubstrateError(
+                    f"page_artifact conflict for document {document_id} page {page_number}"
+                )
+            return UUID(existing["id"])
+        try:
+            response = (
+                self._client.table("page_artifacts")
+                .insert(row)
+                .execute()
+            )
+        except Exception as error:
+            # A concurrent retry can win the unique (document_id, page_number)
+            # constraint between the read and insert. Re-read and accept only
+            # the same immutable artifact; preserve other database failures.
+            existing = self._find_page_artifact(document_id, page_number)
+            if existing is None:
+                raise EvidenceSubstrateError(
+                    f"page_artifacts insert failed for document {document_id} page {page_number}"
+                ) from error
+            if existing.get("sha256") != sha or existing.get("image_uri") != image_uri:
+                raise EvidenceSubstrateError(
+                    f"page_artifact conflict for document {document_id} page {page_number}"
+                ) from error
+            return UUID(existing["id"])
         if not response.data:
             raise EvidenceSubstrateError(
                 f"page_artifacts insert returned no rows for document {document_id} page {page_number}"
             )
         return UUID(response.data[0]["id"])
+
+    def _find_page_artifact(self, document_id: UUID, page_number: int) -> Optional[dict]:
+        response = (
+            self._client.table("page_artifacts")
+            .select("id, image_uri, sha256")
+            .eq("document_id", str(document_id))
+            .eq("page_number", page_number)
+            .limit(1)
+            .execute()
+        )
+        rows = getattr(response, "data", None)
+        if isinstance(rows, list) and rows:
+            return rows[0]
+        return None
 
     # --- source_spans ---
 
@@ -168,14 +231,48 @@ class EvidenceSubstrateService:
             )
         if not rows:
             return []
-        response = (
-            self._client.table("source_spans").insert(rows).execute()
+        existing_response = (
+            self._client.table("source_spans")
+            .select("id, span_text, bbox_json, span_type, confidence, parser_version")
+            .eq("page_artifact_id", str(page_artifact_id))
+            .execute()
         )
-        if not response.data:
-            raise EvidenceSubstrateError(
-                f"source_spans bulk insert returned no rows for page_artifact {page_artifact_id}"
+        existing_rows = getattr(existing_response, "data", None)
+        existing_by_fingerprint = {
+            _source_span_fingerprint(existing): existing["id"]
+            for existing in existing_rows
+            if isinstance(existing_rows, list) and isinstance(existing, dict)
+        }
+        missing_rows = [
+            row for row in rows
+            if _source_span_fingerprint(row) not in existing_by_fingerprint
+        ]
+        inserted_rows = []
+        if missing_rows:
+            response = (
+                self._client.table("source_spans").insert(missing_rows).execute()
             )
-        return [UUID(r["id"]) for r in response.data]
+            if not response.data:
+                raise EvidenceSubstrateError(
+                    f"source_spans bulk insert returned no rows for page_artifact {page_artifact_id}"
+                )
+            inserted_rows = response.data
+        inserted_by_fingerprint = {
+            _source_span_fingerprint(inserted): inserted["id"]
+            for inserted in inserted_rows
+        }
+        result_ids = []
+        for row in rows:
+            fingerprint = _source_span_fingerprint(row)
+            row_id = existing_by_fingerprint.get(fingerprint)
+            if row_id is None:
+                row_id = inserted_by_fingerprint.get(fingerprint)
+            if row_id is None:
+                raise EvidenceSubstrateError(
+                    f"source_spans replay could not resolve row for page_artifact {page_artifact_id}"
+                )
+            result_ids.append(UUID(row_id))
+        return result_ids
 
     # --- extracted_fields ---
 

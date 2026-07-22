@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../config/app_config.dart';
+import 'document_service.dart';
 
 /// Server-side consent ledger client (Security Phase 2).
 ///
@@ -16,11 +16,10 @@ import '../config/app_config.dart';
 /// `getCurrentConsentAll` on app start to populate the local
 /// cache.
 class ServerConsentService {
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: AppConfig.baseUrl,
-    connectTimeout: Duration(seconds: AppConfig.connectTimeoutSeconds),
-    receiveTimeout: Duration(seconds: AppConfig.receiveTimeoutSeconds),
-  ));
+  final Dio _dio;
+
+  ServerConsentService({Dio? dio})
+      : _dio = dio ?? DocumentService.authenticatedDio;
 
   /// Record a consent event. The user_id is NOT in the body
   /// — the server extracts it from the Supabase Auth token
@@ -134,13 +133,16 @@ class ServerConsentRecord {
     );
   }
 
-  /// The 4 known consent types in v1. Mirrors the server
+  /// The 5 known consent types in v1. Mirrors the server
   /// enum; a drift here means the Flutter UI is showing a
   /// type the server does not recognize.
   static const Set<String> knownConsentTypes = {
     'privacy_policy',
+    'document_processing',
     'analytics',
     'marketing_emails',
     'camera_access',
+    'evaluation_dataset',
+    'model_improvement',
   };
 }
