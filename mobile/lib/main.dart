@@ -122,10 +122,9 @@ void main() async {
     // Now open encrypted Hive boxes
     await HiveWorkspaceService.openForActivePrincipal();
 
-    // Initialize analytics only after its AppState and ledger boxes exist.
-    // AnalyticsService.init() synchronously reads the session from AppStateStore;
-    // calling it earlier causes a first-launch HiveError before the UI mounts.
-    AnalyticsService.init();
+    // Analytics is initialized eagerly in _InsuranceAppState.initState()
+    // via ref.read(analyticsServiceProvider.notifier), which runs during
+    // runApp() after Hive/workspace boxes are open.
     // The custom API anonymous identity and the Supabase principal are
     // intentionally separate contracts. Acquire the API token only after the
     // principal-scoped Hive/analytics workspace exists, so identity-created
@@ -231,6 +230,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   @override
   void initState() {
     super.initState();
+    ref.read(analyticsServiceProvider.notifier);
     _showOnboarding = widget.showOnboarding;
     _authSubscription = ref.listenManual<AsyncValue<AuthState>>(
       authStateProvider,
@@ -291,13 +291,11 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
     _workspaceTransitionInProgress = true;
     try {
       // Do not carry account A's buffered analytics into account B's session.
-      await AnalyticsService.clear();
-      AnalyticsService.dispose();
+      ref.read(analyticsServiceProvider.notifier).resetForWorkspace();
       await HiveWorkspaceService.resetForPrincipal(
         principalId,
         preserveCurrentWorkspace: preserveCurrentWorkspace,
       );
-      AnalyticsService.init();
     } catch (error, stackTrace) {
       debugPrint('Workspace principal transition failed: $error');
       debugPrint('$stackTrace');

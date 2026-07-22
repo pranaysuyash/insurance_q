@@ -136,13 +136,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (AppConfig.hasRevenueCatConfig) {
         await ref.read(billingAdapterProvider).clearAccountIdentity();
       }
-      await AnalyticsService.clear();
+      ref.read(analyticsServiceProvider.notifier).resetForWorkspace();
       await ContactService.clearSavedContact();
-      AnalyticsService.dispose();
       await HiveWorkspaceService.resetForPrincipal(
         'local-only-${InstallService.getInstallId()}',
       );
-      AnalyticsService.init();
       debugPrint('Workspace data cleared on sign-out');
     } catch (e) {
       debugPrint('Error clearing workspace data on sign-out: $e');
