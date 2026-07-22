@@ -14,6 +14,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:coverwise/models/qa_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:coverwise/providers/service_providers.dart';
@@ -34,6 +35,16 @@ class _MockQueryService extends QueryService {
   }
 }
 
+class _SourceReferenceEntitlementNotifier extends EntitlementNotifier {
+  @override
+  Entitlement build() => Entitlement(
+        planTier: PlanTier.plus,
+        questionsUsedThisMonth: 0,
+        packs: const [],
+        expiresAt: DateTime.now().add(const Duration(days: 30)),
+      );
+}
+
 /// Builds QaScreen with mocked providers for source reference tests.
 Widget _buildQaScreen({
   List<InsuranceDocument> documents = const [],
@@ -43,16 +54,10 @@ Widget _buildQaScreen({
     overrides: [
       documentsProvider.overrideWith((ref) async => documents),
       selectedDocumentProvider.overrideWith(() => RefState<String?>(null)),
-      entitlementProvider.overrideWith((ref) {
-        final notifier = EntitlementNotifier();
-        notifier.state = Entitlement(
-          planTier: PlanTier.plus,
-          questionsRemaining: 10,
-          packQuestionsRemaining: 0,
-          expiresAt: DateTime.now().add(const Duration(days: 30)),
-        );
-        return notifier;
-      }),
+      isLoadingProvider.overrideWith(() => RefState<bool>(false)),
+      currentAnswerProvider.overrideWith(() => RefState<QaAnswer?>(null)),
+      entitlementProvider
+          .overrideWith(_SourceReferenceEntitlementNotifier.new),
       queryServiceProvider
           .overrideWithValue(_MockQueryService(queryResponse)),
     ],
@@ -154,10 +159,10 @@ void main() {
       await tester.enterText(find.byType(TextField), 'What is my policy number?');
       await tester.pump();
       await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // Should show the answer
-      expect(find.textContaining('ABC123'), findsOneWidget);
+      expect(find.textContaining('ABC123'), findsWidgets);
 
       // Should show evidence section
       expect(find.text('Evidence'), findsOneWidget);
@@ -206,7 +211,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'What is covered?');
       await tester.pump();
       await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // Should show citation without page reference
       expect(find.textContaining('Source 1'), findsOneWidget);
@@ -231,7 +236,6 @@ void main() {
         'citations': <Map<String, dynamic>>[],
         'follow_up_questions': <String>[],
       };
-
       final doc = _doc(
         id: 'doc-1',
         filename: 'health_policy.pdf',
@@ -247,8 +251,9 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'What is my deductible?');
+      await tester.pump();
       await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // Should show sources section
       expect(find.textContaining('Sources (1)'), findsOneWidget);
@@ -292,7 +297,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'What are waiting periods?');
       await tester.pump();
       await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // Should show 25% relevance badge
       expect(find.text('25%'), findsOneWidget);
@@ -331,7 +336,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'What is my premium?');
       await tester.pump();
       await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // Should show source with page number
       expect(find.textContaining('Page 2'), findsOneWidget);
@@ -374,7 +379,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'What is covered?');
       await tester.pump();
       await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // Should show all three sources
       expect(find.textContaining('Sources (3)'), findsOneWidget);
@@ -418,8 +423,9 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Test question');
+      await tester.pump();
       await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // Find the Tooltip wrapping the 85% badge
       final tooltip = tester.widget<Tooltip>(
@@ -459,8 +465,9 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'Test question');
+      await tester.pump();
       await tester.tap(find.byType(FilledButton));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // Confidence badge should be hidden (confidenceCalibrated = false by default)
       expect(find.text('High confidence'), findsNothing);

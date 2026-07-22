@@ -1,0 +1,50 @@
+{
+  "max_row": 150,
+  "capability_counts": {
+    "text ocr / extraction": {
+      "Yes": 121,
+      "Depends": 3,
+      "No": 13,
+      "Partial": 2,
+      "Via OCR": 2,
+      "Requires OCR": 7,
+      "Via pluggable OCR": 1
+    },
+    "layout awareness": {
+      "Yes": 89,
+      "Depends": 2,
+      "Partial": 39,
+      "No": 17,
+      "Via models": 1,
+      "Semantic": 1
+    },
+    "table extraction": {
+      "Yes": 91,
+      "Depends": 2,
+      "Partial": 18,
+      "No": 36,
+      "Via models": 1,
+      "Semantic": 1
+    },
+    "math / latex": {
+      "Yes": 34,
+      "Partial": 37,
+      "Depends": 3,
+      "No": 75
+    },
+    "header / section detection": {
+      "Yes": 86,
+      "Depends": 2,
+      "Partial": 18,
+      "No": 42,
+      "Via models": 1
+    },
+    "coordinates / reading order": {
+      "Yes": 110,
+      "Depends": 2,
+      "Partial": 31,
+      "No": 5,
+      "Via models": 1
+    }
+  }
+}

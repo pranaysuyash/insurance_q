@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 
 import 'app_state_store.dart';
@@ -13,9 +14,13 @@ import 'session_service.dart';
 /// not append the same current decision on every app start or upload.
 class ConsentSyncService {
   static final ConsentSyncService _instance = ConsentSyncService._();
-  factory ConsentSyncService() => _instance;
-  ConsentSyncService._();
+  factory ConsentSyncService({Dio? dio}) {
+    if (dio != null) return ConsentSyncService._(dio: dio);
+    return _instance;
+  }
+  ConsentSyncService._({Dio? dio}) : _dio = dio;
 
+  final Dio? _dio;
   Future<int>? _inFlight;
 
   Future<int> syncAll() {
@@ -56,7 +61,7 @@ class ConsentSyncService {
     add(ConsentPurpose.modelImprovement, ConsentPurpose.modelImprovement.value);
 
     var synced = 0;
-    final server = ServerConsentService();
+    final server = ServerConsentService(dio: _dio);
     for (final candidate in candidates) {
       final record = candidate.record;
       final signature =

@@ -112,7 +112,7 @@ class _AddFamilyMemberDialogState extends State<AddFamilyMemberDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _relationship,
+                initialValue: _relationship,
                 decoration: const InputDecoration(
                   labelText: 'Relationship',
                   prefixIcon: Icon(Icons.family_restroom_rounded),

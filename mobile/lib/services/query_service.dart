@@ -8,6 +8,13 @@ import 'demo_service.dart';
 
 class QueryService {
   static const Uuid _uuid = Uuid();
+
+  /// Maximum automatic retries for transient `/query` failures.
+  /// Each retry uses exponential backoff (1s, 2s, 4s…) so the backend
+  /// has time to recover from a temporary outage or rate-limit burst.
+  /// Set to 0 to disable automatic retries.
+  static const int _maxQueryRetries = 2;
+
   final Dio _dio;
   final LocalStorageService _localStorageService = LocalStorageService();
   final DemoService _demoService;
@@ -73,16 +80,43 @@ class QueryService {
 
         final sessionId = await SessionService.getSessionId();
 
-        Response response = await _dio.post(
-          '/query',
-          data: data,
-          options: Options(
-            headers: {'X-Session-ID': sessionId},
-            contentType: Headers.jsonContentType,
-            validateStatus: (status) => true,
-            receiveTimeout: const Duration(seconds: 60),
-          ),
-        );
+        Response response;
+        var retryCount = 0;
+        while (true) {
+          try {
+            response = await _dio.post(
+              '/query',
+              data: data,
+              options: Options(
+                headers: {'X-Session-ID': sessionId},
+                contentType: Headers.jsonContentType,
+                validateStatus: (status) => true,
+                receiveTimeout: const Duration(seconds: 60),
+              ),
+            );
+            break; // Success — exit retry loop
+          } on DioException catch (e) {
+            // Only retry transient transport failures: timeout and
+            // connection errors. Server 5xx responses are handled by
+            // the normal response path (validateStatus accepts all
+            // status codes), so they never reach this catch block.
+            final isTransient = e.type == DioExceptionType.connectionTimeout ||
+                e.type == DioExceptionType.sendTimeout ||
+                e.type == DioExceptionType.receiveTimeout ||
+                e.type == DioExceptionType.connectionError;
+
+            if (isTransient && retryCount < _maxQueryRetries) {
+              final delay = Duration(seconds: 2 << retryCount); // 2s, 4s
+              retryCount++;
+              debugPrint(
+                  'Query transient failure (attempt $retryCount), '
+                  'retrying in ${delay.inSeconds}s: ${e.type}');
+              await Future.delayed(delay);
+              continue;
+            }
+            rethrow;
+          }
+        }
 
         if (response.statusCode == 200) {
           final responseData = response.data;

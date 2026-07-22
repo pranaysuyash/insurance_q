@@ -26,10 +26,17 @@ if str(REPO_ROOT) not in sys.path:
 import fitz  # noqa: E402  # repo-root bootstrap must precede local imports
 from PIL import Image  # noqa: E402  # repo-root bootstrap must precede local imports
 from docx import Document  # noqa: E402  # native DOCX benchmark fixture
+from openpyxl import Workbook  # noqa: E402  # native XLSX benchmark fixture
+from pptx import Presentation  # noqa: E402  # native PPTX benchmark fixture
+from pptx.util import Inches  # noqa: E402
 
 from src.models.document_intelligence import build_document_cir  # noqa: E402
 from src.ocr.native_pdf import extract_native_pdf_nodes  # noqa: E402
-from src.ocr.native_office import extract_native_docx_document  # noqa: E402
+from src.ocr.native_office import (  # noqa: E402
+    extract_native_docx_document,
+    extract_native_pptx_document,
+    extract_native_xlsx_document,
+)
 from src.ocr.native_formats import (  # noqa: E402
     extract_native_eml_document,
     extract_native_html_document,
@@ -154,6 +161,34 @@ def _synthetic_eml() -> bytes:
         b"Content-Transfer-Encoding: base64\n\n"
         b"iVBORw0KGgo=\n--part--\n"
     )
+
+
+def _synthetic_xlsx() -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Benefits"
+    sheet.append(["Benefit", "Limit"])
+    sheet.append(["Hospitalization", 500000])
+    sheet.append(["Formula check", "=B2*2"])
+    output = io.BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def _synthetic_pptx() -> bytes:
+    presentation = Presentation()
+    slide = presentation.slides.add_slide(presentation.slide_layouts[5])
+    slide.shapes.title.text = "Health Policy"
+    textbox = slide.shapes.add_textbox(Inches(1), Inches(1.7), Inches(5), Inches(1))
+    textbox.text = "Coverage is subject to the policy schedule."
+    table_shape = slide.shapes.add_table(2, 2, Inches(1), Inches(3), Inches(5), Inches(1))
+    table_shape.table.cell(0, 0).text = "Benefit"
+    table_shape.table.cell(0, 1).text = "Limit"
+    table_shape.table.cell(1, 0).text = "Hospitalization"
+    table_shape.table.cell(1, 1).text = "500000"
+    output = io.BytesIO()
+    presentation.save(output)
+    return output.getvalue()
 
 
 def _normalize(text: str) -> str:
@@ -365,19 +400,36 @@ def _evaluate_case(
         if include_text:
             result["source_text"] = full_text
         return result
-    elif case["kind"] in {"generated_html_native", "generated_eml_native"}:
+    elif case["kind"] in {
+        "generated_html_native",
+        "generated_eml_native",
+        "generated_xlsx_native",
+        "generated_pptx_native",
+    }:
         if case["kind"] == "generated_html_native":
             source_bytes = _synthetic_html()
             native_document = extract_native_html_document(source_bytes)
             fixture_name = "generated:synthetic_html_native"
-        else:
+            file_type = "html"
+        elif case["kind"] == "generated_eml_native":
             source_bytes = _synthetic_eml()
             native_document = extract_native_eml_document(source_bytes)
             fixture_name = "generated:synthetic_eml_native"
+            file_type = "eml"
+        elif case["kind"] == "generated_xlsx_native":
+            source_bytes = _synthetic_xlsx()
+            native_document = extract_native_xlsx_document(source_bytes)
+            fixture_name = "generated:synthetic_xlsx_native"
+            file_type = "xlsx"
+        else:
+            source_bytes = _synthetic_pptx()
+            native_document = extract_native_pptx_document(source_bytes)
+            fixture_name = "generated:synthetic_pptx_native"
+            file_type = "pptx"
         cir = build_document_cir(
             filename=fixture_name,
             source_artifact_sha256=native_document["source_artifact_sha256"],
-            file_type="html" if case["kind"] == "generated_html_native" else "eml",
+            file_type=file_type,
             page_texts=native_document["page_texts"],
             parser_profile=native_document["parser_profile"],
             observed_nodes=native_document["nodes"],
@@ -402,7 +454,7 @@ def _evaluate_case(
             and all(token_matches.values())
             else "failed",
             "elapsed_seconds": round(time.monotonic() - started, 4),
-            "page_count": 1,
+            "page_count": len(native_document["page_texts"]),
             "observed_capabilities": sorted(observed),
             "required_capabilities": sorted(required),
             "missing_capabilities": sorted(required - observed),

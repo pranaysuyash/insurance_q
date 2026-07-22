@@ -21,6 +21,32 @@ EVAL_QUESTIONS = [
     {"question": "What is my policy number?", "expected_answer": "4214i", "category": "exact_field", "negative": False},
 ]
 
+
+def _extract_result_parts(rag_result: Dict[str, Any]) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """Read the canonical nested response and retain retrieved evidence.
+
+    Older callers sometimes returned a flat payload. Supporting that shape in
+    the evaluator keeps compatibility without confusing the generated answer
+    with the contexts retrieved from the index.
+    """
+    inner = rag_result.get("result", {}) if isinstance(rag_result, dict) else {}
+    if not isinstance(inner, dict):
+        inner = {}
+    sources = inner.get("sources", [])
+    if not isinstance(sources, list):
+        sources = []
+    return inner, [source for source in sources if isinstance(source, dict)]
+
+
+def _source_contexts(sources: List[Dict[str, Any]]) -> List[str]:
+    """Return immutable/source-grounded context strings for RAGAS."""
+    contexts = []
+    for source in sources:
+        text = source.get("source_text") or source.get("text") or ""
+        if str(text).strip():
+            contexts.append(str(text).strip())
+    return contexts
+
 def load_questions():
     path = os.path.join(os.path.dirname(__file__), "../../docs/eval/corpus/policy_qa_v1.json")
     if os.path.exists(path):
@@ -51,9 +77,8 @@ async def run_ragas_eval(rag_pipeline, eval_questions: List[Dict] = None):
                 results.append({"question": q["question"], "status": "error", "error": rag_result.get("error", "unknown"), "negative": q.get("negative", False)})
                 continue
             
-            inner = rag_result.get("result", {})
+            inner, sources = _extract_result_parts(rag_result)
             answer = inner.get("answer", "")
-            sources = inner.get("sources", [])
             citations = inner.get("citations", [])
             
             expected = q.get("expected_answer", "").lower()
@@ -71,6 +96,7 @@ async def run_ragas_eval(rag_pipeline, eval_questions: List[Dict] = None):
                 "negative": q.get("negative", False),
                 "answer": answer[:200],
                 "expected": q["expected_answer"],
+                "contexts": _source_contexts(sources),
                 "answer_contains_expected": contains_expected,
                 "has_sources": len(sources) > 0,
                 "has_citations": len(citations) > 0,
@@ -84,6 +110,7 @@ async def run_ragas_eval(rag_pipeline, eval_questions: List[Dict] = None):
     correct = sum(1 for r in results if r.get("answer_contains_expected"))
     has_sources = sum(1 for r in results if r.get("has_sources"))
     has_citations = sum(1 for r in results if r.get("has_citations"))
+    has_contexts = sum(1 for r in results if r.get("contexts"))
     
     neg_total = sum(1 for r in results if r.get("negative"))
     neg_wrong = sum(1 for r in results if r.get("negative") and not r.get("answer_contains_expected"))
@@ -93,6 +120,7 @@ async def run_ragas_eval(rag_pipeline, eval_questions: List[Dict] = None):
         "correct_answers": correct,
         "accuracy": correct / total if total > 0 else 0,
         "source_coverage": has_sources / total if total > 0 else 0,
+        "context_coverage": has_contexts / total if total > 0 else 0,
         "citation_rate": has_citations / total if total > 0 else 0,
         "hallucination_rate": neg_wrong / neg_total if neg_total > 0 else 0,
         "per_question": results,
@@ -111,7 +139,7 @@ async def run_ragas_eval(rag_pipeline, eval_questions: List[Dict] = None):
             if "answer" in r:
                 ragas_data["question"].append(r["question"])
                 ragas_data["answer"].append(r["answer"])
-                ragas_data["contexts"].append([r.get("answer", "")]) # Mock contexts with answer for now if needed, ideally source texts
+                ragas_data["contexts"].append(r.get("contexts", []))
                 ragas_data["ground_truth"].append(r.get("expected", ""))
         
         if ragas_data["question"]:

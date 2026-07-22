@@ -105,7 +105,10 @@ class QaAnswer {
           ));
         } else if (source is Map<String, dynamic>) {
           // Legacy format with source objects
-          parsedSources.add(QaSource.fromJson(source));
+          parsedSources.add(QaSource.fromJson(
+            source,
+            defaultDocumentId: json['document_id']?.toString(),
+          ));
         }
       }
     }
@@ -150,7 +153,7 @@ class QaSource {
     required this.score,
   });
 
-  factory QaSource.fromJson(dynamic json) {
+  factory QaSource.fromJson(dynamic json, {String? defaultDocumentId}) {
     // Handle both Map and String inputs
     if (json is String) {
       return QaSource(
@@ -160,7 +163,7 @@ class QaSource {
       );
     } else if (json is Map<String, dynamic>) {
       return QaSource(
-        documentId: json['document_id']?.toString() ?? '',
+        documentId: json['document_id']?.toString() ?? defaultDocumentId ?? '',
         pageNumber: json['page_number'] ?? json['page'],
         text: json['text']?.toString() ?? json.toString(),
         score: (json['score'] is num) ? (json['score'] as num).toDouble() : 1.0,

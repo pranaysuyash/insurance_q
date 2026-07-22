@@ -409,3 +409,52 @@ the doctr import is now deferred until OCR construction, and a missing local
 OCR dependency produces a bounded import error at scan time. Module import
 without doctr is covered by `tests/test_document_intelligence_contract.py`;
 actual scanned-document execution remains a separate runtime gate.
+
+## Addendum (2026-07-22) — local catalog recheck + model shortlist reconfirmation
+
+I re-ran the local catalog audit from
+`/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx` and
+did a fresh web sweep on 2026-07-22 frontier parsers.
+
+- The workbook remains a discovery inventory (149 catalog rows + separate recent-model and
+  general VLM sheets), not an independent accuracy benchmark.
+- `src/ocr/pipeline.py` pre-processing claims were corrected previously in this document; `_preprocess_image`
+  exists and is now used for low-confidence scan OCR fallback.
+- `src/ocr/capability_registry.py` and `tools/inspect_document_capabilities.py` remain the
+  canonical operator truth for what is truly active.
+- Frontiers to track by role:
+  - **Docling v2 / DoclingDocument**: unified representation with layout/provenance
+    in first-party docs, strong long-term fit for CIR conversion contracts.
+  - **PaddleOCR-VL-1.6**: documented SOTA trajectory on OmniDocBench-style parsing,
+    strongest within its family for table/layout/region parsing.
+  - **Surya OCR**: strongest local all-in-one OCR+layout+reading-order+table+LaTeX candidate,
+    with clear non-handwriting note points in its own docs.
+  - **HunyuanOCR-1.5 / Unlimited-OCR / ABot-OCR / TexOCR / PaddleOCR-VL**: specialist
+    OCR/document models tracked in the workbook’s 2024+ sheet and available as
+    gated specialist candidates.
+
+No gate is closed by search alone. The long-lived route remains:
+native extraction first, specialized parser/vision route on evidence gates, and never
+claiming derived semantics as source truth.
+
+### Addendum (2026-07-22) — reproducible lane shortlist extraction from catalog
+
+To remove manual drift, the capability shortlist below is regenerated from the
+workbook directly (no inference from docs):
+
+- Source file: `/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx`
+- Parsed sheets: `Master Catalog` (149 rows), `Coverage Audit` (12 rows), `Recent Models 2024+` (77 rows).
+- Extraction method: `openpyxl` row scan with `Capability breadth score >= 12` and
+  `Scope label == Broad` as the shortlist predicate for generalist candidates.
+
+Current shortlists (illustrative top-10 by score per capability column):
+
+- Text/OCR: Docling, SmolDocling, MinerU, Marker, LlamaParse, Docling Serve, PDF-Extract-Kit, Surya, PaddleOCR PP-Structure, Pix2Text.
+- Layout + section model: Docling, SmolDocling, MinerU, Marker, LlamaParse, Docling Serve, PDF-Extract-Kit, Surya, PaddleOCR PP-Structure, Pix2Text.
+- Tables: Docling, SmolDocling, MinerU, Marker, LlamaParse, Docling Serve, PDF-Extract-Kit, Surya, PaddleOCR PP-Structure, TATR/GMFT/img2table (as specialist candidates).
+- Math/formula: Docling, MinerU, Marker, LlamaParse, Mathpix OCR, Pix2Text, Surya, ScholarPhi / PaperMage, PDF-Extract-Kit.
+- Images/figures: Docling, MinerU, Marker, LlamaParse, Mistral OCR annotations, Gemini, OpenAI vision-class APIs, Donut-class doc-figure extractors (as derived layers).
+
+This keeps the catalog in the correct role: capability envelope discovery, not a
+deployment claim. Production closure still requires explicit fixture coverage in
+`docs/eval/document_intelligence/capability_manifest_v1.json` plus local/runtime evidence gates in the registry and operator tools.

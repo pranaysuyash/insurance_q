@@ -19,6 +19,8 @@ import '../services/consent_sync_service.dart';
 import '../services/contact_service.dart';
 import '../services/ml_ocr_service.dart';
 import '../services/web_file_picker.dart';
+import '../services/drag_drop_service.dart';
+import '../widgets/drop_zone.dart';
 import 'paywall_screen.dart';
 import '../theme/coverwise_motion.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
@@ -458,6 +460,81 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     }
   }
 
+  /// Validates a dropped file's extension and size, then routes it through
+  /// the existing upload pipeline (single file for one, batch for multiple).
+  Future<void> _handleDroppedFiles(List<DragDropEvent> files) async {
+    if (files.isEmpty) return;
+
+    if (files.length == 1) {
+      final file = files.first;
+      final ext = file.name.split('.').last.toLowerCase();
+      if (!_supportedExtensions.contains(ext)) {
+        if (!mounted) return;
+        setState(() => _uploadError = S.fileTypeUnsupported);
+        return;
+      }
+      if (file.size > AppConfig.maxUploadFileSizeBytes) {
+        if (!mounted) return;
+        setState(() => _uploadError =
+            'This file is too large (${_formatFileSize(file.size)}). ${S.fileTypeMaxSize}.');
+        return;
+      }
+      setState(() {
+        _selectedWebFile = WebPickedFile(name: file.name, bytes: file.bytes);
+        _selectedFile = null;
+        _selectedFileSize = file.size;
+        _useOnDeviceOcr = false;
+        _showUploadDetails = true;
+      });
+      // Single dropped files go through the same upload review step.
+      return;
+    }
+
+    // Multiple files: use the batch upload path.
+    final entries = <BatchUploadEntry>[];
+    for (final file in files) {
+      final ext = file.name.split('.').last.toLowerCase();
+      if (!_supportedExtensions.contains(ext)) {
+        entries.add(BatchUploadEntry(
+          fileName: file.name,
+          fileSizeBytes: file.size,
+          isWebFile: true,
+          state: BatchUploadState.skipped,
+          errorMessage: S.batchFileUnsupported,
+        ));
+        continue;
+      }
+      if (file.size > AppConfig.maxUploadFileSizeBytes) {
+        entries.add(BatchUploadEntry(
+          fileName: file.name,
+          fileSizeBytes: file.size,
+          isWebFile: true,
+          state: BatchUploadState.skipped,
+          errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+        ));
+        continue;
+      }
+      entries.add(BatchUploadEntry(
+        fileName: file.name,
+        fileSizeBytes: file.size,
+        isWebFile: true,
+        webFileBytes: file.bytes,
+        webFileName: file.name,
+      ));
+    }
+
+    if (entries.isEmpty) return;
+    setState(() {
+      _batchEntries
+        ..clear()
+        ..addAll(entries);
+      _batchCompleted = 0;
+      _batchFailed = 0;
+    });
+    // Trigger batch upload immediately for dropped files.
+    _uploadBatch();
+  }
+
   String _formatFileSize(int bytes) {
     if (bytes > 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
@@ -840,7 +917,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               tooltip: 'Refresh Document Types'),
         ],
       ),
-      body: Column(
+      body: DropZone(
+        onFilesDropped: _handleDroppedFiles,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const CoverWisePageHeader(
@@ -952,7 +1031,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                             ),
                             if (_useOnDeviceOcr)
                               DropdownButtonFormField<OnDeviceOcrScript>(
-                                value: _onDeviceOcrScript,
+                                initialValue: _onDeviceOcrScript,
                                 isExpanded: true,
                                 decoration: const InputDecoration(
                                   labelText: 'Document language',
@@ -1160,6 +1239,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

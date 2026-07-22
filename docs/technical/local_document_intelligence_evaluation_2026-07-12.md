@@ -216,6 +216,38 @@ paths. This is Tier 2 evidence. Persisted CIR-to-source-span resolution,
 real multi-page Docling output, and specialist table/formula/form adapters
 remain Tier 3 gates.
 
+## Addendum (2026-07-22) — catalog expansion + web capability parity check
+
+Beyond the local benchmark lane, we reconfirmed capability lanes with external
+docs from the same tool classes before route decisions:
+
+- PaddleOCR PP-StructureV3 is positioned as a document-structure pipeline with
+  layout, table, and formula recognition emphasis.
+- Google Document AI Form Parser documents key-value extraction, table extraction,
+  and checkbox/selection-mark coverage in its product API.
+- Amazon Textract lists forms, tables, signatures, and layout keys in its
+  analysis path.
+- Docling and Surya both position themselves as layout + reading-order capable,
+  while Mistral OCR exposes paragraph-level bounding boxes and optional table
+  formats.
+
+This does not change the local launch default order, but it does tighten the
+candidate map:
+
+- **Keep Docling** as the primary broad local candidate for structure-rich
+  PDFs once the runtime/cost/license checks are stable.
+- **Keep Surya/PaddleOCR/PP-Structure** as specialist recovery lanes for scans
+  where native text fails.
+- **Keep managed form providers** (Document AI / Azure DI / Textract) only as a
+  governed cloud fallback for KVP / selection-mark workflows with explicit
+  consent and residency gating.
+- **Keep VLM image understanding** as bounded, non-source derived annotation
+  until chart/diagram semantics are benchmarked on policy forms and disclaimers.
+
+See `docs/technical/document_parser_capability_catalog_2026-07-22.md` for the
+full catalog lane inventory and `docs/technical/document_intelligence_capability_matrix_2026-07-21.md`
+for the final routing sequence.
+
 The reusable capability manifest subsequently ran its generated doctr scan
 case successfully: `Health Policy`, `500000`, and `POLICY-TEST-001` were all
 recovered in 2.314 seconds. The report is

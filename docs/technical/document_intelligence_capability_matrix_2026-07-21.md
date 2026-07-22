@@ -64,6 +64,38 @@ most expensive model.
 | Evidence | Durable page artifacts/source spans/extracted fields/field evidence exist | `src/services/document_processing_service.py`, `src/services/evidence_substrate_service.py` | CIR nodes with text and geometry now persist as source spans; extend the substrate/CIR rather than creating a parallel parser output store. |
 | Optional parser imports | `DOCLING_ENABLED` and `MINERU_ENABLED` are false by default; doctr is imported when `OCRPipeline` is constructed | `src/config/settings.py`, `src/ocr/pipeline.py` | The canonical production image includes doctr; the slim dependency profile must not be used for customer deployment. |
 
+### Addendum — local catalog inventory snapshot (2026-07-22)
+
+We ingested `/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx`
+in-code and persisted a derived artifact at
+`docs/technical/document_parser_capability_catalog_2026-07-22.md`.
+
+Key counts from the `Master Catalog` (149 rows):
+
+- Text OCR: Yes 121, Partial 2, Depends 3, No 13, OCR-dependent 10
+- Layout awareness: Yes 89, Partial 39, Depends 2, No 17
+- Table extraction: Yes 91, Partial 18, Depends 2, No 36
+- Math / LaTeX: Yes 34, Partial 37, Depends 3, No 75
+- Header / section detection: Yes 86, Partial 18, Depends 2, No 42
+- Coordinates / reading order: Yes 110, Partial 31, Depends 2, No 5
+
+This is capability breadth evidence, not runtime accuracy proof. The capability
+status used by production pathing still comes from:
+
+- `docs/technical/local_document_intelligence_evaluation_2026-07-12.md`
+- `docs/technical/local_document_intelligence_evaluation_2026-07-22.md`
+- `docs/eval/document_intelligence/capability_manifest_v1.json`
+- `src/ocr/capability_registry.py`
+
+Interpretation for route design:
+
+- **Strong lanes already represented in the catalog:** raw text, tables, layout,
+  reading order, sentence-level text nodes when format allows it.
+- **Weak or specialist lanes by evidence depth:** formulas, handwriting,
+  chart/diagram interpretation, and selection-mark semantics.
+- **High-leverage next gap:** no capability gains without a typed CIR adapter and
+  manifested benchmark gates for scan tables, forms, and formulas.
+
 ### Addendum — mixed-page extraction truthfulness (2026-07-21)
 
 The canonical `DocumentProcessingService` now preserves mixed-PDF capability
@@ -400,9 +432,147 @@ The runtime registry now mirrors the actual product vocabulary: sentence segment
 | Forms, key/value, marks | Native AcroForm widget evidence is implemented; semantic scanned form extraction is not. | Benchmark managed form parsers and Paddle KIE with schema validation and manual-review states. |
 | Figures, images, charts, diagrams | Embedded-image bytes are hash-preserved; semantic interpretation is not source evidence. | Add crop/bbox/caption relations and a bounded derived-annotation schema. |
 | Formulas, handwriting, multilingual accuracy | No production formula/handwriting profile; Unicode script observation is routing metadata only. | Benchmark specialist profiles on consented fixtures and default uncertainty to review. |
-| DOCX/PPTX/XLSX/HTML/email | Native DOCX, HTML, and EML paragraphs/headings, tables/cells, image references, and attachment hashes now enter the CIR; PPTX/XLSX remain open. | Add format-specific adapters only behind the same CIR and relationship/provenance fixtures. |
+| DOCX/PPTX/XLSX/HTML/email | Native DOCX, HTML, EML, XLSX/XLSM, and PPTX structure now enters the CIR; formula semantics and visual interpretation remain open. | Add format-specific relationship fixtures and specialist quality benchmarks. |
 | VLM/LLM semantic extraction | Downstream of source evidence; image/VLM annotation remains candidate/unverified. | Require schema validation, source references, unsupported-claim checks, privacy/retention approval, and cost/latency metrics. |
 
 Docling is the strongest broad local CIR candidate because its first-party representation includes text, tables, pictures, hierarchy, layout, provenance, key/value items, and reading order. Surya is the strongest local specialist comparison for OCR, layout, reading order, tables, and LaTeX OCR, with its own printed-document and non-handwriting limits respected. PaddleOCR PP-Structure/PaddleOCR-VL is the strongest specialist comparison for layout, tables, KIE, and document-VLM parsing. MinerU remains isolated until current code/weights licensing, resources, and CoverWise corpus results are reviewed together.
 
-We will not install every catalog entry into the customer image: conflicting weights, platform constraints, licensing obligations, and unmeasured fallback behavior would make the system less trustworthy. Each candidate must earn promotion through fixture, provenance, privacy, license, latency, and recovery gates. Inspect the current runtime state with `.venv/bin/python tools/inspect_document_capabilities.py`. The strict eight-case manifest now covers native text/layout, native table/figure, scanned OCR, mixed native/scanned OCR, native forms, DOCX, HTML, and EML structure. It still does not close scanned tables, semantic form interpretation, formula fidelity, handwriting, multilingual accuracy, PPTX/XLSX structure, or VLM image understanding; those remain explicit launch-gated work.
+We will not install every catalog entry into the customer image: conflicting weights, platform constraints, licensing obligations, and unmeasured fallback behavior would make the system less trustworthy. Each candidate must earn promotion through fixture, provenance, privacy, license, latency, and recovery gates. Inspect the current runtime state with `.venv/bin/python tools/inspect_document_capabilities.py`. The strict ten-case manifest now covers native text/layout, native table/figure, scanned OCR, mixed native/scanned OCR, native forms, DOCX, HTML, EML, XLSX, and PPTX structure. It still does not close scanned tables, semantic form interpretation, formula fidelity, handwriting, multilingual accuracy, or VLM image understanding; those remain explicit launch-gated work.
+
+## Addendum — native XLSX/PPTX structure closure (2026-07-22)
+
+The canonical service now routes `.xlsx`/`.xlsm` through `openpyxl-native` and
+`.pptx` through `python-pptx-native`, both into the existing CIR rather than a
+parallel text store. XLSX preserves worksheet identity, cell coordinates,
+data types, formula text, and embedded-image hashes when present. PPTX
+preserves slide identity, title/text-shape order, table/cell coordinates, and
+embedded-picture hashes when present. The project `.venv` contains
+`openpyxl==3.1.5` and `python-pptx==1.0.2`, and both are pinned in
+`requirements.txt`.
+
+The manifest now has ten executable cases and all ten pass with the local
+`doctr` OCR profile (synthetic Tier 2 evidence). This closes deterministic
+Office structure, not formula semantics, scanned-table recognition, chart
+interpretation, handwriting, multilingual accuracy, VLM understanding, or
+specialist corpus quality.
+
+## Addendum — capability-by-capability inventory and frontier comparison (2026-07-22)
+
+The local workbook was re-read from the exact file path:
+`/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx`.
+Its `Master Catalog` has 149 entries across OCR, layout, tables, math, and
+image-aware parsers; `Coverage Audit` confirms it is a discovery map and not a
+benchmark verdict or a deployment manifest.
+
+| Capability lane | Catalog-level candidates (ranked for coverage breadth) | CoverWise status today | What closes the lane |
+| --- | --- | --- | --- |
+| Document text + sentence structure | Docling, SmolDocling, MinerU, Marker, LlamaParse, Docling Serve, PDF-Extract-Kit | Native PDF text, conservative sentence nodes with exact offsets; doctr for scan OCR when available | Word/line boundaries, language-aware boundary tests, and low-confidence fallback review metrics |
+| Layout, hierarchy, reading order | Docling, SmolDocling, MinerU, Marker, LlamaParse, Docling Serve, PDF-Extract-Kit, PP-Structure | Native page geometry + emitted order for born-digital pages; image OCR pages emit OCR blocks but no full semantic heading tree | Reading-order and heading hierarchy fixtures for nested sections, multi-column, rotated/low-DPI scans |
+| Tables (born-digital + scanned) | Docling, MinerU, Marker, LlamaParse, Docling Serve, PDF-Extract-Kit, PP-Structure | Born-digital table/cell nodes exist; scanned-table/table-structure reconstruction is not yet production-available | PP-Structure, Surya, TATR/GMFT/img2table, or MinerU specialist adapters with cell provenance + schema fidelity and failure telemetry |
+| Figures/images, charts, diagrams | Docling, MinerU, Marker, LlamaParse, PP-Structure, PaddleOCR-VL, Mistral OCR, Gemini, OpenAI vision | Canonical artifact retention (page image + hashes) is in place; semantic image/figure meaning remains derived-only | Bounded image-to-source mapping (crop/bbox/caption), annotation schema, and non-citation mode for derived text |
+| Form/fill fields + selection marks | Docling, MinerU, PP-Structure, managed form APIs (Azure DI, Google Document AI, Textract), Paddle KIE | Native AcroForm widgets are implemented; scanned key/value and marks are not yet production-available | Structured KVP fixtures with schema/owner contracts, review states, and confidence calibration |
+| Formula/math extraction | Docling, MinerU, Marker, LlamaParse, Mathpix OCR, Pix2Text, Nougat, TexOCR | No production formula lane; formula text and LaTeX are not currently parsed into source spans | Specialist formula pipeline with cell-level/region-level lineage, latex normalization, and policy-domain validation |
+| Office/web/email structure | Open-source parsers for DOCX/PPTX/XLSX/HTML/EML (`python-docx`, `openpyxl`, `python-pptx`, `trafilatura`, `mailparser` family) plus Docling/Open-source ETL | DOCX, HTML, EML, XLSX, XLSM, PPTX now emit CIR-native structure through the same evidence path | Relationship-level fixtures and format-specific relationship constraints where spreadsheets/charts/forms overlap |
+| Multilingual + handwriting + low-resource scripts | Surya, PP-OCR, PaddleOCR families, Docling, multilingual VLM paths | Unicode script observation is implemented; no production multilingual handwriting lane | Script-specific OCR accuracy benchmarks and handwriting routing with manual review fallback |
+
+Web reconfirmation from 2026-07-22 did not replace this router design; it only
+strengthened the shortlist. Docling v2 introduced explicit unified `DoclingDocument`
+and structured provenance in its canonical docs, and PaddleOCR-VL 1.6 reports
+state-of-the-art OmniDocBench results for document parsing, while Surya remains the
+strongest local competitor for OCR+layout+tables+LaTeX in one stack. This is
+model strength signal only, not production readiness.
+
+### Capability-by-capability evidence tiers (2026-07-22)
+
+For each capability lane below, the catalog claim is treated as a discovery
+signal, while `docs/eval/document_intelligence/capability_manifest_v1.json` and
+`src/ocr/capability_registry.py` are treated as the only production
+evidence boundary.
+
+| Capability lane | Catalog shortlist (examples) | Live proof now | Evidence tier now | Hard gate to close |
+| --- | --- | --- | --- | --- |
+| Text / sentence extraction | Docling, SmolDocling, MinerU, Marker, Surya, Unstructured, LlamaParse, Zerox, Textract APIs | Native PDF text + conservative sentence nodes + OCR fallback in `scanned_ocr` | 2 | Add multilingual word/line boundary fixtures and low-confidence sentence-boundary telemetry against a consented corpus. |
+| Layout, hierarchy, reading order | Docling, SmolDocling, MinerU, Marker, Surya, PP-Structure, Unstructured, LlamaParse | Page geometry, block order persistence, and C-I-R emission | 2 | Add nested sections, multi-column, rotated, and low-DPI fixture suite before semantic heading assertions are treated as source-grounded. |
+| Tables (born-digital and scanned) | Docling, SmolDocling, MinerU, Marker, LlamaParse, Surya, PP-Structure, PDF-Extract-Kit, TATR/GMFT/img2table | Born-digital tables/cells currently emitted through native parsers and PDF path | 2 | Scanned-table lane requires merged-cell and borderless-table fixtures with source-to-cell span mapping and partial-success telemetry. |
+| Figure/image/charts understanding | Docling, MinerU, Marker, LlamaParse, PaddleOCR-VL, Mistral OCR, Gemini, Donut/Mathpix-class VLMs for figure context | Canonical page-image retention + hash references | 2 | Add bounded image crop/prompt schema and anti-hallucination policy: derived annotations can never substitute source text. |
+| Forms, key-value, marks | Azure DI, Google Document AI, Textract, Paddle KIE, MinerU, PP-Structure | Native AcroForm only is production-safe | 1 | Add specialist KVP/mark profiles with schema validation, uncertainty banding, and review state transitions before policy fields are surfaced. |
+| Formula/math lane | MinerU, Surya, Marker, LlamaParse, Mathpix OCR, Pix2Text, TexOCR, Nougat, Donut | No production formula lane yet | 0 | Add source-linked LaTeX/MathML extraction with cell-level provenance before any formula-derived policy reasoning. |
+| Office/web/email structural extraction | Docx/PPTX/XLSX parse stacks (`python-docx`, `python-pptx`, `openpyxl`, `trafilatura`, `mailparser`) + Docling-native ETL | DOCX/HTML/EML/XLSX/XLSM/PPTX CIR-native structure now live | 2 | Add relationship-level fixture closure for charts/images/forms and malformed container behavior. |
+| Multilingual + handwriting + low-resource scripts | Surya, PP-Structure, PaddleOCR family, managed document IDPs, multilingual VLM paths | Script observation only; routing by script family | 1 | Add corpus-stratified language accuracy metrics, unsupported-language routing, and explicit manual-review fallback for handwritten/misreadable content. |
+
+Frontier references checked:
+
+- [Docling v2](https://docling-project.github.io/docling/v2/)
+- [Docling concepts: DoclingDocument](https://docling-project.github.io/docling/concepts/docling_document/)
+- [PaddleOCR-VL-1.6](https://www.paddleocr.ai/main/en/version3.x/algorithm/PaddleOCR-VL/PaddleOCR-VL-1.6.html)
+- [Surya OCR/layout repo](https://github.com/datalab-to/surya)
+- [HunyuanOCR-1.5 paper](https://arxiv.org/abs/2607.04884)
+
+### 2026-07-22 requested-capability matrix (text/sentences/structure/layout/tables/images)
+
+This matrix is explicit for the capability classes you listed and maps catalog lane →
+runtime ownership → remaining gate.
+
+| Capability class | Current catalog evidence signal | CoverWise runtime owner today | Launch gate to mark as "owned" |
+|---|---|---|---|
+| Text + sentence extraction | Fixed columns show high text coverage (`121/149 Yes` text, strong OCR/parser pool) | `native_text` + `sentence_segmentation` implemented; `scanned_ocr` available with doctr profile | language-specific word/line/sentence fixture suite, failure telemetry, confidence calibration |
+| Document structure / sections | `Header / section detection` shows `86/149 Yes`; fixed `coordinates / reading order` strong (`110/149`) | `layout` + `reading_order` available; `headings_and_sections` remains candidate | heading hierarchy + nesting fixtures, rotated/multi-column/low-DPI structural recovery |
+| Layouts + ordering | Broad fixed-column signal (`89/149 Yes` layout awareness, `110/149` coordinates) | page geometry + block sequence are present in CIR; native artifact ordering preserved | cross-tool ordering stability and nested structure evidence for complex layouts |
+| Tables (digital + scanned recovery) | `91/149 Yes` in fixed table column plus paper/table specialist families in `Typical outputs` | native table/table-cell nodes available; scanned-table recovery lane is not production-closed | scanned-table, merged-cell, borderless, and malformed-table benchmark lane with source-level cell spans |
+| Images / figures / charts (semantic) | No dedicated catalog column; inferred from outputs and VLM sheets (image crop/figure outputs in candidates) | `figures` structural artifact retention is owned; `charts_and_diagrams`, `image_understanding`, `vlm_annotation` candidates | crop/bbox/caption lineage, bounded derived-annotation schema, anti-hallucination rule for captions |
+| Forms + key/value + marks | No explicit fixed column for forms; specialist form API families dominate research notes | `forms` owned for native widgets only; key/value candidate; marks unavailable | specialist KVP/marks specialist profiles with schema and review state closure |
+| Formula / equations | `34/149 Yes` math/LaTeX and multiple formula families in notes | `formulas` candidate only | source-linked formula lane with region lineage, normalization, and policy-domain validation |
+| Office/web/email structure | Structured outputs in native adapters and catalog research notes | `office_and_email_structure` available through CIR | relationship-level integrity across embedded content/relationships and error-mode fixtures |
+| Multilingual + handwriting | No dedicated fixed language-accuracy column; script-level signal absent from fixed lane | `multilingual` routing-only; `handwriting` unavailable | script/language-stratified OCR, unsupported-language and handwritten fallback policy with explicit manual-review |
+
+### 2026-07-22 frontier ownership matrix (requested capability classes)
+
+This is the practical go/no-go matrix for your specific capability classes:
+
+| Capability class | Strongest catalog-supported families (what to benchmark first) | Current CoverWise owned lane | What is still open for production claim |
+| --- | --- | --- | --- |
+| Text + sentence extraction | Docling, SmolDocling, MinerU, Surya, PDF-Extract-Kit, OpenParse | `native_text`, `sentence_segmentation`, `scanned_ocr` | Word-level + sentence-boundary accuracy by language/locale; low-confidence fallback behavior |
+| Structures + section hierarchy | Docling, Surya, MinerU, PP-Structure, Marker, LlamaParse | `layout`, `reading_order`, `headings_and_sections(candidate)` | Heading-depth/nesting semantics, rotated/multi-column structure, footer/header distinction |
+| Layout + reading order | DoclingDocument, Surya/PP-Structure layout stacks, PaddleOCR-VL | `layout`, `reading_order` | Cross-tool ordering consistency on complex schedules and scanned/rotated pages |
+| Tables (digital + scanned) | Docling, Surya/PP-Structure, MinerU, TATR, GMFT, img2table | `tables` (born-digital), `native` table/cell adapters | Scanned-table reconstruction and merged/borderless table recovery with span-aware provenance |
+| Images + figures + charts | Docling, Marker, PaddleOCR-VL, MinerU, Mistral OCR, Gemini | `figures` (artifact lineage), `charts_and_diagrams`/`vlm_annotation` candidates | Bounded crop→bbox→caption provenance, anti-hallucination policy, and non-citation default for derived semantics |
+| Forms / KVP / marks | Azure DI, Google Document AI, Textract, Paddle KIE, PP-Structure KIE | `forms` + native AcroForm, `key_value_extraction(candidate)`, `selection_marks(unavailable)` | Specialist KVP/mark profile with schema + uncertainty + reviewer state machine |
+| Formula / math / LaTeX | MinerU, Surya, PaddleOCR PP-Structure, Mathpix/Nougat/Pix2Text | `formulas(candidate)` | No source-linked formula production lane today; region/span provenance and normalization missing |
+| Office/web/email structure | python-docx, python-pptx, openpyxl, trafilatura, mailparser, Docling | `office_and_email_structure` | Relationship-preservation and malformed-container behavior for nested structures |
+| Multilingual + handwriting | Surya, PaddleOCR, LayoutXLM/LiLT, managed document-intelligence | `multilingual(routing_only)`, `handwriting(unavailable)` | Script-stratified accuracy gates and handwritten routing/review policy |
+
+### 2026-07-22 per-class frontier shortlist (discovery + runtime)
+
+This matrix adds explicit "who owns what today" plus the best discovery candidates
+to validate next from the local workbook and local sweeps.
+
+Evidence bundle:
+
+- `docs/technical/document_parser_capability_catalog_2026-07-22.md`
+- `docs/review/evidence/local-model-eval/capability_frontier_candidates_2026-07-22.json`
+- `docs/review/evidence/local-model-eval/capability_gate_run_2026-07-22-doctr.json`
+
+| Capability class | Discovery candidates (local catalog/frontier) | Source-anchored CoverWise lane | Current production status | First hard gate |
+|---|---|---|---|---|
+| Text / OCR | Docling, SmolDocling, MinerU, Marker, Unstructured, OpenParse | `native_text`, `sentence_segmentation`, `scanned_ocr` | Tier 2 structural extraction; synthetic OCR cases passed | Language-specific word/line boundary and confidence calibration on consented corpus |
+| Sentences | Docling/Surya families + sentence-aware parser families | `sentence_segmentation` with exact offsets and conservative split rules | Structural-only for now; accuracy by language still open | Multilingual sentence-boundary fixture suite and punctuation-edge behavior |
+| Structures / sections | Docling, Surya, MinerU, Marker, PP-Structure, LlamaParse | `layout`, `reading_order`, `headings_and_sections(candidate)` | Block geometry and ordering are source-anchored; heading hierarchy is not | Heading-depth + nested-structure fixtures, rotated/multicolumn cases |
+| Layout + reading order | DoclingDocument, Surya/PP-Structure, PaddleOCR-VL | `layout`, `reading_order` + emitted block order | Tier 2 source ordering for native pages; complex ordering is benchmark-open | Multi-tool order consistency and complex-page semantic ordering fixtures |
+| Tables (digital + scanned) | Docling, Surya, MinerU, PaddleOCR-PP Structure, TATR/GMFT/img2table | `tables` + native table/cell adapters | Born-digital tables/cells are covered; scanned-table reconstruction is open | Merged-cell, borderless, low-quality, and malformed-table benchmarks |
+| Images / figures / charts | Docling, Marker, LlamaParse, Mistral OCR, Gemini, OpenAI vision | `figures` + `charts_and_diagrams`/`image_understanding` candidates + image hashes | Structural artifact retention is owned; semantic claims remain derived | Bounded crop→bbox→caption provenance + anti-hallucination policy |
+| Forms / KVP / marks | Azure DI, Google Document AI, Textract, Paddle KIE, PP-Structure KIE | `forms` owned for native widgets; `key_value_extraction(candidate)`, `selection_marks(unavailable)` | Native AcroForm is owned; KVP/marks remain open | Specialist KVP/marks adapters with geometry schema + reviewer state |
+| Formula / math | MinerU, Surya, PaddleOCR PP-Structure, Mathpix, Pix2Text, Nougat | `formulas(candidate)` only | No production formula lane | Formula region/span provenance and normalization before any policy claim |
+| Office / web / email structure | python-docx, python-pptx, openpyxl, trafilatura, mailparser | `office_and_email_structure` | Core structure is owned; relationship constraints are open | Malformed container and relationship-preservation adversarial fixtures |
+| Multilingual + handwriting | Surya, PaddleOCR, LayoutXLM/LiLT, managed DI | `multilingual(routing_only)`, `handwriting(unavailable)` | Script observation is implemented; quality gates pending | Script/locale OCR + handwriting corpus gates plus manual-review fallback |
+
+### 2026-07-22 executed local evidence snapshot
+
+- `capability_gate_run_2026-07-22.json` (no OCR profile): mixed native/form/table/office cases passed with `all_executed_cases_passed=true` and `not_run_cases=2`.
+- `capability_gate_run_2026-07-22-doctr.json` (`--ocr-profile doctr`): native, scanned, mixed-scan, and office cases passed with `all_executed_cases_passed=true`, and scanned-ocr paths now produce explicit `scanned_ocr`.
+- Registry snapshot (`capability_registry_snapshot`) now reports `scanned_ocr=available`, `headings_and_sections=candidate`, `selection_marks=unavailable`, and `handwriting=unavailable` in the active environment.
+
+## Operational interpretation
+
+- Keep parser diversity in the catalog as route candidates, not defaults.
+- Keep runtime `available` statuses as operational truth only; everything `candidate`/`routing_only` remains in specialist lanes.
+- Do not use VLM/image-derived outputs as source-citation text until the bounded annotation gate is passed.

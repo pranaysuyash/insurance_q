@@ -16,7 +16,6 @@ void main() {
   setUp(() async {
     box = Hive.box<dynamic>(AppStateStore.boxName);
     final consentBox = Hive.box<dynamic>('consent_ledger');
-    // Clear consent and analytics buffer before each test.
     await consentBox.clear();
     await box.delete(AppStateStore.analyticsEventsKey);
     AnalyticsService.clear();

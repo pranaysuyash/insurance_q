@@ -52,7 +52,7 @@ class HiveWorkspaceService {
     await Hive.openBox(AppStateStore.boxName, encryptionCipher: cipher);
     await Hive.openBox<String>('resolved_gaps', encryptionCipher: cipher);
     await Hive.openBox<String>('analytics_events', encryptionCipher: cipher);
-    await Hive.openBox<String>('consent_ledger', encryptionCipher: cipher);
+    await Hive.openBox('consent_ledger', encryptionCipher: cipher);
     await Hive.openBox<String>('qa_history', encryptionCipher: cipher);
     await Hive.openBox<String>('field_overrides_box', encryptionCipher: cipher);
     await Hive.openBox<String>('entitlements', encryptionCipher: cipher);
@@ -71,31 +71,55 @@ class HiveWorkspaceService {
     if (preserveCurrentWorkspace) {
       for (final boxName in _claimPreservedBoxNames) {
         if (Hive.isBoxOpen(boxName)) {
-          workspaceEntries[boxName] = {
-            for (final key in Hive.box(boxName).keys)
-              if (boxName != AppStateStore.boxName ||
-                  !_sessionKeys.contains(key))
-                key: Hive.box(boxName).get(key),
-          };
+          final boxEntries = <dynamic, dynamic>{};
+          if (boxName == LocalStorageService.documentsBoxName ||
+              boxName == 'resolved_gaps' ||
+              boxName == 'qa_history' ||
+              boxName == 'field_overrides_box') {
+            final box = Hive.box<String>(boxName);
+            for (final key in box.keys) {
+              boxEntries[key] = box.get(key);
+            }
+          } else {
+            final box = Hive.box(boxName);
+            for (final key in box.keys) {
+              if (boxName == AppStateStore.boxName &&
+                  _sessionKeys.contains(key)) {
+                continue;
+              }
+              boxEntries[key] = box.get(key);
+            }
+          }
+          workspaceEntries[boxName] = boxEntries;
         }
       }
     }
     if (Hive.isBoxOpen(AppStateStore.boxName)) {
       await SessionService.clearSession();
     }
+    await Hive.close();
     for (final boxName in boxNames) {
-      if (Hive.isBoxOpen(boxName)) {
-        await Hive.box(boxName).close();
-      }
       await Hive.deleteBoxFromDisk(boxName);
     }
     await PrincipalKeyService().initForPrincipal(principalId);
     await openForActivePrincipal();
     if (preserveCurrentWorkspace) {
       for (final entry in workspaceEntries.entries) {
-        final box = Hive.box(entry.key);
         for (final record in entry.value.entries) {
-          await box.put(record.key, record.value);
+          if (entry.key == LocalStorageService.documentsBoxName ||
+              entry.key == 'resolved_gaps' ||
+              entry.key == 'qa_history' ||
+              entry.key == 'field_overrides_box') {
+            final box = Hive.box<String>(entry.key);
+            await box.put(record.key, record.value);
+          } else if (entry.key == AppStateStore.boxName ||
+              entry.key == 'consent_ledger') {
+            final box = Hive.box(entry.key);
+            await box.put(record.key, record.value);
+          } else {
+            final box = Hive.box<String>(entry.key);
+            await box.put(record.key, record.value);
+          }
         }
       }
     }

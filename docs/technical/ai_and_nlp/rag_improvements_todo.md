@@ -1,5 +1,27 @@
 # RAG System Improvements - Priority Tasks
 
+> **Status addendum — 2026-07-22:** This file is a historical backlog from
+> the May 2025 review and is not the current launch-status source of truth.
+> The canonical implementation/status sources are
+> [`rag_comprehensive_exploration_2026-07-21.md`](../rag_comprehensive_exploration_2026-07-21.md),
+> [`rag_pipeline_exploration_map_2026-07-20.md`](../../review/rag_pipeline_exploration_map_2026-07-20.md),
+> and the append-only [`exploration_map.md`](../../review/exploration_map.md).
+> Items below remain actionable only where they are explicitly re-adopted in
+> those sources or in a current ADR.
+
+### Current disposition
+
+- **Superseded/implemented in the canonical path:** response-shape
+  normalization, versioned query caching, hybrid retrieval, source/citation
+  fields, fallback handling, and separate answer/retrieval/citation checks.
+- **Still actionable:** policy-field and relationship-aware extraction,
+  clarification handling, document-view citation traversal, cross-document
+  comparison, broader reviewed evaluation slices, and real provider/device
+  verification.
+- **Do not treat as launch proof:** the historical sprint timeline, unchecked
+  May 2025 checkboxes, or the old claim that generic vector search alone is the
+  production architecture.
+
 Based on the comprehensive app review feedback from May 2025, this document outlines specific improvements needed for the RAG (Retrieval-Augmented Generation) system in our insurance application. These improvements focus on enhancing reliability, accuracy, and user experience.
 
 ## 2026-07-10 Hardening Pass

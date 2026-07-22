@@ -78,7 +78,7 @@
       "id": "synthetic_docx_native",
       "kind": "generated_docx_native",
       "input_type": "docx",
-      "required_capabilities": ["native_text", "table", "figure"],
+      "required_capabilities": ["native_text", "table"],
       "required_node_types": ["heading", "table", "table_cell"],
       "expected_tokens": ["Health Policy", "Hospitalization", "500000"],
       "evidence_tier": 2,
@@ -115,6 +115,34 @@
         "image attachment bytes are hash-preserved",
         "attachments are not merged into message text"
       ]
+    },
+    {
+      "id": "synthetic_xlsx_native",
+      "kind": "generated_xlsx_native",
+      "input_type": "xlsx",
+      "required_capabilities": ["native_text", "table"],
+      "required_node_types": ["table", "table_cell"],
+      "expected_tokens": ["Hospitalization", "500000", "=B2*2"],
+      "evidence_tier": 2,
+      "acceptance": [
+        "worksheet cells preserve coordinates and formula text",
+        "worksheet structure remains source-linked in the CIR",
+        "the adapter does not claim formula semantic correctness"
+      ]
+    },
+    {
+      "id": "synthetic_pptx_native",
+      "kind": "generated_pptx_native",
+      "input_type": "pptx",
+      "required_capabilities": ["native_text", "table"],
+      "required_node_types": ["heading", "text_block", "table", "table_cell"],
+      "expected_tokens": ["Health Policy", "Hospitalization", "500000"],
+      "evidence_tier": 2,
+      "acceptance": [
+        "slide titles and text shapes preserve reading order",
+        "slide table cells preserve row and column identity",
+        "native extraction does not imply chart or visual semantic understanding"
+      ]
     }
   ],
   "capability_gates": [
@@ -150,7 +178,7 @@
     },
     {
       "capability": "office_and_email_structure",
-      "status": "docx_html_eml_tier2_measured_other_formats_pending",
+      "status": "docx_html_eml_xlsx_pptx_tier2_measured_formula_pending",
       "profiles": ["python-docx-native", "html-native", "email-native", "Docling", "Unstructured"],
       "evidence_required": [
         "paragraph and heading structure",

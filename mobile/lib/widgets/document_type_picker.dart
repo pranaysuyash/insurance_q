@@ -39,25 +39,27 @@ class _DocumentTypePickerDialogState extends State<_DocumentTypePickerDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('What type of policy is this?'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: PolicyType.values.map((type) {
-          final color = colorForPolicyType(type);
-          return RadioListTile<PolicyType>(
-            value: type,
-            groupValue: _selected,
-            onChanged: (v) => setState(() => _selected = v!),
-            title: Row(
-              children: [
-                Icon(iconForPolicyType(type), size: 20, color: color),
-                const SizedBox(width: 10),
-                Text(canonicalTypeName(type)),
-              ],
-            ),
-            activeColor: color,
-            contentPadding: EdgeInsets.zero,
-          );
-        }).toList(),
+      content: RadioGroup<PolicyType>(
+        groupValue: _selected,
+        onChanged: (v) { if (v != null) setState(() => _selected = v); },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: PolicyType.values.map((type) {
+            final color = colorForPolicyType(type);
+            return RadioListTile<PolicyType>(
+              value: type,
+              title: Row(
+                children: [
+                  Icon(iconForPolicyType(type), size: 20, color: color),
+                  const SizedBox(width: 10),
+                  Text(canonicalTypeName(type)),
+                ],
+              ),
+              activeColor: color,
+              contentPadding: EdgeInsets.zero,
+            );
+          }).toList(),
+        ),
       ),
       actions: [
         TextButton(

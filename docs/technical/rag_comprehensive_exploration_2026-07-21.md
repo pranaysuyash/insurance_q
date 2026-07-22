@@ -759,6 +759,10 @@ not a claim of deployed or production runtime proof.
 
 ### Current risks and gaps
 
+This is the dated baseline inventory from the initial exploration pass. The
+2026-07-22 reconciliation below supersedes individual items where later
+repository/runtime evidence closed them.
+
 1. The local launch audit records a RAG initialization failure caused by an
    `httpx`/OpenAI `proxies` compatibility mismatch. This is a runtime blocker,
    not a RAG technique gap; it needs environment/package verification.
@@ -914,6 +918,70 @@ Yes:
   versioning, retention, access control, and deletion semantics.
 - Every new RAG capability should state its user value, business/team value,
   operational value, evidence tier, and closure trigger in the exploration map.
+
+## 17. Status reconciliation — 2026-07-22
+
+The later exploration-map addenda and this closure pass change the status of
+several older baseline statements:
+
+- The earlier OpenAI/httpx startup mismatch is superseded by the later runtime
+  re-audit: the active environment initializes successfully. The remaining
+  HTTPX deprecation warning is hygiene debt, not evidence of a startup outage.
+- Remote schema/object parity has substantially advanced and the map records a
+  green current parity audit. Migration-history provenance, clean deployed
+  Qdrant/local parity, authenticated page-read traversal, and held-out answer
+  quality remain separate higher-tier gates.
+- The local provider contract is now explicit in code: `RAGPipeline` and
+  `LLMClient` can initialize without `OPENAI_API_KEY` when a local/compatible
+  provider is configured. Supabase still fails closed when the canonical
+  embedding provider is unavailable because mixing embedding spaces would make
+  the durable index unsafe.
+- The RAGAS harness now passes retrieved source contexts rather than using the
+  generated answer as a fake context. This is a local correctness improvement,
+  not a live quality score; provider execution and the reviewed corpus still
+  require runtime evaluation.
+
+### Remaining closure set
+
+1. Run a real authenticated two-owner query and citation-to-page traversal.
+2. Prove delete/re-index/version transitions across source files, page
+   artifacts, chunks, vector/lexical indexes, cache, and audit records.
+3. Execute the reviewed corpus across exact, numeric, table, OCR, narrative,
+   negative, multilingual, and cross-document slices; retain metrics and
+   failure cases.
+4. Benchmark real scanned insurance fixtures for tables, key/value fields,
+   handwriting, formulas, multilingual text, office formats, and visual/chart
+   annotations before promoting specialist parsers.
+5. Implement or explicitly defer relationship-aware policyholder/insured/
+   nominee extraction, clarification questions, document-view citations, and
+   cross-policy comparison with owner and evidence contracts.
+
+The first four require deployed or real-data evidence unavailable from local
+unit tests alone. The fifth is product scope and should be accepted through an
+ADR or marked as a deliberate post-launch boundary.
+
+### Owners and closure criteria
+
+| Open item | Responsible lane | Closure trigger |
+|---|---|---|
+| Authenticated two-owner retrieval and citation-to-page traversal | Backend/platform + evidence UX | Deployed replay proves owner isolation, source-span/page navigation, and operator-readable failure states. |
+| Delete/re-index/version transitions | Backend/platform + storage operations | Fault-injected replay proves idempotent cleanup across source, derived artifacts, indexes, cache, and audit records. |
+| Reviewed held-out RAG evaluation | RAG/evaluation owner | Versioned corpus publishes retrieval, grounding, citation, negative, latency, and cost results with thresholds and failure cases. |
+| Real scanned/document-capability benchmark | Document intelligence owner | Consented corpus proves per-capability accuracy, p95 latency, partial failure, retry, licensing, privacy, and manual-review behavior. |
+| Relationship extraction, clarification, document view, comparison | Product/UX + domain review | ADR records the user contract and the implementation passes owner/evidence/citation tests; otherwise it is explicitly deferred. |
+
+The synthetic document-capability report now provides stronger local evidence:
+10/10 generated/native cases passed, including native PDF tables and figures,
+DOCX/HTML/EML/XLSX/PPTX structure, and generated doctr OCR/mixed-page routing.
+This remains Tier 2 synthetic evidence; it does not establish accuracy on
+consented real insurance documents.
+
+Verification after this reconciliation: the full backend suite passed 508 tests
+with one skip; the focused RAG/document suite passed 73 tests; changed RAG
+files passed Ruff and Python compilation; and an offline local-provider smoke
+run initialized without OpenAI credentials and produced a 768-dimensional
+embedding through the configured local/fallback path. Dependency health passed
+with `uv pip check`.
 
 ## Sources
 

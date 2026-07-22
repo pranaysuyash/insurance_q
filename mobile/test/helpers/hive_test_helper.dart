@@ -41,6 +41,9 @@ class HiveTestHelper {
     'resolved_gaps',
     'analytics_events',
     'consent_ledger',
+    'qa_history',
+    'field_overrides_box',
+    'entitlements',
   ];
 
   /// Initialize Hive and open all required boxes.
@@ -59,10 +62,12 @@ class HiveTestHelper {
 
     for (final name in _boxNames) {
       if (!Hive.isBoxOpen(name)) {
-        if (name == LocalStorageService.documentsBoxName) {
-          await Hive.openBox<String>(name);
-        } else {
+        // Match production openForActivePrincipal() type signatures.
+        // app_state_box and consent_ledger are Box<dynamic>; all others are Box<String>.
+        if (name == AppStateStore.boxName || name == 'consent_ledger') {
           await Hive.openBox(name);
+        } else {
+          await Hive.openBox<String>(name);
         }
       }
     }

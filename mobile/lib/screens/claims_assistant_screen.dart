@@ -115,7 +115,7 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: DropdownButtonFormField<String?>(
-                      value: _selectedDocumentId,
+                      initialValue: _selectedDocumentId,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.policy_outlined),
                       ),

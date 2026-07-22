@@ -60,6 +60,10 @@ redis_data/
 storage/rag_hybrid_index.db
 storage/document_metadata.db
 storage/documents/*.pdf
+storage/documents/_pages/
+storage/documents/*.db
+storage/rag_hybrid_index.db-shm
+storage/rag_hybrid_index.db-wal
 insurance_app.db
 
 # OS specific

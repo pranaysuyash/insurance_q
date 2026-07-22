@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/analytics_service.dart';
 import '../../theme/coverwise_theme.dart';
+import 'screen_error_boundary.dart';
 
 /// Global error boundary that wraps the entire app and catches unhandled errors.
 ///
@@ -136,7 +137,7 @@ class GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
 
     // Log error in debug mode
     if (kDebugMode) {
-      debugPrint('=== GLOBAL ERROR ===');
+      debugPrint('=== ERROR ===');
       debugPrint('Error: ${details.exception}');
       debugPrint('Stack: ${details.stack}');
       debugPrint('Library: ${details.library}');
@@ -145,6 +146,12 @@ class GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
 
     // Track error event for production monitoring
     _trackError(details);
+
+    // Delegate to screen-level boundary if one is active.
+    // This prevents a crash in one screen from taking down the entire app.
+    if (ErrorBoundaryRegistry.instance.dispatch(details)) {
+      return;
+    }
 
     setState(() {
       _errorDetails = details;

@@ -101,7 +101,13 @@ class CostTracker:
 class LLMClient:
     def __init__(self):
         self.model = settings.openai_chat_model
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
+        # Cloud OpenAI is optional when a configured local or compatible
+        # provider is available. Do not fail before the fallback chain runs.
+        self.client: Optional[AsyncOpenAI] = (
+            AsyncOpenAI(api_key=settings.openai_api_key)
+            if settings.openai_api_key
+            else None
+        )
         self.cost_tracker = CostTracker()
         self._semaphore = asyncio.Semaphore(5)
 
@@ -126,7 +132,7 @@ class LLMClient:
             )
         return self._groq_client
 
-    def _get_ollama_client(self) -> AsyncOpenAI:
+    def _get_ollama_client(self) -> Optional[AsyncOpenAI]:
         """Lazy-initialize Ollama client."""
         if self._ollama_client is None and self._ollama_enabled:
             self._ollama_client = AsyncOpenAI(
@@ -176,7 +182,7 @@ class LLMClient:
             }
         return {"type": "json_object"}, adapted_messages
 
-    def _select_client(self, model: str):
+    def _select_client(self, model: str) -> Optional[AsyncOpenAI]:
         """Select the appropriate client based on model name."""
         if self._groq_enabled and model == settings.groq_chat_model:
             return self._get_groq_client()
@@ -195,7 +201,10 @@ class LLMClient:
         max_retries: int = 3,
         fallback_models: Optional[list[str]] = None,
     ) -> str:
-        models_to_try = [self.model] + (fallback_models or [])
+        models_to_try = []
+        if self.client is not None:
+            models_to_try.append(self.model)
+        models_to_try.extend(fallback_models or [])
         # Groq (cloud, near-free) — try before local Ollama for speed
         if self._groq_enabled and settings.groq_chat_model not in models_to_try:
             models_to_try.append(settings.groq_chat_model)
@@ -206,6 +215,26 @@ class LLMClient:
                 models_to_try.append(settings.ollama_alt_model)
         if self._mlx_enabled and settings.mlx_model not in models_to_try:
             models_to_try.append(settings.mlx_model)
+
+        def provider_available(model: str) -> bool:
+            if self._groq_enabled and model == settings.groq_chat_model:
+                return True
+            if self._ollama_enabled and (
+                model in (settings.ollama_chat_model, settings.ollama_alt_model)
+                or model.startswith("ollama/")
+            ):
+                return True
+            if self._mlx_enabled and (
+                model == settings.mlx_model or model.startswith("mlx-community/")
+            ):
+                return True
+            return self.client is not None
+
+        models_to_try = [model for model in models_to_try if provider_available(model)]
+        if not models_to_try:
+            raise RuntimeError(
+                "No LLM provider is configured; set OPENAI_API_KEY or enable a local/compatible provider"
+            )
         last_error = None
 
         for model in models_to_try:

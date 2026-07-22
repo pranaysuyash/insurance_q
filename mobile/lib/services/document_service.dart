@@ -953,6 +953,26 @@ class DocumentService {
     }
   }
 
+  /// Archive a document (hide from active list, keep data intact).
+  Future<bool> archiveDocument(String documentId) async {
+    return _localStorageService.archiveDocument(documentId);
+  }
+
+  /// Restore an archived document back to the active list.
+  Future<bool> restoreDocument(String documentId) async {
+    return _localStorageService.restoreDocument(documentId);
+  }
+
+  /// Count how many documents are currently archived.
+  Future<int> archivedDocumentCount() async {
+    return _localStorageService.archivedDocumentCount();
+  }
+
+  /// Count how many active (non-archived) documents exist.
+  Future<int> activeDocumentCount() async {
+    return _localStorageService.activeDocumentCount();
+  }
+
   /// Replace an existing document with a new file.
   /// Deletes the old document and its summary, then uploads the new file.
   Future<Map<String, dynamic>> replaceDocument(

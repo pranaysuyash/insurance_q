@@ -640,6 +640,26 @@ class S {
   static const String fileTypeUnsupported =
       'This file type is not supported. Please choose a PDF or image.';
 
+  // ─── Archive / Limit Warnings (P2-02) ────────────────────────────
+  static const String docsArchive = 'Archive';
+  static const String docsArchived = 'Archived';
+  static const String docsRestore = 'Restore';
+  static const String docsRestored = 'Policy restored';
+  static const String docsArchivedSuccess = 'Policy archived';
+  static const String docsShowArchived = 'Show archived';
+  static const String docsHideArchived = 'Hide archived';
+  static const String docsArchiveConfirmTitle = 'Archive policy?';
+  static String docsArchiveConfirmContent(String filename) =>
+      '"$filename" will be hidden from your active policy list. You can restore it any time from the archive.';
+  static const String docsDeletePermanentWarning =
+      'This permanently deletes the policy from both CoverWise and this device. Consider archiving instead to keep it accessible.';
+  static const String docsLimitWarning =
+      'You are nearing your free storage limit. Archive old policies to free up space.';
+  static String docsLimitCountdown(int used, int limit) =>
+      '$used of $limit slots used — $limit remaining';
+  static String docsLimitRemaining(int remaining) =>
+      '$remaining free slot${remaining == 1 ? '' : 's'} remaining';
+
   // ─── Document Sort / Filter ──────────────────────────────────────
   static const String docsSortLabel = 'Sort';
   static const String docsFilterLabel = 'Filter';

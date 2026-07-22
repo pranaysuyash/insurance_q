@@ -16,6 +16,9 @@ import '../widgets/editable_field.dart';
 import '../services/field_overrides_store.dart';
 import '../utils/date_validation.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
+import '../widgets/shared/contextual_cta_card.dart';
+import '../widgets/shared/newsletter_signup_sheet.dart';
+import '../services/lead_generation_service.dart';
 import 'claim_assistance_screen.dart';
 import 'coverage_gap_screen.dart';
 import 'document_preview_screen.dart';
@@ -330,6 +333,8 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
           ],
           const CoverWiseSectionLabel('Next steps'),
           _QuickActions(summary: summary),
+          // Contextual CTAs based on policy characteristics.
+          _PolicyCtas(summary: summary, documentId: backendDocumentId),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
             child: Row(
@@ -1266,6 +1271,85 @@ class _CitedFieldsSectionState extends State<_CitedFieldsSection> {
           onPageTap: widget.onPageTap,
         );
       },
+    );
+  }
+}
+
+/// Contextual CTAs shown below the quick actions on the policy detail screen.
+///
+/// Determines the most relevant topic based on the policy's state:
+/// - Expiring soon → renewal reminders
+/// - Active → general premium/tips
+/// - Expired → renewal offers
+class _PolicyCtas extends StatelessWidget {
+  final PolicySummary summary;
+  final String documentId;
+
+  const _PolicyCtas({required this.summary, required this.documentId});
+
+  @override
+  Widget build(BuildContext context) {
+    // Pick a topic based on policy state
+    final topic = summary.isExpired || summary.isExpiringSoon
+        ? CtaTopic.renewal
+        : CtaTopic.premium;
+
+    final ctas = LeadGenerationService.ctasForTopic(
+      topic: topic,
+      policy: summary,
+      context: context,
+      onUpgrade: () {
+        Navigator.pushNamed(context, '/qa', arguments: documentId);
+      },
+      onCompare: () {
+        CoverWiseSnackBar.warning(
+          context,
+          'Compare policy options — ask a question about your coverage to get started.',
+          actionLabel: 'Ask a question',
+          onAction: () => Navigator.pushNamed(
+            context,
+            '/qa',
+            arguments: documentId,
+          ),
+        );
+      },
+      onNewsletter: () {
+        NewsletterSignupSheet.show(context);
+      },
+      onContactAgent: () {
+        CoverWiseSnackBar.warning(
+          context,
+          'Contact an insurance advisor — ask about your policy to get started.',
+          actionLabel: 'Ask a question',
+          onAction: () => Navigator.pushNamed(
+            context,
+            '/qa',
+            arguments: documentId,
+          ),
+        );
+      },
+    );
+
+    if (ctas.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 8),
+            child: Text(
+              'You might also be interested in:',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          ...ctas.map((cta) => CtaCard(cta: cta)),
+        ],
+      ),
     );
   }
 }

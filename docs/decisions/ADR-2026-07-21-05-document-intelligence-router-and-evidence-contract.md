@@ -25,3 +25,28 @@ Future<void> migrateBoxWithCapabilities({String boxName, Map<Capability, bool> r
   // Existing migration logic + capability-based routing
 }
 ```
+
+## Implementation update — sidecar page-artifact continuity (2026-07-22)
+
+On-device OCR is a text recovery input, not a replacement source artifact.
+When it recovers an image or scan-only PDF, the canonical service now renders
+the original source into a PNG page artifact before queuing substrate
+extraction. This preserves the worker contract: raw OCR remains out of the
+queue payload, while persisted page artifacts provide the text/artifact pair
+needed for cited review. Page-one mapping is intentionally conservative until
+the mobile sidecar contract exposes authoritative per-page segmentation.
+
+## Implementation update — native Office format expansion (2026-07-22)
+
+The canonical route now includes native XLSX/XLSM and PPTX adapters alongside
+DOCX, HTML, and EML. `openpyxl-native` preserves worksheet/cell coordinates,
+data types, formula text, and embedded-image hashes; `python-pptx-native`
+preserves slide text, tables/cells, and picture hashes. Both emit the existing
+CIR and retain source/artifact hashes. The ten-case local evaluator passes with
+zero unrun cases, establishing Tier 2 structural evidence.
+
+This decision does not promote formula interpretation, scanned-table parsing,
+semantic forms, handwriting, multilingual extraction, or VLM chart/image
+interpretation. Those remain specialist benchmark gates with provenance,
+uncertainty, privacy, licensing, latency, retry, and operator-recovery
+requirements.

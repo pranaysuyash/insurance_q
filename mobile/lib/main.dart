@@ -54,6 +54,7 @@ import 'services/principal_key_service.dart';
 import 'services/hive_workspace_service.dart';
 import 'providers/auth_provider.dart';
 import 'widgets/shared/global_error_boundary.dart';
+import 'widgets/shared/screen_error_boundary.dart';
 import 'widgets/shared/coverwise_snackbar.dart';
 import 'theme/coverwise_theme.dart';
 import 'theme/coverwise_motion.dart';
@@ -438,22 +439,37 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       routes: {
         '/qa': (context) {
           final args = ModalRoute.of(context)?.settings.arguments as String?;
-          return QaScreen(initialDocumentId: args);
+          return ScreenErrorBoundary(
+            screenName: 'qa',
+            child: QaScreen(initialDocumentId: args),
+          );
         },
-        '/emergency': (context) => const EmergencyScreen(),
-        '/claims': (context) => const ClaimsAssistantScreen(),
-        '/renewals': (context) => const RenewalCalendarScreen(),
+        '/emergency': (context) => const ScreenErrorBoundary(
+              screenName: 'emergency',
+              child: EmergencyScreen(),
+            ),
+        '/claims': (context) => const ScreenErrorBoundary(
+              screenName: 'claims',
+              child: ClaimsAssistantScreen(),
+            ),
+        '/renewals': (context) => const ScreenErrorBoundary(
+              screenName: 'renewals',
+              child: RenewalCalendarScreen(),
+            ),
         '/coverage-gaps': (context) {
           final args = ModalRoute.of(context)?.settings.arguments
               as Map<String, dynamic>?;
           final documentId = args?['documentId'] as String?;
           if (documentId == null || documentId.isEmpty) {
-            return const _MissingArgsScreen(
-              title: 'Coverage gaps',
-              message: 'No document was specified. '
-                  'Choose a policy in Documents, then open its coverage details.',
-              recoveryRoute: '/documents',
-              recoveryLabel: 'Choose a policy',
+            return const ScreenErrorBoundary(
+              screenName: 'coverage-gaps',
+              child: _MissingArgsScreen(
+                title: 'Coverage gaps',
+                message: 'No document was specified. '
+                    'Choose a policy in Documents, then open its coverage details.',
+                recoveryRoute: '/documents',
+                recoveryLabel: 'Choose a policy',
+              ),
             );
           }
           // Deep links pass citations as URL-encoded JSON arrays of raw maps,
@@ -465,44 +481,105 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
                   .map(FieldCitation.fromJson)
                   .toList()
               : const <FieldCitation>[];
-          return CoverageGapScreen(
-            documentId: documentId,
-            citations: citations,
+          return ScreenErrorBoundary(
+            screenName: 'coverage-gaps',
+            child: CoverageGapScreen(
+              documentId: documentId,
+              citations: citations,
+            ),
           );
         },
-        '/compare': (context) => const PolicyComparisonScreen(),
-        '/settings': (context) => const SettingsScreen(),
-        '/help': (context) => const HelpSupportScreen(),
-        '/privacy': (context) => const PrivacySecurityScreen(),
-        '/about': (context) => const AboutScreen(),
+        '/compare': (context) => const ScreenErrorBoundary(
+              screenName: 'compare',
+              child: PolicyComparisonScreen(),
+            ),
+        '/settings': (context) => const ScreenErrorBoundary(
+              screenName: 'settings',
+              child: SettingsScreen(),
+            ),
+        '/help': (context) => const ScreenErrorBoundary(
+              screenName: 'help',
+              child: HelpSupportScreen(),
+            ),
+        '/privacy': (context) => const ScreenErrorBoundary(
+              screenName: 'privacy',
+              child: PrivacySecurityScreen(),
+            ),
+        '/about': (context) => const ScreenErrorBoundary(
+              screenName: 'about',
+              child: AboutScreen(),
+            ),
         '/policy-detail': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           final documentId = args is String ? args : null;
           if (documentId == null || documentId.isEmpty) {
-            return const _MissingArgsScreen(
-              title: 'Policy details',
-              message: 'No policy was specified. Open a policy from Documents.',
-              recoveryRoute: '/documents',
-              recoveryLabel: 'Open documents',
+            return const ScreenErrorBoundary(
+              screenName: 'policy-detail',
+              child: _MissingArgsScreen(
+                title: 'Policy details',
+                message: 'No policy was specified. Open a policy from Documents.',
+                recoveryRoute: '/documents',
+                recoveryLabel: 'Open documents',
+              ),
             );
           }
-          return PolicyDetailScreen(documentId: documentId);
+          return ScreenErrorBoundary(
+            screenName: 'policy-detail',
+            child: PolicyDetailScreen(documentId: documentId),
+          );
         },
-        '/claim-tracker': (context) => const ClaimTrackingScreen(),
-        '/search': (context) => const SearchScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/insurance-cards': (context) => const InsuranceCardScreen(),
-        '/literacy': (context) => const InsuranceLiteracyScreen(),
-        '/what-if': (context) => const WhatIfCalculatorScreen(),
-        '/account': (context) => const AccountScreen(),
+        '/claim-tracker': (context) => const ScreenErrorBoundary(
+              screenName: 'claim-tracker',
+              child: ClaimTrackingScreen(),
+            ),
+        '/search': (context) => const ScreenErrorBoundary(
+              screenName: 'search',
+              child: SearchScreen(),
+            ),
+        '/profile': (context) => const ScreenErrorBoundary(
+              screenName: 'profile',
+              child: ProfileScreen(),
+            ),
+        '/insurance-cards': (context) => const ScreenErrorBoundary(
+              screenName: 'insurance-cards',
+              child: InsuranceCardScreen(),
+            ),
+        '/literacy': (context) => const ScreenErrorBoundary(
+              screenName: 'literacy',
+              child: InsuranceLiteracyScreen(),
+            ),
+        '/what-if': (context) => const ScreenErrorBoundary(
+              screenName: 'what-if',
+              child: WhatIfCalculatorScreen(),
+            ),
+        '/account': (context) => const ScreenErrorBoundary(
+              screenName: 'account',
+              child: AccountScreen(),
+            ),
         '/reset-password': (context) {
           final redirectUrl =
               ModalRoute.of(context)?.settings.arguments as String? ?? '';
-          return ResetPasswordScreen(redirectUrl: redirectUrl);
+          return ScreenErrorBoundary(
+            screenName: 'reset-password',
+            child: ResetPasswordScreen(redirectUrl: redirectUrl),
+          );
         },
-        '/family': (context) => const FamilyScreen(),
-        '/family/visualization': (context) => const FamilyVisualizationScreen(),        '/notifications': (context) => const NotificationPreferencesScreen(),
-        '/documents': (context) => const DocumentsScreen(),
+        '/family': (context) => const ScreenErrorBoundary(
+              screenName: 'family',
+              child: FamilyScreen(),
+            ),
+        '/family/visualization': (context) => const ScreenErrorBoundary(
+              screenName: 'family-visualization',
+              child: FamilyVisualizationScreen(),
+            ),
+        '/notifications': (context) => const ScreenErrorBoundary(
+              screenName: 'notifications',
+              child: NotificationPreferencesScreen(),
+            ),
+        '/documents': (context) => const ScreenErrorBoundary(
+              screenName: 'documents',
+              child: DocumentsScreen(),
+            ),
       },
       navigatorObservers: [CoverWiseSnackBarObserver()],
       debugShowCheckedModeBanner: false,
@@ -610,21 +687,36 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          const DashboardScreen(),
+          const ScreenErrorBoundary(
+            screenName: 'dashboard',
+            child: DashboardScreen(),
+          ),
           _visitedTabs.contains(1)
-              ? const DocumentsScreen()
+              ? const ScreenErrorBoundary(
+                  screenName: 'documents',
+                  child: DocumentsScreen(),
+                )
               : const SizedBox.shrink(),
           _visitedTabs.contains(2)
-              ? QaScreen(
-                  key: const ValueKey('qa-tab'),
-                  isActive: _selectedIndex == 2,
+              ? ScreenErrorBoundary(
+                  screenName: 'qa',
+                  child: QaScreen(
+                    key: ValueKey('qa-tab'),
+                    isActive: _selectedIndex == 2,
+                  ),
                 )
               : const SizedBox.shrink(),
           _visitedTabs.contains(3)
-              ? const FamilyScreen()
+              ? const ScreenErrorBoundary(
+                  screenName: 'family',
+                  child: FamilyScreen(),
+                )
               : const SizedBox.shrink(),
           _visitedTabs.contains(4)
-              ? const MoreScreen()
+              ? const ScreenErrorBoundary(
+                  screenName: 'more',
+                  child: MoreScreen(),
+                )
               : const SizedBox.shrink(),
         ],
       ),

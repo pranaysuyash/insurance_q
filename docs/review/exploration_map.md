@@ -227,25 +227,130 @@ The broader current-diff review is
 
 Confirmed exploration items:
 
-- consent purpose vocabulary and server/local recording are not one contract;
-- anonymous/account principal migration is not proven across local encrypted
-  state;
-- upload processing still uses in-process `BackgroundTasks` despite the durable
-  outbox decision;
-- account deletion response semantics claim a durable retry path not shown in
-  the inspected route;
-- evidence citation verification is wired into the main RAG path, but fresh
-  real-document proof and weaker extraction-path convergence remain open;
-- `/query` and `/documents/query` are parallel query actions and need a single
-  canonical route plus a deprecation trigger.
-- account-switch isolation, Hive migration, test teardown, and status language
-  still need evidence reconciliation before the dirty diff can be treated as
-  launch-complete.
-- the short-viewport Documents overflow has a focused Tier 2 regression proof;
-  analytics view hardening still needs applied-migration role verification.
+- consent purpose vocabulary and server/local recording have a converging contract path
+  via server vocabulary sync + retry cache, but consent is still explicitly cache-first
+  on offline/unavailable-ledger paths;
+- anonymous/account principal migration now has local workspace continuity and encrypted
+  key migration hardening, but two-principal migration/restart replay with active runtime
+  services is still a Tier 3+ gate;
+- upload processing runs through durable outbox in production composition and keeps
+  non-production `BackgroundTasks` compatibility explicit; remote queue delivery, dead-letter,
+  and restart recovery remain open;
+- account deletion route now fences `deleting` state before cleanup and inventory transition
+  exists, but cross-service erasure propagation is still a live-retry/open-runtime gate;
+- evidence citation verification is present in the main RAG flow and typed extraction is
+  stronger, but real-policy cross-owner evidence-owner proof remains open;
+- `/query` is the mobile canonical surface and `/documents/query` remains compatibility/legacy;
+  deprecation trigger is recorded and not yet executed;
+- account-switch isolation, Hive migration, status language, and test teardown have partial
+  test closure in this environment; authenticated two-principal Tier 3+ proof is still
+  the remaining closure blocker;
+- short-viewport Documents overflow and analytics role hardening both have focused regression
+  proof and remain open only for applied runtime migration verification.
+
+### 2026-07-22 — J02–J07 status refinement
+
+Additions since 2026-07-21:
+
+- `docs/review/coverwise_j02_j07_deep_dive_2026-07-21.md` now records the current
+  verification frontier with one local-invariant closure and one runtime blocker set:
+  - (closed in this branch) local principal migration and typed Box safety are now
+    proven by `test/migration_integrity_test.dart`.
+  - (remaining) two-principal authenticated restart/replay and cross-stack retrieval/
+    evidence-owner proof on real documents.
+
+### 2026-07-22 (continuation pass) — live API contract check for J02–J07
+
+The same API stack at `127.0.0.1:8000`/`:8001` was used to add direct
+observational evidence to the J02–J07 branch:
+
+- **J02/J04 boundary gates confirmed in runtime**
+  - upload requires `processing_consent=true` and `processing_consent_version`.
+  - bad/invalid bearer token is rejected (`401`).
+- **J04/J05 queue and failure branches confirmed**
+  - duplicate/replayed documents are rate-gated with `429` (document fingerprint branch),
+  - accepted uploads produce `202` and transition through `status=processing`.
+  - processing failure branch is surfaced (`status=failed`, explicit stage/error message).
+  - failed documents return `404` for summary/evidence/source endpoints (no false positive trust).
+- **J07 route topology and safety**
+  - canonical `/query` JSON contract shape is enforced (missing query → `422`),
+  - legacy `/documents/query` remains active and returns success payloads (explicitly not canonical).
+- **Open in this live lane**
+  - cross-owner evidence isolation and authenticated replay for two principals are still not closed,
+    and no same-token fully-successful full-policy-to-summary run was completed in this pass.
+
+Priority stays unchanged: complete a full authenticated identity migration and
+successful/failed replay path for upload → processing → evidence → Q&A under one
+principal transition chain before claiming J02–J07 as Tier 3+ closed.
+- A previously open citation-verifier + Supabase-FTS mismatch in this deep dive is now
+  closed at the static/fixture layer for the focused verifier/FTS pass (31/77 passing
+  command set), and the broader branch probe run now reaches 84 passing tests.
+  Runtime live-stack replay remains the remaining high-confidence gate.
+- Outbox/lease/process hardening remains the operational gate and should drive the next
+  live verification pass.
 
 These are now the next high-priority exploration/implementation gates. They are
 not treated as closed by the presence of migrations, ADRs, or UI states alone.
+
+### 2026-07-22 continuation map artifact
+
+The frontier execution for J02–J07 is now represented as a single decision-ready
+trace to make branching and owner transitions visible:
+
+```mermaid
+flowchart LR
+    A[J02] -->|Onboarding done| J03
+    A -->|Consent declined| B[J02 limited mode]
+    B --> J03
+
+    J03 -->|Anonymous| D[J04 upload path]
+    J03 -->|Sign in now| E[J03 -> account claim]
+    E -->|claim success| D
+    E -->|claim retry/rehydrate| E
+
+    D -->|processing_consent=false| F[J04 consent block 422]
+    D -->|bad token| G[J04 auth block 401]
+    D -->|valid + duplicate| H[J04 idempotent replay]
+    D -->|valid + new| I[J04 enqueue durable processing]
+
+    I --> J[J05 poll status]
+    H --> J
+    J -->|processing| J
+    J -->|partial/text/ocr required| K[J05 partial + recovery]
+    J -->|failed| L[J05 terminal failure + retry/replace]
+    J -->|completed| M[J06 evidence available]
+    J -->|not ready / no summary| N[J06 404 + no unverified fact]
+
+    M -->|insufficient evidence| P[J06 partial display + repair]
+    M -->|source verified| Q[J06 source-aware policy view]
+    N -->|wait| Q
+    P --> Q
+    L --> Q
+
+    Q --> O[J07 /query owner-scoped]
+    O -->|good| R[J07 cited answer]
+    O -->|weak| S[J07 fallback + missing_information]
+    O -->|timeout| T[J07 retry/fallback]
+    O -->|cross-owner| U[J07 no-relevant + no bleed]
+    R --> V[Usage + feedback + operator log]
+    S --> V
+    T --> V
+    U --> V
+
+    Q -->|docs / exports| W[J08+ optional journeys]
+    V --> A
+```
+
+### Frontier state after this map pass
+
+| Decision lane | Current lane state | Tier 3+ gap |
+|---|---|---|
+| J02 | Onboarding and consent checks are observable in-path | Onboarding as a hard server contract still open |
+| J03 | Anon-to-account claim is functionally routed and tested | authenticated restart/replay proof across two principals and local encrypted state is open |
+| J04 | Duplicate/hash and consent/auth branches are observable | proof that production upload always uses durable outbox branch is open |
+| J05 | Failed/partial states remain non-success, with explicit reasons | recovery under restart/crash contention remains open |
+| J06 | Unauthorized owner cannot read summary/evidence in this branch | real-policy source-page navigation remains unclosed end-to-end |
+| J07 | Canonical `/query` and compatibility fallback behaviors are separated | two-owner real-document citation navigation and contract-proof restart path remains |
 
 1. Interview 12-20 households after a real policy summary; test Plus value and annual willingness to pay.
 2. Build bottom-up unit economics from actual OCR, LLM, storage, support, payment, and tax costs.
@@ -589,6 +694,91 @@ Each option evaluated on: **Effort** (days to integrate), **Risk** (breakage pro
 | **Marker** | `pip install marker-pdf` | 2GB | ★★☆☆☆ | ★★★★★ | 3d | High | ❌ Too heavy, overlaps with Docling |
 
 **Rationale**: Docling (PDF parser upgrade) will reduce OCR need significantly. PaddleOCR is the best upgrade if we still need OCR, but it's lower priority than Docling.
+
+### 5.x Parser capability inventory addendum (2026-07-22)
+
+The local workbook `document_parsers_extractors_catalog_2026_v2.xlsx` was re-queried as a durable lane map. See:
+
+- `docs/technical/document_parser_capability_catalog_2026-07-22.md`
+- `docs/review/evidence/local-model-eval/document_catalog_capability_summary_2026-07-22.json`
+
+Capability breadth signals from the catalog (149 rows):
+
+- **Text OCR/extraction:** 121 Yes, 13 No
+- **Layout awareness:** 89 Yes, 17 No
+- **Tables:** 91 Yes, 36 No
+- **Math / LaTeX:** 34 Yes, 75 No
+- **Header/section detection:** 86 Yes, 42 No
+- **Coordinates / reading order:** 110 Yes, 5 No
+
+This confirms what is already reflected in code decisions:
+
+- Strong and mature lanes for structured text/layout/reading-order recovery exist in many tools, but **none are production defaults yet**.
+- Formula, handwriting, and chart-annotation lanes remain explicitly **candidate** and currently belong behind benchmark + privacy + license gates.
+- Form/KVP/selection is a **high-risk lane** because legal impact is high; managed form providers are still the only realistic candidate family in tests so far, with explicit consent/residency gates.
+
+Operationally, this means our next exploration slice should be explicit and narrow:
+
+1. keep PyMuPDF and native parsers as deterministic defaults,
+2. route non-text/low-quality pages to one configurable scan/layout specialist profile,
+3. keep managed form extraction in a separate governed cloud lane,
+4. keep image understanding as bounded derived annotation only.
+
+For policy-text and compliance safety, every non-native lane must emit parser name, page/block ids, and bounded confidence + unknown states in the same evidence envelope.
+
+### 6.x Parser capability-by-capability execution ledger (2026-07-22)
+
+This is the active capability map used for exploration planning:
+
+- **Sentences:** conservative punctuation-based sentence segmentation is in CIR; language-aware segmentation is benchmarked separately.
+- **Images / figures / charts:** image bytes, hashes, and bboxes are preserved as source artifacts; semantic chart understanding remains derived.
+- **Tables:** native table/cell lineage exists for born-digital and office inputs; scanned-table reconstruction remains candidate-only.
+- **Structures / hierarchy / headings:** source structure for DOCX/HTML/PPTX/XLSX/EML exists; semantic heading hierarchy is still benchmark-only.
+- **Layout / reading order:** block geometry and order are emitted for supported lanes; semantic reordering for complex layouts remains open.
+- **Forms / KVP / marks:** native AcroForm is production-safe evidence, while scanned KVP and marks are high-risk specialist lanes.
+- **Formulas / math:** explicit formula lane is still pending policy-safe benchmarks and provenance.
+- **Multilingual / handwriting:** script observation exists, but accuracy is not yet closed for all script families.
+
+| Capability family | Runtime source | Closed in manifest | Current gate |
+|---|---|---|---|
+| Text OCR + sentence structure | `src/models/document_intelligence.py`, `src/ocr/pipeline.py`, `tests/test_document_intelligence_contract.py` | Native + scanned fixture cases verified (Tier 2) | Add word/line + multilingual sentence boundaries + p95 partial failure behavior |
+| Layout + reading order | `src/ocr/native_pdf.py`, `src/models/document_intelligence.py` | Native layout blocks and page order verified; mixed-page route preserved | Add nested sections, multi-column, rotated/low-DPI fixtures |
+| Tables (born-digital + office) | `src/ocr/native_pdf.py`, `src/ocr/native_docx.py`, `src/ocr/native_xlsx.py`, `src/ocr/native_pptx.py` | Table/cell lineage and formula text retention verified (Tier 2) | Scanned tables, merged cells, row/col spanning, malformed tables |
+| Figures / charts / images | `src/ocr/native_pdf.py`, evidence attachment layer | Artifact hash and bbox lineage verified | Bounded crop→caption/claim mapping and annotation anti-hallucination checks |
+| KVP + forms + marks | `src/ocr/native_pdf.py`, registry + manifest | AcroForm values/geometry in evidence substrate; KVP/marks candidate-only | Specialist schema + review/retry lane + confidence/unknown contract |
+| Math/formula | `src/ocr/capability_registry.py`, manifest gate list | Catalog signal only | Formula lane requires benchmarked LaTeX/MathML + provenance |
+| Office/web/email structure | `src/ocr/native_docx.py`, `src/ocr/native_xlsx.py`, `src/ocr/native_pptx.py`, native HTML/EML path | Structure nodes for core formats are in CIR and manifest-tested | Malformed-container and relationship-preservation tests |
+| Image understanding / VLM | `src/ocr/capability_registry.py`, document-intelligence matrix | Candidate/configured-unverified only | Privacy-residency + provider failure + human-review policy + benchmark proof |
+
+### 6.x Frontier owner-by-class atlas (requested capability classes)
+
+This atlas is the direct answer for your capability sweep:
+text, structures, layouts, tables, images/figures/charts, forms, formulas,
+multilingual/handwriting.
+
+For the compact one-row closure checklist used during execution handoffs, see
+`docs/technical/document_parser_capability_catalog_2026-07-22.md` section:
+`2026-07-22 execution matrix (single-row closure checklist)`.
+
+Evidence files supporting this matrix:
+
+- `docs/technical/document_parser_capability_catalog_2026-07-22.md`
+- `docs/review/evidence/local-model-eval/capability_frontier_candidates_2026-07-22.json`
+- `docs/review/evidence/local-model-eval/capability_gate_run_2026-07-22-doctr.json`
+
+| Requested class | What local discovery says (catalog/frontier sweep) | Runtime owner today | Production-safe status | Next closure action |
+|---|---|---|---|---|
+| Text + OCR | Docling, SmolDocling, MinerU, Marker, Unstructured, OpenParse | `native_text`, `sentence_segmentation`, `scanned_ocr` | Partial/owned for native + synthetic OCR | Add word/line and multilingual sentence-boundary evidence on consented corpus |
+| Structures + headings | Docling, Surya, PP-Structure, MinerU | `layout`, `reading_order`, `headings_and_sections(candidate)` | Structural blocks are owned; hierarchy is not yet source-grounded | Nested section/headline fixture set and hierarchy validation |
+| Layout + reading order | Docling, Surya, PP-Structure, PaddleOCR-VL | `layout`, `reading_order` | Native page ordering is owned, complex ordering remains open | Cross-tool ordering stability for multicolumn/rotated/low-DPI pages |
+| Tables | Docling, MinerU, Surya, PP-Structure, TATR/GMFT/img2table | `tables` + native table/cell adapters | Born-digital table cells covered | Scanned table recovery + merged/borderless/invalid-grid fixture suite |
+| Images + figures + charts | Docling, Marker, LlamaParse, Mistral OCR, Gemini, OpenAI vision | `figures` + candidate chart/image semantics lanes | Structural image capture owned; semantic annotation is derived | Crop→bbox→caption lineage and anti-hallucination annotation policy |
+| Forms + KVP + marks | Azure DI, Google Document AI, Textract, Paddle KIE, PP-Structure KIE | `forms` + `key_value_extraction(candidate)` + `selection_marks(unavailable)` | Native AcroForm only is owned | Specialist KVP/marks schema + review/retry/uncertainty path |
+| Formula / math | MinerU, Surya, PaddleOCR PP-Structure, Mathpix/Pix2Text/Nougat | `formulas(candidate)` | No production lane | Source-linked formula region extraction and normalization before any policy use |
+| Office/web/email | python-docx, openpyxl, python-pptx, trafilatura, mailparser | `office_and_email_structure` | Core structures are owned | Malformed-container and relationship-fidelity fixtures |
+| Multilingual + handwriting | Surya/PaddleOCR families, LayoutXLM/LiLT + managed DI | `multilingual(routing_only)`, `handwriting(unavailable)` | Script routing only | Script/locale and handwritten OCR accuracy gates plus review fallback |
+
+This map keeps exploration from becoming model shopping: capabilities remain tied to this single canonical router and evidence envelope.
 
 ---
 
@@ -1081,6 +1271,27 @@ Anything else? The broad catalog is useful as a capability map and research
 inventory; installing every entry would reduce reliability and increase
 privacy/license risk. The highest-leverage next implementation unit is the CIR
 and benchmark harness, not another unvalidated model.
+
+### 2026-07-22 requested-lane frontier map (for your capability list)
+
+Goal: for each capability class from the research request (text, structure,
+layouts, tables, images/figures/charts, formulas, forms, multilingual/handwriting),
+pin who owns it and what still blocks launch ownership.
+
+| Capability lane | Owned today | Open frontier |
+|---|---|---|
+| Text + sentence extraction | native/PDF text + conservative sentence segmentation (`native_text`, `sentence_segmentation`) | language-specific word/line boundaries and multilingual sentence-quality gates |
+| Structures (headers/sections) | block-level structure via `layout` and `headings_and_sections(candidate)` | heading hierarchy evidence with depth/ordering fixtures |
+| Layout + reading order | `layout` + `reading_order` available with native pages | rotated/multicolumn/low-DPI/complex-page ordering |
+| Tables | table/cell nodes for native and office formats (`tables`) | scanned-table lane, merged-cell/borderless cases, cell-level provenance in failures |
+| Images / figures / charts | artifact-preserving `figures` lane (`image_artifact` + hash references) | semantic image understanding and chart annotation remain candidate (`image_understanding`, `charts_and_diagrams`, `vlm_annotation`) |
+| Forms + KVP + marks | native form field capture is owned (`forms`) | specialist scanned/KVP and marks lanes still open |
+| Formula / math | `formulas` remains candidate and unpromoted in runtime | source-linked formula extraction with normalization and policy constraints |
+| Multilingual + handwriting | `multilingual` is routing-only; `handwriting` unavailable | language-accuracy benchmarks and handwriting route with manual-review fallback |
+
+Routing consequence: keep parser diversity as capability options, not defaults.
+For each candidate family (Docling/Surya/PaddleOCR/MinerU/managed IDP/VLM),
+require corpus gates and evidence closure before default promotion.
 
 ## Addendum — mobile copy contracts and renewal/document review (2026-07-21)
 
@@ -1926,12 +2137,26 @@ migration complete.
 ## Addendum — J06/J07 focused-suite reconciliation (2026-07-21)
 
 The earlier map entry for citation and FTS verification was stale relative to
-the current worktree. The current focused suite now passes 70 tests across
+the current worktree. The current focused suite now passes 84 tests across
 anonymous auth, document-state derivation, citation verification, evidence
-pipeline, and Supabase FTS adapter behavior, with three existing HTTPX
+pipeline, and Supabase FTS adapter behavior, with seven existing HTTPX
 deprecation warnings. This closes the local contract-test drift, but not the
 Tier 3/4 requirement for real two-principal retrieval, citation navigation,
 and unavailable-model/storage recovery.
+
+## Addendum — J02–J07 proceed pack (2026-07-22)
+
+The latest proceed step re-ran owner-scope and mobile status/evidence suites:
+`test_query_usage_gate`, `test_document_owner_isolation`, `test_citation_verifier_integration`,
+`processing_status_fallback_test`, `processing_status_backend_test`,
+`account_document_reconciliation_test`, `hive_workspace_service_contract_test`, and
+`local_storage_service_test`. All targeted commands passed, and no regressions were
+introduced in the tested surfaces.
+
+The live identity-to-runtime replay scenario remains blocked in this run because the
+local API/Supabase services required for `tools/verify_local_identity_claim.py`
+were not available (`connection refused`). That prevents authenticated cross-stack,
+two-principal replay closure (`anonymous upload → account claim → restart → evidence/Q&A`).
 
 ## Addendum — mixed native/OCR PDF truthfulness (2026-07-21)
 
@@ -2807,6 +3032,110 @@ latency and failure metrics -> privacy/license review -> operator-visible
 fallback -> promotion decision. No catalog entry becomes a launch dependency
 merely because it has a broad capability score.
 
+### Capability-by-capability coverage map refresh (2026-07-22)
+
+This refresh is split into three lanes:
+
+1. **What the local catalog proves it can represent** (breadth only, no accuracy
+   guarantee).
+2. **What CoverWise runs safely from CIR/evidence contracts** (truthy code
+   path).
+3. **What is still a benchmark/production gate**.
+
+| Capability | Catalog breadth signal (local workbook + 2026 search sweep) | CoverWise runtime truth | Gate to production default |
+| --- | --- | --- | --- |
+| Sentences / text fidelity | Docling, MinerU, Marker, Surya, PP-Structure, LlamaParse | Native text, conservative sentence segmentation with offsets; OCR fallback on scan pages | Add word/line boundary error/coverage gates and multilingual sentence-boundary fixtures |
+| Layout + sections + reading order | Docling, SmolDocling, MinerU, Marker, LlamaParse, PP-Structure, Surya, PaddleOCR-VL | Page geometry and block-level order are persisted; semantic heading hierarchy is still inference-stage and not source-grounded | Nested-section and multi-column fixtures with reading-order/section-hierarchy ground truth |
+| Tables | Docling, MinerU, Marker, LlamaParse, PP-Structure, Surya, PDF-Extract-Kit | Born-digital tables/cells are captured with coordinates; scanned tables remain open | Scanned-table pipeline decision requires merged-cell/borderless/low-quality fixtures + failure telemetry |
+| Figures/images/charts | Docling, MinerU, Marker, LlamaParse, Mistral OCR, OpenAI/Google vision APIs | Embedded image hashes are preserved; image meaning remains derived until boundedly validated | Add bounded figure/charts crop provenance, caption relation, and no-source-derived anti-hallucination checks |
+| Forms + key-value + marks | Managed Document AI (Azure/Google/Textract), Paddle OCR KIE, Docling/MinerU (candidate) | Native AcroForm fields are implemented; scanned KVP + selection marks remain open | Field-level confidence + schema validation + manual-review states for scanned forms and marks |
+| Formula/math extraction | MinerU, Marker, LlamaParse, Mathpix OCR, Pix2Text, TexOCR, Donut | No production formula lane in CIR yet | Formula/LaTeX fixtures with span mapping and normalization before any policy claim |
+| Office/web/email structure | Native DOCX, HTML, EML, XLSX/XLSM, PPTX adapters + Docling/Open-source ETL | Native DOCX/HTML/EML/XLSX/PPTX structure now flows into CIR | Relationship-level fixtures for charts/images/forms across formats and malformed documents |
+| Multilingual + handwriting + scripts | Surya, PP-Structure, PaddleOCR families, Docling + managed IDP paths | Script observation is recorded; multilingual accuracy and handwriting are not yet routed as quality-closed lanes | Script-stratified OCR/handwriting benchmarks and unsupported-language fallback policy |
+| Image-aware semantic understanding (derived) | General VLMs and document VLMs (Gemini, Mistral, OpenAI, Claude, Unstructured VLM-class tools) | `configured_unverified` in registry where present; not treated as source evidence | Provider failure, privacy, and retention gates + deterministic bounded annotation schema |
+
+Action for this map: preserve the capability-router architecture and avoid adding
+new parser defaults directly from catalog score alone. Additions require
+corpus-representative fixtures and source-preserving evidence outcomes first.
+The companion frontier matrix is now also recorded in
+[docs/technical/document_parser_capability_catalog_2026-07-22.md](docs/technical/document_parser_capability_catalog_2026-07-22.md),
+including image/figure, sentence, heading, forms, charts, and derived-image
+understanding lanes not covered by the six fixed catalog columns.
+
+### Capability assignment matrix (what closes each user-requested capability) — 2026-07-22
+
+This matrix makes the requested capabilities explicit from catalog signal → owning
+runtime lane → launch gate.
+
+| Capability | Catalog frontier coverage signal | Runtime owning lane | Current production-safe status | Close gate |
+|---|---|---|---|---|
+| Sentences / text fidelity | Broad document text families; no dedicated sentence column in `Master Catalog` | `native_text` + `sentence_segmentation` + CIR node offsets | Tier 2 for native + synthetic OCR text; no language-specific boundary proof | Language-aware word/line boundary benchmarks and confidence-aware split policy |
+| Structures / sections / reading order | Layout-aware parsers (Docling/Surya/PP-Structure/Marker) | `layout`, `reading_order`, `headings_and_sections(candidate)` | Partial: layout geometry/order is source-grounded; semantic headings are candidate only | Heading-depth and nested-structure fixtures, rotated/multi-column cases |
+| Tables | Broad coverage in native + layout-table families | `tables` + `native table/cell` nodes | Partial: native tables are Tier 2; scanned tables remain open | Merged-cell, borderless, rotated, and low-quality table fixtures + failure telemetry |
+| Images / figures / charts | OCR/layout parsers + VLM families with figure regions | `figures` + `charts_and_diagrams` + artifact hashes | Partial: structural retention is in scope; semantic image claims remain derived | Bounded crop→bbox→caption mapping; anti-hallucination + no derived claim as policy fact |
+| Forms / KVP / marks | Managed DI + KIE families + parser candidates | `forms` + `key_value_extraction` + `selection_marks` | Partial: native AcroForm is safe; scanned KVP/marks are not yet production-safe | KVP/marks specialist adapter with geometry schema + manual review/retry states |
+| Formula / math | Math-capable parser families and OCR families | `formulas` (candidate only) | No closed production formula lane | Formula/LaTeX fixtures + cell/region provenance + normalization checks |
+| Office / web / email | DOCX/PPTX/XLSX/HTML/EML native parsers + Docling/ETL | `office_and_email_structure` | Tier 2 for core structure flows | Malformed container + relationship-preservation tests for images/forms/charts |
+| Multilingual text | Multilingual-capable parsers (Surya/PaddleOCR families) | `multilingual` (routing-only) | Routing-only; no quality closure | Script-specific OCR/segmentation and unsupported-language fallback policy |
+| Handwriting | Recent-model lane includes handwriting-focused families | `handwriting` (unavailable, specialist candidate) | Not production-safe today | Dedicated handwriting benchmark + review fallback before promotion |
+| Image semantic understanding | General VLMs and document-VLM families (Gemini/OpenAI/Mistral/etc.) | `image_understanding`, `vlm_annotation` (configured_unverified) | Derived-only today | Bounded image benchmark, privacy/retention, provenance schema, anti-hallucination controls |
+
+### Evidence-tier lane ledger (2026-07-22)
+
+To keep this map usable as an execution source-of-truth, each lane now has a
+single explicit state:
+
+- **Tier 0 (frontier only):** catalog/market signal exists, but no production
+  evidence lane.
+- **Tier 1 (observed):** parser/profiles are enumerated but not yet production
+  evidence-closed.
+- **Tier 2 (locally executable):** deterministic evidence exists for synthetic/
+  native fixtures and is persisted in CIR.
+- **Tier 3+ (corpus and operator gate):** consented corpus + partial-failure +
+  retry + cost/privacy/licensing controls are closed.
+
+| Capability | State | Why this is true today | Next hard gate |
+| --- | --- | --- | --- |
+| Text/sentence fidelity | Tier 2 | Native text + sentence offsets from native pages and OCR-capability branch exist in CIR | Word-boundary + multilingual sentence fixtures; confidence-aware fallback policy |
+| Layout/reading order | Tier 2 | Page geometry + block order exists in emitted nodes | Nested headings and column/rotated fixtures for heading hierarchy |
+| Born-digital tables | Tier 2 | Table and table-cell coordinates are preserved in native/office flows | Scanned table and borderless/merged-cell behavior |
+| Scanned tables | Tier 0 | No reliable scanned-cell structure pipeline is production-ready | PP-Structure / Surya / TATR / GMFT adapter with error telemetry and schema diff checks |
+| Figures/charts/images (structural) | Tier 2 | Artifact hashes for embedded images/attachments/charts are retained | Bounded crop-to-caption mapping and bounded annotation schema |
+| Derived chart/image understanding | Tier 0 | Optional VLM output remains derived; registry marks it unverified | Provider trust policy, privacy review, fallback policy, human-review path |
+| Form/KVP/selection marks | Tier 1 | Native AcroForm fields are production-safe evidence; KVP/marks are not yet | Specialist KIE + geometry + reviewer recovery state before policy interpretation |
+| Formula/math lane | Tier 0 | No formula-to-source pipeline in CIR yet | Formula region/span mapping + normalization + policy-domain validation |
+| Office/web/email structure | Tier 2 | DOCX/HTML/EML/XLSX/PPTX native adapters emit CIR nodes | Cross-format relationship constraints (charts/images/form fields) in adversarial fixtures |
+| Multilingual + handwriting | Tier 1 (script observed) | Script detection exists; language-specific performance not yet closed | Script-gated benchmark and manual-review fallback contract |
+
+### 6.y Capability assignment confirmation for user-requested classes (2026-07-22)
+
+This is the practical “for each class, who owns it today” checkpoint:
+
+- Runtime lane and owning file path are bound to code, not just marketing claims.
+- Evidence tier is aligned to the same ledger (`scanned_ocr`, `tables`, `layout`, etc.).
+
+| User-requested class | Runtime owning lane | State now | Launch-safe gap |
+|---|---|---|---|
+| Text + sentence extraction | `native_text`, `sentence_segmentation`, `scanned_ocr` (`src/ocr/capability_registry.py`) | Tier 2 structural extraction | Language-aware sentence boundary benchmarks and unsupported-language fallback |
+| Structures/layouts/sections | `layout`, `reading_order`, `headings_and_sections(candidate)` | Tier 2 geometry + candidate semantics | Nested-structure + rotated/multi-column hierarchy fixtures |
+| Tables (rows/cells/charts-in-doc tables) | `tables`, native table/cell adapters | Tier 2 for born-digital and office tables | Scanned-table reconstruction + merged/borderless/low-quality cases |
+| Images/figures/charts artifacts | `figures`, `charts_and_diagrams`, artifact hash lineage | Tier 2 structural capture | Bound crop→bbox→caption graph and anti-hallucination annotation |
+| Forms / key-value / selection marks | `forms`, `key_value_extraction`, `selection_marks` | Partial (native widgets only) | Specialist KVP/mark profiles + field-level geometry validation |
+| Formula/math extraction | `formulas` (candidate profiles only) | Tier 0 | Formula/LaTeX source span mapping and normalization |
+| Office/web/email structure | `office_and_email_structure` | Tier 2 | Malformed-container and relationship-preservation regression tests |
+| Multilingual handling | `multilingual` (routing-only) | Tier 1 | Language/locale-specific OCR and sentence quality evidence |
+| Handwriting | `handwriting` (unavailable/specialist candidate) | Not owned | Dedicated handwriting corpus and review-only policy before any claim |
+| Image semantics (VLM annotation) | `vlm_annotation`, `image_understanding` | Candidate + configured_unverified | Image/provider policy, privacy, and bounded benchmark closure |
+
+### 6.z External frontier observations recorded (2026-07-22)
+
+- **Docling** documentation indicates explicit support for bounded deterministic reading
+  order, table structure, formulas, captions, and image/figure classification.
+- **Surya** repository/landing docs position it as OCR + layout + reading order + table recognition across 90+ languages.
+- **PaddleOCR PP-StructureV3** docs show expanded layout/table/formula/chart parsing with KIE pathway.
+- **MinerU** docs emphasize deep structuring for complex documents plus table/formula support.
+- Decision consequence: keep these families as gated candidates; launch defaults remain native/proven lanes until registry gate closure.
+
 ## Remote contract parity correction (2026-07-21)
 
 The live Supabase audit exposed and closed three semantic gaps that object
@@ -2879,3 +3208,153 @@ canonical PNG page artifact from the original source before evidence enqueue.
 The source file remains authoritative; the sidecar supplies text only.
 Focused sidecar/evidence/outbox/state coverage passes 21 tests (Tier 2).
 Remote worker replay and authenticated review traversal remain Tier 3/4 gates.
+
+## Addendum — RAG closure reconciliation (2026-07-22)
+
+The broad RAG research phase is complete enough for architecture and package
+selection. This addendum reconciles the older baseline document with later
+implementation evidence and the 2026-07-22 local closure pass.
+
+### Closed or superseded locally
+
+- The OpenAI/httpx startup mismatch is superseded by the later runtime
+  re-audit; the active environment initializes successfully. The remaining
+  HTTPX deprecation warning is hygiene debt.
+- `RAGPipeline` and `LLMClient` now initialize without `OPENAI_API_KEY` when a
+  configured local/compatible provider is available. Supabase continues to
+  fail closed when the canonical embedding provider is unavailable.
+- The RAGAS harness now evaluates retrieved source contexts instead of using
+  the generated answer as a fake context.
+- The historical 2025 RAG TODO is now explicitly marked as a backlog and not
+  the launch-status source of truth; current items are mapped to the canonical
+  exploration and ADR surfaces.
+
+### Still open
+
+1. Authenticated two-owner retrieval and citation-to-page traversal against the
+   deployed evidence substrate.
+2. Delete/re-index/version proof across source, page artifacts, chunks,
+   dense/lexical indexes, cache, and audit records.
+3. Held-out evaluation across exact, numeric, table, OCR, narrative, negative,
+   multilingual, and cross-document slices with retained failure cases.
+4. Real scanned insurance fixture benchmarks for tables, key/value fields,
+   handwriting, formulas, multilingual text, office formats, and visual/chart
+   annotations.
+5. A product decision and implementation path for relationship-aware
+   policyholder/insured/nominee extraction, clarification questions,
+   document-view citations, and cross-policy comparison.
+
+### Evidence boundary
+
+The local closure pass added regression coverage and passed the targeted RAG
+tests. It does not close the deployed, real-data, device, provider, or
+cross-principal gates above. No credentials, remote migration, external
+provider, or real customer document was used in this pass.
+
+The deterministic capability runner additionally passed 10/10 generated/native
+cases with the local doctr profile, including mixed native/OCR page routing and
+DOCX/HTML/EML/XLSX/PPTX structure. This is synthetic Tier 2 evidence only; the
+consented real-insurance benchmark remains open.
+
+Local verification for this addendum: backend suite 508 passed / 1 skipped;
+focused RAG/document suite 73 passed; changed-file Ruff and compilation clean;
+offline provider smoke initialized without OpenAI credentials and generated a
+768-dimensional embedding; `uv pip check` passed. These are local Tier 2
+checks, not deployed or real-customer-document evidence.
+
+Service boundary recheck: local PostgreSQL accepted connections and Redis
+returned `PONG`; Docker was unavailable and the Supabase CLI was not installed.
+No remote migration, deployed query, or authenticated cross-owner replay was
+attempted from this pass.
+
+## Native Office structure update (2026-07-22)
+
+The implementation pass closed the remaining deterministic Office-format gap:
+`openpyxl-native` now exposes worksheets, cells, formulas, and image lineage;
+`python-pptx-native` exposes slides, titles/text shapes, tables/cells, and
+picture lineage. Both use the CIR/evidence contract and are covered by
+executable synthetic cases. This is structural extraction evidence only.
+
+The research map therefore keeps the specialist lanes distinct: use
+PP-Structure/PaddleOCR-VL, Surya, MinerU, Docling, or managed document APIs
+for scanned tables, semantic key/value/forms, formulas, handwriting,
+multilingual accuracy, and chart/image interpretation only after a corpus
+benchmark demonstrates provenance, uncertainty, latency, privacy, licensing,
+and recovery behavior. Native XLSX formula text is preserved but is not a
+formula-correctness claim.
+
+## Q&A source attribution and submit-state correction (2026-07-22)
+
+The Q&A review trace found two user-visible contract gaps. The custom-question
+submit action read `controller.text` without listening for edits, so typing a
+valid question did not reliably enable the action. The screen now rebuilds the
+button from the controller's `ValueListenable`. Separately, source objects
+without their own `document_id` lost the response-level document identity; the
+mapper now inherits that identity so source cards and navigation remain tied to
+the selected document. Focused source-reference coverage passes 8 tests (Tier
+2); live backend Q&A, source readback, and authenticated document navigation
+remain Tier 3/4 gates.
+
+## J02–J07 journey-flow consolidation (2026-07-22)
+
+The canonical journey artifact now includes a dedicated J02–J07 deep path flow
+diagram in [`docs/user_experience/coverwise_user_journey_map.md`](../user_experience/coverwise_user_journey_map.md).
+It captures happy paths, non-happy branches, optional routes, and high-risk
+alternates across cold launch, identity transitions, upload/processing, evidence
+review, and Q&A recovery actions.
+
+That same trace now adds explicit frontier and execution artifacts in
+[`coverwise_j02_j07_deep_dive_2026-07-21.md`](coverwise_j02_j07_deep_dive_2026-07-21.md)
+for J02–J07 non-happy branches:
+- durable queue primacy and recovery,
+- identity migration with local encrypted assets,
+- evidence provenance under two owners, and
+- Q&A fallback honesty and tenant isolation.
+That includes a [Closure execution matrix](coverwise_j02_j07_deep_dive_2026-07-21.md#closure-execution-matrix-2026-07-22) and a
+branch probe matrix mapped to operator-visible evidence, so the next pass can execute each branch as a tracked checklist without scope drift.
+
+For the next run, use the new
+[`J02–J07 evidence-by-branch command matrix`](coverwise_j02_j07_deep_dive_2026-07-21.md#j02j07-evidence-by-branch-command-matrix-2026-07-22),
+which adds command-level assignments and expected artifacts for backend and mobile sides.
+
+This run recorded a broader J02–J07 execution pass: backend evidence now includes
+offline-sync and lease-recovery suite completion (15 + 38 tests), and multiple
+targeted mobile suites execute cleanly for reconciliation, identity key migration,
+processing-state safety, Q&A guardrails, source/citation rendering, local consent
+ledger behavior, and deletion status.
+
+`test/consent_upload_flow_test.dart` also passes in this environment, with mocked
+or transport-edge 400 responses observed and handled inside the suite. Remaining
+Tier 4 closure work is now concentrated on:
+
+- J03 end-to-end migration/restart replay under real runtime services,
+- J04/J05 production queue primacy and live worker replay/dead-letter observation,
+- J06/J07 two-owner cross-stack retrieval and citation-owner proof with real policy documents.
+
+This keeps the exploration index aligned while preserving the existing per-journey
+rows and unresolved Tier 3/4 gates (owner-scoped replay, cross-owner
+evidence/Q&A confidence, and hard closed-loop consent/identity closure).
+
+## J02–J07 continuation pass — same-session two-principal live probe (2026-07-22)
+
+Executed on `127.0.0.1:8010` with two anonymous principals and `sample_insurance.pdf`.
+
+- **Closed in observed evidence**
+  - Upload consent gate: missing processing consent is rejected with `processing_consent_required`.
+  - Auth boundary: invalid token still fails authentication.
+  - Idempotent replay: repeated identical upload for same owner returns same `document.id` and `documents[0].idempotent_replay=true`.
+  - Owner isolation on mutable/evidence endpoints: owner B receives `404` on owner A `/documents/{id}/status`, `/summary`, `/field-citations`, `/sources`.
+  - Safe query fallback: both `/query` and `/documents/query` return no-context/fallback for cross-owner attempts.
+  - Canonical query path with in-scope doc still returns answer + citation status plus explicit low-confidence fields (no invented recommendations).
+
+- **Open/remaining for this frontier**
+  - durable outbox enqueue-to-worker delivery inspection in this pass still lacked long-running job telemetry (processing status returned idle in short window);
+  - positive summary/evidence completion path for a fresh upload requires longer-running observation or explicit fixture orchestration;
+  - authenticated two-principal replay through claim/restart is still required.
+
+- **New execution action (next pass)**
+  - keep the same doc and same query under owner A, perform an account claim/restart boundary for owner A/B, then re-check `/query`, `/documents/{id}/summary`, `/documents/{id}/field-citations`, and owner transfer readback.
+
+This map section now treats the previous frontier as partially closed: cross-owner
+read/query leakage is now observed as guarded in live stack for this API tier, while
+replay + restart resilience remains the next Tier 3/4 gate before closing the J03/J06/J07 trust chain.

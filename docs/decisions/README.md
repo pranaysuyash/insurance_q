@@ -2,6 +2,7 @@
 
 - [ADR-2026-07-21-06 — Deployed launch health gate](ADR-2026-07-21-06-deployed-launch-health-gate.md)
 - [ADR-2026-07-21-07 — Remote Supabase migration-ledger reconciliation](ADR-2026-07-21-07-remote-supabase-migration-ledger-reconciliation.md)
+- [ADR-2026-07-22-02 — Riverpod for all service dependency injection](ADR-2026-07-22-02-service-dependency-injection-riverpod.md)
 
 This file lists every architectural, product, integration, data-pipeline, payment, customer-facing, or operational decision made in CoverWise, with a link to the full decision record. Records follow the `motto_v4.md` decision-record schema (decision, date, context, options, chosen path, why, tradeoffs, assumptions, risks, validation, rollback, revisit triggers, links).
 
@@ -33,6 +34,7 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-21-07 | 2026-07-21 | Reconcile remote Supabase migration history before normal pushes | Accepted for implementation | [link](./ADR-2026-07-21-07-remote-supabase-migration-ledger-reconciliation.md) |
 | ADR-2026-07-21-04 | 2026-07-21 | Governed evaluation manifests and scheduled retention execution | Accepted for implementation | [link](./ADR-2026-07-21-04-governed-evaluation-and-retention-execution.md) |
 | ADR-2026-07-21-05 | 2026-07-21 | Capability-routed document intelligence with one source-preserving CIR and evidence contract | Proposed for implementation | [link](./ADR-2026-07-21-05-document-intelligence-router-and-evidence-contract.md) |
+| ADR-2026-07-22-02 | 2026-07-22 | Riverpod for all service dependency injection | Proposed | [link](./ADR-2026-07-22-02-service-dependency-injection-riverpod.md) |
 
 ### Notes on the 5 Accepted ADRs (2026-07-19)
 

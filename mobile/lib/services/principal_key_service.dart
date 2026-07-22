@@ -76,8 +76,13 @@ class PrincipalKeyService {
       'coverwise_legacy_device_hive_key_v1';
 
   /// Lazy-initialized secure storage.
+  ///
+  /// The `encryptedSharedPreferences` parameter was removed because the
+  /// Jetpack Security library is deprecated by Google. Data auto-migrates
+  /// to custom ciphers on first access. See the deprecation notice in
+  /// flutter_secure_storage v11.
   static final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(),
   );
 
   /// In-memory cache of the DEK for the current session.

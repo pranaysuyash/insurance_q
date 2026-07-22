@@ -23,6 +23,46 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
   void initState() {
     super.initState();
     _analyticsConsent = _ledger.hasConsent(ConsentPurpose.analytics);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPolicyVersion());
+  }
+
+  Future<void> _checkPolicyVersion() async {
+    if (!mounted) return;
+    if (_ledger.isPrivacyPolicyAccepted(AppConfig.privacyPolicyVersion)) return;
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Privacy policy updated'),
+        content: const Text(
+          'The privacy policy has been updated. Please review and accept '
+          'the new version to continue.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).push(
+                MaterialPageRoute(
+                  builder: (_) => const PrivacyPolicyScreen(),
+                ),
+              );
+            },
+            child: const Text('Review'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('I accept'),
+          ),
+        ],
+      ),
+    );
+
+    if (accepted == true && mounted) {
+      await _ledger.recordPolicyAcceptance(
+        version: AppConfig.privacyPolicyVersion,
+      );
+    }
   }
 
   Future<void> _toggleAnalyticsConsent(bool value) async {

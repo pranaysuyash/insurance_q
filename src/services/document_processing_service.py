@@ -612,20 +612,21 @@ class DocumentProcessingService:
                     "full_text": "",
                 }
 
-        # --- HTML/EML: preserve native structure before generic text fallback ---
-        if file_extension in {".html", ".htm", ".eml"}:
+        # --- Native Office/web/mail formats: preserve structure before generic fallback ---
+        if file_extension in {".html", ".htm", ".eml", ".xlsx", ".xlsm", ".pptx"}:
             try:
-                from src.ocr.native_formats import (
-                    extract_native_eml_document,
-                    extract_native_html_document,
-                )
+                from src.ocr.native_formats import extract_native_eml_document, extract_native_html_document
+                from src.ocr.native_office import extract_native_pptx_document, extract_native_xlsx_document
 
                 source_bytes = Path(file_path).read_bytes()
-                native_document = (
-                    extract_native_eml_document(source_bytes)
-                    if file_extension == ".eml"
-                    else extract_native_html_document(source_bytes)
-                )
+                if file_extension == ".eml":
+                    native_document = extract_native_eml_document(source_bytes)
+                elif file_extension in {".html", ".htm"}:
+                    native_document = extract_native_html_document(source_bytes)
+                elif file_extension in {".xlsx", ".xlsm"}:
+                    native_document = extract_native_xlsx_document(source_bytes)
+                else:
+                    native_document = extract_native_pptx_document(source_bytes)
                 cir = build_document_cir(
                     filename=filename,
                     source_artifact_sha256=native_document["source_artifact_sha256"],
@@ -633,7 +634,7 @@ class DocumentProcessingService:
                     page_texts=native_document["page_texts"],
                     parser_profile=native_document["parser_profile"],
                     observed_nodes=native_document["nodes"],
-                    metadata={"logical_page_model": "document"},
+                    metadata={"logical_page_model": "document_or_sheet_or_slide"},
                 )
                 return {
                     "full_text": native_document["full_text"],
@@ -652,6 +653,7 @@ class DocumentProcessingService:
                 )
                 return {
                     "status": "failed",
+                    "error_code": "unsupported_file_type",
                     "error": "Native document structure extraction failed",
                     "error_type": type(error).__name__,
                     "full_text": "",

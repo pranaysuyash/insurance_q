@@ -11,6 +11,7 @@ import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers/hive_test_helper.dart';
+import 'package:coverwise/widgets/usage_stats_widget.dart';
 
 /// Tests the _ensureConsent() helper in DocumentsScreen through
 /// widget integration, covering stale consent, healthy consent,
@@ -103,6 +104,7 @@ void main() {
     return ProviderScope(
       overrides: [
         documentsProvider.overrideWith((ref) async => documents),
+        usageStatsProvider.overrideWith((ref) async => <String, dynamic>{}),
       ],
       child: const MaterialApp(
         home: DocumentsScreen(initialFileName: 'policy.pdf'),
@@ -267,10 +269,12 @@ void main() {
       // Tap upload — this triggers _uploadFile() → _ensureConsent().
       await tapUpload(tester);
 
-      // The LeadCaptureDialog should now be visible. Dismiss by tapping
-      // the system back button (reliably dismisses any dialog).
+      // The LeadCaptureDialog should now be visible. Cancel it so
+      // _ensureConsent() returns null (no consent recorded).
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       if (find.byType(Dialog).evaluate().isNotEmpty) {
-        await tester.pageBack();
+        await tester.tap(find.text('Cancel'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
       }

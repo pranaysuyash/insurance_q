@@ -7,11 +7,14 @@ import '../models/qa_models.dart';
 import '../models/document_model.dart';
 import '../config/app_config.dart';
 import '../providers/questions_provider.dart';
+import '../widgets/shared/newsletter_signup_sheet.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/analytics_service.dart';
+import '../services/lead_generation_service.dart';
+import '../widgets/shared/contextual_cta_card.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/loading_widget.dart';
 import '../widgets/shared/offline_banner.dart';
@@ -22,7 +25,9 @@ import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
 import '../utils/app_error.dart';
 import '../providers/entitlement_provider.dart';
+import '../providers/policy_providers.dart';
 import '../models/entitlement.dart';
+import '../models/policy_summary.dart';
 import 'document_selection_dialog.dart';
 import 'document_preview_screen.dart';
 import 'qa_packs_screen.dart';
@@ -719,12 +724,15 @@ class _CustomQuestionTab extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            icon: const Icon(Icons.arrow_upward_rounded),
-            label: Text(S.qaScreenTitle),
-            onPressed: isLoading || controller.text.trim().isEmpty
-                ? null
-                : () => onAskQuestion(controller.text.trim()),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) => FilledButton.icon(
+              icon: const Icon(Icons.arrow_upward_rounded),
+              label: Text(S.qaScreenTitle),
+              onPressed: isLoading || value.text.trim().isEmpty
+                  ? null
+                  : () => onAskQuestion(value.text.trim()),
+            ),
           ),
           const SizedBox(height: 24),
           if (isLoading) const LoadingWidget(),
@@ -1152,6 +1160,82 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
     }
   }
 
+  /// Builds contextual CTAs based on the current answer's question topic
+  /// and the policy context (insurer name, document type, expiry state).
+  Widget _buildCtas(BuildContext context) {
+    final answer = widget.answer;
+    final topic = LeadGenerationService.classifyQuestion(answer.question);
+
+    // Resolve the policy summary for personalized CTA copy (insurer name, etc.)
+    PolicySummary? resolvedPolicy;
+    if (answer.documentId.isNotEmpty) {
+      final summaries = ref.read(policySummariesProvider);
+      resolvedPolicy = summaries
+          .where((s) => s.documentId == answer.documentId)
+          .firstOrNull;
+    }
+
+    final ctas = LeadGenerationService.ctasForTopic(
+      topic: topic,
+      policy: resolvedPolicy,
+      context: context,
+      onUpgrade: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const QaPacksScreen()),
+        );
+      },
+      onCompare: () {
+        CoverWiseSnackBar.warning(
+          context,
+          'Compare policy options — upgrade to Plus for detailed comparisons.',
+          actionLabel: S.upgrade,
+          onAction: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const QaPacksScreen()),
+            );
+          },
+        );
+      },
+      onNewsletter: () {
+        NewsletterSignupSheet.show(context);
+      },
+      onContactAgent: () {
+        CoverWiseSnackBar.warning(
+          context,
+          'Contact an insurance advisor — upgrade to Plus for personalized guidance.',
+          actionLabel: S.upgrade,
+          onAction: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const QaPacksScreen()),
+            );
+          },
+        );
+      },
+    );
+
+    if (ctas.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(),
+          const SizedBox(height: 8),
+          Text(
+            'You might also be interested in:',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 8),
+          ...ctas.map((cta) => CtaCard(cta: cta)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final answer = widget.answer;
@@ -1325,6 +1409,8 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                           onAskQuestion: _askFollowUp,
                         ),
                       ],
+                      // Contextual CTAs for lead generation
+                      _buildCtas(context),
                     ],
                   ),
                 ),

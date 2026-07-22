@@ -79,10 +79,14 @@ class RAGPipeline:
     CACHE_VERSION_KEY = "rag:query:version"
 
     def __init__(self):
-        if not settings.openai_api_key:
-            raise ValueError("OPENAI_API_KEY is not set")
-
-        self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+        # OpenAI is the production embedding space, but local development can
+        # use Ollama or sentence-transformers. Do not fail before the
+        # configured fallback chain has a chance to run.
+        self.openai_client = (
+            AsyncOpenAI(api_key=settings.openai_api_key)
+            if settings.openai_api_key
+            else None
+        )
         self.llm = LLMClient()
         self.openai_chat_model = settings.openai_chat_model
         self.openai_embedding_model = settings.openai_embedding_model
@@ -395,6 +399,8 @@ class RAGPipeline:
     ) -> List[List[float]]:
         if not texts:
             return []
+        if self.openai_client is None:
+            raise RuntimeError("OpenAI embedding provider is not configured")
 
         texts_to_embed = []
         for text in texts:
@@ -1896,7 +1902,7 @@ class RAGPipeline:
         Returns only verified + approximate citations (rejected are dropped).
         Approximate citations carry citation_status='approximate' for the UI to render distinctly.
         """
-        from src.services.citation_verifier import verify_citation, CitationRejectionReason
+        from src.services.citation_verifier import verify_citation
         kept = []
         for citation in citations:
             idx = citation.source_index - 1

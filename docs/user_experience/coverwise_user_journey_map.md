@@ -125,6 +125,240 @@ flowchart TD
     V2 --> AA[Durable workspace and auditable lifecycle]
 ```
 
+## 3.1 J02–J07 journey-state inventory (ideal/current/future)
+
+| Journey | Ideal | Current | Future |
+|---|---|---|---|
+| J02 onboarding | Fast, explicit, server-auditable consent and purpose versioning with durable completion state | Local onboarding marker and consent handling exist; server-auditable outcomes are not fully closed for all branches | Single canonical server-first consent ledger with explicit decline/retry/offline states |
+| J03 identity | Canonical principal lifecycle with migration receipts and two-user isolation | Dual local/server principal model with partial migration evidence | Canonical principal migration with encrypted local key transfer proof + explicit deletion job receipts |
+| J04 upload | One production enqueue path through durable queue and deterministic job receipt | Durable outbox path is reachable, but non-canonical enqueue and in-process behaviors still need explicit disallow proof | Remove non-canonical upload paths; prove only outbox-based terminal outcomes |
+| J05 processing | Single lease-aware processor with bounded retries and explicit terminal recovery states | Mixed processing behavior with unverified duplicate/recovery boundaries | Bounded lease contention recovery and dead-letter closure as production-default behavior |
+| J06 evidence | Always provenance-typed evidence and owner-scoped source navigation | Structured evidence is present; provenance typing and cross-owner runtime proofs are incomplete | Full typed evidence schema + stale/invalid provenance state, two-owner replay proof |
+| J07 Q&A | One owner-scoped query route with citationed answer + explicit uncertainty fallback | Two query routes and unclosed multi-owner runtime fallback | Canonical owner-scoped route with explicit safe-unknown and cost-sensitive escalation policy |
+
+## 3.2 J02–J07 deep path with failures, alternates, and optional routes
+
+```mermaid
+flowchart TD
+    A[Cold launch]
+    A --> B{Onboarding complete?}
+    B -- No --> C[Onboarding flow]
+    C --> C1[Read scope and privacy]
+    C1 --> C2{User action on onboarding terms}
+    C2 -- Accept --> C3[Record acceptance version]
+    C2 -- Decline required terms --> C4[Surface limited usage and safe alternative]
+    C2 -- Skip/close --> C5[Enter limited mode with explicit warning]
+    C4 --> C3
+    C5 --> C3
+    C3 --> D[Local state marker set]
+    B -- Yes --> D
+
+    D --> E[Dashboard + workspace hydration]
+    E --> F{Create identity transition now?}
+    F -- Stay anonymous --> G[Anonymous principal with local workspace]
+    F -- Sign in / sign up --> H[Auth provider + callbacks]
+    G --> I[Document entry point]
+    H --> H1{Auth success?}
+    H1 -- No --> H2[Retry auth / reset password / support]
+    H1 -- Yes --> I
+    H2 --> I
+
+    I --> J{Upload source}
+    J -- File picker --> K[PDF / image selected]
+    J -- Camera capture (future) --> K
+    J -- Sample policy --> K2[Demo workspace]
+    K --> L{Validation and consent}
+    K2 --> L
+    L -- Invalid format --> L1[Validation message + retry]
+    L -- Consent needed --> L2[Processing consent decision]
+    L -- Valid and consented --> M[Start processing path]
+    L2 -- Decline --> C4
+    L1 --> J
+
+    M --> N{Upload path}
+    N --> N1[Local pending artifact]
+    N1 --> N2{Backend connectivity}
+    N2 -- Offline --> N3[Keep local pending; retry queue]
+    N2 -- Online --> O[Create durable outbox envelope]
+    N3 --> N4{User-triggered retry}
+    N4 -- Retry now --> O
+    N4 -- Later --> N3
+
+    O --> P{Processing worker lease}
+    P -- Conflict/retry window --> P1[Backoff and lease recovery]
+    P1 --> P
+    P -- Accepted --> Q[OCR/extraction + policy parser]
+    Q --> Q1{Extraction outcome}
+    Q1 -- Partial --> Q2[Store partial evidence + open for repair]
+    Q1 -- Failed --> Q3[Failure classification + user-facing reason]
+    Q1 -- Success --> R[Verified evidence + source spans + page artifacts]
+    Q2 --> R
+    Q3 --> R
+
+    R --> S[Document detail / policy fields]
+    S --> T{User next move}
+    T -- Browse fields --> U[Open source-backed field + page]
+    T -- Ask question --> V[Q&A path]
+    T -- Family/reminders/help --> W[Optional non-core products]
+    T -- Contact insurer/export/share --> X[Safe action utilities]
+
+    U --> S
+    V --> V1{Answer pipeline}
+    V1 -- evidence enough --> V2[Answer + citation + confidence + links]
+    V1 -- missing or weak --> V3[Not found / uncertain + narrowing suggestion]
+    V1 -- model fail/timeout --> V4[Retry, fallback policy, or safe unavailable]
+    V3 --> Y[Follow up question / open source page]
+    V4 --> Y
+    V2 --> Y
+
+    Y --> Z[Question history, feedback, usage counters]
+
+    W --> S
+    X --> S
+    Z --> AA[Workspace updated]
+    AA --> AB[Return loops: reminders, updates, stale checks]
+    AB --> E
+
+    N3 --> AC[Delete request or sign out]
+    O --> AC
+    AC --> AD[Deletion queue + audit receipt + propagation checks]
+    AD --> E
+
+    N3 --> AE{Plan limit / entitlement}
+    AE -- Available --> O
+    AE -- Exhausted --> AF[Show limit, plan options, and hard stop paths]
+    AF --> AG{User choice}
+    AG -- Cancel --> E
+    AG -- Delete upload backlog --> AD
+    AG -- Upgrade/recover --> AH[Billing/restore flow + entitlement sync]
+    AH --> I
+```
+
+### J02–J07 end-to-end trace graph (happy, non-happy, optional, alternate)
+
+```mermaid
+flowchart TD
+    %% Entry and onboarding
+    subgraph S1["J02 Cold launch + onboarding"]
+      A1["Person opens app"]
+      A2{"Onboarding complete?"}
+      A1 --> A2
+      A2 -->|No| A3["Show onboarding + privacy/scope"]
+      A2 -->|Yes| A8["Go to home/workspace"]
+      A3 --> A4{"Required terms accepted?"}
+      A4 -->|No| A5["Limited mode + explicit warning"]
+      A4 -->|Skip| A5
+      A4 -->|Yes| A6["Persist completion + purpose state"]
+      A5 --> A6
+      A6 --> A8
+    end
+
+    %% Identity
+    subgraph S2["J03 Identity and ownership"]
+      B1["Continue as anonymous"]
+      B2{"Sign in / sign up now?"}
+      A8 --> B1
+      B1 --> B2
+      B2 -->|No| B3["Anonymous workspace"]
+      B2 -->|Yes| B4["Auth callback + token refresh"]
+      B4 --> B5{"Auth success?"}
+      B4 -->|Failure| B6["Retry / reset / support"]
+      B5 -->|Failure| B6
+      B5 -->|Success| B7["Claim local + remote ownership"]
+      B6 -->|Retry| B4
+      B7 --> B3
+    end
+
+    %% Upload
+    subgraph S3["J04 Upload"]
+      C1["Open document source"]
+      B3 --> C1
+      C1 --> C2{"Selection type"}
+      C2 -->|Existing file| C3["PDF/image selected"]
+      C2 -->|Sample policy| C8["Demo workspace flow"]
+      C2 -->|Camera capture| C4["Capture path (future)"]
+      C4 --> C3
+      C3 --> C5{"Validation + consent"}
+      C8 --> C5
+      C5 -->|Invalid| C6["Validation error + action"]
+      C5 -->|Consent declined| C7["Sync-limited path"]
+      C5 -->|Pass + consent| C9["Create upload intent"]
+      C6 --> C1
+      C7 --> C9
+      C9 --> C10{"Connectivity"}
+      C10 -->|Offline| C11["Persist pending upload"]
+      C10 -->|Online| C12["Create durable outbox envelope"]
+      C11 --> C13{"Retry policy"}
+      C13 -->|Later| C11
+      C13 -->|Now| C12
+    end
+
+    %% Processing
+    subgraph S4["J05 Processing"]
+      D1["Worker lease claim"]
+      C12 --> D1
+      C11 --> D1
+      D1 --> D2{"Lease acquired?"}
+      D2 -->|No| D10["Bounded retry"]
+      D2 -->|Yes| D3["OCR/extraction"]
+      D3 --> D4{"Outcome"}
+      D4 -->|Success| D7["Verified evidence produced"]
+      D4 -->|Partial| D5["Partial / text required"]
+      D4 -->|OCR required| D6["OCR required retry/fallback"]
+      D4 -->|Failed| D8["Failure class"]
+      D4 -->|Deleted| D9["Skip with deletion fence"]
+      D5 --> D10
+      D6 --> D10
+      D8 --> D10
+      D10 -->|Retry cap hit| D11["Dead-letter + operator action"]
+      D7 --> E1["Policy detail"]
+      D5 --> E2["Policy detail (partial)"]
+      D6 --> E2
+      D8 --> E2
+      D9 --> E3["Policy unavailable / locked"]
+      E2 --> F1["Ask question"]
+      E3 --> F1
+      D10 --> C10
+    end
+
+    %% Evidence
+    subgraph S5["J06 Evidence"]
+      E1 --> E4{"Evidence state"}
+      E4 -->|Verified| E5["Cited field + source + confidence"]
+      E4 -->|Not found| E6["Unknown / stale marker"]
+      E4 -->|Cross-owner| E7["Owner-denied + no leak"]
+      E6 --> E8["Reprocess / keep partial"]
+      E7 --> E8
+      E8 --> F1
+    end
+
+    %% Q&A
+    subgraph S6["J07 Q&A"]
+      F1 --> F2{"Corpus + retrieval quality"}
+      F2 -->|Good| F3["Cited answer + confidence"]
+      F2 -->|Weak| F4["Not found / safe fallback"]
+      F2 -->|Timeout| F5["Retry + retry reason"]
+      F2 -->|Wrong scope| F6["Owner-scoped failure"]
+      F3 --> F7["Source navigation + history"]
+      F4 --> F7
+      F5 --> F7
+      F6 --> F7
+      F7 --> F8["Usage counters + audit receipts"]
+      F8 --> F9["Workspace loop"]
+    end
+
+    %% Optional and alternate loops
+    F9 --> A1
+    F9 --> G1["Billing / family / reminders / help (optional journeys)"]
+    G1 --> A1
+```
+
+### Diagram legend
+
+- **Solid flow**: happy-chain progression.
+- **Node/edge labels**: non-happy recovery and boundary-deny branches are labeled inline.
+- **Optional nodes**: sample policy, camera capture, and optional future journeys are exploratory and must remain explicitly separated from promises.
+
 ### Happy-path acceptance contract
 
 The journey is not successful merely because a file reached an API. A successful outcome requires:
@@ -315,6 +549,7 @@ Operator questions that every meaningful journey must answer:
 | Auth/ownership | Auth providers, user routes, principal storage code and tests | 1–2 | Anonymous → account claim, expiry, two-user isolation, deletion |
 | Billing | RevenueCat and subscription code | 1–2 | Sandbox purchase/restore/webhook/idempotency proof |
 | Deletion/privacy | UI, consent ledger, deletion endpoint, ADRs/audits | 1–2 | Durable deletion receipt across every representation |
+| J02–J07 live runtime probe (2026-07-22) | Upload consent/auth gates, idempotent replay, owner-scoped evidence access, and `/query`/`/documents/query` fallback behavior observed on `:8010` | 2–4 | Same-session processing-to-summary/evidence completion and two-principal replay under restart remain open |
 
 ## 9. Open exploration questions
 
@@ -328,6 +563,81 @@ These are deliberately left open for continued discussion:
 6. What operator role is needed at launch: a single support/security operator with reason-required audit, or a staged role model already reflected in the ADRs?
 7. What is the minimum real-document benchmark and citation acceptance threshold before evidence-backed claims can appear in marketing?
 8. Which future features create the highest durable value without creating a second business model: household organization, renewal diff, claim preparation, or evidence-backed annual review?
+
+## 9.1 J02–J07 continuation flow for decision gates (2026-07-22)
+
+```mermaid
+flowchart TD
+    A[J02: launch] --> B{Onboarding complete?}
+    B -->|No| C[J02: onboarding + purpose/privacy]
+    B -->|Yes| D[J03: workspace-ready home]
+    C --> E{Required terms accepted?}
+    E -->|Decline| F[J02: limited mode + explicit warning]
+    E -->|Accept| D
+    F --> D
+
+    D --> G{Identity transition now?}
+    G -->|Anonymous| H[J03: anonymous workspace]
+    G -->|Sign in/sign up| I[J03: provider callback]
+    I --> J{Auth success?}
+    J -->|No| K[J03: retry/reset/password path]
+    K --> I
+    J -->|Yes| L[J03: claim ownership]
+
+    H --> M[J04: open source]
+    L --> M
+    M --> N{Source + consent}
+    N -->|Missing consent| O[J04: consent required rejection 422]
+    N -->|Bad token| P[J04: auth rejected 401]
+    N -->|Valid| Q[J04: upload received]
+    N -->|Duplicate hash| R[J04: idempotent replay + same doc id]
+
+    Q --> S[J05: poll status]
+    R --> S
+    S --> T{processing state}
+    T -->|processing| U[J05: staged progress]
+    T -->|partial / text_required / ocr_required| V[J05: recovery path + keep partial]
+    T -->|failed| W[J05: explicit failed + retry/replace]
+    T -->|completed| X[J06: evidence visible]
+
+    U --> T
+    V --> Y[J06: partial / unknown / not-ready]
+    W --> Y
+    X --> Y2[J06: field + source + span review]
+    Y --> Y2
+
+    Y2 --> Z[J07: ask question]
+    Z --> AA{answer quality}
+    AA -->|good| AB[J07: cited answer + confidence]
+    AA -->|weak/no context| AC[J07: fallback + missing info]
+    AA -->|timeout| AD[J07: explicit timeout + retry]
+    AA -->|cross-owner| AE[J07: owner scoped no bleed]
+
+    AB --> AF[J07: source navigation + feedback + usage]
+    AC --> AF
+    AD --> AF
+    AE --> AF
+
+    AF --> AG[J01+ return flow: family/help/billings/compare/reminders]
+    AG --> D
+
+    %% optional + compatibility branch
+    N -->|Future: sample policy| AH[J04 alt: demo policy]
+    AH --> N
+    Z -->|Compat path for external callers| AI["/documents/query compatibility"]
+    AI --> AF
+```
+
+### Branch ledger update for this continuation
+
+| Journey | Verified in this continuation | Outstanding Tier 3+ gap |
+|---|---|---|
+| J02 | Onboarding path and consent gates remain behaviorally distinct | whether onboarding/consent is a hard server-enforced launch contract |
+| J03 | Anonymous upload + claim path observed; local migration hardening continues through tests | two-principal authenticated replay/restart across local + backend not yet closed |
+| J04 | Upload consent/auth/replay contract branches observed | proof that durable outbox branch is used for every production upload path |
+| J05 | failure and partial branches produce non-claiming policy state, 404-safe summary/evidence | recovery under restart + crash + duplicate lease with same processing document |
+| J06 | unauthorized owners cannot read foreign evidence; no cross-tenant leak in this branch | real-policy evidence-page navigation still not closed end-to-end |
+| J07 | `/query` canonical constraints and safe fallbacks observed | same-token two-owner authenticated query + citation navigation path to policy source |
 
 ## 10. Pass notes
 
@@ -350,6 +660,9 @@ Yes: the main hidden risk is not missing screens; it is a mismatch between a pol
 ## 11. Update log
 
 - **2026-07-21:** Created baseline journey inventory from current Flutter screens, route declarations, FastAPI routes, canonical architecture, exploration map, user-flow planning docs, and the 2026-07-20 runtime launch audit. Established ideal/current/future labels, non-happy-path diagrams, evidence tiers, and open questions. No code behavior changed.
+- **2026-07-22:** Added explicit J02–J07 end-to-end flow graph covering happy, non-happy, optional, and alternate transitions (onboarding/identity/upload/processing/evidence/Q&A), aligned with the same execution-ledger in `coverwise_j02_j07_deep_dive_2026-07-21.md`. Added diagram legend and clarified that sample/camera/future journeys are exploratory and must remain non-promissory.
+- **2026-07-22 (continuation):** Added live API checkpoints for J02–J07: consent-required upload rejection, invalid-token rejection, idempotent replay (`documents[0].idempotent_replay=true`), explicit document-owner isolation (`404` on foreign owner reads), and query fallback behavior (`/query`/`/documents/query`). Canonical/compatibility query split remains open for completion, as do identity replay and restart proof.
+- **2026-07-22 (continuation pass):** Cross-owner same-session probe confirms owner A/B cannot access each other’s documents or evidence routes; `/query` with owner A doc scope returns question + verified citations, while B receives a safe no-relevant fallback.
 
 ## 12. J02–J07 deep-dive addendum (2026-07-21)
 
@@ -357,33 +670,43 @@ The detailed implementation audit is preserved at
 `docs/review/coverwise_j02_j07_deep_dive_2026-07-21.md`. The canonical map’s
 status is now more precise:
 
-- **J02/J03:** local onboarding consent and server consent use different purpose
-  vocabularies; the traced onboarding path does not call the server consent
-  ledger. Anonymous-to-account claim transfers server document ownership, but
-  local encrypted principal migration is not proven. Account deletion’s `202`
-  contract references a durable job not enqueued by the inspected route.
+- **J02/J03:** local onboarding consent and server consent now converge through
+  one cache-scoped sync path, but upload still uses local-offline fallback behavior
+  until server append succeeds. Anonymous-to-account claim transfers server
+  document ownership with improved local encrypted migration guardrails; end-to-end
+  local migration still lacks live two-principal restart proof. Account deletion’s
+  `202` contract still references a durable job that is being closed operationally.
 - **J04/J05:** upload validation, owner-scoped dedupe, storage rollback, and
-  capability-aware processing states are real. The upload route still launches
-  processing through FastAPI `BackgroundTasks` even though the durable outbox is
-  documented as canonical, so crash recovery is not closed.
+  capability-aware processing states are real. In production composition, upload now
+  maps to durable outbox processing with `BackgroundTasks` retained only as
+  documented non-production compatibility, so crash recovery is still open only at
+  live queue/restart evidence.
 - **J06:** the evidence substrate and owner check are real, and the main RAG
   query path verifies citations against immutable source text. A fresh
   real-document proof and convergence of weaker model-backed extraction paths
   remain open.
 - **J07:** owner scope and honest unavailable/not-found fallbacks exist, but
-  `/query` and `/documents/query` remain parallel product query actions. One
-  canonical route and a retirement path for the other are required.
+  `/query` is the canonical mobile contract and `/documents/query` remains
+  documented compatibility. One canonical route and a documented retirement path
+  for the compatibility surface are required.
 
 This addendum does not convert static inspection into end-to-end completion. The
 next verification gate is a real-document, two-principal Tier 3 pass covering
-consent, claim, upload, processing retry, evidence citation, and Q&A fallback.
+claim, restart/replay, processing completion evidence, and cross-surface answer
+alignment.
 
 **2026-07-21 deep-dive update:** Added the dated J02–J07 contract audit,
 Supabase security references, risk-ranked closure order, and follow-up questions.
 No code behavior changed.
 
-**2026-07-21 verification addendum:** The focused Python checks returned 45
-passed, 8 failed, and 3 errors after excluding the missing-`jose` collection
-blocker. The failures are citation-verifier test/API unpacking drift and a
-missing usable Supabase client fixture; J06/J07 targeted verification therefore
-remains open rather than being reported as clean.
+**2026-07-21 verification addendum (refined 2026-07-22):** The focused Python checks are
+now passing at fixture level: `test_citation_verifier*` and Supabase FTS assertions are
+closed in this repo state (`31` and broader combined `84` passing in a clean combined
+run, with seven existing HTTPX deprecation warnings). J06/J07 still depends on live two-principal and real-document evidence gates for
+cross-stack replay, owner isolation under restart, and live evidence-owner proof.
+
+For execution sequencing, use the
+[`J02–J07 evidence-by-branch command matrix`](../review/coverwise_j02_j07_deep_dive_2026-07-21.md#j02j07-evidence-by-branch-command-matrix-2026-07-22)
+in the deep-dive artifact.
+
+That matrix now includes an **Observed execution log** section with the backend probe outcomes that have run in this pass, plus an explicit note that mobile probe execution still needs a stable test runtime.

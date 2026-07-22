@@ -60,7 +60,9 @@ class InsuranceDocument {
   final DateTime? processingCompletedAt;
   final int? size;
   final String? localFilePath; // Path to locally stored file
-  final List<PolicyHolder>? policyHolders; // New field for policy holders
+  final List<PolicyHolder>? policyHolders;
+  final bool isArchived;
+  final DateTime? archivedAt;
 
   InsuranceDocument({
     required this.id,
@@ -78,6 +80,8 @@ class InsuranceDocument {
     this.size,
     this.localFilePath,
     this.policyHolders,
+    this.isArchived = false,
+    this.archivedAt,
   });
 
   factory InsuranceDocument.fromJson(Map<String, dynamic> json) {
@@ -109,6 +113,10 @@ class InsuranceDocument {
       size: json['size'],
       localFilePath: json['local_file_path'],
       policyHolders: holders,
+      isArchived: json['is_archived'] == true,
+      archivedAt: json['archived_at'] != null
+          ? DateTime.tryParse(json['archived_at'])
+          : null,
     );
   }
 
@@ -131,6 +139,8 @@ class InsuranceDocument {
       'local_file_path': localFilePath,
       'policy_holders':
           policyHolders?.map((holder) => holder.toJson()).toList(),
+      'is_archived': isArchived,
+      if (archivedAt != null) 'archived_at': archivedAt!.toIso8601String(),
     };
   }
 
@@ -168,34 +178,65 @@ class InsuranceDocument {
 
   bool get isSynced => remoteId != null && syncState == 'synced';
 
+  /// Sentinel used by [copyWith] to distinguish "not provided" from
+  /// "explicitly set to null". Without this sentinel, callers could never
+  /// clear a nullable field because `null ?? existingValue` returns the
+  /// existing value.
+  static const _copyWithSentinel = Object();
+
   InsuranceDocument copyWith({
-    String? remoteId,
-    String? documentType,
-    String? insurer,
-    String? status,
+    Object? remoteId = _copyWithSentinel,
+    Object? documentType = _copyWithSentinel,
+    Object? insurer = _copyWithSentinel,
+    Object? status = _copyWithSentinel,
     String? syncState,
     String? processingState,
-    String? processingConsentVersion,
-    DateTime? processingCompletedAt,
+    Object? processingConsentVersion = _copyWithSentinel,
+    Object? processingCompletedAt = _copyWithSentinel,
+    bool? isArchived,
+    Object? archivedAt = _copyWithSentinel,
+    Object? size = _copyWithSentinel,
+    Object? localFilePath = _copyWithSentinel,
+    Object? policyHolders = _copyWithSentinel,
   }) {
     return InsuranceDocument(
       id: id,
-      remoteId: remoteId ?? this.remoteId,
+      remoteId: identical(remoteId, _copyWithSentinel)
+          ? this.remoteId
+          : remoteId as String?,
       filename: filename,
       uploadedOn: uploadedOn,
-      documentType: documentType ?? this.documentType,
-      insurer: insurer ?? this.insurer,
-      status: status ?? this.status,
+      documentType: identical(documentType, _copyWithSentinel)
+          ? this.documentType
+          : documentType as String?,
+      insurer: identical(insurer, _copyWithSentinel)
+          ? this.insurer
+          : insurer as String?,
+      status: identical(status, _copyWithSentinel)
+          ? this.status
+          : status as String?,
       syncState: syncState ?? this.syncState,
       processingState: processingState ?? this.processingState,
       processingConsentVersion:
-          processingConsentVersion ?? this.processingConsentVersion,
+          identical(processingConsentVersion, _copyWithSentinel)
+              ? this.processingConsentVersion
+              : processingConsentVersion as String?,
       schemaVersion: schemaVersion,
       processingCompletedAt:
-          processingCompletedAt ?? this.processingCompletedAt,
-      size: size,
-      localFilePath: localFilePath,
-      policyHolders: policyHolders,
+          identical(processingCompletedAt, _copyWithSentinel)
+              ? this.processingCompletedAt
+              : processingCompletedAt as DateTime?,
+      size: identical(size, _copyWithSentinel) ? this.size : size as int?,
+      localFilePath: identical(localFilePath, _copyWithSentinel)
+          ? this.localFilePath
+          : localFilePath as String?,
+      policyHolders: identical(policyHolders, _copyWithSentinel)
+          ? this.policyHolders
+          : policyHolders as List<PolicyHolder>?,
+      isArchived: isArchived ?? this.isArchived,
+      archivedAt: identical(archivedAt, _copyWithSentinel)
+          ? this.archivedAt
+          : archivedAt as DateTime?,
     );
   }
 }

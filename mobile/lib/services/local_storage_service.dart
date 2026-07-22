@@ -303,6 +303,61 @@ class LocalStorageService {
     return document.remoteId;
   }
 
+  /// Archive a document: mark it as archived so it no longer appears in the
+  /// active document list but can be restored later. The local file is kept.
+  Future<bool> archiveDocument(String documentId) async {
+    try {
+      final doc = await getDocumentById(documentId);
+      if (doc == null) return false;
+      final archived = doc.copyWith(
+        isArchived: true,
+        archivedAt: DateTime.now(),
+      );
+      return updateDocument(archived);
+    } catch (e) {
+      debugPrint('Error archiving document: $e');
+      return false;
+    }
+  }
+
+  /// Restore an archived document back to the active list.
+  Future<bool> restoreDocument(String documentId) async {
+    try {
+      final doc = await getDocumentById(documentId);
+      if (doc == null) return false;
+      final restored = doc.copyWith(
+        isArchived: false,
+        archivedAt: null,
+      );
+      return updateDocument(restored);
+    } catch (e) {
+      debugPrint('Error restoring document: $e');
+      return false;
+    }
+  }
+
+  /// Count how many documents are archived.
+  Future<int> archivedDocumentCount() async {
+    try {
+      final docs = await getDocuments();
+      return docs.where((d) => d.isArchived).length;
+    } catch (e) {
+      debugPrint('Error counting archived documents: $e');
+      return 0;
+    }
+  }
+
+  /// Count how many active (non-archived) documents exist.
+  Future<int> activeDocumentCount() async {
+    try {
+      final docs = await getDocuments();
+      return docs.where((d) => !d.isArchived).length;
+    } catch (e) {
+      debugPrint('Error counting active documents: $e');
+      return 0;
+    }
+  }
+
   // Delete a document from local storage and the local file system
   Future<bool> deleteDocument(String documentId) async {
     try {

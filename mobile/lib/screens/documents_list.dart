@@ -18,6 +18,7 @@ import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/coverwise_scene.dart';
 import '../widgets/shared/empty_state_widget.dart';
+import '../widgets/document_thumbnail.dart';
 import '../localization/app_localizations.dart';
 import '../utils/app_error.dart';
 import '../widgets/shared/error_widget.dart';
@@ -112,6 +113,7 @@ class DocumentsList extends ConsumerStatefulWidget {
 class _DocumentsListState extends ConsumerState<DocumentsList> {
   late DocsSortMode _sortMode;
   String? _filterType;
+  bool _showArchived = false;
 
   @override
   void initState() {
@@ -193,44 +195,133 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
           );
         }
 
-        // Apply sort + filter
-        final filtered = applyFilter(documents, _filterType);
+        // Separate active vs archived, apply sort + filter
+        final activeDocs = documents.where((d) => !d.isArchived).toList();
+        final archivedDocs = _showArchived
+            ? documents.where((d) => d.isArchived).toList()
+            : <InsuranceDocument>[];
+        final displayDocs = _showArchived
+            ? [...activeDocs, ...archivedDocs]
+            : activeDocs;
+        final filtered = applyFilter(displayDocs, _filterType);
         final sorted = applySort(filtered, _sortMode);
+        final totalSlots = 5;
+        final usedSlots = activeDocs.length;
+        final remainingSlots = totalSlots - usedSlots;
+        final showLimitWarning = usedSlots >= totalSlots - 1;
 
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(documentsProvider),
           child: Column(
             children: [
-              // Slot count
+              // Slot count + limit warning
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                child: Semantics(
-                  label: S.docsSlotsUsed(documents.length),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.inventory_2_outlined,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.primary,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      label: S.docsSlotsUsed(usedSlots),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _filterType != null
+                                  ? S.docsFilterResultCount(
+                                      filtered.length, documents.length)
+                                  : S.docsSlotsUsed(usedSlots),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _filterType != null
-                              ? S.docsFilterResultCount(
-                                  filtered.length, documents.length)
-                              : S.docsSlotsUsed(documents.length),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w700,
+                    ),
+                    if (showLimitWarning && usedSlots > 0) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: remainingSlots == 0
+                              ? Theme.of(context)
+                                  .colorScheme
+                                  .errorContainer
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .tertiaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              remainingSlots == 0
+                                  ? Icons.block
+                                  : Icons.info_outline_rounded,
+                              size: 14,
+                              color: remainingSlots == 0
+                                  ? Theme.of(context).colorScheme.error
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .onTertiaryContainer,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              remainingSlots == 0
+                                  ? S.docsLimitWarning
+                                  : S.docsLimitRemaining(remainingSlots),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: remainingSlots == 0
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onTertiaryContainer,
                               ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
+                    if (_showArchived && archivedDocs.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.archive_outlined,
+                                size: 14,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${archivedDocs.length} archived polic${archivedDocs.length == 1 ? 'y' : 'ies'}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ),
               // Sort / Filter bar
@@ -240,6 +331,10 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                 availableTypes: distinctTypes(documents),
                 onSortChanged: _saveSortMode,
                 onFilterChanged: _saveFilterType,
+                showArchived: _showArchived,
+                onShowArchivedChanged: (selected) {
+                  setState(() => _showArchived = selected);
+                },
               ),
               // Document list
               Expanded(
@@ -276,8 +371,6 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                           final processingState = doc.processingState;
                           final isReady = processingState == 'completed' ||
                               processingState == 'ready';
-                          final typeColor =
-                              colorForDocumentType(doc.documentType);
                           return Card(
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 6),
@@ -286,9 +379,9 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                   horizontal: 14, vertical: 6),
                               childrenPadding:
                                   const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              leading: CoverWiseIconBadge(
-                                icon: iconForDocumentType(doc.documentType),
-                                color: typeColor,
+                              leading: DocumentThumbnail(
+                                localFilePath: doc.localFilePath,
+                                documentType: doc.documentType,
                                 size: 46,
                               ),
                               title: Row(
@@ -300,6 +393,41 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                         style: const TextStyle(
                                             fontWeight: FontWeight.w700)),
                                   ),
+                                  if (doc.isArchived)
+                                    Container(
+                                      margin:
+                                          const EdgeInsets.only(right: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        borderRadius:
+                                            BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.archive_outlined,
+                                              size: 12,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            S.docsArchived,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   InkWell(
                                     onTap: () =>
                                         _renameDocument(context, ref, doc),
@@ -431,6 +559,24 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                               onPressed: null,
                                             ),
                                           ),
+                                          if (doc.isArchived)
+                                            TextButton.icon(
+                                              icon: const Icon(
+                                                  Icons.unarchive_outlined),
+                                              label: Text(S.docsRestore),
+                                              onPressed: () =>
+                                                  _restoreDocument(
+                                                      context, ref, doc),
+                                            )
+                                          else
+                                            TextButton.icon(
+                                              icon: const Icon(
+                                                  Icons.archive_outlined),
+                                              label: Text(S.docsArchive),
+                                              onPressed: () =>
+                                                  _archiveDocument(
+                                                      context, ref, doc),
+                                            ),
                                           TextButton.icon(
                                             icon: const Icon(
                                                 Icons.delete_outline),
@@ -564,25 +710,117 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
     }
   }
 
-  Future<void> _deleteDocument(
+  Future<void> _archiveDocument(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(S.docsDeletePolicyTitle),
-        content: Text(S.docsDeletePolicyContent(document.filename)),
+        title: Text(S.docsArchiveConfirmTitle),
+        content: Text(S.docsArchiveConfirmContent(document.filename)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: Text(S.cancel)),
-          TextButton(
+          FilledButton.tonal(
               onPressed: () => Navigator.pop(context, true),
-              child: Text(S.docsDeletePolicy)),
+              child: Text(S.docsArchive)),
         ],
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
+      final success = await ref
+          .read(documentServiceProvider)
+          .archiveDocument(document.id);
+      if (success) {
+        ref.invalidate(documentsProvider);
+        if (!context.mounted) return;
+        CoverWiseSnackBar.success(context, S.docsArchivedSuccess);
+      }
+    }
+  }
+
+  Future<void> _restoreDocument(
+      BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final success = await ref
+        .read(documentServiceProvider)
+        .restoreDocument(document.id);
+    if (success) {
+      ref.invalidate(documentsProvider);
+      if (!context.mounted) return;
+      CoverWiseSnackBar.success(context, S.docsRestored);
+    }
+  }
+
+  Future<void> _deleteDocument(
+      BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(S.docsDeletePolicyTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(S.docsDeletePolicyContent(document.filename)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .errorContainer
+                    .withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      S.docsDeletePermanentWarning,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, 'cancel'),
+              child: Text(S.cancel)),
+          TextButton.icon(
+            icon: const Icon(Icons.archive_outlined, size: 18),
+            onPressed: () => Navigator.pop(context, 'archive'),
+            label: Text(S.docsArchive),
+          ),
+          TextButton(
+              onPressed: () => Navigator.pop(context, 'delete'),
+              child: Text(
+                S.docsDeletePolicy,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              )),
+        ],
+      ),
+    );
+
+    if (action == 'archive') {
+      // Redirect to archive
+      await _archiveDocument(context, ref, document);
+      return;
+    }
+
+    if (action == 'delete') {
       try {
         final success =
             await ref.read(documentServiceProvider).deleteDocument(document.id);
@@ -680,6 +918,8 @@ class _SortFilterBar extends StatelessWidget {
   final List<String> availableTypes;
   final ValueChanged<DocsSortMode> onSortChanged;
   final ValueChanged<String?> onFilterChanged;
+  final bool showArchived;
+  final ValueChanged<bool> onShowArchivedChanged;
 
   const _SortFilterBar({
     required this.sortMode,
@@ -687,6 +927,8 @@ class _SortFilterBar extends StatelessWidget {
     required this.availableTypes,
     required this.onSortChanged,
     required this.onFilterChanged,
+    required this.showArchived,
+    required this.onShowArchivedChanged,
   });
 
   @override
@@ -704,6 +946,17 @@ class _SortFilterBar extends StatelessWidget {
               label: S.docsSortLabel,
               isActive: sortMode != DocsSortMode.dateDesc,
               onTap: () => _showSortPicker(context),
+            ),
+            const SizedBox(width: 6),
+            // "Show archived" toggle chip
+            FilterChip(
+              avatar: const Icon(Icons.archive_outlined, size: 14),
+              label: Text(
+                  S.docsShowArchived, style: const TextStyle(fontSize: 12)),
+              selected: showArchived,
+              onSelected: onShowArchivedChanged,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             const SizedBox(width: 6),
             // "All" filter chip to clear type filter

@@ -1,0 +1,1507 @@
+{
+  "generated_at": "2026-07-22",
+  "workbook": "/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx",
+  "rows": 149,
+  "scope_counts": {
+    "Broad": 81,
+    "Focused": 44,
+    "Primitive": 24
+  },
+  "text": {
+    "counts": {
+      "yes": 121,
+      "depends": 3,
+      "partial": 2,
+      "no": 13,
+      "via_or_requires": 10,
+      "semantic": 0
+    },
+    "broad_top": [
+      {
+        "tool": "Docling",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "SmolDocling",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision document converter/model"
+      },
+      {
+        "tool": "MinerU",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "Marker",
+        "score": 12,
+        "license": "Open source + commercial",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "LlamaParse",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI document parser"
+      },
+      {
+        "tool": "Docling Serve",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document parsing service"
+      },
+      {
+        "tool": "PDF-Extract-Kit",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document extraction toolkit"
+      },
+      {
+        "tool": "PaddleOCR PP-Structure",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document structure pipeline"
+      },
+      {
+        "tool": "Surya",
+        "score": 12,
+        "license": "Open source",
+        "category": "OCR + layout toolkit"
+      },
+      {
+        "tool": "Pix2Text",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document parser"
+      },
+      {
+        "tool": "ScholarPhi / PaperMage",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document representation"
+      },
+      {
+        "tool": "Mathpix OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Math/document OCR API"
+      },
+      {
+        "tool": "Mistral OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI OCR API"
+      },
+      {
+        "tool": "openpyxl",
+        "score": 12,
+        "license": "Open source",
+        "category": "XLSX parser"
+      },
+      {
+        "tool": "Apache POI",
+        "score": 12,
+        "license": "Open source",
+        "category": "Office parser"
+      },
+      {
+        "tool": "Beautiful Soup",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "lxml",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "Nanonets-OCR-s",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision OCR model"
+      },
+      {
+        "tool": "Reducto",
+        "score": 12,
+        "license": "Commercial",
+        "category": "Document ingestion API"
+      },
+      {
+        "tool": "Google Gemini document understanding",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Multimodal model API"
+      }
+    ],
+    "focused_top": [
+      {
+        "tool": "Science Parse",
+        "score": 8,
+        "license": "Open source / archived",
+        "category": "Scientific paper parser"
+      },
+      {
+        "tool": "pdf2json",
+        "score": 8,
+        "license": "Open source",
+        "category": "PDF parser"
+      },
+      {
+        "tool": "iText Core",
+        "score": 8,
+        "license": "Open source (AGPL) + commercial",
+        "category": "PDF SDK"
+      },
+      {
+        "tool": "MMOCR",
+        "score": 8,
+        "license": "Open source",
+        "category": "OCR toolbox"
+      },
+      {
+        "tool": "Texify",
+        "score": 8,
+        "license": "Open source",
+        "category": "Math OCR model"
+      },
+      {
+        "tool": "MarkItDown",
+        "score": 7,
+        "license": "Open source",
+        "category": "Multi-format to Markdown"
+      },
+      {
+        "tool": "pdfminer.six",
+        "score": 7,
+        "license": "Open source",
+        "category": "PDF text/layout extractor"
+      },
+      {
+        "tool": "MuPDF",
+        "score": 7,
+        "license": "Open source (AGPL) + commercial",
+        "category": "PDF engine"
+      },
+      {
+        "tool": "borb",
+        "score": 7,
+        "license": "Open source + commercial",
+        "category": "PDF library"
+      },
+      {
+        "tool": "LibreOffice headless conversion",
+        "score": 7,
+        "license": "Open source",
+        "category": "Document conversion engine"
+      },
+      {
+        "tool": "Kraken",
+        "score": 6,
+        "license": "Open source",
+        "category": "OCR engine"
+      },
+      {
+        "tool": "Table OCR",
+        "score": 6,
+        "license": "Open source",
+        "category": "Scanned table extractor"
+      },
+      {
+        "tool": "newspaper3k",
+        "score": 6,
+        "license": "Open source",
+        "category": "News/article extractor"
+      },
+      {
+        "tool": "pypdfium2",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDFium bindings"
+      },
+      {
+        "tool": "PDFium",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF engine"
+      },
+      {
+        "tool": "Poppler",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF rendering/extraction toolkit"
+      },
+      {
+        "tool": "pdf.js",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF parser/viewer"
+      },
+      {
+        "tool": "PDFBox",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF parser"
+      },
+      {
+        "tool": "PDF Clown",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF library"
+      },
+      {
+        "tool": "docTR",
+        "score": 5,
+        "license": "Open source",
+        "category": "Deep learning OCR"
+      }
+    ],
+    "primitive_top": [
+      {
+        "tool": "Apache Tika",
+        "score": 4,
+        "license": "Open source",
+        "category": "Multi-format content extraction"
+      },
+      {
+        "tool": "Tika-Python",
+        "score": 4,
+        "license": "Open source",
+        "category": "Apache Tika wrapper"
+      },
+      {
+        "tool": "textract (Python)",
+        "score": 4,
+        "license": "Open source",
+        "category": "Multi-format text extraction"
+      },
+      {
+        "tool": "pypdf",
+        "score": 4,
+        "license": "Open source",
+        "category": "PDF parser/manipulator"
+      },
+      {
+        "tool": "Xpdf",
+        "score": 4,
+        "license": "Open source + commercial",
+        "category": "PDF utilities"
+      },
+      {
+        "tool": "unpdf",
+        "score": 4,
+        "license": "Open source",
+        "category": "PDF utilities"
+      },
+      {
+        "tool": "PoDoFo",
+        "score": 4,
+        "license": "Open source",
+        "category": "PDF library"
+      },
+      {
+        "tool": "Apache PDFBox ExtractText",
+        "score": 4,
+        "license": "Open source",
+        "category": "PDF text extractor"
+      },
+      {
+        "tool": "OCRopus",
+        "score": 4,
+        "license": "Open source / legacy",
+        "category": "OCR system"
+      },
+      {
+        "tool": "Apple Vision Text Recognition",
+        "score": 4,
+        "license": "Proprietary platform API",
+        "category": "Platform OCR API"
+      },
+      {
+        "tool": "pix2tex / LaTeX-OCR",
+        "score": 4,
+        "license": "Open source",
+        "category": "Equation OCR"
+      },
+      {
+        "tool": "Im2LaTeX models",
+        "score": 4,
+        "license": "Open source / research",
+        "category": "Equation OCR model family"
+      },
+      {
+        "tool": "pdf-parse",
+        "score": 3,
+        "license": "Open source",
+        "category": "PDF text extractor"
+      },
+      {
+        "tool": "Tesseract OCR",
+        "score": 3,
+        "license": "Open source",
+        "category": "Classical OCR engine"
+      },
+      {
+        "tool": "OCRmyPDF",
+        "score": 3,
+        "license": "Open source",
+        "category": "Searchable PDF OCR pipeline"
+      },
+      {
+        "tool": "EasyOCR",
+        "score": 3,
+        "license": "Open source",
+        "category": "OCR engine"
+      },
+      {
+        "tool": "keras-ocr",
+        "score": 3,
+        "license": "Open source",
+        "category": "OCR pipeline"
+      },
+      {
+        "tool": "Calamari OCR",
+        "score": 3,
+        "license": "Open source",
+        "category": "OCR engine"
+      },
+      {
+        "tool": "TrOCR",
+        "score": 3,
+        "license": "Open weights",
+        "category": "Transformer OCR model"
+      },
+      {
+        "tool": "GOCR",
+        "score": 2,
+        "license": "Open source",
+        "category": "OCR engine"
+      }
+    ]
+  },
+  "layout": {
+    "counts": {
+      "yes": 89,
+      "depends": 2,
+      "partial": 39,
+      "no": 17,
+      "via_or_requires": 1,
+      "semantic": 1
+    },
+    "broad_top": [
+      {
+        "tool": "Docling",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "SmolDocling",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision document converter/model"
+      },
+      {
+        "tool": "MinerU",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "Marker",
+        "score": 12,
+        "license": "Open source + commercial",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "LlamaParse",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI document parser"
+      },
+      {
+        "tool": "Docling Serve",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document parsing service"
+      },
+      {
+        "tool": "PDF-Extract-Kit",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document extraction toolkit"
+      },
+      {
+        "tool": "PaddleOCR PP-Structure",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document structure pipeline"
+      },
+      {
+        "tool": "Surya",
+        "score": 12,
+        "license": "Open source",
+        "category": "OCR + layout toolkit"
+      },
+      {
+        "tool": "Pix2Text",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document parser"
+      },
+      {
+        "tool": "ScholarPhi / PaperMage",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document representation"
+      },
+      {
+        "tool": "Mathpix OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Math/document OCR API"
+      },
+      {
+        "tool": "Mistral OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI OCR API"
+      },
+      {
+        "tool": "openpyxl",
+        "score": 12,
+        "license": "Open source",
+        "category": "XLSX parser"
+      },
+      {
+        "tool": "Apache POI",
+        "score": 12,
+        "license": "Open source",
+        "category": "Office parser"
+      },
+      {
+        "tool": "Beautiful Soup",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "lxml",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "Nanonets-OCR-s",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision OCR model"
+      },
+      {
+        "tool": "Reducto",
+        "score": 12,
+        "license": "Commercial",
+        "category": "Document ingestion API"
+      },
+      {
+        "tool": "Google Gemini document understanding",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Multimodal model API"
+      }
+    ],
+    "focused_top": [
+      {
+        "tool": "pdf2json",
+        "score": 8,
+        "license": "Open source",
+        "category": "PDF parser"
+      },
+      {
+        "tool": "iText Core",
+        "score": 8,
+        "license": "Open source (AGPL) + commercial",
+        "category": "PDF SDK"
+      },
+      {
+        "tool": "LayoutParser",
+        "score": 8,
+        "license": "Open source",
+        "category": "Document layout toolkit"
+      },
+      {
+        "tool": "LayoutLM",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutLMv2",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutLMv3",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutXLM",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Multilingual document model"
+      },
+      {
+        "tool": "LiLT",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Language-independent layout transformer"
+      },
+      {
+        "tool": "DocFormer",
+        "score": 8,
+        "license": "Research / open weights",
+        "category": "Document transformer"
+      },
+      {
+        "tool": "StrucTexT",
+        "score": 8,
+        "license": "Open source / research",
+        "category": "Structured text understanding"
+      },
+      {
+        "tool": "pdfminer.six",
+        "score": 7,
+        "license": "Open source",
+        "category": "PDF text/layout extractor"
+      },
+      {
+        "tool": "MuPDF",
+        "score": 7,
+        "license": "Open source (AGPL) + commercial",
+        "category": "PDF engine"
+      },
+      {
+        "tool": "borb",
+        "score": 7,
+        "license": "Open source + commercial",
+        "category": "PDF library"
+      },
+      {
+        "tool": "Kraken",
+        "score": 6,
+        "license": "Open source",
+        "category": "OCR engine"
+      },
+      {
+        "tool": "pypdfium2",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDFium bindings"
+      },
+      {
+        "tool": "PDFium",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF engine"
+      },
+      {
+        "tool": "Poppler",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF rendering/extraction toolkit"
+      },
+      {
+        "tool": "pdf.js",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF parser/viewer"
+      },
+      {
+        "tool": "PDFBox",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF parser"
+      },
+      {
+        "tool": "PDF Clown",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF library"
+      }
+    ],
+    "primitive_top": []
+  },
+  "table": {
+    "counts": {
+      "yes": 91,
+      "depends": 2,
+      "partial": 18,
+      "no": 36,
+      "via_or_requires": 1,
+      "semantic": 1
+    },
+    "broad_top": [
+      {
+        "tool": "Docling",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "SmolDocling",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision document converter/model"
+      },
+      {
+        "tool": "MinerU",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "Marker",
+        "score": 12,
+        "license": "Open source + commercial",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "LlamaParse",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI document parser"
+      },
+      {
+        "tool": "Docling Serve",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document parsing service"
+      },
+      {
+        "tool": "PDF-Extract-Kit",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document extraction toolkit"
+      },
+      {
+        "tool": "PaddleOCR PP-Structure",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document structure pipeline"
+      },
+      {
+        "tool": "Surya",
+        "score": 12,
+        "license": "Open source",
+        "category": "OCR + layout toolkit"
+      },
+      {
+        "tool": "Pix2Text",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document parser"
+      },
+      {
+        "tool": "ScholarPhi / PaperMage",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document representation"
+      },
+      {
+        "tool": "Mathpix OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Math/document OCR API"
+      },
+      {
+        "tool": "Mistral OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI OCR API"
+      },
+      {
+        "tool": "openpyxl",
+        "score": 12,
+        "license": "Open source",
+        "category": "XLSX parser"
+      },
+      {
+        "tool": "Apache POI",
+        "score": 12,
+        "license": "Open source",
+        "category": "Office parser"
+      },
+      {
+        "tool": "Beautiful Soup",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "lxml",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "Nanonets-OCR-s",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision OCR model"
+      },
+      {
+        "tool": "Reducto",
+        "score": 12,
+        "license": "Commercial",
+        "category": "Document ingestion API"
+      },
+      {
+        "tool": "Google Gemini document understanding",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Multimodal model API"
+      }
+    ],
+    "focused_top": [
+      {
+        "tool": "LayoutLM",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutLMv2",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutLMv3",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutXLM",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Multilingual document model"
+      },
+      {
+        "tool": "LiLT",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Language-independent layout transformer"
+      },
+      {
+        "tool": "DocFormer",
+        "score": 8,
+        "license": "Research / open weights",
+        "category": "Document transformer"
+      },
+      {
+        "tool": "StrucTexT",
+        "score": 8,
+        "license": "Open source / research",
+        "category": "Structured text understanding"
+      },
+      {
+        "tool": "img2table",
+        "score": 6,
+        "license": "Open source",
+        "category": "Image/PDF table extractor"
+      },
+      {
+        "tool": "Table OCR",
+        "score": 6,
+        "license": "Open source",
+        "category": "Scanned table extractor"
+      },
+      {
+        "tool": "Camelot",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF table extractor"
+      },
+      {
+        "tool": "Tabula",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF table extractor"
+      },
+      {
+        "tool": "tabula-py",
+        "score": 5,
+        "license": "Open source",
+        "category": "Tabula wrapper"
+      },
+      {
+        "tool": "Excalibur",
+        "score": 5,
+        "license": "Open source",
+        "category": "Table extraction UI"
+      },
+      {
+        "tool": "GMFT",
+        "score": 5,
+        "license": "Open source",
+        "category": "Table extraction toolkit"
+      },
+      {
+        "tool": "Microsoft Table Transformer (TATR)",
+        "score": 5,
+        "license": "Open weights",
+        "category": "Table detection / structure model"
+      },
+      {
+        "tool": "TableFormer",
+        "score": 5,
+        "license": "Open source / research",
+        "category": "Table structure model"
+      },
+      {
+        "tool": "CascadeTabNet",
+        "score": 5,
+        "license": "Open source / research",
+        "category": "Table detection model"
+      },
+      {
+        "tool": "TableNet",
+        "score": 5,
+        "license": "Open source / research",
+        "category": "Table detection model"
+      },
+      {
+        "tool": "DeepDeSRT",
+        "score": 5,
+        "license": "Research",
+        "category": "Table detection/structure model"
+      }
+    ],
+    "primitive_top": []
+  },
+  "math": {
+    "counts": {
+      "yes": 34,
+      "depends": 3,
+      "partial": 37,
+      "no": 75,
+      "via_or_requires": 0,
+      "semantic": 0
+    },
+    "broad_top": [
+      {
+        "tool": "Docling",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "SmolDocling",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision document converter/model"
+      },
+      {
+        "tool": "MinerU",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "Marker",
+        "score": 12,
+        "license": "Open source + commercial",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "LlamaParse",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI document parser"
+      },
+      {
+        "tool": "Docling Serve",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document parsing service"
+      },
+      {
+        "tool": "PDF-Extract-Kit",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document extraction toolkit"
+      },
+      {
+        "tool": "PaddleOCR PP-Structure",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document structure pipeline"
+      },
+      {
+        "tool": "Surya",
+        "score": 12,
+        "license": "Open source",
+        "category": "OCR + layout toolkit"
+      },
+      {
+        "tool": "Pix2Text",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document parser"
+      },
+      {
+        "tool": "ScholarPhi / PaperMage",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document representation"
+      },
+      {
+        "tool": "Mathpix OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Math/document OCR API"
+      },
+      {
+        "tool": "Mistral OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI OCR API"
+      },
+      {
+        "tool": "openpyxl",
+        "score": 12,
+        "license": "Open source",
+        "category": "XLSX parser"
+      },
+      {
+        "tool": "Apache POI",
+        "score": 12,
+        "license": "Open source",
+        "category": "Office parser"
+      },
+      {
+        "tool": "Beautiful Soup",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "lxml",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "Nanonets-OCR-s",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision OCR model"
+      },
+      {
+        "tool": "Reducto",
+        "score": 12,
+        "license": "Commercial",
+        "category": "Document ingestion API"
+      },
+      {
+        "tool": "Google Gemini document understanding",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Multimodal model API"
+      }
+    ],
+    "focused_top": [
+      {
+        "tool": "Texify",
+        "score": 8,
+        "license": "Open source",
+        "category": "Math OCR model"
+      }
+    ],
+    "primitive_top": [
+      {
+        "tool": "pix2tex / LaTeX-OCR",
+        "score": 4,
+        "license": "Open source",
+        "category": "Equation OCR"
+      },
+      {
+        "tool": "Im2LaTeX models",
+        "score": 4,
+        "license": "Open source / research",
+        "category": "Equation OCR model family"
+      }
+    ]
+  },
+  "header": {
+    "counts": {
+      "yes": 86,
+      "depends": 2,
+      "partial": 18,
+      "no": 42,
+      "via_or_requires": 1,
+      "semantic": 0
+    },
+    "broad_top": [
+      {
+        "tool": "Docling",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "SmolDocling",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision document converter/model"
+      },
+      {
+        "tool": "MinerU",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "Marker",
+        "score": 12,
+        "license": "Open source + commercial",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "LlamaParse",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI document parser"
+      },
+      {
+        "tool": "Docling Serve",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document parsing service"
+      },
+      {
+        "tool": "PDF-Extract-Kit",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document extraction toolkit"
+      },
+      {
+        "tool": "PaddleOCR PP-Structure",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document structure pipeline"
+      },
+      {
+        "tool": "Surya",
+        "score": 12,
+        "license": "Open source",
+        "category": "OCR + layout toolkit"
+      },
+      {
+        "tool": "Pix2Text",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document parser"
+      },
+      {
+        "tool": "ScholarPhi / PaperMage",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document representation"
+      },
+      {
+        "tool": "Mathpix OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Math/document OCR API"
+      },
+      {
+        "tool": "Mistral OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI OCR API"
+      },
+      {
+        "tool": "openpyxl",
+        "score": 12,
+        "license": "Open source",
+        "category": "XLSX parser"
+      },
+      {
+        "tool": "Apache POI",
+        "score": 12,
+        "license": "Open source",
+        "category": "Office parser"
+      },
+      {
+        "tool": "Beautiful Soup",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "lxml",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "Nanonets-OCR-s",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision OCR model"
+      },
+      {
+        "tool": "Reducto",
+        "score": 12,
+        "license": "Commercial",
+        "category": "Document ingestion API"
+      },
+      {
+        "tool": "Google Gemini document understanding",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Multimodal model API"
+      }
+    ],
+    "focused_top": [
+      {
+        "tool": "Science Parse",
+        "score": 8,
+        "license": "Open source / archived",
+        "category": "Scientific paper parser"
+      },
+      {
+        "tool": "LayoutParser",
+        "score": 8,
+        "license": "Open source",
+        "category": "Document layout toolkit"
+      },
+      {
+        "tool": "LayoutLM",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutLMv2",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutLMv3",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutXLM",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Multilingual document model"
+      },
+      {
+        "tool": "LiLT",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Language-independent layout transformer"
+      },
+      {
+        "tool": "DocFormer",
+        "score": 8,
+        "license": "Research / open weights",
+        "category": "Document transformer"
+      },
+      {
+        "tool": "StrucTexT",
+        "score": 8,
+        "license": "Open source / research",
+        "category": "Structured text understanding"
+      },
+      {
+        "tool": "DocETL",
+        "score": 8,
+        "license": "Open source",
+        "category": "LLM document processing framework"
+      },
+      {
+        "tool": "newspaper3k",
+        "score": 6,
+        "license": "Open source",
+        "category": "News/article extractor"
+      }
+    ],
+    "primitive_top": []
+  },
+  "coords": {
+    "counts": {
+      "yes": 110,
+      "depends": 2,
+      "partial": 31,
+      "no": 5,
+      "via_or_requires": 1,
+      "semantic": 0
+    },
+    "broad_top": [
+      {
+        "tool": "Docling",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "SmolDocling",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision document converter/model"
+      },
+      {
+        "tool": "MinerU",
+        "score": 12,
+        "license": "Open source",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "Marker",
+        "score": 12,
+        "license": "Open source + commercial",
+        "category": "Full document parser"
+      },
+      {
+        "tool": "LlamaParse",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI document parser"
+      },
+      {
+        "tool": "Docling Serve",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document parsing service"
+      },
+      {
+        "tool": "PDF-Extract-Kit",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document extraction toolkit"
+      },
+      {
+        "tool": "PaddleOCR PP-Structure",
+        "score": 12,
+        "license": "Open source",
+        "category": "Document structure pipeline"
+      },
+      {
+        "tool": "Surya",
+        "score": 12,
+        "license": "Open source",
+        "category": "OCR + layout toolkit"
+      },
+      {
+        "tool": "Pix2Text",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document parser"
+      },
+      {
+        "tool": "ScholarPhi / PaperMage",
+        "score": 12,
+        "license": "Open source",
+        "category": "Scientific document representation"
+      },
+      {
+        "tool": "Mathpix OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Math/document OCR API"
+      },
+      {
+        "tool": "Mistral OCR",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "AI OCR API"
+      },
+      {
+        "tool": "openpyxl",
+        "score": 12,
+        "license": "Open source",
+        "category": "XLSX parser"
+      },
+      {
+        "tool": "Apache POI",
+        "score": 12,
+        "license": "Open source",
+        "category": "Office parser"
+      },
+      {
+        "tool": "Beautiful Soup",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "lxml",
+        "score": 12,
+        "license": "Open source",
+        "category": "HTML/XML parser"
+      },
+      {
+        "tool": "Nanonets-OCR-s",
+        "score": 12,
+        "license": "Open weights",
+        "category": "Vision OCR model"
+      },
+      {
+        "tool": "Reducto",
+        "score": 12,
+        "license": "Commercial",
+        "category": "Document ingestion API"
+      },
+      {
+        "tool": "Google Gemini document understanding",
+        "score": 12,
+        "license": "Commercial API",
+        "category": "Multimodal model API"
+      }
+    ],
+    "focused_top": [
+      {
+        "tool": "Science Parse",
+        "score": 8,
+        "license": "Open source / archived",
+        "category": "Scientific paper parser"
+      },
+      {
+        "tool": "pdf2json",
+        "score": 8,
+        "license": "Open source",
+        "category": "PDF parser"
+      },
+      {
+        "tool": "iText Core",
+        "score": 8,
+        "license": "Open source (AGPL) + commercial",
+        "category": "PDF SDK"
+      },
+      {
+        "tool": "MMOCR",
+        "score": 8,
+        "license": "Open source",
+        "category": "OCR toolbox"
+      },
+      {
+        "tool": "LayoutParser",
+        "score": 8,
+        "license": "Open source",
+        "category": "Document layout toolkit"
+      },
+      {
+        "tool": "LayoutLM",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutLMv2",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutLMv3",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Document understanding model"
+      },
+      {
+        "tool": "LayoutXLM",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Multilingual document model"
+      },
+      {
+        "tool": "LiLT",
+        "score": 8,
+        "license": "Open weights",
+        "category": "Language-independent layout transformer"
+      },
+      {
+        "tool": "DocFormer",
+        "score": 8,
+        "license": "Research / open weights",
+        "category": "Document transformer"
+      },
+      {
+        "tool": "StrucTexT",
+        "score": 8,
+        "license": "Open source / research",
+        "category": "Structured text understanding"
+      },
+      {
+        "tool": "DocETL",
+        "score": 8,
+        "license": "Open source",
+        "category": "LLM document processing framework"
+      },
+      {
+        "tool": "pdfminer.six",
+        "score": 7,
+        "license": "Open source",
+        "category": "PDF text/layout extractor"
+      },
+      {
+        "tool": "MuPDF",
+        "score": 7,
+        "license": "Open source (AGPL) + commercial",
+        "category": "PDF engine"
+      },
+      {
+        "tool": "Kraken",
+        "score": 6,
+        "license": "Open source",
+        "category": "OCR engine"
+      },
+      {
+        "tool": "img2table",
+        "score": 6,
+        "license": "Open source",
+        "category": "Image/PDF table extractor"
+      },
+      {
+        "tool": "docTR",
+        "score": 5,
+        "license": "Open source",
+        "category": "Deep learning OCR"
+      },
+      {
+        "tool": "ML Kit Text Recognition",
+        "score": 5,
+        "license": "Proprietary SDK",
+        "category": "Mobile OCR API"
+      },
+      {
+        "tool": "Camelot",
+        "score": 5,
+        "license": "Open source",
+        "category": "PDF table extractor"
+      }
+    ],
+    "primitive_top": [
+      {
+        "tool": "Apple Vision Text Recognition",
+        "score": 4,
+        "license": "Proprietary platform API",
+        "category": "Platform OCR API"
+      }
+    ]
+  }
+}

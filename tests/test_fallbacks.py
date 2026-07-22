@@ -3,8 +3,6 @@ Tests for all fallback chains in the system.
 Run: pytest tests/test_fallbacks.py -v
 """
 import pytest
-import asyncio
-import os
 from unittest.mock import patch, MagicMock, AsyncMock
 
 from src.config.settings import settings
@@ -80,7 +78,7 @@ class TestOCRPipeline:
     @pytest.mark.asyncio
     async def test_image_ocr_fallback(self):
         """Test OCR fallback by creating a simple image with text"""
-        from PIL import Image, ImageDraw, ImageFont
+        from PIL import Image, ImageDraw
         from src.ocr.pipeline import OCRPipeline
         import io
 
@@ -187,6 +185,35 @@ class TestLLMClient:
         adapted_rf, adapted_msgs = llm._adapt_response_format(rf, "gpt-4o-mini", msgs)
         assert adapted_rf == rf
         assert adapted_msgs == msgs
+
+    def test_local_provider_can_initialize_without_openai_key(self, monkeypatch):
+        from src.llm.client import LLMClient
+
+        monkeypatch.setattr(settings, "openai_api_key", "")
+        monkeypatch.setattr(settings, "ollama_base_url", "http://localhost:11434/v1")
+        client = LLMClient()
+
+        assert client.client is None
+        assert client._select_client(settings.ollama_chat_model) is client._get_ollama_client()
+
+
+class TestRAGPipelineProviderInitialization:
+    def test_pipeline_can_initialize_without_openai_key(self, monkeypatch):
+        from src.rag.pipeline import RAGPipeline
+
+        monkeypatch.setattr(settings, "openai_api_key", "")
+        monkeypatch.setattr(RAGPipeline, "_init_hf_client", lambda self: (
+            setattr(self, "hf_client", None),
+            setattr(self, "local_embed_model", None),
+            setattr(self, "hf_embedding_dimension", 384),
+            setattr(self, "ollama_embed_client", None),
+        ))
+        monkeypatch.setattr(RAGPipeline, "_init_reranker", lambda self: setattr(self, "reranker", None))
+
+        pipeline = RAGPipeline()
+
+        assert pipeline.openai_client is None
+        assert pipeline.llm.client is None
 
 
 class TestSettings:
@@ -375,7 +402,7 @@ class TestAntiAbuseDBPath:
         from src.utils.anti_abuse import check_document_hash_exists, ANTI_ABUSE_DB_PATH
         with patch("src.utils.database_migration.check_document_hash_exists_db") as mock_check:
             mock_check.return_value = False
-            result = check_document_hash_exists("abc123")
+            check_document_hash_exists("abc123")
             mock_check.assert_called_once_with("abc123", ANTI_ABUSE_DB_PATH)
 
 

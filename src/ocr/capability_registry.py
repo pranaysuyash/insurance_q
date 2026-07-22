@@ -168,10 +168,18 @@ def capability_registry_snapshot() -> dict[str, Any]:
                         "status": "available",
                         "scope": "headers_body_and_attachment_hashes",
                     },
+                    "native_xlsx": {
+                        "status": "available",
+                        "scope": "worksheets_cells_formulas_and_embedded_image_hashes",
+                    },
+                    "native_pptx": {
+                        "status": "available",
+                        "scope": "slides_text_tables_and_embedded_image_hashes",
+                    },
                     "docling": docling,
                     "unstructured": {"status": "candidate"},
                 },
-                "scope": "docx_html_eml; xlsx_pptx_pending",
+                "scope": "docx_html_eml_xlsx_pptx",
                 "quality_gate": "additional_format_and_relationship_preservation_benchmark_required",
             },
             "vlm_annotation": {

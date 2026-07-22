@@ -187,6 +187,28 @@ class ConsentLedger {
     return records;
   }
 
+  /// Whether the current privacy policy version has been accepted.
+  ///
+  /// Compares the accepted version in the ledger against [expectedVersion].
+  /// Returns `true` only when the latest `privacyPolicy` record matches
+  /// [expectedVersion] and is active (not revoked).
+  bool isPrivacyPolicyAccepted(String expectedVersion) {
+    final record = getLatestRecord(ConsentPurpose.privacyPolicy);
+    return record?.isActive == true && record?.version == expectedVersion;
+  }
+
+  /// Record acceptance of the current privacy policy version.
+  Future<void> recordPolicyAcceptance({
+    required String version,
+    bool granted = true,
+  }) async {
+    await recordConsent(
+      purpose: ConsentPurpose.privacyPolicy,
+      version: version,
+      granted: granted,
+    );
+  }
+
   /// Clear all consent records.
   Future<void> clear() async {
     await _box?.clear();

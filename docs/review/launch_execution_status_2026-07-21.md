@@ -884,3 +884,18 @@ structure and attachment hashes. The document evaluator now has eight
 executable cases; HTML and EML are Tier 2 targeted evidence. PPTX/XLSX,
 scanned tables/forms, formulas, handwriting, multilingual accuracy, and VLM
 image interpretation remain explicit quality gates.
+
+## Addendum — native XLSX/PPTX capability closure (2026-07-22)
+
+The code-backed Office route now covers DOCX, HTML, EML, XLSX/XLSM, and PPTX
+through one CIR/evidence path. `openpyxl-native` preserves worksheet/cell
+coordinates and formula text; `python-pptx-native` preserves slide text,
+tables/cells, and picture hashes. Targeted adapter tests pass (5 tests), Ruff
+passes, dependency compatibility passes, and the strict ten-case evaluator
+passes with zero unrun cases using the project `.venv` and local doctr OCR.
+
+This is Tier 2 structural evidence. It does not establish formula semantics,
+scanned-table quality, semantic form extraction, chart/VLM interpretation,
+handwriting, multilingual accuracy, or production corpus latency/privacy.
+Those gates remain open and require consented/synthetic corpus benchmarks plus
+operator-visible recovery before promotion.

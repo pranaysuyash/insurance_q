@@ -1307,6 +1307,14 @@ suite 594 passed at that earlier checkpoint; upload-layout suite 19 passed; and
 Provider-backed, device-matrix, and authenticated deployed-runtime behavior
 remain unverified.
 
+## Q&A source attribution and submit-state correction (2026-07-22)
+
+The custom-question flow now rebuilds its submit action when the user types,
+and source parsing preserves the response-level document identity when an
+individual source omits `document_id`. This closes the tested UI and
+attribution gaps without creating a second Q&A path. Source-reference tests
+pass 8/8 (Tier 2); live backend/review traversal remains a Tier 3/4 gate.
+
 ## Explicit text-fallback boundary (2026-07-21)
 
 The document service no longer interprets every unknown extension as UTF-8

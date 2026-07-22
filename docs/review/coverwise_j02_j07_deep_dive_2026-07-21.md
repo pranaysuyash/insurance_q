@@ -24,10 +24,178 @@ static findings below are Tier 1 unless a test or prior runtime audit is named.
 |---|---|---|---:|---|
 | J02 onboarding | Three-step orientation; terms/analytics state is represented locally; onboarding completion is persisted | Consent is local-only in the onboarding path, local and server consent vocabularies differ, consent failures are swallowed, and Skip can complete without an explicit terms acceptance decision. Copy still includes product-boundary-sensitive renewal language | 1 | Define one server-auditable consent contract and purpose vocabulary; make completion semantics explicit; replace boundary-drifting copy; test accept, decline, skip, retry, offline, and replay |
 | J03 identity | Anonymous and account sessions are both supported; account claim has owner transfer; account deletion has a visible result contract | Custom anonymous identity and Supabase identity are dual principals; claim visibly transfers server document ownership but local encrypted principal migration is not proven; deletion returns 202 while the route performs synchronous best-effort deletion and references a durable job that is not enqueued in the inspected route; explicit session revocation checking is not visible | 1 | Choose the canonical principal lifecycle; make claim migration cover every local/server representation; implement durable deletion job + receipt or change the contract; verify session revocation and two-user isolation |
-| J04 upload | Size/content validation, owner-scoped source-hash dedupe, object rollback on metadata failure, rate limits, consent/version fields, and offline local save exist | Production upload still schedules `process_document_background` through FastAPI `BackgroundTasks`; the durable outbox is documented as canonical but is not the upload enqueue path. Legacy lead-capture fields/routes remain in the upload contract despite the permanent product boundary | 1 | Make one durable enqueue path authoritative; add retry/dead-letter/operator visibility; remove or deprecate lead capture from document upload after caller inventory |
+| J04 upload | Size/content validation, owner-scoped source-hash dedupe, object rollback on metadata failure, rate limits, consent/version fields, and offline local save exist | Earlier snapshots recorded background-task enqueue in production; current compose now routes through durable `DOCUMENT_PROCESSING` when outbox is configured, but end-to-end delivery and dead-letter visibility remain unverified | 1–2 | Enforce one durable enqueue path as the only production path and prove queue delivery with terminal outcomes and operator visibility |
 | J05 processing | Capability-aware state derivation includes partial, OCR-required, password-required, retryable, terminal, and QA states; processing lease and source-object rollback are present | Process loss after API termination remains possible when work is held by in-process background execution; real recovery/lease-expiry proof is missing | 1 | Enqueue transactionally with document receipt, run worker crash/retry/duplicate/timeout tests, expose state transitions and operator actions |
 | J06 evidence | Append-only evidence substrate; page artifacts/source spans/field citations; owner check before evidence read; main RAG path verifies citations against immutable `source_text` and preserves approximate status | Typed structured extraction is stronger in the main RAG path than in the policy-field extractor; cross-document and fresh-runtime evidence proof is missing; service-role substrate access depends on API owner checks | 1–2 | Use typed schema validation for every model-backed extraction; run real-document citation acceptance tests; prove owner isolation and page/span navigation in the running stack |
 | J07 Q&A | `/query` overwrites client filters with authenticated owner scope; retrieval quality gate can return honest not-found; structured answer schema, citation verification, missing-information and follow-up fields, context-only fallback, and query tracing exist | `/query` and `/documents/query` are parallel product actions with different transport contracts; mobile can use a local policy-demo answer only when an explicit compile-time demo flag is enabled, but the fallback must remain visibly non-production; fresh runtime proof of retrieval, citations, and failure recovery is absent | 1–2 | Inventory callers, select one canonical owner-scoped query route, deprecate/migrate the other, then verify answer/citation/fallback behavior against a real policy and two owners |
+
+## J02–J07 journey state taxonomy (ideal/current/future)
+
+Use this as the baseline before execution work:
+
+- **Ideal**: desired contract and user trust outcomes.
+- **Current**: observed implementation and gap-bearing behavior.
+- **Future**: explicit roadmap target to converge behavior and claims.
+
+| Journey | Ideal | Current | Future |
+|---|---|---|---|
+| J02 onboarding | Deterministic onboarding completion with server-auditable per-purpose consent receipts and explicit versioned outcomes | Local onboarding marker and consent tracking, but no guaranteed server-auditable contract for every failure path; term-vs-analytics boundaries drift | Single canonical consent ledger call path with typed purpose map and explicit failure classes for continue/decline/retry/offline |
+| J03 identity | One canonical principal lifecycle with proven local encrypted migration, two-user isolation, and auditable claim receipts | Dual anonymous+account principals with partially observed migration; deletion responses promise async state more strongly than the route currently enforces | Canonical principal lifecycle with migration receipts, scoped revocation checks, and explicit deletion job/receipt contract |
+| J04 upload | One production enqueue path through durable queue, immediate local durable intent, and authenticated outbox outcome visibility | Upload validates and persists, and can route to outbox in production, but durable-delivery evidence and non-production fallback behavior are not fully closed | Remove non-canonical enqueue forks, add idempotent enqueue receipts, DLQ contract, and operator visibility for every rejected/terminal enqueue outcome |
+| J05 processing | Deterministic lease+retry state machine with bounded duplicate execution and transparent dead-letter transitions | In-process and outbox components both exist; crash/retry/duplicate/timeout behavior not yet proven end-to-end | Enforce lease-first processing contract as sole production behavior and complete recovery evidence for terminal outcomes |
+| J06 evidence | Every extracted field and citation is provenance-typed, owner-verified, and stale or malformed mapping is shown as untrusted | Evidence is append-only and mostly structured, but typed schema coverage and cross-owner/source-staleness runtime proofs are incomplete | Full typed schema validation on all extractor paths, explicit stale/invalid provenance state, and two-owner replay proof |
+| J07 Q&A | Single canonical owner-scoped retrieval route returning citationed answers with safe fallback states under missing/weak context | Two query transport contracts still active; live cross-owner and runtime fallback proof is incomplete | One canonical owner-scoped route, strict fallback grammar (not invented answers), and explicit safe-unknown path with audit context |
+
+## J02–J07 end-to-end path ledger (2026-07-22)
+
+This section keeps the decision topology explicit for planning and next-pass design.
+
+| Stage | Happy movement | Non-happy movement | Optional / alternate movement | Open gate (evidence) |
+|---|---|---|---|---|
+| J02 onboarding | Cold launch reads cached onboarding/consent marker and transitions to workspace-ready with explicit server-visible consent intent | Consent errors are swallowed; incomplete onboarding continues with unclear provenance; repeated launch can re-show onboarding when terminal marker is not durable | Analytics-only opt-in, terms-only acceptance, later consent refresh, and accessibility fallback for reduced-touch flows | End-to-end test that onboarding contract is server-auditable with purpose/version receipts (Tier 3/4) |
+| J03 identity | Anonymous user uploads and views while local workspace exists; sign-in claims document ownership and local migration is applied | Identity claim loses local encrypted principal mapping, second-user read pollution, token-refresh failures, or claim interruption across restart | Two-user device, password reset callback, and sign-out re-bootstrap routes | Owner transfer proven across local encrypted records + API-owned documents + entitlement state |
+| J04 upload | Valid source enters validation, writes source metadata/object, persists status, and transitions to processing queue entry | Unsupported file/size/content, duplicate with rate limit, upload throw/reject, or offline pending never converges to server ack | Camera path (future), sample/demo workspace, delayed retry after reconnect | One durable enqueue path for production with terminal outcomes and explicit error class |
+| J05 processing | Worker acquires lease, extracts artifacts/fields, and advances deterministic status | OCR-required / partial extraction, timeout, lease contention, duplicate attempts, dead-letter escalation, deletion during run | Reclaim by lease expiry, manual retry, replace document, and partial-result preserve-and-stop mode | Crash/retry/duplicate/timeout proof with operator-observable state transitions and cost/error logs |
+| J06 evidence | Evidence pages/spans remain immutable, source-backed, and navigable from policy fields and citations | Source mismatch, stale spans, vector drift, malformed extraction, or unauthorized owner read attempts | Synthetic/native Office branch, offline source preview, user-triggered reprocessing | Typed schema validation for every extractor and two-owner proof for source/page navigation |
+| J07 Q&A | Owner-scoped retrieval returns answer with citation status, confidence, and safe next action | Missing context, low confidence, malformed structured answer, model/provider fallback, 5xx/timeouts, or cross-owner leakage attempts | Follow-up narrowing, answer history, feedback path, local demo gate (blocked in release) | Live two-owner retrieval with citation verification and operator-readable failure class for every fallback |
+
+### Path-level closure status
+
+- Happy-chain evidence is now explicit across J02–J07; focused Tier 2 checks exist on core contracts and representative errors.
+- Highest remaining risk clusters are identity migration, durable upload queue primacy, recovery semantics, and live cross-owner evidence/Q&A proof (Tier 3+).
+- Next pass priority remains: keep one canonical route/queue, then close each non-happy branch with authenticated runtime evidence and operator visibility.
+
+## Closure execution matrix (2026-07-22)
+
+This matrix turns the open frontier into the next verification plan without
+claiming closure until each branch has authenticated runtime evidence.
+
+| Frontier branch | Scenario to execute | Expected observable state | Minimum evidence artifact |
+|---|---|---|---|
+| J02 consent mismatch | Simulate consent write failure and a second start without server receipt | UI enters limited mode, onboarding banner remains explicit, and no consent claim is stored server-side | API response logs + consent table rows keyed by `purpose` and `consent_version` |
+| J02 consent mismatch | Simulate terms acceptance + analytics decline + later analytics success | Terms and analytics are independently tracked with immutable versions and separate status | Two consent rows, one per purpose, with consistent version ordering |
+| J03 identity migration | Sign in with two local principals and restart during claim | Document list and local secure boxes are namespace-bound by principal, and each principal never reads the other | Rebuild + claim/relogin trace, local secure-box key migration log, document ownership readback |
+| J03 deletion isolation | Start deletion while another account is active | Deleted principal’s resources stop resolving for that principal; remaining principal still respects its own scope | Deletion event receipt + failed owner mismatch checks |
+| J04 upload path downgrade | Force production upload through legacy in-process branch | Compatibility branch is rejected from production path and only outbox job schema is emitted | Upload response type only from durable path and queue insert metrics |
+| J04 offline convergence | Persist local pending document for 1+ network outages, then reconnect and sync | Pending row converts to `upload_accepted` or explicit terminal retry class | Sync audit row containing terminal state + retry reason |
+| J05 processing recovery | Inject duplicate worker start and lease contention | One canonical lease owner continues; retries are bounded and classified; dead-letter events are inspectable | Worker lease table, delivery attempt counters, dead-letter table entries |
+| J05 partial and OCR-required | Feed a scan-only document and a malformed document | Partial/required/failed states are not treated as success; policy detail displays recovery action | `partial`, `text_required`, `ocr_required`, `processing_failed` terminal evidence |
+| J06 evidence fallback | Replace evidence source with stale span mapping and unauthorized owner chunk | UI shows not verified/stale class; source navigation does not cross owners | Evidence read query + citation verifier + owner-filter proof |
+| J06 source typing | Force one malformed extractor payload through policy-field path | Structured field parser fails closed with explicit schema reason; no fallback to raw string in policy shape | Parser trace + typed schema validation error output |
+| J07 Q&A retrieval fallback | Ask a question with missing doc pages, low-confidence model output, and timeout | Q&A returns explicit unavailable/uncertain branches with no invented recommendations | Query trace + `citation_status`, `confidence`, and operator-visible failure enum |
+| J07 tenancy hardening | Query same policy with mismatched owner principal and cross-device token | Tenant-isolated result set is strict owner-filtered empty for mismatched context | HTTP 403/404-equivalent owner scope contract + empty set + audit event |
+
+### Closure execution plan (no claims before evidence)
+
+Each branch below should be executed with a real environment; local-only fixtures do not close Tier 3+/4 risk.
+
+| Branch | Suggested command or probe | Primary acceptance output |
+|---|---|---|
+| J02 consent mismatch | 1) Start app with blocked `ServerConsentService` endpoint (offline/intercepted), 2) complete onboarding path and relaunch | Evidence of explicit limited-mode banner and absence of successful server row; no `terms_accepted` row without version in consent table |
+| J02 consent versioning | 1) Consent path for analytics declines after terms accept; 2) retry analytics success; 3) read server consent rows | Two immutable rows with same client request id namespace and distinct `purpose` + `version` values |
+| J03 principal migration | 1) Create anonymous docs, 2) sign in/restart/reopen, 3) claim ownership + resume | Storage keys and document owner ids change only through migration; no doc leaks across principal ids |
+| J03 deletion/revoke | 1) Delete principal while another signed-in session exists | Deleted session fails owner checks; other principal’s docs remain readable under their own id |
+| J04 upload path | 1) Trigger upload under production composition with outbox enabled, 2) inspect job envelope | Only durable `DOCUMENT_PROCESSING` outbox job observed; no non-queue in-process enqueue path for production route |
+| J04 offline sync | 1) Queue pending uploads offline, 2) reconnect, 3) monitor transition event | Deterministic `upload_accepted` or terminal retry class with explicit reason code and user-visible sync status |
+| J05 lease/retry | 1) Double-start worker on same payload and simulate lease contention, 2) force timeout | Single lease owner, bounded retry class in logs, bounded duplicate handling, optional dead-letter entry with reason |
+| J05 malformed input | 1) Feed malformed + OCR-required files | Terminal states `partial`/`text_required`/`ocr_required`/`processing_failed` surfaced, not silently marked completed |
+| J06 evidence staleness | 1) Inject stale span mapping, 2) cross-owner evidence query | UI marks stale/mismatch, no cross-owner source navigation; citation verification fails closed |
+| J06 typed extraction | 1) Submit malformed model payload through policy-field extractor path | Structured parser emits schema reason; no silent coercion into display fields |
+| J07 weak retrieval | 1) Ask out-of-scope question with restricted corpus + low confidence and timeout injection | `citation_status` and `confidence` show uncertain/unknown; follow-up path offered |
+| J07 cross-owner Q&A | 1) Cross-token retrieval on mismatched owner | Empty or unauthorized result with explicit owner-scope failure; no answer leakage between users |
+
+## J02–J07 evidence-by-branch command matrix (2026-07-22)
+
+Each row below is the next concrete execution target. Commands are grouped by
+backend and mobile ownership.
+
+### Backend test probes
+
+| Branch | Command(s) | Primary acceptance artifact |
+|---|---|---|
+| J02 consent mismatch | `source .venv/bin/activate && uv run pytest -q tests/test_consent_ledger_service.py tests/test_anonymous_auth.py` | No server-side `terms_accepted` write when consent sync fails; failure class recorded on client/server boundary |
+| J02 consent versioning | `source .venv/bin/activate && uv run pytest -q tests/test_consent_ledger_service.py -k "get_current_consent or record_consent"` | Two immutable records for same request namespace, one per purpose and version |
+| J03 principal migration | `source .venv/bin/activate && uv run pytest -q tests/test_identity_link_service.py tests/test_account_lifecycle_service.py tests/test_account_deletion_status.py` | Owner migration is auditable, encrypted workspace namespace changes are explicit, and deletion barriers prevent wrong-owner reads |
+| J03 deletion isolation | `source .venv/bin/activate && uv run pytest -q tests/test_account_deletion_status.py tests/test_account_lifecycle_service.py tests/test_query_usage_gate.py` | Owner-scoped session checks and deletion visibility hold under concurrent session pressure |
+| J04 upload path downgrade | `source .venv/bin/activate && uv run pytest -q tests/test_upload_validation.py tests/test_document_processing_job.py tests/test_job_outbox.py tests/test_job_outbox_lease_contract.py` | Upload responses in production path only emit durable `DOCUMENT_PROCESSING` jobs; no fallback enqueue contract |
+| J04 offline sync convergence | `source .venv/bin/activate && uv run pytest -q tests/test_processing_temp_storage.py tests/test_substrate_outbox_wiring.py tests/test_document_state_derivation.py` | Deterministic local-to-server handoff and terminal retry classifications for offline backlog |
+| J05 lease/recovery | `source .venv/bin/activate && uv run pytest -q tests/test_outbox_worker_health.py tests/test_job_outbox.py tests/test_job_outbox_lease_contract.py` | One lease owner per in-flight job, bounded retries, and inspectable dead-letter transitions |
+| J05 malformed input classes | `source .venv/bin/activate && uv run pytest -q tests/test_document_processing_job.py tests/test_upload_validation.py` | Distinct terminal states (`partial`, `text_required`, `ocr_required`, `processing_failed`) are visible and never reported as completed |
+| J06 evidence fallback safety | `source .venv/bin/activate && uv run pytest -q tests/test_evidence_pipeline.py tests/test_evidence_schema_contract.py tests/test_evidence_pipeline_integration.py` | Unverified/stale/unauthorized provenance is surfaced as not-verified and never shown as trusted fact |
+| J06 typed extraction and rejection | `source .venv/bin/activate && uv run pytest -q tests/test_evidence_schema_contract.py tests/test_evidence_pipeline_integration.py` | Parser rejects malformed structured output with explicit schema reason and no silent fallback coercion |
+| J06 stale span / owner leak | `source .venv/bin/activate && uv run pytest -q tests/test_document_owner_isolation.py tests/test_citation_verifier.py tests/test_citation_verifier_integration.py` | Unauthorized-owner read attempts fail closed; stale mapping cannot navigate to verified source cards |
+| J07 retrieval fallback + timeout | `source .venv/bin/activate && uv run pytest -q tests/test_rag_pipeline.py tests/test_query_usage_gate.py tests/test_qa_usage_contract.py` | `citation_status`, `confidence`, and explicit safe fallback enum when retrieval quality is insufficient or timeout occurs |
+| J07 tenancy hardening | `source .venv/bin/activate && uv run pytest -q tests/test_rag_pipeline.py tests/test_document_owner_isolation.py tests/test_query_usage_gate.py` | Strict owner filtering for retrieval and explicit cross-owner rejection for `/query`; compatibility route behavior stays bounded |
+
+### Mobile test probes
+
+- `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/consent_upload_flow_test.dart test/consent_ledger_test.dart test/server_consent_service_test.dart`
+  → Consent lifecycle, local/remote consent sync path, and blocked-server fallback.
+- `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/account_document_reconciliation_test.dart test/principal_key_service_test.dart test/hive_workspace_service_contract_test.dart test/local_storage_service_test.dart`
+  → Identity migration continuity and encrypted local workspace scoping.
+- `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/processing_status_test.dart test/processing_status_backend_test.dart test/processing_status_fallback_test.dart`
+  → Processing status states, retry classes, and sync visibility behavior.
+- `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/qa_screen_test.dart test/source_references_test.dart test/field_citations_card_test.dart`
+  → Q&A in-flight gating, evidence card safety, and source navigation.
+- `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/deletion_status_test.dart test/document_service_delete_test.dart`
+  → Deletion status/readback and document delete lifecycle behavior.
+- `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/migration_integrity_test.dart`
+  → Principal migration claim-preserve semantics, local box open/restore correctness, and non-happy path cleanup behavior.
+
+### Observed execution log (2026-07-22)
+
+The following probes have been executed during this pass:
+
+| Command | Result | Immediate evidence outcome |
+|---|---|---|
+| `source .venv/bin/activate && uv run pytest -q tests/test_consent_ledger_service.py tests/test_anonymous_auth.py` | PASS | 24 passed. Confirms base consent-ledger + anonymous-auth contract coverage, but not end-to-end blocked-server consent failure branch. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_identity_link_service.py tests/test_account_lifecycle_service.py tests/test_account_deletion_status.py` | PASS | 11 passed. Supports J03 principal migration and deletion-visibiity service behavior. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_upload_validation.py tests/test_document_processing_job.py tests/test_job_outbox.py tests/test_job_outbox_lease_contract.py` | PASS | 49 passed. Supports outbox/lease-path checks for J04. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_processing_temp_storage.py tests/test_substrate_outbox_wiring.py tests/test_document_state_derivation.py` | PASS | 15 passed. Confirms offline-to-server handoff, local pending state mapping, and deterministic retry-status derivation for J04 offline convergence frontier. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_outbox_worker_health.py tests/test_job_outbox.py tests/test_job_outbox_lease_contract.py` | PASS | 38 passed. Confirms lease-bound processing concurrency, bounded retries, and dead-letter visibility in job-control path. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_evidence_pipeline.py tests/test_evidence_schema_contract.py tests/test_evidence_pipeline_integration.py` | PASS | 31 passed. Supports J06 schema validation and evidence provenance failure handling in current pipeline tests. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_rag_pipeline.py tests/test_query_usage_gate.py tests/test_qa_usage_contract.py` | PASS | 13 passed. Supports J07 retrieval fallback and answer safety enum behavior in current tested surfaces. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_consent_ledger_service.py -k "get_current_consent or record_consent"` | PASS | 8 passed, 6 deselected. Confirms purpose/version-focused consent ledger contracts. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_consent_ledger_service.py tests/test_anonymous_auth.py tests/test_identity_link_service.py tests/test_account_lifecycle_service.py tests/test_account_deletion_status.py` | PASS | 35 passed. Extends the earlier J02/J03 command set with explicit joint coverage for anonymous identity, principal migration, and deletion status behavior. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/account_document_reconciliation_test.dart` | PASS | 3 tests passed. Confirms local remote-account reconciliation paths and defensive handling when local malformed page data appears. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/principal_key_service_test.dart` | PASS | 7 tests passed. Confirms encrypted principal-key migration and failure boundaries for principal-scoped local keys (J03 ownership). |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/processing_status_test.dart` | PASS | 28 tests passed. Confirms processing-stage mapping defaults, terminal-stage behavior, and resilient status interpretation for J05 recovery display. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/qa_screen_test.dart` | PASS | 11 tests passed. Confirms in-flight question guards and Q&A UI safety boundaries. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/source_references_test.dart` | PASS | 9 tests passed. Confirms citation/source navigation labeling and confidence badge visibility behavior in J06 evidence surfaces. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/consent_ledger_test.dart` | PASS | 35 tests passed. Confirms local consent record model semantics, persistence behavior, and corrupted-state recovery handling for J02 storage path. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/deletion_status_test.dart` | PASS | 3 tests passed. Confirms local deletion lifecycle status transitions and safe state representation. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/consent_upload_flow_test.dart` | PASS | 8 tests passed. Repeated `DioException 400` responses are logged during mocked endpoint mismatch scenarios, while duplicate prevention and fallback behaviors are still validated. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/migration_integrity_test.dart` | PASS | 12 tests passed. Confirms local principal migration preserve behavior and verifies Box generic compatibility across migration paths in this branch. |
+| `source .venv/bin/activate && uv run pytest -q tests/test_query_usage_gate.py tests/test_document_owner_isolation.py tests/test_citation_verifier_integration.py` | PASS | 23 passed. Confirms owner-scoped query gating and citation-verifier exception behavior under unauthorized-owner scenarios. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/processing_status_fallback_test.dart test/processing_status_backend_test.dart` | PASS | 49 tests passed. Confirms fallback-safe processing-status behavior and backend-stage mapping across local/document-not-found and transport-failure paths. |
+| `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/account_document_reconciliation_test.dart test/hive_workspace_service_contract_test.dart test/local_storage_service_test.dart` | PASS | 7 tests passed across identity/document reconciliation and local storage contract transitions. |
+| `COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... tools/verify_local_identity_claim.py` | BLOCKED | Local-only verifier exits with `Connection refused` because local API/Supabase services were not running on required local endpoints during this session. |
+
+## Non-happy-path closure frontier (2026-07-22)
+
+The next high-confidence closure pass should explicitly validate each branch below
+against a real authenticated stack, not only a targeted fixture:
+
+| Frontier branch | What must be proven | Minimum evidence target | Owner / actor |
+|---|---|---|---|
+| J02 consent and analytics mismatch | If consent fails, the user can only proceed in a clearly labeled limited state and no server-side consent claim is written | Server receipt contains explicit purpose map + version + success/failure class | Mobile + API + Supabase |
+| J03 identity claim across restart | Anonymous-to-account claim preserves local encrypted artifacts and document entitlement without cross-user bleed | End-to-end identity migration test with two principals and signed restart recovery | Auth + local storage + API |
+| J04 upload path downgrade | Production upload cannot silently route to in-process path when outbox is configured | Route-level assertion that the upload contract includes only the durable job outcome schema | API + worker dispatcher |
+| J05 processing failure recovery | Duplicate, stale, timeout, and dead-letter states are distinguishable in the running state machine | Crash/retry/lease/duplicate simulation with deterministic operator-visible transitions | Worker + API |
+| J06 evidence fallback / partial proof | Any field/citation result declares whether provenance is present, stale, rejected, or partial | Cross-owner retrieval attempt returns strict scope errors; stale-source evidence is not presented as verified | Evidence service + policy detail + query APIs |
+| J07 Q&A fallback honesty | Missing/weak retrieval emits a safe state and cannot cross owners; structured answer never defaults to invented advice | Two-owner proof with malformed context, missing source page, low confidence, and model timeout scenarios | Q&A API + query service + UI |
+
+### Frontier status update (2026-07-22)
+
+Backend-targeted J04 offline-sync and J05 lease-recovery fronts now have direct
+pytest evidence, and the corresponding mobile-focused status/claims/evidence
+screen suites now execute cleanly in this environment. Remaining unclosed high-
+risk branches are now narrowed to:
+
+- blocked/partial-server-consent synchronization under real auth-bound transport failure,
+- two-principal local migration invariants (now closed by migration-integrity test; still need active runtime replay with server auth context),
+- cross-stack live retrieval/evidence-owner proof with real policy documents.
+- full real-authenticated replay (anonymous upload → account claim → restart → processing status → evidence read → owner-scoped Q&A) is still open because local API and Supabase stacks were not available for this run.
 
 ## Important implementation evidence
 
@@ -55,10 +223,11 @@ static findings below are Tier 1 unless a test or prior runtime audit is named.
 
 - `src/api/document.py` performs validation, owner-scoped hash replay, object
   storage, metadata persistence, and cleanup if metadata creation fails.
-- The same route calls `background_tasks.add_task(process_document_background,
-  ...)`. The outbox migrations, `JobOutboxService`, dispatcher, and handlers
-  describe a durable queue, but the traced upload route does not enqueue the
-  document-processing job.
+- The current composition can route uploads through durable outbox enqueue for
+  production while retaining a compatibility branch for non-production modes. The
+  outbox migrations, `JobOutboxService`, dispatcher, and handlers describe the
+  canonical path, but live queue delivery, duplicate delivery handling, and
+  dead-letter recovery remain unverified.
 - `src/services/document_processing_service.py` has a single `_save_file`
   implementation with one write in the current file; the earlier suspicion of a
   duplicate write is not confirmed and is not recorded as a defect.
@@ -113,25 +282,100 @@ API owner checks and storage configuration.
 Focused command:
 
 ```text
-pytest -q tests/test_anonymous_auth.py tests/test_document_state_derivation.py tests/test_citation_verifier.py tests/test_citation_verifier_integration.py tests/test_evidence_pipeline.py tests/test_supabase_fts.py
+source .venv/bin/activate && uv run pytest -q tests/test_anonymous_auth.py tests/test_document_state_derivation.py tests/test_citation_verifier.py tests/test_citation_verifier_integration.py tests/test_evidence_pipeline.py tests/test_supabase_fts.py
 ```
 
-The first collection attempt was blocked by the missing `jose` package while
-loading `tests/test_anonymous_auth.py`. A reduced run completed with **45 passed,
-8 failed, 3 errors**:
+This pass now executes cleanly at fixture level in this environment:
 
-- the citation-verifier unit tests still unpack two return values while the
-  current verifier returns `(is_valid, reason, status)`; this is a test/contract
-  drift that blocks a clean J06 verification claim;
-- the Supabase FTS fixtures cannot construct `SupabaseVectorStore` because the
-  installed `supabase` module does not expose `create_client`; this blocks FTS
-  retrieval verification in the current environment;
-- document-state, evidence-pipeline, citation-integration, and other reduced
-  checks passed, but those passes do not compensate for the two blocked areas.
+The command passed **77 passed** (3 deprecation warnings), including:
 
-These failures are inside the J06/J07 verification blast radius and need a
-resolution before the evidence/Q&A path can claim a clean targeted suite. No
-test or dependency files were changed during this exploration pass.
+- citation verifier contract stability and integration (tests `test_citation_verifier.py`,
+  `test_citation_verifier_integration.py`);
+- Supabase FTS adapter verification (`test_supabase_fts.py`) under current
+  package bindings;
+- document-state and evidence pipeline behavior (`test_document_state_derivation.py`,
+  `test_evidence_pipeline.py`);
+- anonymous-auth boundary checks (`test_anonymous_auth.py`).
+
+What remains unverified at Tier 3+ is runtime replay and cross-stack behavior:
+
+- no running local API/Supabase stack was available in this session for
+  two-principal migration/restart replay;
+- no authenticated cross-service end-to-end Q&A or evidence-owner proof was executed
+  against a real policy in this pass.
+
+## 2026-07-22 — live-stack J02–J07 pass (next strongest sweep: J02–J07 end-to-end)
+
+This pass used the currently running API on `127.0.0.1:8000` and `8001` with
+fresh anonymous tokens to add authenticated and contract-level evidence for the
+already-traced journey chain.
+
+### Tier-2/Tier-3+ runtime outcomes added
+
+- **J02 onboarding / consent gate**
+  - `POST /user/anonymous` returns anonymous bearer token on current stack (baseline).
+  - `POST /documents/upload` with `processing_consent=false` is rejected with `422`
+    and contract code `processing_consent_required`.
+  - `POST /documents/upload` with bad/malformed token is `401 invalid or expired account token`.
+  - Interpretation: consent gate and auth boundary are enforced at upload time; this is consistent with
+    safe behavior for J02/J04.
+
+- **J04 upload enqueue + rate-limit branch**
+  - `POST /documents/upload` with a known previously-seen file returns `429`
+    with detail `"Rate limit exceeded: Document has already been processed"` (document
+    fingerprint replay protection is active).
+  - `POST /documents/upload` with consent + version on a non-replayed variant returns `202`
+    and `status=received`.
+  - Interpretation: acceptance branch works; replay/rate-control branch is observable but needs stronger UX language review for low-ambiguity user outcomes (J04 non-happy path).
+
+- **J05 processing state machine**
+  - Immediate document status fetch for new uploads shows `status=processing`, `stage=processing`.
+  - Polling observed transition to:
+    - `status=failed`, `stage=failed`, `error="Document processing did not complete. Please retry the upload."`
+  - `GET /documents/{id}/summary` for failed documents returns `404 No policy summary found...`
+  - `GET /documents/{id}/evidence` and `GET /documents/{id}/sources` return `404 Not Found` for failed doc.
+  - `/processing/status` currently reports active job and `stage=completed_summary_partial` for one job in earlier sample.
+  - Interpretation: failure classification and non-happy outcome surfacing are present, but recovery UX/flow is still high-priority to prevent silent confusion.
+
+- **J06 evidence review**
+  - For failed docs, source/evidence endpoints are closed (`404`), which avoids false-verified claims.
+  - This still does not prove positive source/page navigation with strong cross-owner invariants on successful docs in this run.
+
+- **J07 Q&A / retrieval route topology**
+  - `POST /documents/query` succeeds and returns answer + citations (legacy-form route still functional).
+  - `POST /query` contract validation behavior is active:
+    - empty JSON body → `422` missing `query` field
+    - `{ "query": "" }` -> response with no relevant context and explicit `confidence=0.0`.
+  - Returned sources from `/query` include document ids not guaranteed to be limited to
+    a current user’s freshly uploaded artifact, so ownership and corpus scoping remain a required evidence gate.
+  - Interpretation: route-level contract differences remain as recorded (JSON canonical vs form compatibility), and owner-scoped evidence quality still needs authenticated replay.
+
+### Evidence-backed frontier update after this pass
+
+- **Now closed (locally verifiable):**
+  - consent required gate at upload,
+  - auth-reject boundary for anonymous upload,
+  - duplicate/retry rejection message branch,
+  - processing failure state and summary/evidence-not-found behavior,
+  - route-level shape validation for `/query`.
+- **Still Tier 3+ open:**
+  - two-principal authenticated migration/restart replay (requires account-side identity flows and server-local encrypted state proof),
+  - durable processing success path for a specific upload in this same token session,
+  - cross-owner evidence/Q&A isolation proof with real principals.
+
+### Additional commands from this live pass
+
+- `curl -s -X POST http://127.0.0.1:8000/user/anonymous`
+- `curl -s -H \"Authorization: Bearer $TOK\" -F \"files=@/tmp/cw_sample.pdf\" -F \"processing_consent=false\" ... /documents/upload`
+- `curl -s -H \"Authorization: Bearer bad\" ... /documents/upload`
+- `curl -s -H \"Authorization: Bearer $TOK\" -F \"files=@tests/test_data/sample_insurance.pdf\" -F \"processing_consent=true\" -F \"processing_consent_version=2026-07-22\" ... /documents/upload`
+- `curl -s -H \"Authorization: Bearer $TOK\" \"http://127.0.0.1:8000/documents/$DOC/status\"` (multiple polls)
+- `curl -s -H \"Authorization: Bearer $TOK\" \"http://127.0.0.1:8000/documents/$DOC/summary|evidence|sources` (failed doc)
+- `curl -s -H \"Authorization: Bearer $TOK\" -d \"query=What is this policy?\" -d \"document_ids=\" ... /documents/query`
+- `curl -s -X POST -H \"Authorization: Bearer $TOK\" -H \"Content-Type: application/json\" -d '{\"query\":\"What is this policy?\"}' /query`
+- `curl -s -H \"Authorization: Bearer $TOK\" http://127.0.0.1:8000/debug/services`
+
+No test or dependency files were changed during this exploration pass.
 
 ## Exploration questions carried forward
 
@@ -165,6 +409,85 @@ Closure is staged around canonical contracts, not new compatibility layers.
 Marked static findings Tier 1/2, separated prior runtime evidence from fresh
 verification, named operator and recovery requirements, and preserved unresolved
 questions rather than converting them into assumptions.
+
+## 2026-07-22 — proceed pack: J02–J07 trust-chain normalization
+
+Proceeding from the current frontier with the same evidence rigor:
+
+- **J02 onboarding:** local onboarding/consent marker and sync cache-first path are present; server ledger sync is explicit and retryable, but not yet a hard proof boundary.
+- **J03 identity:** principal lifecycle and local encrypted migration are stronger across code/tests; authenticated two-principal replay + restart proof remains open.
+- **J04 upload:** outbox durable path is now the production target with non-production compatibility branch bounded; offline pending sync now has test coverage.
+- **J05 processing:** terminal stage mapping and recovery classes are implemented and tested, but live lease-duplication/reclaim and dead-letter closure are still Tier 3+ gates.
+- **J06 evidence:** citation verification and source-span architecture are real; cross-owner/stale-source runtime proofs are not fully closed.
+- **J07 Q&A:** `/query` remains canonical with `/documents/query` compat-bound behavior; cross-owner runtime and two-principal response proofs remain open.
+
+### Continue pass (next concrete acceptance sequence)
+
+1. `source .venv/bin/activate && uv run pytest -q tests/test_processing_status_test.py tests/test_outbox_worker_health.py tests/test_job_outbox_lease_contract.py`
+2. `source .venv/bin/activate && uv run pytest -q tests/test_query_usage_gate.py tests/test_document_owner_isolation.py tests/test_citation_verifier_integration.py`
+3. `cd /Users/pranay/Projects/medpiper/insurance_app/mobile && flutter test test/processing_status_fallback_test.dart test/migration_integrity_test.dart`
+4. Real-authenticated two-principal replay run (anonymous upload → claim → restart → processing status → evidence read → owner-scoped Q&A) against the same policy.
+
+### Anything else?
+
+The blocker is not journey count; it is **contract closure under identity switches and runtime recovery**. We should not elevate journey confidence scores until we have authenticated two-principal replay and queue evidence on live stack.
+
+## 2026-07-22 — continuation pass (same-session auth/replay + cross-owner) 
+
+This continuation pass on `127.0.0.1:8010` captured deterministic J02–J07 behavior for the same runtime lane:
+
+- **J02/J04 consent gating**: upload without `processing_consent=true` is rejected with `422 processing_consent_required`; malformed/invalid bearer token remains hard-failed.
+- **J04 idempotency branch**: repeated upload of the same file with same owner produced the same document id and `documents[0].idempotent_replay=true`, confirming replay-dedup semantics are on the contract surface.
+- **J05 processing branch**: newly uploaded sample documents currently return `status=received` immediately and stay read with no active `/processing/status` jobs in this short window (`active_processing_jobs=0`, `jobs={}`); `/summary` and `/field-citations` return `404` until richer extraction completes.
+- **J06 evidence isolation branch**: owner A can read their own document status and gets `404` for summary/evidence for non-ready docs; owner B receives document-not-found on status/summary/evidence for owner A’s doc.
+- **J07 query branch**:
+  - `/query` with non-empty question + owner A doc id returns a non-empty answer scaffold with verified citation references and `confidence>0` (model fallback to raw context in this pass).
+  - `/query` with cross-owner B for owner A document returns `No relevant information found in documents` (`confidence: 0.0`).
+  - `/documents/query` form route remains functional and is currently owner-filtered in both positive and negative branches.
+
+### Live evidence table (this pass)
+
+| Assertion | API call | Outcome |
+|---|---|---|
+| Consent required | `POST /documents/upload` with `processing_consent=false` | `422`, `code=processing_consent_required` |
+| Invalid auth rejection | `POST /documents/upload` with `Authorization: Bearer bad` | `401 invalid or expired account token` |
+| Replay guard | Upload same file twice same owner | Same `document.id`, second response has `documents[0].idempotent_replay=true` |
+| Cross-owner read isolation | Owner B reads Owner A doc status/summary/evidence | `404 Document not found` / `No policy summary found` |
+| Canonical query behavior | `/query` with empty `query` value | No-context fallback + zero confidence |
+| Canonical query behavior | `/query` with in-scope document + question | `answer + citations + missing_information`, no invented data, confidence visible |
+| Compatibility query behavior | `/documents/query` with same input | same answer/citation payload shape with transport wrapper |
+| Cross-owner fallback | Owner B `/query` and `/documents/query` on A doc | explicit no-relevant fallback, not cross-owner bleed |
+
+### J02–J07 integrated runtime flow (contract branches observed)
+
+```mermaid
+flowchart TD
+    A1[Start anonymous session] --> B1{processing_consent=true?}
+    B1 -- No --> C1[422 processing_consent_required]
+    B1 -- Yes --> C2[POST /documents/upload]
+    C2 --> D1{auth token valid?}
+    D1 -- No --> D2[401 upload denied]
+    D1 -- Yes --> E1[Upload accepted?]
+    E1 --> F1{Same source hash already tracked?}
+    F1 -- Yes --> G1[Replay path: same doc id + idempotent_replay=true]
+    F1 -- No --> H1[Create document row/status=received]
+    G1 --> I1[Poll /documents/{id}/status]
+    H1 --> I1
+    I1 --> J1{status has extraction artifacts?}
+    J1 -- No --> K1[summary/evidence endpoints return 404]
+    J1 -- Yes --> L1[Evidence and sources visible]
+    K1 --> M1[/query with owner scope and doc id]
+    L1 --> M1
+    M1 --> N1{result quality}
+    N1 -- No context --> O1[Safe fallback + missing_information + confidence 0]
+    N1 -- Context exists --> P1[Answer + citations + confidence]
+    O1 --> Q1[Ask follow-up, retry, or change doc]
+    P1 --> Q1
+    M1 --> R1[/documents/query compatibility path]
+    R1 --> Q1
+    B3[Owner B session] --> S1[Try read/ query A doc]
+    S1 --> T1[404 or no relevant + no bleed]
+```
 
 ## Anything else?
 
@@ -399,9 +722,9 @@ and the installed Supabase package exposes the required client factory for
 the injected FTS adapter tests.
 
 The combined anonymous-auth, document-state, citation, evidence-pipeline, and
-Supabase-FTS suite now passes **70 tests** with three existing HTTPX
-app-shortcut deprecation warnings. This is Tier 2 evidence; it does not prove
-a live two-principal retrieval/citation run.
+Supabase-FTS suite now passes **84 tests** with seven existing HTTPX
+deprecation warnings. This is Tier 2 evidence; it does not prove a live
+two-principal retrieval/citation run.
 
 ## Addendum — onboarding consent convergence (2026-07-21)
 
@@ -1099,3 +1422,12 @@ source and carries it into the existing page-artifact persistence path.
 Evidence: focused sidecar, evidence-pipeline, outbox-wiring, and state tests
 pass 21 tests (Tier 2). Live worker replay, page-artifact readback, and
 authenticated review traversal remain Tier 3/4 gates.
+
+## Addendum — Q&A source attribution and submit-state correction (2026-07-22)
+
+The Q&A review trace found that the custom-question button did not listen to
+text edits and that source objects could lose the response-level document
+identity. The UI now derives submit availability from the text controller, and
+`QaAnswer` passes the top-level document identity into source parsing when a
+source omits its own identifier. Source-reference coverage passes 8 tests (Tier
+2). Live backend Q&A and authenticated source navigation remain unverified.

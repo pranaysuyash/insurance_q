@@ -12,7 +12,6 @@ void main() {
   });
 
   setUp(() async {
-    // ConsentLedger uses a dedicated 'consent_ledger' box (not AppStateStore.boxName).
     consentBox = Hive.box('consent_ledger');
     await consentBox.clear();
   });
@@ -447,6 +446,45 @@ void main() {
       // Should not throw on clear.
       await ledger.clear();
       expect(ledger.getAllRecords(), isEmpty);
+    });
+
+    test('isPrivacyPolicyAccepted returns false when no record exists', () {
+      ledger.clear();
+      expect(ledger.isPrivacyPolicyAccepted('v1'), isFalse);
+    });
+
+    test('isPrivacyPolicyAccepted returns true when version matches', () async {
+      await ledger.recordPolicyAcceptance(version: 'v2');
+      expect(ledger.isPrivacyPolicyAccepted('v2'), isTrue);
+    });
+
+    test('isPrivacyPolicyAccepted returns false when version differs', () async {
+      await ledger.recordPolicyAcceptance(version: 'v1');
+      expect(ledger.isPrivacyPolicyAccepted('v2'), isFalse);
+    });
+
+    test('isPrivacyPolicyAccepted returns false when revoked', () async {
+      await ledger.recordPolicyAcceptance(version: 'v1');
+      await ledger.revokeConsent(ConsentPurpose.privacyPolicy);
+      expect(ledger.isPrivacyPolicyAccepted('v1'), isFalse);
+    });
+
+    test('recordPolicyAcceptance stores correct version', () async {
+      await ledger.recordPolicyAcceptance(version: '2026-07-22');
+      final record = ledger.getLatestRecord(ConsentPurpose.privacyPolicy);
+      expect(record, isNotNull);
+      expect(record!.version, '2026-07-22');
+      expect(record.granted, isTrue);
+    });
+
+    test('isPrivacyPolicyAccepted updates when new version is recorded', () async {
+      await ledger.recordPolicyAcceptance(version: 'v1');
+      expect(ledger.isPrivacyPolicyAccepted('v1'), isTrue);
+      expect(ledger.isPrivacyPolicyAccepted('v2'), isFalse);
+
+      await ledger.recordPolicyAcceptance(version: 'v2');
+      expect(ledger.isPrivacyPolicyAccepted('v1'), isFalse);
+      expect(ledger.isPrivacyPolicyAccepted('v2'), isTrue);
     });
   });
 }

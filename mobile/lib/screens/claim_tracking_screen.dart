@@ -357,7 +357,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              value: _incidentType,
+              initialValue: _incidentType,
               decoration: const InputDecoration(
                 labelText: 'Incident type',
                 prefixIcon: Icon(Icons.warning_amber_rounded),
@@ -370,7 +370,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
             const SizedBox(height: 12),
             if (widget.summaries.isNotEmpty)
               DropdownButtonFormField<String>(
-                value: _selectedDocId,
+                initialValue: _selectedDocId,
                 decoration: const InputDecoration(
                   labelText: 'Related policy (optional)',
                   prefixIcon: Icon(Icons.policy_outlined),
