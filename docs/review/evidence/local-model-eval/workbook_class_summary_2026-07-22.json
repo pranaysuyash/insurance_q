@@ -1,0 +1,440 @@
+{
+  "generated_at_utc": "2026-07-22T12:52:37.485820Z",
+  "master_sheet": {
+    "rows": 150,
+    "cols": 17
+  },
+  "class_counts": {
+    "Text OCR / extraction": {
+      "Yes": 121,
+      "Depends": 3,
+      "No": 13,
+      "Partial": 2,
+      "Via OCR": 2,
+      "Requires OCR": 7,
+      "Via pluggable OCR": 1
+    },
+    "Layout awareness": {
+      "Yes": 89,
+      "Depends": 2,
+      "Partial": 39,
+      "No": 17,
+      "Via models": 1,
+      "Semantic": 1
+    },
+    "Table extraction": {
+      "Yes": 91,
+      "Depends": 2,
+      "Partial": 18,
+      "No": 36,
+      "Via models": 1,
+      "Semantic": 1
+    },
+    "Header / section detection": {
+      "Yes": 86,
+      "Depends": 2,
+      "Partial": 18,
+      "No": 42,
+      "Via models": 1
+    },
+    "Coordinates / reading order": {
+      "Yes": 110,
+      "Depends": 2,
+      "Partial": 31,
+      "No": 5,
+      "Via models": 1
+    },
+    "Math / LaTeX": {
+      "Yes": 34,
+      "Partial": 37,
+      "Depends": 3,
+      "No": 75
+    }
+  },
+  "recent_models_2024_plus": {
+    "row_count": 77,
+    "relevant_rows": [
+      {
+        "Model / system": "Infinity-Parser2",
+        "Release": "2026-07",
+        "Organization": "INF Team",
+        "Artifact class": "Specialist document parser/VLM",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Long-form structured document parsing",
+        "Paper / report": "https://arxiv.org/abs/2607.07836",
+        "Code / model": "https://github.com/infly-ai/INF-MLLM"
+      },
+      {
+        "Model / system": "HunyuanOCR-1.5",
+        "Release": "2026-07",
+        "Organization": "Tencent",
+        "Artifact class": "Specialist OCR VLM",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Lightweight OCR VLM; faster and improved parsing",
+        "Paper / report": "https://arxiv.org/abs/2607.04884",
+        "Code / model": "https://github.com/Tencent-Hunyuan/HunyuanOCR"
+      },
+      {
+        "Model / system": "RT-DocLayout",
+        "Release": "2026-06",
+        "Organization": "Baidu",
+        "Artifact class": "Layout model",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "No public code listed",
+        "Primary focus": "Real-time layout analysis and reading order",
+        "Paper / report": "https://arxiv.org/abs/2606.23344",
+        "Code / model": null
+      },
+      {
+        "Model / system": "Unlimited-OCR",
+        "Release": "2026-06",
+        "Organization": "Baidu",
+        "Artifact class": "Specialist OCR/document VLM",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "One-shot long-horizon OCR and document parsing",
+        "Paper / report": "https://arxiv.org/abs/2606.23050",
+        "Code / model": "https://github.com/baidu/Unlimited-OCR"
+      },
+      {
+        "Model / system": "PaddleOCR-VL-1.6",
+        "Release": "2026-06",
+        "Organization": "Baidu / PaddlePaddle",
+        "Artifact class": "Specialist document VLM",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Multilingual document parsing and region refinement",
+        "Paper / report": "https://arxiv.org/abs/2606.03264",
+        "Code / model": "https://github.com/PaddlePaddle/PaddleOCR"
+      },
+      {
+        "Model / system": "PP-OCRv6",
+        "Release": "2026-06",
+        "Organization": "Baidu / PaddlePaddle",
+        "Artifact class": "Classical/small OCR model family",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Compact text recognition OCR models",
+        "Paper / report": "https://arxiv.org/abs/2606.13108",
+        "Code / model": "https://github.com/PaddlePaddle/PaddleOCR"
+      },
+      {
+        "Model / system": "RTPrune",
+        "Release": "2026-05",
+        "Organization": "DeepSeek ecosystem",
+        "Artifact class": "Inference optimization",
+        "Core parser catalog?": "Adjacent",
+        "Public implementation": "Yes",
+        "Primary focus": "Token pruning for DeepSeek-OCR inference",
+        "Paper / report": null,
+        "Code / model": "https://github.com/BurnWan/RTPrune"
+      },
+      {
+        "Model / system": "ABot-OCR",
+        "Release": "2026-05",
+        "Organization": "Alibaba / AMAP CVLab",
+        "Artifact class": "Specialist OCR model",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "End-to-end document OCR",
+        "Paper / report": "https://arxiv.org/abs/2605.27978",
+        "Code / model": "https://github.com/amap-cvlab/ABot-OCR"
+      },
+      {
+        "Model / system": "BabelDOC",
+        "Release": "2026-05",
+        "Organization": "funstory.ai",
+        "Artifact class": "PDF translation/parser pipeline",
+        "Core parser catalog?": "Adjacent",
+        "Public implementation": "Yes",
+        "Primary focus": "Layout-preserving PDF translation via intermediate representation",
+        "Paper / report": "https://arxiv.org/abs/2605.10845",
+        "Code / model": "https://github.com/funstory-ai/BabelDOC"
+      },
+      {
+        "Model / system": "Consensus Entropy",
+        "Release": "2026-05",
+        "Organization": "Fudan University",
+        "Artifact class": "Verification/ensemble method",
+        "Core parser catalog?": "Adjacent",
+        "Public implementation": "Yes",
+        "Primary focus": "Multi-VLM agreement for self-verifying OCR",
+        "Paper / report": "https://arxiv.org/abs/2504.11101",
+        "Code / model": "https://github.com/Aslan-yulong/consensus-entropy"
+      },
+      {
+        "Model / system": "FastOCR",
+        "Release": "2026-05",
+        "Organization": "Tsinghua University / JD",
+        "Artifact class": "Inference optimization",
+        "Core parser catalog?": "Adjacent",
+        "Public implementation": "No public code listed",
+        "Primary focus": "KV-cache pruning for efficient document parsing",
+        "Paper / report": "https://arxiv.org/abs/2605.17447",
+        "Code / model": null
+      },
+      {
+        "Model / system": "TexOCR",
+        "Release": "2026-04",
+        "Organization": "Yale / Zhejiang University",
+        "Artifact class": "Specialist scientific OCR VLM",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Compilable page-to-LaTeX reconstruction",
+        "Paper / report": "https://arxiv.org/abs/2604.22880",
+        "Code / model": "https://github.com/QDRhhhh/TexOCR"
+      },
+      {
+        "Model / system": "Falcon OCR / Falcon Perception",
+        "Release": "2026-03",
+        "Organization": "TII",
+        "Artifact class": "Specialist OCR/document model",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Document perception and OCR",
+        "Paper / report": "https://arxiv.org/abs/2603.27365",
+        "Code / model": "https://github.com/tiiuae/Falcon-Perception"
+      },
+      {
+        "Model / system": "MinerU-Diffusion",
+        "Release": "2026-03",
+        "Organization": "Shanghai AI Laboratory / OpenDataLab",
+        "Artifact class": "Specialist OCR research model",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "OCR as inverse rendering with diffusion decoding",
+        "Paper / report": "https://arxiv.org/abs/2603.22458",
+        "Code / model": "https://github.com/opendatalab/MinerU"
+      },
+      {
+        "Model / system": "Qianfan-OCR",
+        "Release": "2026-03",
+        "Organization": "Baidu",
+        "Artifact class": "Specialist OCR/document VLM",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Unified end-to-end document intelligence",
+        "Paper / report": "https://arxiv.org/abs/2603.13398",
+        "Code / model": "https://github.com/baidubce/Qianfan-VL"
+      },
+      {
+        "Model / system": "dots.mocr",
+        "Release": "2026-03",
+        "Organization": "HUST / RedNote HiLab",
+        "Artifact class": "Specialist multimodal OCR",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Multimodal OCR and broad document parsing",
+        "Paper / report": "https://arxiv.org/pdf/2603.13032",
+        "Code / model": "https://github.com/rednote-hilab/dots.mocr"
+      },
+      {
+        "Model / system": "FireRed-OCR",
+        "Release": "2026-03",
+        "Organization": "Xiaohongshu",
+        "Artifact class": "Specialist OCR model",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Complex document OCR",
+        "Paper / report": "https://github.com/FireRedTeam/FireRed-OCR/blob/main/assets/FireRed_OCR_Technical_Report.pdf",
+        "Code / model": "https://github.com/FireRedTeam/FireRed-OCR"
+      },
+      {
+        "Model / system": "AgenticOCR",
+        "Release": "2026-03",
+        "Organization": "Shanghai AI Laboratory / OpenDataLab",
+        "Artifact class": "Query-adaptive parser/agent",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Selective parsing for retrieval and RAG",
+        "Paper / report": "https://arxiv.org/abs/2602.24134",
+        "Code / model": "https://github.com/OpenDataLab/AgenticOCR"
+      },
+      {
+        "Model / system": "Logics-Parsing-Omni",
+        "Release": "2026-03",
+        "Organization": "Alibaba",
+        "Artifact class": "Specialist document parser/VLM",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "Yes",
+        "Primary focus": "Layout, reading order and structured parsing",
+        "Paper / report": "https://arxiv.org/abs/2603.09677",
+        "Code / model": "https://github.com/alibaba/Logics-Parsing/tree/master/Logics-Parsing-Omni"
+      },
+      {
+        "Model / system": "Agentar-Fin-OCR",
+        "Release": "2026-03",
+        "Organization": "Ant Group",
+        "Artifact class": "Domain-specific financial OCR",
+        "Core parser catalog?": "Yes",
+        "Public implementation": "No public code listed",
+        "Primary focus": "Financial document OCR and extraction",
+        "Paper / report": "https://arxiv.org/abs/2603.11044",
+        "Code / model": null
+      }
+    ]
+  },
+  "general_vlms_ocr_rows": {
+    "row_count": 33,
+    "samples": [
+      {
+        "Model": "KDL Frontier",
+        "Provider / family": "KDL",
+        "Open weights": "No",
+        "Size": "Not disclosed",
+        "OCRBench v2 average": 68.1,
+        "Parsing score": 92.2,
+        "Why it is separate from core parsers": "General LMM; capable across OCR tasks but not a dedicated parser",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "NVIDIA Nemotron 3 Nano Omni",
+        "Provider / family": "NVIDIA",
+        "Open weights": "Yes",
+        "Size": "30B A3B",
+        "OCRBench v2 average": 65.8,
+        "Parsing score": 93.3,
+        "Why it is separate from core parsers": "General multimodal model; use through prompts and output validation",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Qwen3.6-35B-A3B",
+        "Provider / family": "Alibaba Qwen",
+        "Open weights": "Yes",
+        "Size": "35B A3B",
+        "OCRBench v2 average": 65.5,
+        "Parsing score": 91.5,
+        "Why it is separate from core parsers": "General multimodal model, not a deterministic document pipeline",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Qwen3.5-35B-A3B",
+        "Provider / family": "Alibaba Qwen",
+        "Open weights": "Yes",
+        "Size": "35B A3B",
+        "OCRBench v2 average": 65.3,
+        "Parsing score": 90.5,
+        "Why it is separate from core parsers": "General multimodal model; prompt format materially affects OCR output",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Gemini 3 Pro Preview",
+        "Provider / family": "Google",
+        "Open weights": "No",
+        "Size": "Not disclosed",
+        "OCRBench v2 average": 63.4,
+        "Parsing score": 93.9,
+        "Why it is separate from core parsers": "Frontier general model with strong parsing; version and API behaviour change",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Seed1.6-Vision",
+        "Provider / family": "ByteDance Seed",
+        "Open weights": "No",
+        "Size": "Not disclosed",
+        "OCRBench v2 average": 62.2,
+        "Parsing score": 89,
+        "Why it is separate from core parsers": "General vision model; not ByteDance Dolphin specialist parser",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "TeleMM-2.0",
+        "Provider / family": "TeleAI",
+        "Open weights": "No",
+        "Size": "Not disclosed",
+        "OCRBench v2 average": 61.8,
+        "Parsing score": 92.8,
+        "Why it is separate from core parsers": "General LMM evaluated for OCR",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Qwen3-Omni-30B-A3B-Instruct",
+        "Provider / family": "Alibaba Qwen",
+        "Open weights": "Yes",
+        "Size": "30B A3B",
+        "OCRBench v2 average": 61.3,
+        "Parsing score": 93.5,
+        "Why it is separate from core parsers": "Omni/general model, useful for reasoning and extraction but not specialized parsing",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Nemotron Nano V2 VL",
+        "Provider / family": "NVIDIA",
+        "Open weights": "Yes",
+        "Size": "12B",
+        "OCRBench v2 average": 61.2,
+        "Parsing score": 92,
+        "Why it is separate from core parsers": "General compact VLM with benchmarked OCR ability",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Gemini 2.5 Pro",
+        "Provider / family": "Google",
+        "Open weights": "No",
+        "Size": "Not disclosed",
+        "OCRBench v2 average": 59.3,
+        "Parsing score": 93.7,
+        "Why it is separate from core parsers": "General multimodal model; strong parsing but API/prompt dependent",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "GLM-4.6V-Flash",
+        "Provider / family": "Z.ai",
+        "Open weights": "Yes",
+        "Size": "9B",
+        "OCRBench v2 average": 59,
+        "Parsing score": 88.5,
+        "Why it is separate from core parsers": "General GLM vision model; distinct from specialist GLM-OCR",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Qwen3.5-9B",
+        "Provider / family": "Alibaba Qwen",
+        "Open weights": "Yes",
+        "Size": "9B",
+        "OCRBench v2 average": 58.7,
+        "Parsing score": 91.1,
+        "Why it is separate from core parsers": "General compact VLM with OCR evidence",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "SenseNova-U1",
+        "Provider / family": "SenseTime",
+        "Open weights": "Yes",
+        "Size": "18B",
+        "OCRBench v2 average": 58.2,
+        "Parsing score": 80.5,
+        "Why it is separate from core parsers": "General multimodal model",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "Llama-3.1-Nemotron-Nano-VL-8B-V1",
+        "Provider / family": "NVIDIA / Meta Llama",
+        "Open weights": "Yes",
+        "Size": "8B",
+        "OCRBench v2 average": 56.4,
+        "Parsing score": 88.2,
+        "Why it is separate from core parsers": "General VLM; coordinates and structure require prompting",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      },
+      {
+        "Model": "GPT-5 (2025-08-07)",
+        "Provider / family": "OpenAI",
+        "Open weights": "No",
+        "Size": "Not disclosed",
+        "OCRBench v2 average": 55.5,
+        "Parsing score": 90.1,
+        "Why it is separate from core parsers": "General model; structured extraction possible but not a fixed parser",
+        "Evidence source": "https://99franklin.github.io/ocrbench_v2/"
+      }
+    ]
+  },
+  "workbook_gaps": [
+    "No dedicated sentence boundary/segment quality column.",
+    "No dedicated handwriting quality column.",
+    "No explicit multilingual-per-language accuracy column.",
+    "No explicit anti-hallucination/caption provenance column."
+  ]
+}

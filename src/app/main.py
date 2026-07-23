@@ -6,7 +6,7 @@ normalize_supabase_environment()
 
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from src.api.user import router as user_router, get_current_user
 from src.api.analytics import router as analytics_router
@@ -28,7 +28,7 @@ from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError,
 from src.services.qa_usage_service import QaUsageService, production_qa_usage_enabled
 
 # Import RAG components and enhanced document processing
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, AsyncGenerator
 import sys
 import logging
 import os
@@ -578,6 +578,120 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
             answer="I encountered an unexpected error while processing your question. Please try again later.",
             sources=[],
             error="Document query failed"
+        )
+
+@app.post("/query/stream")
+async def query_documents_stream(request: QueryRequest, current_user: User = Depends(get_current_user)):
+    """
+    Streaming query endpoint for real-time token-by-token responses.
+    Uses Server-Sent Events (SSE) format.
+    """
+    qa_reservation = None
+
+    def release_qa_reservation() -> None:
+        nonlocal qa_reservation
+        if qa_reservation is None:
+            return
+        service, owner_id, request_id = qa_reservation
+        try:
+            service.release(owner_id=owner_id, request_id=request_id)
+        except Exception as error:
+            logger.error("qa_usage_release_failed error_type=%s", type(error).__name__)
+        finally:
+            qa_reservation = None
+
+    def finalize_qa_reservation() -> bool:
+        nonlocal qa_reservation
+        if qa_reservation is None:
+            return True
+        service, owner_id, request_id = qa_reservation
+        try:
+            service.finalize(owner_id=owner_id, request_id=request_id)
+            qa_reservation = None
+            return True
+        except Exception as error:
+            logger.error("qa_usage_finalize_failed error_type=%s", type(error).__name__)
+            release_qa_reservation()
+            return False
+
+    try:
+        if qa_usage_service is not None:
+            request_id = request.request_id or uuid4()
+            try:
+                usage = qa_usage_service.reserve(
+                    owner_id=current_user.uid,
+                    request_id=request_id,
+                )
+            except Exception as error:
+                logger.error("qa_usage_reservation_failed error_type=%s", type(error).__name__)
+                return StreamingResponse(
+                    iter([f"data: {{\"error\": \"qa_usage_unavailable\"}}\n\n"]),
+                    media_type="text/event-stream",
+                )
+            if not bool(usage.get("allowed")):
+                logger.info(
+                    "qa_question_blocked owner=%s reason=%s",
+                    current_user.uid[:12],
+                    usage.get("reason", "qa_budget_exhausted"),
+                )
+                return StreamingResponse(
+                    iter([f"data: {{\"error\": \"qa_budget_exhausted\"}}\n\n"]),
+                    media_type="text/event-stream",
+                )
+            qa_reservation = (qa_usage_service, current_user.uid, request_id)
+
+        logger.info(
+            "document_query_stream_received owner=%s query_length=%s has_document_filter=%s",
+            current_user.uid[:12],
+            len(request.query),
+            bool(request.filters and (request.filters.get("document_id") or request.filters.get("document_ids"))),
+        )
+
+        if not document_processing_service:
+            release_qa_reservation()
+            return StreamingResponse(
+                iter([f"data: {{\"error\": \"Document processing service not initialized\"}}\n\n"]),
+                media_type="text/event-stream",
+            )
+
+        # Normalize filters
+        filters = dict(request.filters) if request.filters else {}
+        if filters and "document_id" in filters and "document_ids" not in filters:
+            doc_id = filters.pop("document_id")
+            if doc_id:
+                filters["document_ids"] = [doc_id] if isinstance(doc_id, str) else doc_id
+        filters["owner_id"] = current_user.uid
+
+        # Create streaming generator
+        async def generate_stream():
+            try:
+                # Stream the answer from the RAG pipeline
+                async for token in document_processing_service.query_documents_stream(
+                    query=request.query,
+                    filters=filters
+                ):
+                    yield f"data: {token}\n\n"
+            except Exception as e:
+                logger.error("stream_query_failed error_type=%s", type(e).__name__)
+                yield f"data: {{\"error\": \"Stream failed\"}}\n\n"
+            finally:
+                finalize_qa_reservation()
+
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        )
+
+    except Exception as e:
+        release_qa_reservation()
+        logger.error("document_query_stream_failed error_type=%s", type(e).__name__)
+        return StreamingResponse(
+            iter([f"data: {{\"error\": \"Document query failed\"}}\n\n"]),
+            media_type="text/event-stream",
         )
 
 @app.post("/process-and-ingest")

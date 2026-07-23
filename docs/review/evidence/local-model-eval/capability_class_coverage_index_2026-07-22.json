@@ -1,0 +1,3082 @@
+{
+  "generated_at": "2026-07-22",
+  "workbook": "/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx",
+  "class_coverage": {
+    "Text extraction": {
+      "tools": [
+        {
+          "tool": "Docling",
+          "signal": "Yes"
+        },
+        {
+          "tool": "SmolDocling",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MinerU",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Marker",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Unstructured",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LlamaParse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenParse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docling Serve",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parxy",
+          "signal": "Depends"
+        },
+        {
+          "tool": "PDF-Extract-Kit",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DeepDoctection",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaddleOCR PP-Structure",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Surya",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Pix2Text",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nougat",
+          "signal": "Yes"
+        },
+        {
+          "tool": "GROBID",
+          "signal": "Yes"
+        },
+        {
+          "tool": "CERMINE",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Science Parse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "S2ORC PDF Parser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ScholarPhi / PaperMage",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaperQA parsers",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MarkItDown",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Apache Tika",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Tika-Python",
+          "signal": "Yes"
+        },
+        {
+          "tool": "textract (Python)",
+          "signal": "Yes"
+        },
+        {
+          "tool": "TET PDF IFilter / PDFlib TET",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PyMuPDF",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pdfplumber",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pdfminer.six",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pypdf",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pypdfium2",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PDFium",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Poppler",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Xpdf",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MuPDF",
+          "signal": "Yes"
+        },
+        {
+          "tool": "borb",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pdf.js",
+          "signal": "Yes"
+        },
+        {
+          "tool": "unpdf",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pdf-parse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pdf2json",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PDFBox",
+          "signal": "Yes"
+        },
+        {
+          "tool": "iText Core",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PDF Clown",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PoDoFo",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Apache PDFBox ExtractText",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Tesseract OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OCRmyPDF",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaddleOCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "EasyOCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "docTR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "keras-ocr",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MMOCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Kraken",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Calamari OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OCRopus",
+          "signal": "Yes"
+        },
+        {
+          "tool": "CuneiForm",
+          "signal": "Yes"
+        },
+        {
+          "tool": "GOCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Ocrad",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Apple Vision Text Recognition",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ML Kit Text Recognition",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenCV text modules",
+          "signal": "Partial"
+        },
+        {
+          "tool": "LayoutParser",
+          "signal": "Via OCR"
+        },
+        {
+          "tool": "Donut",
+          "signal": "Yes"
+        },
+        {
+          "tool": "UDOP",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaddleOCR KIE / SER / RE",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Hugging Face Transformers document models",
+          "signal": "Depends"
+        },
+        {
+          "tool": "img2table",
+          "signal": "Via pluggable OCR"
+        },
+        {
+          "tool": "PdfTable",
+          "signal": "Via OCR"
+        },
+        {
+          "tool": "Table OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Amazon Textract Tables",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Document AI Form Parser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Azure Document Intelligence Layout",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Adobe PDF Extract API",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pix2tex / LaTeX-OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mathpix OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mistral OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "InftyReader",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Im2LaTeX models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Texify",
+          "signal": "Yes"
+        },
+        {
+          "tool": "TrOCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LaTeXTable / table-to-LaTeX models",
+          "signal": "Partial"
+        },
+        {
+          "tool": "python-docx",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mammoth",
+          "signal": "Yes"
+        },
+        {
+          "tool": "docx2python",
+          "signal": "Yes"
+        },
+        {
+          "tool": "python-pptx",
+          "signal": "Yes"
+        },
+        {
+          "tool": "openpyxl",
+          "signal": "Yes"
+        },
+        {
+          "tool": "SheetJS",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Apache POI",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LibreOffice headless conversion",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Beautiful Soup",
+          "signal": "Yes"
+        },
+        {
+          "tool": "lxml",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Trafilatura",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Readability.js",
+          "signal": "Yes"
+        },
+        {
+          "tool": "newspaper3k",
+          "signal": "Yes"
+        },
+        {
+          "tool": "mailparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "extract-msg",
+          "signal": "Yes"
+        },
+        {
+          "tool": "AWS Textract",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Cloud Document AI",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Azure AI Document Intelligence",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ABBYY Vantage",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ABBYY FineReader Engine",
+          "signal": "Yes"
+        },
+        {
+          "tool": "IBM watsonx.ai Document Understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "UiPath Document Understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Hyperscience",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Rossum",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nanonets",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nanonets-OCR-s",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mindee",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docsumo",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Veryfi",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parseur",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parsio",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Airparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Reducto",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Chunkr",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocuPipe",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LandingAI Agentic Document Extraction",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Koncile",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Affinda",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Klippa DocHorizon",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Base64.ai",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Ocrolus",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Gemini document understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenAI vision models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Anthropic Claude document vision",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Zerox",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocETL",
+          "signal": "Depends"
+        }
+      ],
+      "count": 128
+    },
+    "Layout / structures / reading order": {
+      "tools": [
+        {
+          "tool": "Docling",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "SmolDocling",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "MinerU",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Marker",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Unstructured",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "LlamaParse",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "OpenParse",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Docling Serve",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Parxy",
+          "signal": {
+            "layout": "Depends",
+            "coords": "Depends"
+          }
+        },
+        {
+          "tool": "PDF-Extract-Kit",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "DeepDoctection",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "PaddleOCR PP-Structure",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Surya",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Pix2Text",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Nougat",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "GROBID",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "CERMINE",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Science Parse",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "S2ORC PDF Parser",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "ScholarPhi / PaperMage",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "PaperQA parsers",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "MarkItDown",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Apache Tika",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Tika-Python",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "textract (Python)",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "TET PDF IFilter / PDFlib TET",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "PyMuPDF",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "pdfplumber",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "pdfminer.six",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "pypdf",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "pypdfium2",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "PDFium",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Poppler",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Xpdf",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "MuPDF",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "borb",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "pdf.js",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "unpdf",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "pdf-parse",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "pdf2json",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "PDFBox",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "iText Core",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "PDF Clown",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "PoDoFo",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Apache PDFBox ExtractText",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Tesseract OCR",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "OCRmyPDF",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "PaddleOCR",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "EasyOCR",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "docTR",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "keras-ocr",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "MMOCR",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Kraken",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Calamari OCR",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "OCRopus",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "CuneiForm",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Apple Vision Text Recognition",
+          "signal": {
+            "layout": "No",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "ML Kit Text Recognition",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "OpenCV text modules",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "LayoutParser",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Detectron2",
+          "signal": {
+            "layout": "Via models",
+            "coords": "Via models"
+          }
+        },
+        {
+          "tool": "DocLayNet models",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "LayoutLM",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "LayoutLMv2",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "LayoutLMv3",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "LayoutXLM",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "LiLT",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Donut",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "UDOP",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "DocFormer",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "StrucTexT",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "PaddleOCR KIE / SER / RE",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Hugging Face Transformers document models",
+          "signal": {
+            "layout": "Depends",
+            "coords": "Depends"
+          }
+        },
+        {
+          "tool": "Camelot",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Tabula",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "tabula-py",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Excalibur",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "img2table",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "GMFT",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Microsoft Table Transformer (TATR)",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "TableFormer",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "CascadeTabNet",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "TableNet",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "DeepDeSRT",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "PdfTable",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Table OCR",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Amazon Textract Tables",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Google Document AI Form Parser",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Azure Document Intelligence Layout",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Adobe PDF Extract API",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Mathpix OCR",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Mistral OCR",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "InftyReader",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Texify",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "TrOCR",
+          "signal": {
+            "layout": "No",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "LaTeXTable / table-to-LaTeX models",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "python-docx",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Mammoth",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "docx2python",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "python-pptx",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "openpyxl",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "SheetJS",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Apache POI",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "LibreOffice headless conversion",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "Beautiful Soup",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "lxml",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Trafilatura",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Readability.js",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "newspaper3k",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Partial"
+          }
+        },
+        {
+          "tool": "mailparser",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "extract-msg",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "AWS Textract",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Google Cloud Document AI",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Azure AI Document Intelligence",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "ABBYY Vantage",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "ABBYY FineReader Engine",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "IBM watsonx.ai Document Understanding",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "UiPath Document Understanding",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Hyperscience",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Rossum",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Nanonets",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Nanonets-OCR-s",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Mindee",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Docsumo",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Veryfi",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Parseur",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Docparser",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Parsio",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Airparser",
+          "signal": {
+            "layout": "Partial",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Reducto",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Chunkr",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "DocuPipe",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "LandingAI Agentic Document Extraction",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Koncile",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Affinda",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Klippa DocHorizon",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Base64.ai",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Ocrolus",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Google Gemini document understanding",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "OpenAI vision models",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Anthropic Claude document vision",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "Zerox",
+          "signal": {
+            "layout": "Yes",
+            "coords": "Yes"
+          }
+        },
+        {
+          "tool": "DocETL",
+          "signal": {
+            "layout": "Semantic",
+            "coords": "Yes"
+          }
+        }
+      ],
+      "count": 143
+    },
+    "Table extraction": {
+      "tools": [
+        {
+          "tool": "Docling",
+          "signal": "Yes"
+        },
+        {
+          "tool": "SmolDocling",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MinerU",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Marker",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Unstructured",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LlamaParse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenParse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docling Serve",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parxy",
+          "signal": "Depends"
+        },
+        {
+          "tool": "PDF-Extract-Kit",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DeepDoctection",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaddleOCR PP-Structure",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Surya",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Pix2Text",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nougat",
+          "signal": "Partial"
+        },
+        {
+          "tool": "GROBID",
+          "signal": "Partial"
+        },
+        {
+          "tool": "CERMINE",
+          "signal": "Partial"
+        },
+        {
+          "tool": "S2ORC PDF Parser",
+          "signal": "Partial"
+        },
+        {
+          "tool": "ScholarPhi / PaperMage",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaperQA parsers",
+          "signal": "Partial"
+        },
+        {
+          "tool": "MarkItDown",
+          "signal": "Partial"
+        },
+        {
+          "tool": "TET PDF IFilter / PDFlib TET",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PyMuPDF",
+          "signal": "Yes"
+        },
+        {
+          "tool": "pdfplumber",
+          "signal": "Yes"
+        },
+        {
+          "tool": "borb",
+          "signal": "Partial"
+        },
+        {
+          "tool": "pdf2json",
+          "signal": "Partial"
+        },
+        {
+          "tool": "iText Core",
+          "signal": "Partial"
+        },
+        {
+          "tool": "PaddleOCR",
+          "signal": "Partial"
+        },
+        {
+          "tool": "MMOCR",
+          "signal": "Partial"
+        },
+        {
+          "tool": "CuneiForm",
+          "signal": "Partial"
+        },
+        {
+          "tool": "LayoutParser",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Detectron2",
+          "signal": "Via models"
+        },
+        {
+          "tool": "DocLayNet models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LayoutLM",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LayoutLMv2",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LayoutLMv3",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LayoutXLM",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LiLT",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Donut",
+          "signal": "Yes"
+        },
+        {
+          "tool": "UDOP",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocFormer",
+          "signal": "Yes"
+        },
+        {
+          "tool": "StrucTexT",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaddleOCR KIE / SER / RE",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Hugging Face Transformers document models",
+          "signal": "Depends"
+        },
+        {
+          "tool": "Camelot",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Tabula",
+          "signal": "Yes"
+        },
+        {
+          "tool": "tabula-py",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Excalibur",
+          "signal": "Yes"
+        },
+        {
+          "tool": "img2table",
+          "signal": "Yes"
+        },
+        {
+          "tool": "GMFT",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Microsoft Table Transformer (TATR)",
+          "signal": "Yes"
+        },
+        {
+          "tool": "TableFormer",
+          "signal": "Yes"
+        },
+        {
+          "tool": "CascadeTabNet",
+          "signal": "Yes"
+        },
+        {
+          "tool": "TableNet",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DeepDeSRT",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PdfTable",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Table OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Amazon Textract Tables",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Document AI Form Parser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Azure Document Intelligence Layout",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Adobe PDF Extract API",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mathpix OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mistral OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "InftyReader",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Texify",
+          "signal": "Partial"
+        },
+        {
+          "tool": "LaTeXTable / table-to-LaTeX models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "python-docx",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mammoth",
+          "signal": "Yes"
+        },
+        {
+          "tool": "docx2python",
+          "signal": "Yes"
+        },
+        {
+          "tool": "python-pptx",
+          "signal": "Yes"
+        },
+        {
+          "tool": "openpyxl",
+          "signal": "Yes"
+        },
+        {
+          "tool": "SheetJS",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Apache POI",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LibreOffice headless conversion",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Beautiful Soup",
+          "signal": "Yes"
+        },
+        {
+          "tool": "lxml",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Trafilatura",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Readability.js",
+          "signal": "Partial"
+        },
+        {
+          "tool": "mailparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "extract-msg",
+          "signal": "Yes"
+        },
+        {
+          "tool": "AWS Textract",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Cloud Document AI",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Azure AI Document Intelligence",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ABBYY Vantage",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ABBYY FineReader Engine",
+          "signal": "Yes"
+        },
+        {
+          "tool": "IBM watsonx.ai Document Understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "UiPath Document Understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Hyperscience",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Rossum",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nanonets",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nanonets-OCR-s",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mindee",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docsumo",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Veryfi",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parseur",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parsio",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Airparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Reducto",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Chunkr",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocuPipe",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LandingAI Agentic Document Extraction",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Koncile",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Affinda",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Klippa DocHorizon",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Base64.ai",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Ocrolus",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Gemini document understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenAI vision models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Anthropic Claude document vision",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Zerox",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocETL",
+          "signal": "Semantic"
+        }
+      ],
+      "count": 112
+    },
+    "Formula / math / LaTeX": {
+      "tools": [
+        {
+          "tool": "Docling",
+          "signal": "Yes"
+        },
+        {
+          "tool": "SmolDocling",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MinerU",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Marker",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Unstructured",
+          "signal": "Partial"
+        },
+        {
+          "tool": "LlamaParse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenParse",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Docling Serve",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parxy",
+          "signal": "Depends"
+        },
+        {
+          "tool": "PDF-Extract-Kit",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DeepDoctection",
+          "signal": "Partial"
+        },
+        {
+          "tool": "PaddleOCR PP-Structure",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Surya",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Pix2Text",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nougat",
+          "signal": "Yes"
+        },
+        {
+          "tool": "GROBID",
+          "signal": "Yes"
+        },
+        {
+          "tool": "CERMINE",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Science Parse",
+          "signal": "Partial"
+        },
+        {
+          "tool": "S2ORC PDF Parser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ScholarPhi / PaperMage",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaperQA parsers",
+          "signal": "Partial"
+        },
+        {
+          "tool": "MarkItDown",
+          "signal": "Partial"
+        },
+        {
+          "tool": "TET PDF IFilter / PDFlib TET",
+          "signal": "Partial"
+        },
+        {
+          "tool": "PaddleOCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MMOCR",
+          "signal": "Partial"
+        },
+        {
+          "tool": "DocLayNet models",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Donut",
+          "signal": "Partial"
+        },
+        {
+          "tool": "UDOP",
+          "signal": "Partial"
+        },
+        {
+          "tool": "PaddleOCR KIE / SER / RE",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Hugging Face Transformers document models",
+          "signal": "Depends"
+        },
+        {
+          "tool": "PdfTable",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Google Document AI Form Parser",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Azure Document Intelligence Layout",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Adobe PDF Extract API",
+          "signal": "Partial"
+        },
+        {
+          "tool": "pix2tex / LaTeX-OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mathpix OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mistral OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "InftyReader",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Im2LaTeX models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Texify",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LaTeXTable / table-to-LaTeX models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "openpyxl",
+          "signal": "Yes"
+        },
+        {
+          "tool": "SheetJS",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Apache POI",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LibreOffice headless conversion",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Beautiful Soup",
+          "signal": "Yes"
+        },
+        {
+          "tool": "lxml",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Trafilatura",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Google Cloud Document AI",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Azure AI Document Intelligence",
+          "signal": "Partial"
+        },
+        {
+          "tool": "ABBYY Vantage",
+          "signal": "Partial"
+        },
+        {
+          "tool": "ABBYY FineReader Engine",
+          "signal": "Partial"
+        },
+        {
+          "tool": "IBM watsonx.ai Document Understanding",
+          "signal": "Partial"
+        },
+        {
+          "tool": "UiPath Document Understanding",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Hyperscience",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Nanonets",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Nanonets-OCR-s",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mindee",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Docsumo",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Parsio",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Airparser",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Reducto",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Chunkr",
+          "signal": "Partial"
+        },
+        {
+          "tool": "DocuPipe",
+          "signal": "Partial"
+        },
+        {
+          "tool": "LandingAI Agentic Document Extraction",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Koncile",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Klippa DocHorizon",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Base64.ai",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Google Gemini document understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenAI vision models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Anthropic Claude document vision",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Zerox",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocETL",
+          "signal": "Depends"
+        }
+      ],
+      "count": 73
+    },
+    "Structure / headings": {
+      "tools": [
+        {
+          "tool": "Docling",
+          "signal": "Yes"
+        },
+        {
+          "tool": "SmolDocling",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MinerU",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Marker",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Unstructured",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LlamaParse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenParse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docling Serve",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parxy",
+          "signal": "Depends"
+        },
+        {
+          "tool": "PDF-Extract-Kit",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DeepDoctection",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaddleOCR PP-Structure",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Surya",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Pix2Text",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nougat",
+          "signal": "Yes"
+        },
+        {
+          "tool": "GROBID",
+          "signal": "Yes"
+        },
+        {
+          "tool": "CERMINE",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Science Parse",
+          "signal": "Yes"
+        },
+        {
+          "tool": "S2ORC PDF Parser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ScholarPhi / PaperMage",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaperQA parsers",
+          "signal": "Yes"
+        },
+        {
+          "tool": "MarkItDown",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Apache Tika",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Tika-Python",
+          "signal": "Partial"
+        },
+        {
+          "tool": "textract (Python)",
+          "signal": "Partial"
+        },
+        {
+          "tool": "TET PDF IFilter / PDFlib TET",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PyMuPDF",
+          "signal": "Partial"
+        },
+        {
+          "tool": "pdfplumber",
+          "signal": "Partial"
+        },
+        {
+          "tool": "pdfminer.six",
+          "signal": "Partial"
+        },
+        {
+          "tool": "MuPDF",
+          "signal": "Partial"
+        },
+        {
+          "tool": "borb",
+          "signal": "Partial"
+        },
+        {
+          "tool": "pdf2json",
+          "signal": "Partial"
+        },
+        {
+          "tool": "iText Core",
+          "signal": "Partial"
+        },
+        {
+          "tool": "PaddleOCR",
+          "signal": "Partial"
+        },
+        {
+          "tool": "MMOCR",
+          "signal": "Partial"
+        },
+        {
+          "tool": "LayoutParser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Detectron2",
+          "signal": "Via models"
+        },
+        {
+          "tool": "DocLayNet models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LayoutLM",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LayoutLMv2",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LayoutLMv3",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LayoutXLM",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LiLT",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Donut",
+          "signal": "Yes"
+        },
+        {
+          "tool": "UDOP",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocFormer",
+          "signal": "Yes"
+        },
+        {
+          "tool": "StrucTexT",
+          "signal": "Yes"
+        },
+        {
+          "tool": "PaddleOCR KIE / SER / RE",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Hugging Face Transformers document models",
+          "signal": "Depends"
+        },
+        {
+          "tool": "PdfTable",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Amazon Textract Tables",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Document AI Form Parser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Azure Document Intelligence Layout",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Adobe PDF Extract API",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mathpix OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mistral OCR",
+          "signal": "Yes"
+        },
+        {
+          "tool": "InftyReader",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Texify",
+          "signal": "Partial"
+        },
+        {
+          "tool": "LaTeXTable / table-to-LaTeX models",
+          "signal": "Partial"
+        },
+        {
+          "tool": "python-docx",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mammoth",
+          "signal": "Yes"
+        },
+        {
+          "tool": "docx2python",
+          "signal": "Yes"
+        },
+        {
+          "tool": "python-pptx",
+          "signal": "Yes"
+        },
+        {
+          "tool": "openpyxl",
+          "signal": "Yes"
+        },
+        {
+          "tool": "SheetJS",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Apache POI",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LibreOffice headless conversion",
+          "signal": "Partial"
+        },
+        {
+          "tool": "Beautiful Soup",
+          "signal": "Yes"
+        },
+        {
+          "tool": "lxml",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Trafilatura",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Readability.js",
+          "signal": "Yes"
+        },
+        {
+          "tool": "newspaper3k",
+          "signal": "Yes"
+        },
+        {
+          "tool": "mailparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "extract-msg",
+          "signal": "Yes"
+        },
+        {
+          "tool": "AWS Textract",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Cloud Document AI",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Azure AI Document Intelligence",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ABBYY Vantage",
+          "signal": "Yes"
+        },
+        {
+          "tool": "ABBYY FineReader Engine",
+          "signal": "Yes"
+        },
+        {
+          "tool": "IBM watsonx.ai Document Understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "UiPath Document Understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Hyperscience",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Rossum",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nanonets",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Nanonets-OCR-s",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Mindee",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docsumo",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Veryfi",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parseur",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Docparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Parsio",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Airparser",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Reducto",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Chunkr",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocuPipe",
+          "signal": "Yes"
+        },
+        {
+          "tool": "LandingAI Agentic Document Extraction",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Koncile",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Affinda",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Klippa DocHorizon",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Base64.ai",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Ocrolus",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Google Gemini document understanding",
+          "signal": "Yes"
+        },
+        {
+          "tool": "OpenAI vision models",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Anthropic Claude document vision",
+          "signal": "Yes"
+        },
+        {
+          "tool": "Zerox",
+          "signal": "Yes"
+        },
+        {
+          "tool": "DocETL",
+          "signal": "Yes"
+        }
+      ],
+      "count": 106
+    },
+    "Images / figures / charts": {
+      "tools": [
+        {
+          "tool": "Docling",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Marker",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "OpenParse",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Pix2Text",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "TET PDF IFilter / PDFlib TET",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "PyMuPDF",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "pdfplumber",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Poppler",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Xpdf",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "MuPDF",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "PDFBox",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "iText Core",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Ocrad",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "OpenCV text modules",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "LayoutLMv2",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "LayoutLMv3",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Adobe PDF Extract API",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "pix2tex / LaTeX-OCR",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Mistral OCR",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Im2LaTeX models",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "docx2python",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "python-pptx",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "openpyxl",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "newspaper3k",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Reducto",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Anthropic Claude document vision",
+          "signal": "text-match-output"
+        }
+      ],
+      "count": 26
+    },
+    "Forms / KVP / marks": {
+      "tools": [
+        {
+          "tool": "Docling",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "SmolDocling",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "MinerU",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Marker",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Unstructured",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "LlamaParse",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "OpenParse",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Docling Serve",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "PDF-Extract-Kit",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "PaddleOCR PP-Structure",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Pix2Text",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Nougat",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "MarkItDown",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "textract (Python)",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "pypdf",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "MuPDF",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "QPDF",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "DocFormer",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Hugging Face Transformers document models",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "GMFT",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "TableFormer",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Amazon Textract Tables",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Google Document AI Form Parser",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Azure Document Intelligence Layout",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "pix2tex / LaTeX-OCR",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Mathpix OCR",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Mistral OCR",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Im2LaTeX models",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Texify",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "TrOCR",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "openpyxl",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Apache POI",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "LibreOffice headless conversion",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Beautiful Soup",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "lxml",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Trafilatura",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "extract-msg",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "AWS Textract",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Google Cloud Document AI",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "ABBYY Vantage",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "UiPath Document Understanding",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Rossum",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Nanonets-OCR-s",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Airparser",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Reducto",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Chunkr",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "DocuPipe",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "LandingAI Agentic Document Extraction",
+          "signal": "text-match-output"
+        },
+        {
+          "tool": "Zerox",
+          "signal": "text-match-output"
+        }
+      ],
+      "count": 49
+    },
+    "Multilingual": {
+      "tools": [
+        {
+          "tool": "Tesseract OCR",
+          "signal": "language-note"
+        },
+        {
+          "tool": "PaddleOCR",
+          "signal": "language-note"
+        },
+        {
+          "tool": "EasyOCR",
+          "signal": "language-note"
+        },
+        {
+          "tool": "CuneiForm",
+          "signal": "language-note"
+        },
+        {
+          "tool": "ML Kit Text Recognition",
+          "signal": "language-note"
+        },
+        {
+          "tool": "LayoutXLM",
+          "signal": "language-note"
+        },
+        {
+          "tool": "LiLT",
+          "signal": "language-note"
+        }
+      ],
+      "count": 7
+    },
+    "Sentences / line fidelity": {
+      "count": 0,
+      "tools": [],
+      "note": "No dedicated column in Master Catalog; inference through text/layout pipeline + segmentation logic."
+    }
+  },
+  "runtime_anchor_status": {
+    "native_text": "available",
+    "sentence_segmentation": "available",
+    "scanned_ocr": "available",
+    "layout": "available",
+    "reading_order": "available",
+    "headings_and_sections": "candidate",
+    "tables": "available",
+    "key_value_extraction": "candidate",
+    "selection_marks": "unavailable",
+    "forms": "available",
+    "figures": "available",
+    "charts_and_diagrams": "candidate",
+    "image_understanding": "candidate",
+    "office_and_email_structure": "available",
+    "formulas": "candidate",
+    "multilingual": "routing_only",
+    "handwriting": "unavailable"
+  },
+  "decision_note": "Sentence extraction is an inference lane; no dedicated workbook sentence column exists.",
+  "evidence_files": [
+    "docs/review/evidence/local-model-eval/workbook_class_summary_2026-07-22.json",
+    "docs/review/evidence/local-model-eval/capability_frontier_candidates_2026-07-22.json",
+    "src/ocr/capability_registry.py",
+    "docs/eval/document_intelligence/capability_manifest_v1.json"
+  ]
+}

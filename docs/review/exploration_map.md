@@ -22,6 +22,63 @@ principal changes reset the cleared workspace and reopen it with the active
 principal DEK; analytics and session state are reinitialized. Real two-account
 authenticated traversal remains the required Tier 3 evidence.
 
+## 2026-07-22 — Document parsing capability exploration (local + web frontier)
+
+I re-ran the parser exploration against
+`/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx` and
+cross-checked frontier sources for OCR, layout/structure, tables, image/figure,
+sentence-like structure, and formula/markup extraction.
+
+Current output:
+
+- Workbook breadth remains the primary discovery lane for local capability candidates:
+  - `docs/review/evidence/local-model-eval/workbook_class_summary_2026-07-22.json`
+  - `docs/review/evidence/local-model-eval/capability_class_coverage_index_2026-07-22.json`
+- Frontier scan + benchmark pressure is now updated in
+  `docs/review/evidence/local-model-eval/capability_frontier_candidates_2026-07-22.json`.
+- Runtime ownership truth remains:
+  - `src/ocr/capability_registry.py`
+  - `docs/eval/document_intelligence/capability_manifest_v1.json`
+
+Decision posture from this pass:
+
+- Owned (source-linked): native text, scanned OCR, sentence segmentation, layout,
+  reading order, digital tables, figures (artifact-preserving), office/web/email
+  structure, and native form widgets.
+- Candidate: headings/sections, chart-derived understanding, formulas, full form/KVP
+  with marks, image-understanding semantics.
+- Open: handwriting and multilingual quality claims remain unclosed until corpus-level
+  benchmark and review-state gates pass.
+
+2026-07-22 frontier delta since the prior scan:
+
+- Added **RT-DocLayout** (layout + reading-order + distortion/rotation recovery) as a frontier layout candidate.
+- Added **MDPBench** as the primary multilingual document parsing benchmark anchor.
+- Added frontier coverage fields (`OmniOCR`, `Typhoon-OCR`, `dots.ocr`, `HunyuanOCR-1.5`) under multilingual candidate lanes.
+
+### Requested-lane closure map (2026-07-22 web + workbook pass)
+
+For the exact requested capability lanes, this is the closure posture that should drive execution:
+
+| Capability class | Owned in runtime now | Candidate/fallback lanes | Open gate for launch-safe claims |
+|---|---|---|---|
+| Text + sentence extraction | `native_text`, `sentence_segmentation`, `scanned_ocr` | Docling, Surya, PP-StructureV3 | locale/script-aware sentence fixtures and confidence-failure telemetry |
+| Structures / headings | `layout`, `reading_order`, `headings_and_sections` (candidate) | Docling, MinerU, Surya, GROBID | heading-depth and hierarchy semantics fixtures |
+| Layout + reading order | `layout`, `reading_order` | RT-DocLayout, PP-StructureV3, Surya, Docling profiles | rotated/multi-column/low-DPI closure |
+| Tables / rows / cells | `tables` (born-digital + office) | Docling, PP-StructureV3, MinerU, TATR/TG | merged/borderless/malformed-grid + continuity fixtures |
+| Images / figures / charts | `figures` artifact lineage + hashes | Docling, Marker, Mistral OCR, PP-StructureV3, MMDocBench | crop→bbox→caption provenance + anti-hallucination policy |
+| Forms / KVP / marks | `forms` (native widgets), `key_value_extraction` candidate | Azure DI, Google DI, AWS Textract, Paddle KIE | selection-mark + schema-bound review/retry states |
+| Formula / math | `formulas` candidate | TexOCR, MinerU, PP-StructureV3, GLM-OCR | formula span grounding + normalization / uncertainty contract |
+| Office / web / email | `office_and_email_structure` | Docling/open-source ETL | malformed-container + relationship-preservation fixtures |
+| Multilingual | `multilingual` routing signal only | OmniOCR, Typhoon-OCR, HunyuanOCR-1.5, PaddleOCR-VL | script/locale matrix + unsupported-language policy |
+| Handwriting | `handwriting` unavailable | specialist OCR/VLM lanes | handwriting corpus and explicit manual-review fallback |
+
+Web pass additions reflected in this run:
+
+- **ParseBench (Apr 2026)** and **MPDocBench-Parse (May 2026)** are now in the benchmark lane for structure/layout/table/heading continuity.
+- **Dr.DocBench (May/Jun 2026)** is now the expert-level long-document complexity lane for multi-page structural stress.
+- **Dr.DocBench / OCRBench v2 / socOCRbench / Zero-Shot Table extraction (WACV 2026)** are flagged as pressure lanes before any table/formula/chart semantic defaults.
+
 ## 2026-07-21 — migration source and deep-link resilience
 
 - **Canonical migration source:** `supabase/migrations/` is the executable
@@ -351,6 +408,22 @@ flowchart LR
 | J05 | Failed/partial states remain non-success, with explicit reasons | recovery under restart/crash contention remains open |
 | J06 | Unauthorized owner cannot read summary/evidence in this branch | real-policy source-page navigation remains unclosed end-to-end |
 | J07 | Canonical `/query` and compatibility fallback behaviors are separated | two-owner real-document citation navigation and contract-proof restart path remains |
+
+### 2026-07-22 continuation pass (Lane B)
+
+- A focused same-token run on `127.0.0.1:8010` repeatedly transitions new uploads to
+  `completed_summary_partial` and leaves `/summary` and evidence endpoints closed
+  (`No policy summary found` / `Not Found`) while still producing constrained
+  Q&A answers with verified citations when source text exists.
+- Cross-owner fallback remains strong (`/documents/{id}` and `/query` for mismatched
+  owner produce closed or no-relevant states), and compatibility `/documents/query`
+  still requires list-form document ids in runtime.
+- Opener frontier is unchanged on product value terms but narrowed for proof targets:
+  1) close authenticated restart/replay path after anonymous→account migration,
+  2) prove true post-transition `summary/evidence/source` readiness for a successful
+     single-owner lane, and
+  3) verify citation tap/page navigation from a live query result after successful
+     evidence availability.
 
 1. Interview 12-20 households after a real policy summary; test Plus value and annual willingness to pay.
 2. Build bottom-up unit economics from actual OCR, LLM, storage, support, payment, and tax costs.
@@ -779,6 +852,95 @@ Evidence files supporting this matrix:
 | Multilingual + handwriting | Surya/PaddleOCR families, LayoutXLM/LiLT + managed DI | `multilingual(routing_only)`, `handwriting(unavailable)` | Script routing only | Script/locale and handwritten OCR accuracy gates plus review fallback |
 
 This map keeps exploration from becoming model shopping: capabilities remain tied to this single canonical router and evidence envelope.
+
+### 6.y Capability sweep for requested classes (images/tables/sentences/structure/layouts)
+
+The local workbook was expanded into a per-capability index with both catalog signal and hard runtime status.
+
+- Evidence artifact: `docs/review/evidence/local-model-eval/capability_frontier_candidates_2026-07-22.json`
+
+Current ownership at a glance:
+
+| Requested class | Live runtime anchor | What’s owned today | Gap that blocks production claims |
+|---|---|---|---|
+| Text + OCR | `native_text`, `scanned_ocr` | Native text + OCR path are routed | Multilingual word/line boundary accuracy and confidence-failure behavior |
+| Sentences | `sentence_segmentation` | Punctuation + exact-offset sentence nodes exist | Language-aware boundary + sentence edge-case benchmark |
+| Structures / headings | `layout`, `reading_order`, `headings_and_sections(candidate)` | Layout geometry + order are source-linked | Heading semantics/hierarchy remains non-trivial and benchmarked only |
+| Tables | `tables` | Table/cell lineage owned for born-digital paths | Scanned-table reconstruction, merged cells, borderless tables |
+| Images / figures / charts | `figures`, `charts_and_diagrams(candidate)`, `image_understanding(candidate)` | Image/artifact capture and hash lineage owned | Crop→bbox→caption mapping and anti-hallucination checks for derived meaning |
+| Forms + KVP + marks | `forms`, `key_value_extraction(candidate)`, `selection_marks(unavailable)` | Native AcroForm widget extraction owned | Schema-bound KVP/macro-mark specialist lane + review/retry |
+| Formula / math / LaTeX | `formulas(candidate)` | No production lane yet | Formula region-grounded lane and normalization checks |
+| Office/web/email structure | `office_and_email_structure` | Core structure for DOCX/HTML/EML/XLSX/PPTX owned | Malformed-container and relationship fidelity coverage |
+| Multilingual + handwriting | `multilingual(routing_only)`, `handwriting(unavailable)` | Script observation only | Script/locale OCR accuracy + handwriting corpus + operator fallback |
+
+Exploration additions from recent web scan:
+
+- Docling remains a top structured-doc lane (document tree + provenance + reading-order semantics).
+- Surya remains strong for OCR/layout/table/reading order in multilingual settings, but is heavy for local constraints.
+- PaddleOCR PP-Structure keeps relevance for layout+table+formula and chart-class primitives with practical pipeline examples.
+- MinerU remains a high-potential local-scanning candidate for table/formula/image continuity.
+
+### 6.z Full per-class closure ledger for requested parser capabilities (local+web)
+
+The table below is the explicit closure map for your requested classes across local research, web scan, and runtime.  
+Source artifacts:
+- Workbook: `/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx`
+- Catalog summary: `docs/review/evidence/local-model-eval/document_catalog_capability_summary_2026-07-22.json`
+- Frontier scan: `docs/review/evidence/local-model-eval/capability_frontier_candidates_2026-07-22.json`
+- Runtime registry: `src/ocr/capability_registry.py`
+- Execution gates: `docs/eval/document_intelligence/capability_manifest_v1.json`
+
+| Requested class | Local-research signal (with caveat) | Runtime owner | Current evidence state | Hard close gate |
+|---|---|---|---|---|
+| Text extraction | `text ocr / extraction` has 121/149 strong signal; `Master Catalog` has no dedicated sentence-quality column | `native_text`, `sentence_segmentation`, `scanned_ocr` | Native text + OCR routing are emitted and tracked with provenance | Add sentence-boundary + multilingual and failure-tolerance fixtures; keep OCR as `scanned_ocr` only when page rasterization is used |
+| Sentences / structure | Not directly represented as dedicated column; inferred from text + segmentation stack + downstream NLP cues | `sentence_segmentation` (conservative punctuation offsets) plus native layouts | Deterministic sentence offsets for source text are available in CIR; quality contract is syntax-focused only | Add script-aware sentence boundary benchmarks and abbreviation/abbrev-edge fixtures |
+| Structures / headings | `header / section detection` has 86 yes/42 no; `structure`-oriented tools are present in web scan (Docling, GROBID, Surya, PP-Structure, etc.) | `layout`, `reading_order`, `headings_and_sections(candidate)` | Block geometry and order are source-linked for native and OCR-backed paths | Add heading-depth hierarchy fixtures and confidence policy for ambiguous nested section numbering |
+| Layout + reading order | `coordinates / reading order` has 110 yes / 5 no; `layout awareness` has 89 yes / 17 no | `layout`, `reading_order` | Layout blocks + coordinates are present in CIR | Add rotated/multi-column/low-DPI stress fixtures and cross-column ordering telemetry |
+| Tables (cells, rows, grid structure) | `table extraction` has 91 yes / 36 no; web scan adds PP-StructureV3, Surya, PDF transformers, Camelot/TABULA families | `tables` plus native table/cell adapters | Core digital table/cell lineage is owned for born-digital and office formats; scanned table reconstruction is candidate-only | Add merged-cell, borderless, malformed-grid, and multi-page continuity fixtures |
+| Images / figures / charts | `Typical outputs` contains image-related output in multiple rows; web scan confirms Docling/Marker + multimodal options for chart/figure handling | `figures`, `charts_and_diagrams(candidate)`, `image_understanding(candidate)`, `vlm_annotation(candidate)` | Image artifacts and hashes are preserved; semantic chart understanding remains derived | Add crop→bbox→caption lineages with bounded confidence and anti-hallucination controls |
+| Forms / KVP / marks | Local catalog has limited direct row-level form/mask density; frontier is dominated by managed KIE/DI systems (Azure/Google DI, Textract, Paddle KIE, PP-Structure KIE) | `forms`, `key_value_extraction(candidate)`, `selection_marks(unavailable)` | Native AcroForm capture is owned; scanned KVP/marks are unresolved |
+| Formula / math / LaTeX | `math / latex` has 34 yes / 75 no; web scan adds MinerU/Surya/PP-Structure/Mathpix/Pix2Text | `formulas(candidate)` | No production-safe formula lane; only catalog + frontier candidates | Add region-grounded formula extraction + LaTeX/MathML normalization + policy-safe interpretation checks |
+| Office/web/email structure | Workbook includes document types across parser families; `Master Catalog` and existing runtime stack cover these natively | `office_and_email_structure` | DOCX/HTML/EML/XLSX/PPTX structure nodes are available and tested in manifest cases | Add malformed-container and relationship-preservation fixtures |
+| Multilingual | Limited explicit per-language row, with explicit `LayoutXLM` mention + frontier multilingual VLM/DI claims | `multilingual(routing_only)` | Script observation exists; accuracy is not yet language-closed | Add script/locale OCR and structural QA gates, plus unsupported-language fallback policy |
+| Handwriting | No dedicated local column; frontier has specialist OCR/VLM candidates only | `handwriting(unavailable)` | No production-safe handwritten extraction path yet | Add handwriting corpus + manual-review fallback before any policy-level interpretation |
+
+### 6.aa Parser capability continuation addendum (2026-07-22)
+
+- Decision pack now lives in:
+  - `docs/technical/document_parser_capability_catalog_2026-07-22.md`
+  - `docs/technical/document_parser_capability_full_lane_map_2026-07-22.md`
+  - `docs/review/evidence/local-model-eval/capability_frontier_candidates_2026-07-22.json`
+  - `docs/review/evidence/local-model-eval/document_catalog_capability_summary_2026-07-22.json`
+
+Owned/candidate posture from this pass:
+
+- **Owned now:** text, native layout/reading order geometry, born-digital tables/cells, source image/figure artifacts, office/web/email structure, native forms.
+- **Candidate-only:** semantic headings, scanned tables, chart/image interpretation, formulas/math, managed KVP and multilingual closure.
+- **Open:** handwriting and selection-mark extraction remain specialist/open.
+
+Class table for execution scheduling:
+
+| Class | Live owner | Production-safe today | Close gate |
+|---|---|---|---|
+| Text/OCR | `native_text`, `sentence_segmentation`, `scanned_ocr` | Partial | multilingual boundaries + confidence failure telemetry |
+| Sentences | `sentence_segmentation` + punctuation offsets | Partial | sentence-boundary locale/abbreviation fixtures |
+| Structures / headings | `layout`, `reading_order`, `headings_and_sections(candidate)` | Candidate | heading-depth and nested numbering fixtures |
+| Layout + order | `layout`, `reading_order` | Partial | multi-column/rotated/low-DPI tests |
+| Tables | `tables` + native table/cell adapters | Partial | merged-cell, borderless-grid, malformed-table continuity |
+| Images/figures/charts | `figures` + image candidates | Candidate-derived only | crop→bbox→caption lineage + anti-hallucination policy |
+| Forms / KVP / marks | `forms` + `key_value_extraction(candidate)` + `selection_marks(unavailable)` | Partial | mark/schema/uncertainty + retry lane |
+| Formula / math / LaTeX | `formulas(candidate)` | Open | formula-span grounding + normalization + policy-safe fallback |
+| Office/web/email | `office_and_email_structure` | Closed (core owned formats) | malformed-container and relationship tests |
+| Multilingual | `multilingual(routing_only)` | Candidate | per-script accuracy matrix and unsupported-language fallback |
+| Handwriting | `handwriting(unavailable)` | Open | specialist corpus + manual-review policy before user claims |
+
+### 6.ab Machine-generated evidence bundle for this lane
+
+This map now has a machine-verifiable companion:
+
+- `docs/review/evidence/local-model-eval/capability_class_coverage_index_2026-07-22.json`
+
+This index is a generated cross-check of workbook coverage and runtime owners for the exact class set above (text/layout/tables/structures/images/forms/formulas/handwriting/multilingual). It is used as a consistency check before any new frontier lane gets promoted.
 
 ---
 
@@ -3131,10 +3293,107 @@ This is the practical “for each class, who owns it today” checkpoint:
 
 - **Docling** documentation indicates explicit support for bounded deterministic reading
   order, table structure, formulas, captions, and image/figure classification.
-- **Surya** repository/landing docs position it as OCR + layout + reading order + table recognition across 90+ languages.
-- **PaddleOCR PP-StructureV3** docs show expanded layout/table/formula/chart parsing with KIE pathway.
-- **MinerU** docs emphasize deep structuring for complex documents plus table/formula support.
+- **Surya** repository/landing docs position it as OCR + layout + reading order + table
+  recognition across 90+ languages.
+- **ParseBench** is now used as the parser-quality stress anchor for reading-order,
+  heading hierarchy and structural formatting behavior across noisy multi-column pages.
+- **CC-OCR V2** (ICC V2) adds a dedicated enterprise/real-world OCR-centric benchmark
+  with tracks for document parsing, grounding, key-information extraction, and Q&A under
+  harder document-quality conditions.
+- **Real5-OmniDocBench** explicitly stresses physical reconstruction degradations
+  (capture angle, scanning distortion, blur, occlusion) and tracks parser behavior on
+  robust reading-order/table resilience under those perturbations.
+- **CC-OCR V2 reference:** [arXiv:2605.03903](https://arxiv.org/abs/2605.03903)
+- **Real5-OmniDocBench reference:** [arXiv:2603.04205](https://arxiv.org/abs/2603.04205)
+- **PaddleOCR PP-StructureV3** docs show expanded layout/table/formula/chart parsing with
+  KIE pathway.  
+  Link: [PP-StructureV3 docs](https://www.paddleocr.ai/main/en/version3.x/algorithm/PP-StructureV3/PP-StructureV3.html)
+- **PaddleOCR Layout Analysis** explicitly lists 25 layout element classes including
+  figure/table/formula/chart and reading-order restoration.  
+  Link: [PP-StructureV3 Layout Analysis](https://swhl.github.io/PaddleOCR/main/en/version3.x/module_usage/layout_analysis.html)
+- **PaddleOCR-VL 1.6** is positioned as a compact document-VLM baseline on OmniDocBench
+  2026 benchmark tracks and supports table/formula/chart tasks with stronger region-level recovery claims.
+- **ParseBench (paper / runner):** [ArXiv](https://arxiv.org/abs/2604.08538) and [website/runner docs](https://www.parsebench.ai/).
+- **OCRBench v2** is publishing 2026.06 leaderboards and points out practical limits on LMM OCR robustness
+  in text localization/reasoning, useful for frontier vendor gating.  
+  Link: [OCRBench v2](https://99franklin.github.io/ocrbench_v2/)
+- **MMDocBench** defines OCR-free document understanding tasks (including table-cell localization
+  and chart QA) with regional grounding, useful as a semantic-image benchmark shape.  
+  Link: [MMDocBench](https://mmdocbench.github.io/)
 - Decision consequence: keep these families as gated candidates; launch defaults remain native/proven lanes until registry gate closure.
+
+### 6.z.4 Canonical per-class lane map (2026-07-22)
+
+The compact canonical lane map for every requested capability class is maintained here:
+- [Full OCR/parser/VLM capability lane ledger](docs/technical/document_parser_capability_full_lane_map_2026-07-22.md)
+
+It is the single source for per-class ownership and close-gate status; the tables in this section are frontier-complementary references.
+
+
+### 6.z.1 Requested-class completion ledger (2026-07-22, local + web scan)
+
+Each requested class below is mapped to the local-capability evidence source and current
+runtime gate status:
+
+| Class | Local catalog / web frontier signal | Runtime lane now | Evidence in docs/evidence | Launch gate before default |
+|---|---|---|---|---|
+| Sentences / text fidelity | No dedicated catalog sentence column; sentence splits inferred from text/layout families | `sentence_segmentation` | `docs/technical/document_parser_capability_catalog_2026-07-22.md` + CIR node contract | Add script-aware word/line sentence fixtures; unsupported-script fallback states |
+| Structures / headings / hierarchy | Docling, MinerU, Surya, PP-Structure families | `layout`, `reading_order`, `headings_and_sections(candidate)` | `src/ocr/capability_registry.py` + `capability_gate_run` | Hierarchy nesting fixtures; rotated/multi-column stability proof |
+| Layout + reading order | Docling/Surya/Paddle frontier plus catalog layout counts | `layout`, `reading_order` | `capability_frontier_candidates_2026-07-22.json` + manifest tests | Nested ordering and low-DPI/rotation adversarial fixtures |
+| Tables (including scan recovery) | Broad table-capable families in catalog + PP-StructureV3 claims | `tables`, native table/cell adapters | `document_intelligence/capability_manifest_v1.json` + `test_native_pdf_adapter.py` | Scanned-table reconstruction, merged cells, malformed-grid policy and telemetry |
+| Images / figures / charts | Broad scan claims plus general VLM OCR families | `figures`, `charts_and_diagrams`, `image_understanding` candidates | `src/ocr/capability_registry.py` + figure hash pipeline | Crop→bbox→caption lineage + grounded anti-hallucination policy |
+| Forms / KVP / marks | Managed DI, Paddle KIE, Docling/MinerU candidates | `forms`, `key_value_extraction(candidate)`, `selection_marks(unavailable)` | `capability_frontier_candidates_2026-07-22.json` + manifest nodes | KVP schema + manual review/retry + checked uncertainty before policy use |
+| Formula / math | MinerU/Surya/PP-Structure families show candidate formula support | `formulas(candidate)` | `capability_frontier_candidates_2026-07-22.json` | Formula region linkage + normalization + domain validation |
+| Office / web / email | Native adapters plus web extraction families | `office_and_email_structure` | `src/ocr/native_docx.py`, `native_pptx.py`, `native_xlsx.py` + manifest | Malformed container and cross-format relationship-fidelity fixtures |
+| Multilingual + handwriting | Surya/Paddleocr families and new frontier models flagged by workbook + web | `multilingual(routing_only)`, `handwriting(unavailable)` | `src/ocr/capability_registry.py` | Script-stratified benchmark + explicit unsupported-language policy |
+
+### 6.z.2 `Recent Models 2024+` frontier lane extraction (2026-07-22)
+
+The local workbook’s `Recent Models 2024+` sheet was re-read for models that are strong for your requested parser classes but are not fully captured by the 6 fixed `Master Catalog` columns.
+
+- Scope reviewed: 77 model/system rows, with 34 rows in 2026 and explicit focus fields.
+- Status for this set: **frontier signal only**; no direct production default changes yet.
+
+| Requested class | Frontier model family anchors in sheet | Why this class is useful now |
+|---|---|---|
+| Sentences / text | `HunyuanOCR-1.5`, `Unlimited-OCR`, `PP-OCRv6`, `ABot-OCR` | Candidate text extraction quality on long-form and noisy input; useful for low-resource fallback and scan-heavy classes |
+| Layout + reading order | `RT-DocLayout`, `Logics-Parsing-Omni`, `PaddleOCR-VL-1.6`, `OCRFlux`, `Logics-Parsing` | Direct reading-order/layout-model families for rotated, sparse, and multi-column documents |
+| Tables / cell geometry | `PP-StructureV3`, `PaddleOCR-VL`, `GLM-OCR`, `BabelDOC`, `MinerU2.5-Pro` | Strong signal where table reconstruction and cell-boundary continuity are part of the target objective |
+| Figures / charts / image-rich docs | `PaddleOCR-VL`, `Dolphin` series, `Chandra`, `MinerU`, `PaddleOCR-VL-1.6` | Better candidate set for chart/figure-aware extraction and image crop preservation logic |
+| Formula / math / LaTeX | `TexOCR`, `GLM-OCR`, `PaddleOCR-VL`, `PP-StructureV3`, `GOT-OCR 2.0` | Indicates viable formula-lane candidates beyond current local production defaults |
+| Forms / KVP / marks | `Infinity-Parser2`, `GLM-OCR`, `PaddleOCR-VL`, `PP-StructureV3`, `MarkItDown` | KVP/mark candidates exist, but provenance + schema + uncertainty gates remain mandatory |
+| Multilingual / long-tail scripts | `PaddleOCR-VL-1.6`, `OmniOCR`, `Typhoon-OCR`, `dots.ocr`, `HunyuanOCR-1.5` | Helps language-coverage planning (script-aware routing and unsupported-language policy) |
+
+Anchor references from this sheet used in this lane:
+
+- [Infinity-Parser2](https://arxiv.org/abs/2607.07836)
+- [HunyuanOCR-1.5](https://arxiv.org/abs/2607.04884)
+- [PaddleOCR-VL-1.6](https://arxiv.org/abs/2606.03264)
+- [Unlimited-OCR](https://arxiv.org/abs/2606.23050)
+- [PP-OCRv6](https://arxiv.org/abs/2606.13108)
+- [Logics-Parsing-Omni](https://arxiv.org/abs/2603.09677)
+
+Gate consequence:
+
+- Do **not** promote any `Recent Models 2024+` entry to default launch until we have explicit benchmarks for sentence fidelity, reading-order stability, malformed tables, formula provenance, and KVP uncertainty.
+- Do **not** promote ParseBench score outcomes alone to launch; benchmark-style metrics
+  are closure gates, not defaults without failing-input, privacy, and retry telemetry.
+
+### 6.z.3 Requested-class closure matrix (2026-07-22, execution-ready)
+
+This matrix is the definitive per-class check against your full requested parser scope:
+
+| Class | Local signal / frontier evidence | Runtime owner | Evidence state | Gate before default |
+|---|---|---|---|---|
+| Sentences / text fidelity | No dedicated workbook sentence column; sentence-capable families + frontier notes | `sentence_segmentation`, `native_text`, `scanned_ocr` | Source-grounded offsets for native text; scanned text is `scanned_ocr`-typed | Locale-aware word/line boundary suite + unsupported-language path |
+| Structures / sections / hierarchy | `Header / section detection` plus layout/document families | `layout`, `reading_order`, `headings_and_sections(candidate)` | Geometry/order grounded; hierarchy semantics are still candidate | Depth-aware nesting fixtures; rotated/multi-column structure fixtures |
+| Layout + reading order | `Layout awareness` / `Coordinates / reading order` + Surya/Docling/Paddle scan | `layout`, `reading_order` | Block geometry and page order are emitted and persistent | Degradation (rotation, multi-column, low DPI) and failure telemetry closure |
+| Tables (digital + scanned recovery) | `Table extraction` + table-heavy frontier model lanes | `tables`, native table/cell adapters | Digital tables/cells are evidence-safe; scanned reconstruction not yet closed | Scanned-table reconstruction + merged/borderless/malformed-grid fixtures |
+| Images / figures / charts | Master catalog + frontier image-capable scans + MMDocBench region grounding | `figures`, `charts_and_diagrams`, `image_understanding` | Artifact hashes/parents retained; chart semantics derived only | Crop→bbox→caption trace + anti-hallucination annotation policy |
+| Forms / key-value / marks | Managed IDP/KIE frontier + existing form evidence | `forms`, `key_value_extraction(candidate)`, `selection_marks` | Native AcroForm evidence-safe; scanned KVP/marks candidate lanes | Schema-aware KIE + confidence+review states before interpretation |
+| Formula / math | `Math / LaTeX` + frontier formula families | `formulas` (candidate) | No source-linked formula lane in production today | Formula span mapping + normalization + domain validation |
+| Office / web / email structure | Native adapters + parser stack (`DOCX`, `XLSX`, `PPTX`, `HTML`, `EML`) | `office_and_email_structure` | Core structure flows into CIR-native nodes | Relationship-level adversarial tests for malformed containers/charts/images/forms |
+| Multilingual + handwriting | `Recent Models 2024+` and routing-only runtime signal | `multilingual` (routing-only), `handwriting` (unavailable) | Script is observed; multilingual quality and handwriting are not closed | Script/locale benchmark closure + explicit unsupported-language + handwriting policy |
 
 ## Remote contract parity correction (2026-07-21)
 
@@ -3358,3 +3617,178 @@ Executed on `127.0.0.1:8010` with two anonymous principals and `sample_insurance
 This map section now treats the previous frontier as partially closed: cross-owner
 read/query leakage is now observed as guarded in live stack for this API tier, while
 replay + restart resilience remains the next Tier 3/4 gate before closing the J03/J06/J07 trust chain.
+
+## J02–J07 continuation pass B — same-session lane proof on `127.0.0.1:8010` (2026-07-22)
+
+The live pass executed an end-to-end anonymous lane with separate owners to refine
+the highest-priority frontier branches:
+
+- **Consent/reject branch closed (local contract):** upload without processing consent returns `422` with `processing_consent_required`.
+- **Replay branch closed (surface):** same owner/file re-upload returns the same document id and `documents[0].idempotent_replay=true`.
+- **State-machine branch clarified:** status progressed through `received → processing → completed_summary_partial` within ~2s for sample input.
+- **Evidence-read boundary:** `/documents/{id}/summary` and `/evidence/{id}/field-citations` returned `404` on partial/early-availability docs, preserving fail-closed behavior for unready policy evidence.
+- **Owner isolation branch verified:** foreign owner cannot read owner-A `/documents/{id}`, `/documents/{id}/status`, and `/evidence/{id}/field-citations`.
+- **Q&A branch verified:**
+  - `/query` in-scope returns answer metadata when context is present.
+  - `/query` cross-owner returns explicit fallback (`No relevant information found in documents`, zero-confidence path).
+  - `/documents/query` is operational as compatibility transport and expects list form fields (`document_ids[]`) in current stack behavior.
+
+- **J03 claim-guardrail branch:**
+  - `POST /user/claim-anonymous` with an anonymous caller returns `403` (`An account is required to claim data`).
+  - malformed body still receives the same auth-gate response for anonymous caller.
+  - malformed/missing body on unauthorized caller is recorded as 403/422 split, confirming claim entry is intentionally account-only.
+
+This run did **not** close two principal truths:
+
+- account-authenticated anonymous-to-account claim and restart replay,
+- full positive evidence-page navigation for completed documents across owners,
+- durable worker replay/dead-letter and post-restart ownership re-read proof.
+
+Action for the next pass:
+Use the same doc id and same two owners, then perform claim/restart before re-checking:
+`/documents/{id}/summary`, `/evidence/{id}/field-citations`, `/documents/{id}/pages/{page_number}`,
+and both query surfaces against refreshed owner bindings.
+
+## J02–J07 continuation pass C — anonymous lane with real status transitions and owner replay on `127.0.0.1:8010` (2026-07-22)
+
+This probe added explicit end-to-end transitions on a non-password PDF sample:
+
+- `POST /user/anonymous` returns valid anonymous token.
+- `POST /documents/upload` without consent returns `422` (`processing_consent_required`) as expected.
+- `POST /documents/upload` with consent returns `202`; status transitions observed:
+  `received → processing → completed_summary_partial`.
+- `POST /documents/upload` same payload against same principal returns the same `document_id` with `idempotent_replay: true`.
+- For this sample:
+  - `/documents/{id}/pages/1` returns bytes (page artifact exists),
+  - `/documents/{id}/summary` returns `404`,
+  - `/evidence/{id}/field-citations` returns `[]`.
+- `/query` and `/documents/query` both return in-scope answers with sources when owner matches.
+- cross-owner `/query` and `/documents/query` return safe fallback (`No relevant information found in documents.` / `No relevant context was retrieved`) with no sources and confidence `0.0`.
+- `POST /documents/{id}/status` /summary, fields, pages for non-owner returns owner denial.
+- `POST /user/claim-anonymous` remains account-gated (`403 An account is required to claim data`) under anonymous caller.
+
+Closure deltas from pass B:
+
+- Closed branches:
+  - J02 consent guardrail (explicit 422 code path),
+  - J04 idempotent replay,
+  - J05 initial status transition path,
+  - J06 local page artifact availability + evidence null/empty handling,
+  - J07 cross-owner retrieval fallback correctness.
+- Still-open high-value branches:
+  - account-authenticated claim/restart replay end-to-end,
+  - durable queue-to-worker observable replay/dead-letter evidence,
+  - positive full summary + provenance state for `summary_partial` documents,
+  - authenticated local encrypted principal migration proof.
+
+Action update: keep the same doc and owners from Pass B, then execute anonymous
+upload → account-authenticated claim → process restart → owner-readback for summary
+citation/page endpoints as the next Tier 3/4 gate.
+
+## J02–J07 continuation pass D — route-level claim smoke + owner boundary proof (2026-07-22)
+
+This pass added one additional deterministic proof slice that does not require
+deployed Supabase/Auth services:
+
+- `uv run pytest tests/test_identity_link_service.py tests/test_document_owner_isolation.py -q`
+  — 17/17 passing.
+  - `identity_link_service` end-to-end transfer idempotency and anti-rebind behavior
+  - owner-isolation and resume/recovery contract coverage at repository level.
+- A mocked `/user/claim-anonymous` route smoke check (local HTTP app scope):
+  - account bearer token + valid anonymous body token -> `200` and
+    `identity_link_status: completed`.
+  - anonymous bearer token -> `403 An account is required to claim data`.
+  - transfer path executed with `transfer_owner(anon -> account)`.
+- The same local smoke also confirmed malformed body branch behavior:
+  - missing `anonymous_token` → `422` only when authorization is authorized as account.
+
+Closed frontier after pass D:
+
+- J03 claim route contract, account-gate branch, and transfer callback wiring are now proven at API/service route level.
+- J04/J05 immediate consent/replay/failure branches remain as previously closed in pass B/C.
+- Remaining high-priority frontier still requires deployed replay path proof:
+  - account-authenticated anonymous→account restart/replay,
+  - live identity migration with encrypted local state,
+  - durable queue-to-worker + post-restart owner-readback for `/documents/{id}/summary`,
+    `/evidence/{id}/field-citations`, and `/documents/{id}/pages/{page_number}` across owner transitions.
+
+Reference:
+
+- `docs/review/coverwise_j02_j07_deep_dive_2026-07-21.md` now records this
+  continuation as an explicit frontier update.
+
+## Addendum (2026-07-22) — Requested parser capabilities closure map (text / structures / layout / tables / images / formulas / forms)
+
+This addendum turns the lane discussion into a single auditable matrix for the exact classes you asked to close:
+text, sentences, structures/headings, layouts/reading order, tables, images/figures/charts, formulas, forms/KVP/marks, multilingual, and handwriting.
+
+Evidence sources used:
+
+- local workbook: `/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx`
+- canonical runtime: `src/ocr/capability_registry.py`
+- runtime gates: `docs/eval/document_intelligence/capability_manifest_v1.json`
+- generated evidence:
+  - `docs/review/evidence/local-model-eval/workbook_class_summary_2026-07-22.json`
+  - `docs/review/evidence/local-model-eval/workbook_class_coverage_generated_2026-07-22.json`
+  - `docs/review/evidence/local-model-eval/capability_class_coverage_index_2026-07-22.json`
+  - `docs/review/evidence/local-model-eval/capability_frontier_candidates_2026-07-22.json`
+
+### Required-class current state and close gates
+
+| Capability class | Local-research signal (local catalog) | Runtime owner today | Candidate / fallback frontier | Launch-safe claim today? | Immediate next hard gate |
+|---|---|---|---|---|---|
+| Text extraction (OCR) | Strong signal (`text OCR / extraction` has 121/149 `Yes`) | `native_text` (owned), `scanned_ocr` (optional) | Docling, SmolDocling, Surya, PaddleOCR PP-StructureV3, MinerU | **Partial** | Add locale/script-specific sentence-boundary + low-confidence fallbacks; keep scanned OCR failure telemetry. |
+| Sentences / line fidelity | No dedicated catalog column; inferred from text + segmentation stack | `sentence_segmentation` (punctuation + offset based) | GROBID, Surya/GROBID-derived post-segmentation, docling-style tree order | **Partial / not production-safe for all locales** | Add language-aware boundary fixtures (abbreviations, decimals, mixed-script, RTL/vertical scripts) and confidence policy. |
+| Structures / headings | 86/149 `Yes` for `Header / section detection` | `layout`, `reading_order`, `headings_and_sections` is `candidate` | Docling, MinerU, Marker, Surya, PP-StructureV3 | **Candidate only for hierarchy semantics** | Add heading-depth and nesting tests, then add uncertainty output when hierarchy confidence is low. |
+| Layout + reading order | 110/149 `Yes` for `Coordinates / reading order`; 89/149 `Yes` for layout | `layout`, `reading_order` are `available` | RT-DocLayout, PP-StructureV3, Surya, Docling profile | **Partial** | Close rotated/multi-column/low-DPI and table-near-order adversarial suites. |
+| Tables / rows / cells | 91/149 `Yes` table extraction | `tables` `available` + `native` page table and office adapters | PP-StructureV3, Docling, MinerU, TATR/TG families, DTBench/PulseBench-Tab | **Partial** | Merge-cell and borderless/table-continuity regression + malformed-grid and truncated table cases. |
+| Images / figures / charts | Inferred from output/fidelity signals in catalog + frontier | `figures` owned; `charts_and_diagrams`/`image_understanding` are candidate | Docling, Marker, Mistral OCR, MMDocBench, ParseBench | **Candidate-only for semantic understanding** | Require crop→bbox→caption trace and anti-hallucination checks before chart/diagram meaning claims. |
+| Formula / math / LaTeX | 34/149 `Yes` (weak raw coverage) | `formulas` `candidate` only | TexOCR, MinerU, PP-StructureV3, Mathpix/OCR-VLM lanes | **Not production-safe yet** | Add formula span grounding, normalization/domain validation, and uncertainty states. |
+| Forms / KVP / marks | No dedicated catalog depth for marks; managed frontier for KVP dominates | `forms` `available` (native widgets), `key_value_extraction` candidate, `selection_marks` unavailable | Azure DI, Google DI, AWS Textract, Paddle KIE | **Partial** | Add schema-valid KVP/mark extraction with review/retry/uncertainty contract. |
+| Office/web/email structure | Workbook notes + native adapters cover formats | `office_and_email_structure` owned | Docling, managed document intelligence providers | **Partially closed on core formats** | Add malformed-container and relationship-preservation suites for embedded media, attachment lineage. |
+| Multilingual quality | Frontier-only in current catalog columns | `multilingual` is `routing_only` | OmniOCR, Typhoon-OCR, HunyuanOCR-1.5, PaddleOCR-VL, dots.ocr, MDPBench | **Not closed** | Add per-locale precision/recall matrix and fallback policy for unsupported scripts. |
+| Handwriting | Frontier-only research signal; no native owner lane in registry | `handwriting` `unavailable` | specialist OCR/VLM lanes | **No production lane** | Add handwriting corpus tests and explicit manual-review fallback contract. |
+
+### 2026 frontier pressure set to keep in the decision loop
+
+- ParseBench: agent-oriented parser-level continuity, structure and visual grounding pressure.
+- MPDocBench-Parse: multi-page parsing including text/table/formula/heading continuity and truncation behavior.
+- Dr.DocBench: long-document, structure/layout/formula/figure stress with ~4,500+ pages and ~65k annotations.
+- OCRBench v2: bilingual OCR and visual-text reasoning drift with 31 scenarios and difficult mixed inputs.
+- PulseBench-Tab / Zero-Shot Table extraction: borderless + irregular table risk coverage.
+- socOCRbench (for handwriting/form-heavy mixed-signal pages).
+
+Decision note: keep all image semantic interpretation, chart meaning, formula semantics, handwriting, and multilingual production claims on `candidate/review` until the gates above are closed with evidence-backed fixtures and operator-visible uncertainty.
+
+## 2026-07-22 — Chunking, parsing, embedding strategy exploration
+
+Full exploration at
+`docs/technical/rag/exploration/chunking_parsing_embedding_exploration_2026-07-22.md`.
+
+**Summary of findings:**
+
+1. The current pipeline (`PyMuPDF get_text → paragraph split → embed → search`) has a structural blind spot: table labels and values are extracted as separate text blocks with no parent-child relationship. This causes "sum insured" queries to fail even when the value IS in the document.
+
+2. **The fix is multi-layered**, not a single tool change:
+   - Layer 1: Parser routing (PyMuPDF for prose, Docling/Marker for table pages)
+   - Layer 2: Structure reconstruction (spatial KV detection, table serialization) — **NEW LAYER**
+   - Layer 3: Multi-strategy chunking (paragraph + table-aware + sentence + entity)
+   - Layer 4: Context enrichment (doc header active; contextual retrieval safe to re-enable)
+   - Layer 5-8: Embedding/fusion/routing/generation (mostly solid already)
+
+3. **Immediate P0 items** (highest impact, lowest effort):
+   - Wire `find_tables` output into chunking (code exists, just not connected)
+   - Spatial key-value detection for borderless label-value pairs
+   - Re-enable contextual retrieval (source_text/retrieval_text separation exists)
+
+4. **The 149-tool catalog** confirms: Docling, Marker, MinerU are the top structure-preserving parsers. PyMuPDF `find_tables` works but only for ruled tables. For CoverWise's Indian insurance schedules (often borderless key-value layouts), spatial KV detection + Docling as specialist parser is the right combination.
+
+5. **What CoverWise already does well:** hybrid retrieval (RRF), cross-encoder reranking, multi-view entity indexing, adaptive query routing, LLM fallback chain. The gaps are at the parsing and structure-reconstruction layers, not the retrieval layer.
+
+6. **Recommended benchmark:** Build a set of 5-10 real Indian policies with known Q&A pairs and measure which parsing+chunking+embedding combination produces the best answers. The benchmark tooling exists in the repo.
+
+**Open questions for other agents to review:**
+- Is Docling worth the dependency weight (torch) for production, or should we stick with PyMuPDF spatial detection?
+- Should contextual retrieval be re-enabled now that source_text/retrieval_text separation exists?
+- Should we add agentic query reformulation (retry with HyDE when retrieval score is low)?
+- What's the right priority order: table serialization → spatial KV → contextual retrieval → Docling?

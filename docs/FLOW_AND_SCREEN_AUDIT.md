@@ -38,7 +38,7 @@ This audit maps every user flow end-to-end: what triggers it, what the user sees
 | 2 | **OnboardingScreen** | `onboarding_screen.dart` | ✅ | 7/10 | 3-page carousel. Missing: interactive demo |
 | 3 | **DashboardScreen** | `dashboard_screen.dart` | ✅ | 9/10 | Welcome card, policy cards, type explorer, quick actions, family section, recent activity, terminology |
 | 4 | **DocumentsScreen** | `documents_screen.dart` | ✅ | 8/10 | Upload + list + on-device OCR + limit checks. Routes to ProcessingStatusScreen |
-| 5 | **ProcessingStatusScreen** | `processing_status_screen.dart` | ✅ | 8/10 | Animated stage indicators (Received → Reading → Extracting → Classifying → Indexing → Complete/Failed), auto-navigate on completion, pulse animation, PopScope dismiss warning |
+| 5 | **ProcessingStatusScreen** | `processing_status_screen.dart` | ✅ | **9/10** | **IMPROVED (Gap 6.3 + Retry):** Real per-stage progress from backend `/documents/{id}/status` (parses `processing_details.stages` dict). **Retry mechanism (NEW):** retry button on failure (max 3 attempts), attempt counter, polling restart via `POST /documents/{id}/reprocess`. Animated stage indicators, auto-navigate on completion, pulse animation, PopScope dismiss warning. |
 | 6 | **DocumentsList** | `documents_list.dart` | ✅ | 7/10 | Sub-component. Missing: pull-to-refresh visual cue |
 | 7 | **QaScreen** | `qa_screen.dart` | ✅ | 9/10 | 3 tabs. Demo sequence. Confidence badge (NEW). Follow-up chips with loading state (NEW). Answer feedback. Excellent |
 | 8a | **AccountScreen** | `account_screen.dart` | ✅ | 8/10 | **IMPROVED:** Email validation, specific error messages (wrong password, email not confirmed, user already registered), "Forgot password?" link, "Resend verification email" link, Google Sign-In button, inline email verification banner, improved loading state (SizedBox spinner). Rating up from 4/10. |
@@ -152,14 +152,12 @@ DocumentsScreen → Pick file (PDF/image) → Optional: on-device OCR toggle
   → Consent dialog (first time only) → Upload to /documents/upload
   → ProcessingStatusScreen (stage indicators every 2s)
   → On completion: auto-navigate to PolicyDetailScreen
-  → On failure: error state with "Go Back" CTA
+  → On failure: error state with retry button (max 3 attempts) → restart polling
 ```
 
-**Rating: 8/10** — Robust backend with idempotent upload, rate limiting, anti-abuse, and durable lease recovery. The mobile side now has real-time progress visibility via ProcessingStatusScreen.
+**Rating: 9/10** — Robust backend with idempotent upload, rate limiting, anti-abuse, and durable lease recovery. **IMPROVED (Gap 6.3 + Retry):** Backend exposes granular per-stage statuses. Frontend shows real per-stage progress. **Retry mechanism:** On failure, users can retry processing up to 3 times — calls `POST /documents/{id}/reprocess`, resets stage to 'received', restarts polling with fresh progress. 6 widget tests cover the retry flow end-to-end.
 
 **Gaps:**
-- Backend doesn't expose granular sub-stages (OCR vs extraction vs classification vs indexing) — the frontend maps `processingState` to these, but the actual backend status is just `processing` → `completed` → `failed`
-- No retry mechanism for failed processing
 - No offline retry queue for queued uploads
 
 ### Flow 3: Q&A Interaction
@@ -369,12 +367,10 @@ PolicyDetailScreen → Tap eye icon (app bar)
 
 **Status:** `_askFollowUp` is now `Future<void>` with try/catch. It sets `isLoadingProvider` to true before calling `_askQuestion` and resets it in both success and error paths. `_FollowUpChips` ConsumerWidget watches `isLoadingProvider` and disables chips + shows `CircularProgressIndicator` avatar while loading.
 
-### 6.3 Open: Backend Granularity Mismatch
+### 6.3 ✅ Resolved: Backend Granularity Mismatch
 **motto_v3 §0.15 (Third-Layer Rule):** The processing status screen shows 5 sub-stages (OCR → extraction → classification → indexing) but the backend only exposes 3 states (`processing` → `completed` → `failed`). The frontend simulates progression through sub-stages, but this doesn't reflect actual backend progress.
 
-**Status:** 🔲 OPEN — not blocking for solo launch. The simulated sub-stages provide useful UX even if approximate.
-
-**Recommendation:** Either (a) add granular stage reporting to the backend `/documents/{id}/status` endpoint, or (b) simplify the frontend to show the actual backend states without simulating sub-stages.
+**Status:** ✅ **RESOLVED (2026-07-23):** The backend `/documents/{id}/status` endpoint now returns a full `stages` dict in `processing_details` showing the status of each individual pipeline stage (`file_storage`, `ocr`, `policy_extraction`, `rag_ingestion`, `evidence_extraction`) with per-stage statuses. The frontend ProcessingStatusScreen parses this rich dict — `_resolveStageFromBackendData()` maps backend stage names to UI ProcessingStage steps, `_completedBackendStages` drives per-stage completion indicators, and the UI falls back to the flat stage string for backward compat with old documents or local storage.
 
 ### 6.4 ~~Navigation Gap: Emergency Card Buried~~ — RESOLVED
 **motto_v3 §0.14 (Operator Workflow):** Emergency access must be the fastest path. Currently: More → Emergency Card (2 taps). In a real emergency, this is too deep.
@@ -463,7 +459,7 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | ~~M15~~ | ~~Processing Status Stages~~ | ✅ DONE |
 | ~~M16~~ | ~~Real billing integration (RevenueCat)~~ | ✅ DONE |
 | ~~M17~~ | ~~Backend subscription sync endpoint~~ | ✅ DONE |
-| M18 | Cost attribution per operation | 🔲 Not started |
+| ~~M18~~ | ~~Cost attribution per operation~~ | ✅ **RESOLVED (2026-07-23):** OperationCost model defines costs per operation, Entitlement model tracks per-operation usage, OperationUsageCard widget in SettingsScreen shows usage breakdown.
 
 ### Brainstorm Features (Info Broker)
 
@@ -493,7 +489,7 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | §0.11 (Customer-Facing Claims) | ✅ | Document preview implemented for source verification |
 | §0.12 (Decision Record) | ✅ | This audit serves as decision record |
 | §0.14 (Operator Workflow) | ✅ | Emergency shortcut on dashboard. Follow-up chips with loading state. Renew Now CTA. |
-| §0.15 (Third-Layer Rule) | ⚠️ | Backend/frontend stage granularity mismatch flagged (not blocking for solo launch) |
+| §0.15 (Third-Layer Rule) | ✅ | Backend `/documents/{id}/status` now returns granular per-stage dict; frontend parses stages for real progress display |
 
 ---
 
@@ -565,3 +561,6 @@ PolicyDetailScreen → Tap eye icon (app bar)
 | 2026-07-20 | Marked M17 (Backend subscription sync endpoint) as DONE | Buffy |
 | 2026-07-20 | P0-04: Added privacy policy + terms of service documents, in-app viewers, consent checkbox, shared LegalContentSection widget | Buffy |
 | 2026-07-20 | Added ConsentPurpose.termsAccepted enum value, fixed non-exhaustive switch errors in settings_screen | Buffy |
+| 2026-07-23 | Marked M18 (Cost attribution per operation) as RESOLVED — OperationCost model + per-operation usage tracking in Entitlement + OperationUsageCard in SettingsScreen | Buffy |
+| 2026-07-23 | Marked Gap 6.3 (Backend Granularity Mismatch) as RESOLVED — backend now exposes per-stage statuses in `processing_details.stages`, frontend parses rich stages dict for real granular progress | Buffy |
+| 2026-07-23 | **Retry mechanism:** Backend `POST /documents/{id}/reprocess` endpoint + frontend retry button (max 3 attempts) + 6 widget tests. Updated Flow 2 gaps, ProcessingStatusScreen inventory entry. Fixes 2 pre-existing auth_service.dart compilation errors. | Buffy |

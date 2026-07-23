@@ -414,7 +414,8 @@ The following paths are critical to timely delivery:
 | Google Vision API | OCR service for image-based documents | Alternative OCR engines as fallback |
 | OpenAI/Anthropic APIs | LLM services for question answering | Multiple provider support, fallback models |
 | Cloud Provider Services | GCP services for infrastructure | Design for potential cloud portability |
-| Firebase Authentication | User authentication service | Abstract auth interface for potential replacement |
+| Supabase Auth | User authentication and session service | Canonical for current production control plane |
+| Firebase Authentication | Historical/alternative option | Only in Firebase-led migration lanes; not an active runtime contract in this release |
 | Mobile OS Updates | Android platform changes | Regular testing with beta OS versions |
 
 ## 5. Resource Allocation

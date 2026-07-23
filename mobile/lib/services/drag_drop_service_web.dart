@@ -1,3 +1,4 @@
+import 'dart:js_interop';
 import 'dart:typed_data';
 import 'package:web/web.dart' as web;
 
@@ -43,66 +44,77 @@ class DragDropService {
     if (_initialized) return;
     _initialized = true;
 
-    web.document.body?.addEventListener('dragenter', (web.Event e) {
-      e.preventDefault();
-      if (!isDragging) {
-        isDragging = true;
-        onDragChanged?.call(true);
-      }
-    });
+    web.document.body?.addEventListener('dragenter', _onDragEnter.toJS);
+    web.document.body?.addEventListener('dragover', _onDragOver.toJS);
+    web.document.body?.addEventListener('dragleave', _onDragLeave.toJS);
+    web.document.body?.addEventListener('drop', _onDrop.toJS);
+  }
 
-    web.document.body?.addEventListener('dragover', (web.Event e) {
-      e.preventDefault();
-    });
+  static void _onDragEnter(web.Event e) {
+    e.preventDefault();
+    if (!isDragging) {
+      isDragging = true;
+      onDragChanged?.call(true);
+    }
+  }
 
-    web.document.body?.addEventListener('dragleave', (web.Event e) {
-      // Only clear if we're leaving the document body (not a child element).
-      // dragleave fires for every child element, so we check the related target.
-      final related = (e as web.DragEvent).relatedTarget;
-      if (related == null || related == web.document.body) {
-        if (isDragging) {
-          isDragging = false;
-          onDragChanged?.call(false);
-        }
-      }
-    });
+  static void _onDragOver(web.Event e) {
+    e.preventDefault();
+  }
 
-    web.document.body?.addEventListener('drop', (web.Event e) async {
-      e.preventDefault();
+  static void _onDragLeave(web.Event e) {
+    // Only clear if we're leaving the document body (not a child element).
+    // dragleave fires for every child element, so we check the related target.
+    final related = (e as web.DragEvent).relatedTarget;
+    if (related == web.document.body) {
       if (isDragging) {
         isDragging = false;
         onDragChanged?.call(false);
       }
+    }
+  }
 
-      final dt = (e as web.DragEvent).dataTransfer;
-      if (dt == null) return;
+  static void _onDrop(web.Event e) {
+    e.preventDefault();
+    if (isDragging) {
+      isDragging = false;
+      onDragChanged?.call(false);
+    }
 
-      final files = dt.files;
-      if (files == null || files.length == 0) return;
+    _readDrop(e as web.DragEvent);
+  }
 
-      final results = <DragDropEvent>[];
-      for (var i = 0; i < files.length; i++) {
-        final file = files.item(i);
-        if (file == null) continue;
+  /// Read dropped files asynchronously and fire the callback.
+  static Future<void> _readDrop(web.DragEvent dtEvent) async {
+    final dt = dtEvent.dataTransfer;
+    if (dt == null) return;
 
-        final reader = web.FileReader();
-        reader.readAsArrayBuffer(file);
-        await reader.onLoadEnd.first;
+    final files = dt.files;
+    if (files.length == 0) return;
 
-        final jsBuffer = reader.result;
-        if (jsBuffer is! JSArrayBuffer) continue;
-        final bytes = (jsBuffer as JSArrayBuffer).toDart.asUint8List();
-        results.add(DragDropEvent(
-          name: file.name,
-          size: bytes.length,
-          bytes: bytes,
-        ));
-      }
+    final results = <DragDropEvent>[];
+    for (var i = 0; i < files.length; i++) {
+      final file = files.item(i);
+      if (file == null) continue;
 
-      if (results.isNotEmpty) {
-        onFilesDropped?.call(results);
-      }
-    });
+      final reader = web.FileReader();
+      reader.readAsArrayBuffer(file);
+      await reader.onLoadEnd.first;
+
+      final jsResult = reader.result;
+      if (jsResult == null) continue;
+      final arrayBuffer = jsResult as JSArrayBuffer;
+      final bytes = arrayBuffer.toDart.asUint8List();
+      results.add(DragDropEvent(
+        name: file.name,
+        size: bytes.length,
+        bytes: bytes,
+      ));
+    }
+
+    if (results.isNotEmpty) {
+      onFilesDropped?.call(results);
+    }
   }
 
   /// Stop listening and reset state.

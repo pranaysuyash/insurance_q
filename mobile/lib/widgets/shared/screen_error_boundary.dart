@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/coverwise_theme.dart';
 
 /// Lightweight registry that routes errors from the global error handler
 /// to the most specific active [ScreenErrorBoundary].

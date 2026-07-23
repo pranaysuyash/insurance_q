@@ -16,7 +16,8 @@ class _AccountScreenState extends State<AccountScreen> {
   final _name = TextEditingController();
   bool _signUp = false;
   bool _busy = false;
-  bool _showResendVerification = false; // Show inline resend when email not confirmed
+  bool _showResendVerification =
+      false; // Show inline resend when email not confirmed
 
   @override
   void dispose() {
@@ -53,12 +54,11 @@ class _AccountScreenState extends State<AccountScreen> {
           : await AuthService.signIn(_email.text, _password.text);
       if (!context.mounted) return;
       if (response.session == null) {
-        _message('Check your email to confirm the account, then sign in.', isError: false);
-      } else {
-        await AuthService.claimAnonymousData();
-        if (!context.mounted) return;
-        navigator.pop(true);
+        _message('Check your email to confirm the account, then sign in.',
+            isError: false);
+        return;
       }
+      navigator.pop(true);
     } catch (error) {
       if (!mounted) return;
       // Provide more specific error messages
@@ -70,7 +70,8 @@ class _AccountScreenState extends State<AccountScreen> {
       } else if (errorStr.contains('user already registered')) {
         _message('An account with this email already exists. Try signing in.');
       } else if (errorStr.contains('password')) {
-        _message('Password does not meet requirements. Use at least 8 characters.');
+        _message(
+            'Password does not meet requirements. Use at least 8 characters.');
       } else {
         _message(
             'Could not ${_signUp ? 'create' : 'sign in'} the account. Check your details and try again.');
@@ -113,8 +114,9 @@ class _AccountScreenState extends State<AccountScreen> {
     }
     setState(() => _busy = true);
     try {
+      await AuthService.prepareAnonymousWorkspaceClaim();
       // Opens browser for Google OAuth. Session is established via
-      // deep link callback → authStateProvider triggers UI rebuild.
+      // deep link callback → authStateProvider triggers workspace + claim path.
       await AuthService.signInWithGoogle();
       if (!mounted) return;
       // Pop back — authStateProvider will rebuild ProfileScreen with the new user.

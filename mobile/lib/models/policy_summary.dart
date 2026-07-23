@@ -18,6 +18,7 @@ class PolicySummary {
   final List<String> waitingPeriods;
   final List<CoverageItem> coverageItems;
   final DateTime extractedAt;
+  final List<String> executiveSummary;
 
   PolicySummary({
     required this.documentId,
@@ -37,6 +38,7 @@ class PolicySummary {
     this.waitingPeriods = const [],
     this.coverageItems = const [],
     required this.extractedAt,
+    this.executiveSummary = const [],
   });
 
   bool get isActive =>
@@ -160,6 +162,7 @@ class PolicySummary {
         'exclusions': exclusions,
         'waiting_periods': waitingPeriods,
         'coverage_items': coverageItems.map((c) => c.toJson()).toList(),
+        'executive_summary': executiveSummary,
         'extracted_at': extractedAt.toIso8601String(),
       };
 
@@ -198,6 +201,10 @@ class PolicySummary {
                 ?.map((c) => CoverageItem.fromJson(c as Map<String, dynamic>))
                 .toList() ??
             [],
+        executiveSummary: (json['executive_summary'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
         extractedAt: json['extracted_at'] != null
             ? DateTime.parse(json['extracted_at'])
             : DateTime.now(),
@@ -223,6 +230,7 @@ class PolicySummary {
     List<String>? exclusions,
     List<String>? waitingPeriods,
     List<CoverageItem>? coverageItems,
+    List<String>? executiveSummary,
   }) {
     return PolicySummary(
       documentId: documentId,
@@ -241,6 +249,7 @@ class PolicySummary {
       exclusions: exclusions ?? this.exclusions,
       waitingPeriods: waitingPeriods ?? this.waitingPeriods,
       coverageItems: coverageItems ?? this.coverageItems,
+      executiveSummary: executiveSummary ?? this.executiveSummary,
       extractedAt: DateTime.now(),
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:hive/hive.dart';
 
@@ -194,8 +195,29 @@ class AppStateRepository {
     }
   }
 
+  /// Delete photo files associated with a set of file paths.
+  ///
+  /// Silently ignores missing or non-existent files so partial cleanup
+  /// never blocks the user from deleting a claim record.
+  static Future<void> deletePhotoFiles(List<String> paths) async {
+    for (final path in paths) {
+      try {
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (_) {
+        // Individual file deletion failures must never block claim deletion.
+      }
+    }
+  }
+
   static Future<void> deleteClaimRecord(String id) async {
     final records = getClaimRecords();
+    final claim = records.where((r) => r.id == id).firstOrNull;
+    if (claim != null && claim.photoPaths.isNotEmpty) {
+      await deletePhotoFiles(claim.photoPaths);
+    }
     records.removeWhere((r) => r.id == id);
     await saveClaimRecords(records);
   }

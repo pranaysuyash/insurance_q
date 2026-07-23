@@ -4,15 +4,51 @@ Based on the detailed app review from May 2025, this document tracks actionable 
 
 ## Priority Stack (next to implement)
 
-1. **Lead Generation** — all sections open (CTAs, newsletter, agent connection)
+### Phase 1 (pre-launch)
+
+1. **P0 Production Readiness** (from `docs/planning/product/PRODUCTION_READINESS_AUDIT_2026-07-23.md`): ✅ ALL DONE
+   - [x] P0-01: Wire crash reporting (Sentry) ✅
+   - [x] P0-02: Backend health check on startup ✅
+   - [x] P0-03: Offline connectivity banner in UI ✅
+
+2. **Next: Claims Workflow — polish & completion**
+   - [ ] Claim tracking screen: status timeline, reference number display
+   - [ ] Claims history: show all filed claims with status updates
+
+3. **M10: Multi-language support** — P3/post-launch. Awaiting user geographic data.
 
 ### Recently completed
 
+- **Claim Wizard Sheet unit tests** — 17 widget tests covering: photo capture flow (camera/gallery picker), incident type selection, save behavior (store claim + attach photos), edge cases (cancel mid-flow, back from any step, empty description validation, duplicate incident type, photo retake). ✅
+
+- **Photo cleanup on claim delete** — `AppStateRepository.deleteClaimRecord()` now deletes associated photo files from disk via `deletePhotoFiles()` before removing the claim record. Silently handles missing/locked files. 17 wizard tests + 1 repository test pass. ✅
+
+- **Corrupt test PDF saved to assets** — `mobile/assets/test/corrupt_test.pdf` (1KB, random binary) for manual retry flow testing. Documented in `docs/TEST_ASSETS.md`. ✅
+
+- **Family Coverage Summary** — Per-member policy assignment view on FamilyScreen. Expandable member cards showing inline policy list (type icon + insurer + tappable to PolicyDetailScreen). New `_CoverageMatrix` section below member cards (rows=members, columns=policies, checkmarks at intersections). Uses ValueKey for stable expand state. ✅
+
+- **Claims Workflow (Flow 5)** — File-a-Claim action + photo attachment. `ClaimWizardSheet`: 3-step bottom sheet (incident type → photo capture/gallery → review & save). Photos copied to app documents dir for persistence. Wired into ClaimsAssistantScreen guide sheet + ClaimTrackingScreen (photo thumbnails + full-screen viewer). Old `_AddClaimDialog` removed (replaced by wizard). 5 existing tests pass. ✅
+
+- **Retry mechanism for failed document processing + 6 widget tests** — Backend `POST /documents/{id}/reprocess` endpoint resets failed documents to 'received', increments processing_attempts, re-enqueues via job_outbox. Frontend retry button in error state (max 3 attempts), attempt counter, polling restart. 6 widget tests covering initial state, error state, retry counter, 409 handling, network error stability, and max retry limit. Also fixed 2 pre-existing auth_service.dart compilation errors (AuthNotifier.build() return type + _acquireToken typo). ✅
+
+- **M18: Cost attribution per operation** — OperationCost model + per-operation usage tracking in Entitlement + OperationUsageCard widget in SettingsScreen + 44 unit tests ✅
+
+- **Lead Generation — Agent Connection** — 🚀 ✅ DONE (4/4)
+  - [x] Contact request form (AgentRequestSheet) ✅
+  - [x] Scheduling for agent callbacks ✅
+  - [x] Instant chat option ✅
+  - [x] Lead routing system (AgentRequestsScreen) ✅
+
+- **Onboarding flow audit & polish** — audit doc + scope disclaimer + FirstUploadCta + copy updates + privacy trust cues ✅
 - **P1-06: Verify Policy Information Extraction** — extraction helpers + 83 unit tests ✅
 - **P1-07: Complex Relationship Extraction** — section classifier + extraction module + 22 tests ✅
-- **P2-01: Drag-and-drop upload** — web drop zone with visual overlay + conditional service ✅
-- **P2-02: Document Limit Messaging** — archive/restore, limit warnings, delete-with-archive option ✅
-- **P3-06: Document Preview** — all 4 sub-items done (thumbnails, preview, page nav, zoom) ✅
+- **P2-01: Drag-and-drop upload** — web drop zone + conditional service ✅
+- **P2-02: Document Limit Messaging** — archive/restore, limit warnings ✅
+- **P3-06: Document Preview** — thumbnails, preview, page nav, zoom ✅
+- **Lead Generation — Contextual CTAs** — topic classifier, CtaCard widget, policy context ✅
+- **Lead Generation — Newsletter Sign-up** — template + content strategy docs ✅
+- **Fix pre-existing test failures** — sync_integration_test.dart (4 Hive/async fixes), 2 Python from_env tests ✅
+- **Fix pre-existing flutter analyze issues** — 9 issues (JS interop, unused imports, async gaps) ✅
 
 ## Critical Issues (Must Fix Now)
 
@@ -104,10 +140,6 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [x] Consider increasing limit beyond 5 documents (product decision — remaining at 5 for now)
   - [x] Implement archive functionality instead of permanent deletion (archive/restore buttons, archived badge, show-archived toggle)
 
-### Next priority
-
-1. **Lead Generation** — all sections open (CTAs, newsletter, agent connection)
-
 - [x] **P2-03: Fix History Display Truncation** ✅ DONE
   - [x] Ensure questions and answers are displayed in full in history
   - [x] Add expand/collapse functionality for longer entries
@@ -196,15 +228,16 @@ Based on the detailed app review from May 2025, this document tracks actionable 
   - [x] Create renewal reminders based on policy dates (CtaTopic.renewal CTAs for setting reminders + comparing offers)
   - [x] Include personalized offer generation (policy context resolved from policySummariesProvider via documentId → insurer names appear in CTA copy)
 
-- [x] **Implement Newsletter Sign-up** 🚀 IN PROGRESS
+- [x] **Implement Newsletter Sign-up** ✅ DONE
   - [x] Create NewsletterService (store/retrieve email in Hive, consent tracking via ConsentLedger.marketingEmails)
   - [x] Create NewsletterSignupSheet (email input + consent checkbox + subscribe/unsubscribe UI)
-  - [ ] Create insurance tips newsletter template
+  - [x] Create insurance tips newsletter template (docs/marketing/newsletter_template.md)
+  - [x] Create newsletter content strategy (docs/marketing/newsletter_content_strategy.md)
   - [x] Wire onNewsletter callbacks in qa_screen.dart and policy_detail_screen.dart to show the signup sheet
   - [x] Add unsubscribe capability with consent revocation
 
-- [ ] **Add Agent Connection**
-  - [ ] Create "Talk to an Agent" feature for complex questions
-  - [ ] Implement scheduling for agent callbacks
-  - [ ] Add instant chat option where available
-  - [ ] Create lead routing system based on question types
+- [x] **Add Agent Connection** ✅ DONE (4/4)
+  - [x] Contact request form (AgentRequestSheet) ✅
+  - [x] Scheduling for agent callbacks ✅ (date picker + time slots in sheet, preferredDate/preferredTime in AgentRequest)
+  - [x] Instant chat option ✅ ('Ask CoverWise now' CTA in sheet → navigates to Q&A)
+  - [x] Lead routing system ✅ (AgentRequestsScreen — view all submitted requests with Contacted/Pending status, clear all, mark contacted)

@@ -233,7 +233,10 @@ void main() {
       await tester.scrollUntilVisible(
         find.textContaining('Extracted on'),
         200,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('policy_detail_body')),
+          matching: find.byType(Scrollable),
+        ),
       );
       expect(find.textContaining('Extracted on'), findsOneWidget);
       expect(find.textContaining('Always verify'), findsOneWidget);

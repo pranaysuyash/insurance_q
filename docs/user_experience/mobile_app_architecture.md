@@ -3,21 +3,27 @@
 ## Overview
 This document describes the architecture, flows, and integration points for the mobile-first Flutter app for the Insurance Policy Parser & QA platform. The app is designed for Indian insurance users, with robust support for family management, policy upload, and natural language QA.
 
+> **Implementation status note (2026-07-22):** this document includes historical notes from early
+> product experiments. The active runtime authentication contract is now **Supabase Auth
+> (email + Google + optional phone), with RLS-driven ownership in Postgres** as captured in
+> [docs/architecture/coverwise_canonical_architecture.md](../architecture/coverwise_canonical_architecture.md).
+> Firebase/Auth references here are retained as historical exploration unless explicitly flagged above.
+
 ---
 
 ## High-Level Architecture
 
 ```
-+-------------------+         +-------------------+         +-------------------+
-|   Flutter Mobile  | <-----> |   Firebase Auth   | <-----> |   Backend API     |
-|   App (Android/iOS)|        | (email, phone,   |         | (FastAPI: user,   |
-|                   |         |  Google login)   |         |  family, policy,  |
-|                   |         |                   |         |  doc, QA, notif)  |
-+-------------------+         +-------------------+         +-------------------+
++-------------------+         +-------------------------------+         +-------------------+
+|   Flutter Mobile  | <-----> |   Supabase Auth               |         |   Backend API     |
+|   App (Android/iOS)|        | (email, phone, Google, OAuth) |         | (FastAPI: user,   |
+|                   |         |                               |         |  family, policy,  |
+|                   |         |                               |         |  doc, QA, notif)  |
++-------------------+         +-------------------------------+         +-------------------+
 ```
 
 - **Flutter App:** Handles all user interaction, PDF upload, QA, and notifications.
-- **Firebase Auth:** Provides secure authentication (email, phone/OTP, Google login).
+- **Auth:** Supabase Auth (managed production control plane). Firebase/Auth alternatives are retained as historical exploration unless explicitly reintroduced.
 - **Backend API:** Manages user/family data, policy storage, document processing, RAG/QA, and notifications.
 
 ---
@@ -27,7 +33,7 @@ This document describes the architecture, flows, and integration points for the 
 1. **Onboarding**
    - Welcome, explain features, privacy, and get started.
 2. **Authentication**
-   - Sign up/login via email, phone/OTP, or Google (Firebase Auth).
+   - Sign up/login via email, phone/OTP, or Google via Supabase Auth.
 3. **User Profile & Family Management**
    - View/edit user info, add/remove family members (name, relationship, DOB).
 4. **Policy Upload**
@@ -44,7 +50,8 @@ This document describes the architecture, flows, and integration points for the 
    - View chronological history of uploads and QA interactions.
    - Track policy changes and important dates.
 8. **Notifications**
-   - Receive push notifications for renewals, payments, and important events (via Firebase Cloud Messaging).
+   - Receive push notifications for renewals, payments, and important events.
+   - Notification delivery vendor is tracked as follow-up architecture, not part of the current auth/data contract.
 
 ---
 
@@ -80,13 +87,14 @@ The app implements a freemium model designed to generate quality insurance leads
 ---
 
 ## Integration Points
-- **Firebase Auth:**
-  - Handles all authentication flows; app receives ID token and passes it to backend for verification.
+- **Supabase Auth:**
+  - Handles authentication flows; app receives session token and the API extracts the owner from the server-side Supabase token.
 - **Backend API:**
   - All user, family, policy, and QA data is managed via RESTful endpoints.
   - PDF files are uploaded to backend (or directly to cloud storage if needed).
-- **Firebase Cloud Messaging:**
-  - Used for push notifications/reminders.
+- **Push Notifications:**
+  - Current runtime implementation tracks push notification delivery as a follow-up architecture item.
+  - Historical notes mention Firebase Cloud Messaging, which is not the active product contract.
 - **CRM Integration:**
   - Agent connection requests are sent to CRM system for follow-up.
 
@@ -186,14 +194,12 @@ The app implements a freemium model designed to generate quality insurance leads
 ---
 
 ## Main Flutter Packages/Plugins
-- `firebase_auth` (Firebase Auth integration)
-- `cloud_firestore` (if any direct Firestore usage)
-- `firebase_messaging` (push notifications)
+- `supabase_flutter` (Supabase Auth + client session support)
+- `go_router` or `go_router_stateful` (navigation)
 - `http` (backend API calls)
 - `file_picker` or `image_picker` (PDF upload)
 - `pdf_viewer_plugin` or `syncfusion_flutter_pdfviewer` (PDF viewing)
-- `provider` or `riverpod` (state management)
-- `flutter_bloc` (for complex state management)
+- `riverpod` (state management; see ADR-2026-07-22-02)
 - `intl` (date formatting and localization)
 - `shared_preferences` (local settings storage)
 - `sqflite` or `hive` (local database for offline access)
@@ -260,7 +266,7 @@ mobile/
 
 ### Completed
 - ✅ Flutter project scaffolded in `mobile/` directory with organized folder structure
-- ✅ Latest dependencies added: Riverpod, Dio, PDFx, Firebase, Hive, etc.
+- ✅ Latest dependencies added: Riverpod, Dio, PDFx, Supabase Flutter client, Hive, etc.
 - ✅ Modern folder structure created with separation of concerns
 - ✅ `main.dart` with Material 3, Riverpod, and bottom navigation
 - ✅ Dashboard screen with document summary, quick actions, and terminology
@@ -275,7 +281,7 @@ mobile/
 - [ ] Add loading indicators for file uploads
 - [ ] Improve error handling with user-friendly messages
 - [ ] Add offline caching for Q&A results
-- [ ] Implement user authentication (Firebase Auth integration)
+- [ ] Complete the full auth lifecycle hardening on the active Supabase path (recovery, reset, sign-out, account deletion)
 - [ ] Add family management UI and backend integration
 - [ ] Implement document comparison feature
 - [ ] Add document search functionality

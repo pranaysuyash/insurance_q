@@ -169,7 +169,8 @@ class PolicyExtractionService:
             "- key_benefits: List of top 5 covered benefits (brief, one per line)\n"
             "- exclusions: List of top 5 exclusions/things not covered (brief)\n"
             "- waiting_periods: List of any waiting periods mentioned\n"
-            "- coverage_items: Individual coverage line items with name, limit, covered status"
+            "- coverage_items: Individual coverage line items with name, limit, covered status\n"
+            "- executive_summary: 3 bullets in plain language — (1) what this policy covers, (2) the key limit or restriction, (3) what to watch for (renewal, waiting period, gap). Use simple words, no jargon."
         )
 
         try:

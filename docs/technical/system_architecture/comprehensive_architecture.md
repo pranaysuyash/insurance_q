@@ -8,6 +8,10 @@
 > [`docs/review/coverwise_supabase_gap_register_2026-07-16.md`](../../review/coverwise_supabase_gap_register_2026-07-16.md)
 > for verified gaps.
 
+> If this file is referenced for production claims, it is non-authoritative
+> without a dated ADR addendum and a migration note that maps historical claims
+> to current Supabase control-plane contracts.
+
 ## Overview
 
 This document provides a comprehensive overview of the Insurance Policy Parser & QA System's architecture, incorporating modern technologies and best practices as of 2024. The system is designed to be scalable, maintainable, and capable of handling complex insurance document processing tasks.
@@ -1136,9 +1140,14 @@ To ensure the architecture remains modern and scalable, consider these upgrades:
 
 See the RAG and OCR docs for more details on each upgrade area.
 
-# User Authentication & Management (Firebase)
+# User Authentication & Management (Firebase) — Historical Reference Only
 
-Firebase Authentication is recommended for handling user sign-up and login, especially for Indian insurance users who may prefer phone/OTP or email-based access. Here's how it fits into the architecture:
+> This is a historical architecture sketch carried for migration context. It is not
+> the active production authentication model. The active identity contract is in
+> [`docs/architecture/coverwise_canonical_architecture.md`](../../architecture/coverwise_canonical_architecture.md)
+> and [`docs/decisions/ADR-2026-07-22-08-auth-and-provider-platform-strategy.md`](../decisions/ADR-2026-07-22-08-auth-and-provider-platform-strategy.md).
+
+Firebase Authentication is described here as a historical approach for handling user sign-up and login, especially for Indian insurance users who may prefer phone/OTP or email-based access. Here's how it fit into this legacy architecture:
 
 ## Authentication Methods
 - **Email/Password:** Users can register and log in with email and password. Firebase handles password resets and email verification.
@@ -1147,7 +1156,7 @@ Firebase Authentication is recommended for handling user sign-up and login, espe
 - **Other Social Logins:** Facebook, Apple, etc., can be enabled as needed.
 
 ## Family Member & Policy Management
-- **Family Members:** Each user can add profiles for family members (name, relationship, DOB, etc.) in your backend database, linked to their Firebase UID.
+- **Family Members:** Each user can add profiles for family members (name, relationship, DOB, etc.) in your backend database, historically linked to a Firebase UID.
 - **Policy Assignment:** Policies can be assigned to the user or any family member profile. The backend manages these relationships.
 - **Dashboard:** Show all policies grouped by family member. Send reminders for all family policies to the main user.
 

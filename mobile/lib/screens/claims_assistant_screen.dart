@@ -8,6 +8,8 @@ import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/error_widget.dart';
+import '../widgets/claims_workflow_sheet.dart';
+import '../services/app_state_repository.dart';
 import 'documents_screen.dart';
 
 class ClaimsAssistantScreen extends ConsumerStatefulWidget {
@@ -170,18 +172,53 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
         ref.read(claimGuideProvider((_selectedIncident!, _selectedDocumentId)));
     if (guide == null) return;
 
+    final preselected = _findSelectedPolicy();
+    final count = _claimCount();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => _ClaimGuideSheet(guide: guide),
+      builder: (sheetContext) => _ClaimGuideSheet(
+        guide: guide,
+        preselectedPolicy: preselected,
+        claimCount: count,
+        onFileClaim: () {
+          Navigator.pop(sheetContext);
+          ClaimWizardSheet.show(context,
+              preselectedPolicy: preselected);
+        },
+        onViewClaims: () {
+          Navigator.pop(sheetContext);
+          Navigator.of(context).pushNamed('/claim-tracker');
+        },
+      ),
     );
   }
+
+  PolicySummary? _findSelectedPolicy() {
+    if (_selectedDocumentId == null) return null;
+    final summaries = ref.read(policySummariesProvider);
+    return summaries.where((s) => s.documentId == _selectedDocumentId).firstOrNull;
+  }
+
+  int _claimCount() => AppStateRepository.getClaimRecords().length;
 }
 
 class _ClaimGuideSheet extends StatelessWidget {
   final ClaimGuide guide;
-  const _ClaimGuideSheet({required this.guide});
+  final PolicySummary? preselectedPolicy;
+  final int claimCount;
+  final VoidCallback onFileClaim;
+  final VoidCallback onViewClaims;
+
+  const _ClaimGuideSheet({
+    required this.guide,
+    this.preselectedPolicy,
+    this.claimCount = 0,
+    required this.onFileClaim,
+    required this.onViewClaims,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -249,6 +286,31 @@ class _ClaimGuideSheet extends StatelessWidget {
                 ),
               ),
             ],
+            const SizedBox(height: 24),
+            // File a Claim CTA — opens the claim wizard with the guide's context
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                icon: const Icon(Icons.add_circle_outline_rounded),
+                label: const Text('File a claim'),
+                onPressed: onFileClaim,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+            // View existing claims
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                icon: const Icon(Icons.fact_check_outlined, size: 20),
+                label: Text(
+                  'View my claims ($claimCount)',
+                ),
+                onPressed: onViewClaims,
+              ),
+            ),
           ],
         ),
       ),

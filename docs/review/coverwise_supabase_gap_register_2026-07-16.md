@@ -83,6 +83,81 @@ external systems:
 
 ### Anything else?
 
+### Addendum (2026-07-22) — provider-platform decision and remaining production gates
+
+This addendum aligns the gap set to **ADR-2026-07-22-08 (managed Supabase first, OSS paths explicit)**.
+
+The decision is not to delay launch for “any open-source path first.” We are proceeding on a single production control plane now:
+
+- `Supabase Auth` for identity/session lifecycle,
+- Supabase Postgres/pgvector/FTS for retrieval and policy/evidence contracts,
+- Supabase Storage for policy artifacts and derived objects,
+- Supabase + outbox as the durable async backbone.
+
+Firebase references remain compatibility/migration history only. The unresolved work is therefore about **proof and migration safety**, not re-architecting identity again.
+
+#### 2026-07-22 docs-first cleanup status
+
+- **Closed this pass (docs coherence):**
+  - `docs/planning/product/implementation_roadmap.md` no longer presents Firebase Authentication as an active product contract.
+  - `docs/planning/prd_insurance_policy_app.md` now marks Supabase Auth as canonical and Firebase/Amazon as historical/alternative references.
+- **No active runtime Firebase auth path remains** in `src` or `mobile` execution code:
+  - `rg` confirms Firebase auth references only in compatibility module `src/utils/firebase_auth.py`.
+- **Runtime evidence gates unchanged:** AUTH-01, RETR-01, RETR-02, TRAIN-01, ASYNC-01, PORT-01 remain open.
+
+#### What remains open after this decision (decision-scoped gap cluster)
+
+1. **Auth/Lifecycle proof remains open** (P1)  
+   - As of 2026-07-22, client auth-state transition now follows one claim-preserve path:
+     Google OAuth sets claim intent before sign-in, and the shared auth-state handler
+     performs workspace transition plus best-effort anonymous workspace claim when a session
+     is established.
+   - Confirm real end-to-end account ownership and recovery flows against a configured production Supabase project:
+     - sign-up/confirmation, sign-in/refresh, sign-out, password recovery,
+       linked-device re-entry,
+     - `/user/claim-anonymous` transfer under production constraints,
+       and account deletion/export.
+   - Current repo has the code; we still need Tier 3 runtime verification with live policy signals.
+
+2. **RAG contract + retrieval certainty remains open** (P0/P1)  
+   - We have hybrid retrieval scaffolding in code paths and benchmark fixtures, but no
+     **representative-corpus migration pass** and no production cutover evidence proving
+     parity against the legacy corpus.
+   - Close this before platform claims: run a staged corpus backfill, measure quality
+     deltas, and require an approved rollback checkpoint.
+
+3. **Embedding and model-family drift prevention remains open** (P0)  
+   - The architecture now commits to embedding contract management on Supabase (1536d + version metadata), but there is no operational policy proving provider fallback cannot create mixed-vector states in production.
+   - Required gap: explicit migration/rejection policy for unsupported provider/dimension combinations and a rehearsed re-embedding plan.
+
+4. **Training-readiness is docs-first without execution-first today** (P1)  
+   - Consent ledger, release manifest execution boundary, and approval controls are present, but
+     there is no verified training execution + artifact publication chain yet.
+   - Required gap: execute provider-gated training contract with credentialed runbook and
+     published artifact integrity checks.
+
+5. **Platform portability remains a future operational migration, not a launch path** (P2)
+   - If/when we must host everything ourselves, we still need:
+     - self-hosted Supabase parity runbook,
+     - auth export/import rehearsal,
+     - RLS/policy replay tests,
+     - Storage migration + restore verification.
+   - This is planned as a future migration track, not a blocker for the managed Supabase
+     baseline.
+
+#### Execution order implied by this decision
+
+1. Finish auth lifecycle proof before any production cutover claim.
+2. Run representative-corpus retrieval/stage-backfill with rollback + migration checkpoints.
+3. Lock embedding/provider compatibility policy and re-embed plan.
+4. Wire model-training execution + artifact publication as separate gated stage.
+5. Document self-hosted parity migration package only after the above are stable.
+
+#### Evidence status after this decision
+
+- The gap register now separates **“not-yet-implemented platform logic”** from **“implemented but unverified against real production credentials.”**
+- No Firebase production-path contract is accepted in active planning.
+
 ### Addendum — 2026-07-21 verification correction
 
 The earlier local reset/lint evidence above applies to the migration set that

@@ -31,6 +31,12 @@ class AppConfig {
     defaultValue: '',
   );
 
+  // Sentry DSN — injected at build time via --dart-define=SENTRY_DSN=...
+  // Crash reporting is silently disabled when the DSN is empty (debug builds
+  // or projects that have not configured Sentry).
+  static const String sentryDsn =
+      String.fromEnvironment('SENTRY_DSN', defaultValue: '');
+
   // Phase 0 P0-0.3 (trust audit, 2026-07-18): confidence badge calibration
   // gate. The trust audit's NO-GO verdict says confidence badges must be
   // hidden or labelled "uncalibrated" until the backend's confidence is
@@ -137,6 +143,7 @@ class AppConfig {
   static bool get hasSupabaseAuthConfig =>
       supabaseUrl.startsWith('https://') && supabasePublishableKey.isNotEmpty;
   static bool get hasRevenueCatConfig => revenuecatApiKey.isNotEmpty;
+  static bool get hasSentryConfig => sentryDsn.isNotEmpty;
 
   static void validateReleaseConfiguration() {
     if (!kReleaseMode || !isProduction) return;

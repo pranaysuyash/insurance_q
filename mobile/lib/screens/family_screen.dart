@@ -9,9 +9,12 @@ import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/error_widget.dart';
 import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
+import '../utils/document_icons.dart';
+import '../utils/policy_type.dart';
 import 'add_family_member_dialog.dart';
 import 'family_member_detail_screen.dart';
 import 'family_visualization_screen.dart';
+import 'policy_detail_screen.dart';
 
 class FamilyScreen extends StatelessWidget {
   const FamilyScreen({super.key});
@@ -117,6 +120,7 @@ class _FamilyList extends ConsumerWidget {
               ),
               CoverWiseSectionLabel(S.familySectionLabel),
               ...policyHolders.values.map((holder) => _FamilyMemberCard(
+                    key: ValueKey(holder.name),
                     holder: holder,
                     documents: documents,
                     onTap: () => Navigator.push(
@@ -156,6 +160,23 @@ class _FamilyList extends ConsumerWidget {
                           }
                         : null,
                   )),
+
+              // ── Coverage Summary Section ──
+              if (policyHolders.length > 1 || documents.length > 1) ...[
+                const SizedBox(height: 8),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: CoverWiseSectionLabel('Coverage summary'),
+                ),
+                const SizedBox(height: 4),
+                _CoverageMatrix(
+                  members: policyHolders.values.toList(),
+                  documents: documents,
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // ── Bottom actions ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                 child: Column(
@@ -193,118 +214,421 @@ class _FamilyList extends ConsumerWidget {
   }
 }
 
-class _FamilyMemberCard extends StatelessWidget {
+/// Finds which documents cover a given member by matching the member name
+/// against each document's policyHolders list.
+List<InsuranceDocument> _policiesForMember(
+    PolicyHolder member, List<InsuranceDocument> docs) {
+  return docs.where((doc) {
+    if (doc.policyHolders == null) return false;
+    return doc.policyHolders!.any((h) => h.name == member.name);
+  }).toList();
+}
+
+class _FamilyMemberCard extends StatefulWidget {
   final PolicyHolder holder;
   final List<InsuranceDocument> documents;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+
   const _FamilyMemberCard({
+    super.key,
     required this.holder,
     required this.documents,
     this.onTap,
     this.onDelete,
   });
 
-  /// Count how many policies mention this member by name.
-  int _policyCount(List<InsuranceDocument> docs) {
-    var count = 0;
-    for (final doc in docs) {
-      if (doc.policyHolders != null) {
-        for (final h in doc.policyHolders!) {
-          if (h.name == holder.name) {
-            count++;
-            break;
-          }
-        }
-      }
-    }
-    return count;
-  }
+  @override
+  State<_FamilyMemberCard> createState() => _FamilyMemberCardState();
+}
+
+class _FamilyMemberCardState extends State<_FamilyMemberCard> {
+  bool _expanded = false;
+
+  List<InsuranceDocument> get _policies =>
+      _policiesForMember(widget.holder, widget.documents);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isPrimary = holder.relationship == 'Primary Insured';
+    final isPrimary = widget.holder.relationship == 'Primary Insured';
+    final policies = _policies;
+    final count = policies.length;
 
-    final count = _policyCount(documents);
     return CoverWiseSurface(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      child: Column(
+        children: [
+          // ── Main member header ──
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: widget.onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CoverWiseIconBadge(
-                    icon: isPrimary
-                        ? Icons.person_rounded
-                        : Icons.person_outline_rounded,
-                    color: isPrimary
-                        ? CoverWiseColors.blueDeep
-                        : theme.colorScheme.tertiary,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          holder.name,
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 5),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
+                  Row(
+                    children: [
+                      CoverWiseIconBadge(
+                        icon: isPrimary
+                            ? Icons.person_rounded
+                            : Icons.person_outline_rounded,
+                        color: isPrimary
+                            ? CoverWiseColors.blueDeep
+                            : theme.colorScheme.tertiary,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              holder.relationship,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
+                              widget.holder.name,
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w800),
                             ),
-                            _SourceBadge(isManual: holder.isManual),
-                            if (count > 0) _PolicyCountBadge(count: count),
+                            const SizedBox(height: 5),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  widget.holder.relationship,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                _SourceBadge(
+                                    isManual: widget.holder.isManual),
+                                if (count > 0) _PolicyCountBadge(count: count),
+                              ],
+                            ),
                           ],
+                        ),
+                      ),
+                      if (widget.onDelete != null)
+                        IconButton(
+                          icon: const Icon(Icons.person_remove_outlined),
+                          tooltip: S.familyRemoveTooltip(widget.holder.name),
+                          onPressed: widget.onDelete,
+                        ),
+                    ],
+                  ),
+                  if (widget.holder.dob != null) ...[
+                    const Divider(height: 24),
+                    Row(
+                      children: [
+                        Icon(Icons.cake_outlined,
+                            color: theme.colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 8),
+                        Text(
+                          S.familyDateOfBirth(widget.holder.dob!),
+                          style: theme.textTheme.bodyMedium,
                         ),
                       ],
                     ),
-                  ),
-                  if (onDelete != null)
-                    IconButton(
-                      icon: const Icon(Icons.person_remove_outlined),
-                      tooltip: S.familyRemoveTooltip(holder.name),
-                      onPressed: onDelete,
-                    ),
+                  ],
                 ],
               ),
-              if (holder.dob != null) ...[
-                const Divider(height: 24),
-                Row(
+            ),
+          ),
+
+          // ── Expand/collapse toggle for policy assignments ──
+          if (count > 0) ...[
+            InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
                   children: [
-                    Icon(Icons.cake_outlined,
-                        color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 8),
+                    Icon(
+                      _expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      S.familyDateOfBirth(holder.dob!),
-                      style: theme.textTheme.bodyMedium,
+                      _expanded
+                          ? 'Hide policy assignments'
+                          : 'View $count polic${count == 1 ? 'y' : 'ies'} covering ${widget.holder.name}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
-              ],
-            ],
+              ),
+            ),
+
+            // ── Expanded: inline policy list ──
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: _PolicyAssignmentList(
+                policies: policies,
+                holder: widget.holder,
+              ),
+              crossFadeState: _expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 250),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Inline list of policies covering a specific member.
+class _PolicyAssignmentList extends StatelessWidget {
+  final List<InsuranceDocument> policies;
+  final PolicyHolder holder;
+
+  const _PolicyAssignmentList({
+    required this.policies,
+    required this.holder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.03),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            child: Text(
+              'Covered by:',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
+          ...policies.map((doc) => _PolicyAssignmentTile(
+                document: doc,
+                holder: holder,
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single policy tile within a member's assignment list.
+class _PolicyAssignmentTile extends StatelessWidget {
+  final InsuranceDocument document;
+  final PolicyHolder holder;
+
+  const _PolicyAssignmentTile({
+    required this.document,
+    required this.holder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final typeName = document.documentType ?? 'Insurance Policy';
+    final policyType = classifyPolicyType(typeName);
+    final icon = iconForPolicyType(policyType);
+    final color = colorForPolicyType(policyType, brightness: theme.brightness);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PolicyDetailScreen(documentId: document.id),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            CoverWiseIconBadge(icon: icon, color: color, size: 32),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    typeName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  if (document.insurer != null)
+                    Text(
+                      document.insurer!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+// ─── Coverage Summary Matrix ───
+
+/// A compact coverage matrix showing which members are covered by which policies.
+/// Rows = members, columns = policies, checkmarks at intersections.
+class _CoverageMatrix extends StatelessWidget {
+  final List<PolicyHolder> members;
+  final List<InsuranceDocument> documents;
+
+  const _CoverageMatrix({
+    required this.members,
+    required this.documents,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return CoverWiseSurface(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row: policy short names
+            Row(
+              children: [
+                SizedBox(
+                  width: 120,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text(
+                      'Member',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                ...documents.map((doc) {
+                  return SizedBox(
+                    width: 72,
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Column(
+                        children: [
+                          // Policy type icon
+                          Icon(
+                            iconForPolicyType(
+                              classifyPolicyType(
+                                  doc.documentType ?? 'Insurance Policy'),
+                            ),
+                            size: 16,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _shortName(doc.filename),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+            const Divider(height: 1),
+
+            // Member rows
+            ...members.map((member) {
+              return Row(
+                children: [
+                  SizedBox(
+                    width: 120,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Text(
+                        member.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ...documents.map((doc) {
+                    final isCovered = doc.policyHolders != null &&
+                        doc.policyHolders!
+                            .any((h) => h.name == member.name);
+                    return SizedBox(
+                      width: 72,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: isCovered
+                              ? Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 20,
+                                  color: theme.colorScheme.primary,
+                                )
+                              : Icon(
+                                  Icons.remove_circle_outline_rounded,
+                                  size: 20,
+                                  color: theme.colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.3),
+                                ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _shortName(String filename) {
+    final name = filename.replaceAll(
+        RegExp(r'\.(pdf|jpg|jpeg|png)$', caseSensitive: false), '');
+    return name.length > 10 ? '${name.substring(0, 8)}…' : name;
+  }
+}
+
+// ─── Shared badges ───
 
 class _PolicyCountBadge extends StatelessWidget {
   final int count;

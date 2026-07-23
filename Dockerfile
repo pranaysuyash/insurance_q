@@ -48,6 +48,13 @@ RUN mkdir -p /app/uploads /app/temp /app/storage/documents
 ENV PYTHONPATH="/app"
 ENV PLATFORM="${OCR_PLATFORM}"
 
+# Create a non-root user and switch to it for defense-in-depth.
+# Cloud Run provides runtime isolation, but a Python RCE should not give
+# an attacker root inside the container (CSO Finding #1).
+RUN adduser --disabled-password --gecos "" coverwise && \
+    chown -R coverwise:coverwise /app
+USER coverwise
+
 # Cloud Run injects PORT at runtime; 8080 is the local fallback.
 EXPOSE 8080
 

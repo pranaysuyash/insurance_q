@@ -836,6 +836,138 @@ async def delete_document(document_id: str, current_user: User = Depends(get_cur
     raise HTTPException(status_code=404, detail="Document not found")
 
 # Debug endpoint for development
+@router.post("/{document_id}/reprocess")
+async def reprocess_document(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Re-process a document that failed during an earlier attempt.
+
+    Resets the document status to `received`, clears the error_message,
+    resets the in-memory processing status, and re-enqueues the document
+    for processing via the outbox or background task.
+
+    Returns 404 if the document doesn't exist or is not in a retryable
+    state (only `failed` documents can be reprocessed). Returns 503 if
+    no processing service or job outbox is available.
+    """
+    document = document_repository.get(document_id, current_user.uid)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Only allow reprocessing for documents in a failed or partial state.
+    # Documents already received/processing/completed cannot be reprocessed.
+    retryable_states = {"failed", "partial", "completed_no_summary",
+                         "completed_summary_partial", "completed_text_partial",
+                         "ocr_required", "password_required", "indexing_failed"}
+    if document.status not in retryable_states:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "document_not_retryable",
+                "message": f"Document is in '{document.status}' state and cannot be reprocessed. "
+                           f"Only failed or partial documents can be retried.",
+            },
+        )
+
+    if not processing_service and not job_outbox_service:
+        raise HTTPException(
+            status_code=503,
+            detail="Document processing is temporarily unavailable. Please try again later.",
+        )
+
+    # Reset document state to received
+    document.status = "received"
+    document.processing_lease_expires_at = None
+    document.error_message = None
+    document.processing_completed_at = None
+    document.processing_started_at = None
+    # Increment processing_attempts to track retries
+    document.processing_attempts = (document.processing_attempts or 0) + 1
+    document_repository.update(document)
+
+    # Reset in-memory processing status so polling shows fresh progress
+    if processing_service:
+        if document_id in processing_service.processing_status:
+            del processing_service.processing_status[document_id]
+
+    # Re-enqueue via the outbox or legacy background task
+    if job_outbox_service:
+        from src.models.job_outbox import EnqueueRequest, JobType
+        try:
+            await job_outbox_service.enqueue(
+                EnqueueRequest(
+                    job_type=JobType.DOCUMENT_PROCESSING,
+                    payload={
+                        "document_id": document_id,
+                        "owner_id": current_user.uid,
+                        "object_reference": document.file_path,
+                        "filename": document.filename,
+                        "processing_mode": document.processing_mode or "full",
+                    },
+                    partition_key=None,
+                )
+            )
+            logger.info(
+                "document_reprocessing_enqueued document_id=%s attempt=%d owner=%s",
+                document_id, document.processing_attempts, current_user.uid[:12],
+            )
+        except Exception as error:
+            # Rollback status change if enqueue fails
+            document.status = "failed"
+            document.error_message = "Reprocessing enqueue failed; please try again."
+            document_repository.update(document)
+            logger.error(
+                "document_reprocess_enqueue_failed document_id=%s error_type=%s",
+                document_id, type(error).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Could not start reprocessing. Please try again.",
+            ) from error
+    elif processing_service and document.file_path:
+        try:
+            from src.services.document_object_store import create_document_object_store
+            object_store = create_document_object_store()
+            file_content = object_store.get(document.file_path)
+
+            from src.services.document_processing_job import run_document_processing_job
+            # Use terminal_failure_on_exception=False so the outbox retry
+            # path applies; for the legacy path, we allow terminal failure.
+            import asyncio
+            asyncio.ensure_future(
+                run_document_processing_job(
+                    service=processing_service,
+                    repository=document_repository,
+                    document_id=document_id,
+                    filename=document.filename,
+                    processing_mode=document.processing_mode or "full",
+                    owner_id=current_user.uid,
+                    file_content=file_content,
+                    terminal_failure_on_exception=True,
+                )
+            )
+        except Exception as error:
+            document.status = "failed"
+            document.error_message = "Reprocessing could not start; please try again."
+            document_repository.update(document)
+            logger.error(
+                "document_reprocess_legacy_failed document_id=%s error_type=%s",
+                document_id, type(error).__name__,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Could not start reprocessing. Please try again.",
+            ) from error
+
+    return {
+        "status": "accepted",
+        "document_id": document_id,
+        "message": "Reprocessing started.",
+        "attempt": document.processing_attempts,
+    }
+
+
 @router.get("/debug/processing_status")
 async def get_all_processing_status(_: None = Depends(require_nonproduction)):
     """Get all processing statuses (debug endpoint)"""

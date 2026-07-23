@@ -278,6 +278,12 @@ class S {
   static const String renewalPhoneDialerError = 'Could not open phone dialer';
   static const String renewalEmailClientError = 'Could not open email client';
 
+  // Calendar view
+  static String renewalExpiringPolicies(String date) =>
+      'Policies expiring on $date';
+  static String renewalExpiringCount(int count) =>
+      '$count polic${count == 1 ? 'y' : 'ies'} expiring on this date';
+
   // ─── Settings Screen ──────────────────────────────────────────────
 
   static const String settingsTitle = 'Settings';

@@ -5,7 +5,11 @@
 
 **Document Version**: 1.0  
 **Last Updated**: June 19, 2025  
-**Status**: Production Ready on AWS App Runner
+**Status**: Historical architecture snapshot (not current canonical status)
+
+> Use this only for historical comparison when tracing migration decisions. For
+> the live canonical architecture and ownership-boundary contracts, use
+> [`docs/architecture/coverwise_canonical_architecture.md`](../../architecture/coverwise_canonical_architecture.md).
 
 ## Table of Contents
 
@@ -534,7 +538,7 @@ GET /embedding-stats
 ```
 
 ### Authentication & Authorization
-- **Mobile App**: Firebase Auth tokens
+- **Mobile App**: Firebase Auth tokens (historical snapshot only; active mobile identity in `docs/technical/system_architecture/comprehensive_architecture.md` now points to Supabase Auth for current runtime)
 - **Service-to-Service**: Environment-based configuration
 - **API Keys**: Managed through environment variables
 - **CORS**: Configured for cross-origin requests

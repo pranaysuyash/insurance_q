@@ -24,9 +24,9 @@ void main() {
   });
 
   tearDown(() async {
-    await Hive.box(AppStateStore.boxName).clear();
-    await Hive.box(LocalStorageService.documentsBoxName).clear();
-    await Hive.box('consent_ledger').clear();
+    await Hive.box<dynamic>(AppStateStore.boxName).clear();
+    await Hive.box<String>(LocalStorageService.documentsBoxName).clear();
+    await Hive.box<dynamic>('consent_ledger').clear();
   });
 
   group('ConsentSyncService', () {
@@ -348,8 +348,7 @@ void main() {
       final fixed = doc.copyWith(
         localFilePath: '/nonexistent/missing.pdf',
       );
-      await (await LocalStorageService().getDocumentsBox())
-          .put(fixed.id, fixed.toJsonString());
+      await storage.updateDocument(fixed);
 
       final dio = Dio();
       final result =
@@ -359,8 +358,10 @@ void main() {
 
     test('deduplicates concurrent retryPendingUploads calls', () async {
       final dio = Dio();
+      var serverCalls = 0;
       dio.interceptors.add(InterceptorsWrapper(
         onRequest: (options, handler) {
+          serverCalls++;
           handler.resolve(Response(
             requestOptions: options,
             statusCode: 200,
@@ -382,9 +383,10 @@ void main() {
       final f1 = service.retryPendingUploads();
       final f2 = service.retryPendingUploads();
 
-      expect(identical(f1, f2), isTrue,
-          reason: 'Concurrent calls should share the same future');
+      await Future.wait([f1, f2]);
+
+      expect(serverCalls, equals(1),
+          reason: 'Deduplicated calls should make only one server request');
     });
   });
-}
 }

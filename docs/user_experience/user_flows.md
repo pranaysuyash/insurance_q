@@ -1,5 +1,10 @@
 # User Flows for Insurance Policy Parser & QA Application
 
+> **Historical baseline + scope note.** This flow doc is useful for old baseline
+> behavior and UX shape, but Supabase Auth and retrieval contract claims should be
+> validated against the active docs under `docs/architecture/` and
+> `docs/planning/coverwise_auth_and_provider_execution_plan_2026-07-22.md`.
+
 This document outlines the primary user flows for interacting with the application, covering both the web interface and the planned Flutter mobile application.
 
 ## 1. Document Upload and Processing Flow
@@ -90,9 +95,13 @@ This flow describes how a user asks a question about an uploaded document and re
 *   User receives an answer to their question based on the document corpus.
 
 ---
-## 3. (Future) User Authentication Flow
+## 3. User Authentication Flow (Current reference)
 
-*To be detailed when Firebase authentication is fully implemented.*
+*Supabase Auth is the active production identity contract. Keep this section for
+historical flow shape only; use current auth behavior from
+[`docs/user_experience/mobile_app_architecture.md`](mobile_app_architecture.md) and
+`docs/planning/coverwise_auth_provider_platform_gap_map_2026-07-22.md` for
+operationally gated auth details.*
 *   Registration
 *   Login
 *   Logout

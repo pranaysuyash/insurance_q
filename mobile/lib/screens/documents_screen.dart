@@ -66,6 +66,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   bool _showUploadDetails = false;
   bool _demoPolicyPreloaded = false;
   int? _selectedFileSize;
+  String? _pdfPassword;
 
   // ── Batch upload state (P3-05)
   final List<BatchUploadEntry> _batchEntries = [];
@@ -331,6 +332,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 useOnDeviceOcr: _useOnDeviceOcr,
                 onDeviceOcrScript: _onDeviceOcrScript,
                 processingConsentVersion: consentVersion,
+                pdfPassword: _pdfPassword,
                 documentLimit: ref.read(entitlementProvider).limits.maxPolicies,
               );
 
@@ -358,11 +360,30 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         }
 
         if (result['error'] == 'pdf_password_required' ||
-            result['error'] == 'pdf_password_invalid' ||
-            result['error'] == 'pdf_unreadable') {
+            result['error'] == 'pdf_password_invalid') {
+          setState(() => _isUploading = false);
+          if (!mounted) return;
+
+          // Show password input dialog and retry
+          final password = await showDialog<String>(
+            context: context,
+            builder: (context) => _PdfPasswordDialog(
+              isRetry: result['error'] == 'pdf_password_invalid',
+            ),
+          );
+
+          if (password != null && password.isNotEmpty && mounted) {
+            // Retry upload with the password
+            _pdfPassword = password;
+            _uploadFile();
+          }
+          return;
+        }
+
+        if (result['error'] == 'pdf_unreadable') {
           setState(() {
             _uploadError = result['message']?.toString() ??
-                'This PDF is password-protected or corrupted. Please unlock it or try a different file.';
+                'This PDF could not be opened. It may be corrupted.';
             _isUploading = false;
           });
           return;
@@ -1542,6 +1563,82 @@ class _BatchFileTile extends StatelessWidget {
         ),
         trailing: trailing,
       ),
+    );
+  }
+}
+
+/// Password input dialog for locked/encrypted PDFs.
+///
+/// Shown when the backend returns `pdf_password_required` (no password given)
+/// or `pdf_password_invalid` (wrong password). Lets the user enter the
+/// password inline and retries the upload.
+class _PdfPasswordDialog extends StatefulWidget {
+  final bool isRetry;
+
+  const _PdfPasswordDialog({this.isRetry = false});
+
+  @override
+  State<_PdfPasswordDialog> createState() => _PdfPasswordDialogState();
+}
+
+class _PdfPasswordDialogState extends State<_PdfPasswordDialog> {
+  final _controller = TextEditingController();
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Password Required'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.isRetry
+                ? 'That password did not work. Please try again.'
+                : 'This PDF is password-protected. Enter the password to read it.',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            obscureText: _obscure,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'PDF Password',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+            onSubmitted: (value) {
+              if (value.isNotEmpty) Navigator.pop(context, value);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_controller.text.isNotEmpty) {
+              Navigator.pop(context, _controller.text);
+            }
+          },
+          child: const Text('Unlock'),
+        ),
+      ],
     );
   }
 }

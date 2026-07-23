@@ -43,11 +43,21 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS middleware
+# CORS middleware — restrict to the configured public site URL in production.
+# This service is mounted as a sub-app under the main API (src/app/main.py)
+# which already handles CORS at the top level. The wildcard + credentials
+# combination here was a security anti-pattern (CSO Finding #2).
+_frontend_env = os.getenv("ENVIRONMENT", "development")
+_frontend_public_url = os.getenv("PUBLIC_SITE_URL", "").strip()
+if _frontend_env == "production" and _frontend_public_url:
+    _frontend_origins = [_frontend_public_url]
+else:
+    _frontend_origins = ["http://localhost:8080", "http://127.0.0.1:8080"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_frontend_origins,
+    allow_credentials=_frontend_env != "production",
     allow_methods=["*"],
     allow_headers=["*"],
 )

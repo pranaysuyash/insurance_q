@@ -41,11 +41,13 @@ app = FastAPI(
     version="2.0.0" # Version updated
 )
 
-# CORS middleware
+# CORS middleware — this is a deprecated internal-only service accessed
+# over the Docker internal network. The wildcard + credentials combination
+# was a security anti-pattern (CSO Finding #2). Restrict to local origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Adjust for production - Corrected escaping
-    allow_credentials=True,
+    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:8000"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

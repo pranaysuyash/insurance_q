@@ -31,6 +31,7 @@ class PolicySummaryExtraction(BaseModel):
     exclusions: List[str] = Field(default_factory=list, description="Top 5 exclusions or things not covered")
     waiting_periods: List[str] = Field(default_factory=list, description="Any waiting periods mentioned")
     coverage_items: List[CoverageItem] = Field(default_factory=list, description="Individual coverage line items with limits")
+    executive_summary: List[str] = Field(default_factory=list, description="3-bullet plain-language summary: what's covered, key limits, what to watch")
 
 
 class InsuranceDocumentExtraction(BaseModel):

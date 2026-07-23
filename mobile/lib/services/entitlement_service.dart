@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../models/entitlement.dart';
+import '../models/operation_cost.dart';
 import '../models/qa_pack.dart';
 import 'app_state_store.dart';
 
@@ -60,13 +61,17 @@ class EntitlementService {
 
   // ── Q&A consumption ──────────────────────────────────────────────
 
-  /// Record a single Q&A usage event.
+  /// Record a usage event and track the operation that consumed it.
+  ///
+  /// [operation] identifies which feature triggered the consumption
+  /// (e.g. [OperationCost.askQuestion]). This enables per-operation
+  /// cost attribution in the UI.
   ///
   /// Consumption strategy:
   /// 1. If the user has remaining *subscription* questions this month, deduct there.
   /// 2. Otherwise, consume from the earliest-expiring *pack* (FIFO).
   /// 3. If neither is available, no-op (caller should gate before calling).
-  Future<void> recordQuestionUsed() async {
+  Future<void> recordQuestionUsed({String operation = OperationCost.askQuestion}) async {
     var ent = current();
 
     // Reset monthly counter if we've crossed a month boundary
@@ -80,11 +85,16 @@ class EntitlementService {
       );
     }
 
+    // Track per-operation usage for cost attribution.
+    final updatedUsage = Map<String, int>.from(ent.operationUsage);
+    updatedUsage[operation] = (updatedUsage[operation] ?? 0) + 1;
+
     // Step 1: try subscription questions first
     if (ent.hasSubscriptionQuestionsRemaining) {
       final updated = ent.copyWith(
         questionsUsedThisMonth: ent.questionsUsedThisMonth + 1,
         questionsResetAt: ent.questionsResetAt ?? _nextMonthStart(),
+        operationUsage: updatedUsage,
       );
       await save(updated);
       return;
@@ -107,6 +117,7 @@ class EntitlementService {
       final updated = ent.copyWith(
         packs: newPacks,
         questionsResetAt: ent.questionsResetAt ?? _nextMonthStart(),
+        operationUsage: updatedUsage,
       );
       await save(updated);
       debugPrint(

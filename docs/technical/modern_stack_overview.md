@@ -56,7 +56,9 @@ This document serves as the single source of truth for the Insurance Policy Pars
 This file should be updated whenever a major stack or architecture change is made.
 
 ## Mobile App
-- The primary client is a Flutter mobile app (Android/iOS), integrating with Firebase Auth and the backend API.
+- The primary client is a Flutter mobile app (Android/iOS), currently integrated with
+  Supabase Auth in the canonical production stack (with Firebase listed as a
+  historical migration reference only).
 - See [Mobile App Architecture](../../user_experience/mobile_app_architecture.md) for details on mobile flows, packages, and integration.
 
 # Changelog

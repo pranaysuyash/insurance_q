@@ -1,5 +1,10 @@
 # Insurance Policy Manager - API Specification
 
+> **Historical API contract snapshot.** This document is not the active API
+> authentication source for production. For the live identity and auth boundary,
+> use `docs/architecture/coverwise_canonical_architecture.md` and
+> `docs/planning/coverwise_auth_and_provider_execution_plan_2026-07-22.md`.
+
 ## 1. Introduction
 
 This document provides the specification for the RESTful APIs that support the Insurance Policy Manager mobile application. These APIs enable document management, information extraction, natural language querying, and other essential functionality for the application.
@@ -1668,7 +1673,7 @@ For validation errors, the details field contains field-specific error informati
 
 The API will be implemented using:
 - **Framework**: FastAPI (Python)
-- **Authentication**: JWT using Firebase Auth
+- **Authentication**: JWT from Supabase Auth sessions (historical doc still notes Firebase in legacy notes)
 - **Documentation**: OpenAPI/Swagger
 - **Testing**: Pytest
 

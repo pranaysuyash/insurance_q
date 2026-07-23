@@ -19,6 +19,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
+import '../widgets/shared/operation_usage_card.dart';
 import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import '../models/entitlement.dart';
@@ -236,6 +237,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               );
             },
           ),
+          // M18: Operation cost breakdown — shows per-operation Q&A usage
+          Consumer(
+            builder: (context, ref, _) {
+              final entitlement = ref.watch(entitlementProvider);
+              return OperationUsageCard(entitlement: entitlement);
+            },
+          ),
+          const SizedBox(height: 8),
           CoverWiseSectionLabel(S.settingsSectionAccount),
           CoverWiseSurface(
             child: Column(children: [

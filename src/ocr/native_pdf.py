@@ -8,7 +8,7 @@ specialist profile used before optional OCR/VLM routes.
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, Optional
 
 import fitz
 
@@ -61,6 +61,7 @@ def extract_native_pdf_nodes(
     pdf_bytes: bytes,
     *,
     parser_version: str = "pymupdf-native.v1",
+    pdf_password: Optional[str] = None,
 ) -> list[CIRNode]:
     """Extract observable layout/table/cell/figure nodes from a PDF.
 
@@ -72,6 +73,10 @@ def extract_native_pdf_nodes(
 
     nodes: list[CIRNode] = []
     document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    if document.needs_pass:
+        if not pdf_password or not document.authenticate(pdf_password):
+            document.close()
+            return []  # Can't extract nodes from locked PDF without password
     try:
         for page_index, page in enumerate(document, start=1):
             block_order = 0

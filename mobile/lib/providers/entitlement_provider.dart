@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../models/entitlement.dart';
+import '../models/operation_cost.dart';
 import '../models/qa_pack.dart';
 import '../services/billing_adapter.dart';
 import '../services/entitlement_service.dart';
@@ -103,8 +104,12 @@ class EntitlementNotifier extends Notifier<Entitlement> {
   }
 
   /// Record a Q&A usage event — consumes subscription first, then packs (FIFO).
-  Future<void> recordQuestionUsed() async {
-    await _service.recordQuestionUsed();
+  ///
+  /// [operation] identifies the feature that consumed the question
+  /// (defaults to [OperationCost.askQuestion]). This enables per-operation
+  /// cost attribution in the UI.
+  Future<void> recordQuestionUsed({String operation = OperationCost.askQuestion}) async {
+    await _service.recordQuestionUsed(operation: operation);
     state = _service.current();
   }
 

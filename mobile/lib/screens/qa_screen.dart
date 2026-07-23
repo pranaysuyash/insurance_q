@@ -8,6 +8,7 @@ import '../models/document_model.dart';
 import '../config/app_config.dart';
 import '../providers/questions_provider.dart';
 import '../widgets/shared/newsletter_signup_sheet.dart';
+import '../widgets/shared/agent_request_sheet.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
 import '../services/app_state_store.dart';
@@ -17,7 +18,6 @@ import '../services/lead_generation_service.dart';
 import '../widgets/shared/contextual_cta_card.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/loading_widget.dart';
-import '../widgets/shared/offline_banner.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../localization/app_localizations.dart';
@@ -289,7 +289,9 @@ class QaScreenState extends ConsumerState<QaScreen>
 
       if (answer.text.isNotEmpty) {
         // Deduct a question from subscription (first) or pack (FIFO)
-        await ref.read(entitlementProvider.notifier).recordQuestionUsed();
+        await ref.read(entitlementProvider.notifier).recordQuestionUsed(
+              operation: 'ask_question',
+            );
 
         ref.read(qaHistoryProvider.notifier).addItem(question, answer);
         try {
@@ -369,7 +371,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       ),
       body: Column(
         children: [
-          const OfflineBanner(),
+
           _QuestionBudgetBanner(
             onTapUpgrade: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const QaPacksScreen()),
@@ -1200,15 +1202,11 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
         NewsletterSignupSheet.show(context);
       },
       onContactAgent: () {
-        CoverWiseSnackBar.warning(
+        AgentRequestSheet.show(
           context,
-          'Contact an insurance advisor — upgrade to Plus for personalized guidance.',
-          actionLabel: S.upgrade,
-          onAction: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const QaPacksScreen()),
-            );
-          },
+          insurer: resolvedPolicy?.insurer,
+          documentType: resolvedPolicy?.documentType,
+          documentId: answer.documentId,
         );
       },
     );

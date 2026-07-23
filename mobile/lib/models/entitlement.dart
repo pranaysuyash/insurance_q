@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'operation_cost.dart';
 import 'qa_pack.dart';
 
 /// Subscription plan tiers for CoverWise monetization.
@@ -102,13 +104,22 @@ class Entitlement {
   /// Purchased Q&A packs, ordered by expiry (earliest first for FIFO consumption).
   final List<QaPack> packs;
 
+  /// Per-operation usage counters for the current billing period.
+  ///
+  /// Keys are [OperationCost] constants (e.g. `'ask_question'`).
+  /// Values are the number of times the operation was performed
+  /// this month/billing period. This enables transparent cost
+  /// attribution in the UI — users can see exactly what their
+  /// budget went toward.
+  final Map<String, int> operationUsage;
+
   const Entitlement({
     this.planTier = PlanTier.free,
     this.expiresAt,
     this.questionsUsedThisMonth = 0,
     this.questionsResetAt,
     this.packs = const [],
-  });
+    this.operationUsage = const {},  });
 
   PlanLimits get limits => planLimits[planTier]!;
 
@@ -162,12 +173,23 @@ class Entitlement {
 
   int get policiesRemaining => limits.maxPolicies; // actual remaining depends on current count
 
+  /// Get the usage count for a specific operation.
+  int operationCount(String operation) => operationUsage[operation] ?? 0;
+
+  /// Combined usage across all operations that cost budget.
+  int get totalOperationUsage =>
+      operationUsage.values.fold(0, (sum, v) => sum + v);
+
+  /// Whether operation usage was reset this period.
+  bool get hasOperationUsage => operationUsage.isNotEmpty;
+
   Map<String, dynamic> toJson() => {
         'plan_tier': planTier.name,
         'expires_at': expiresAt?.toIso8601String(),
         'questions_used_this_month': questionsUsedThisMonth,
         'questions_reset_at': questionsResetAt?.toIso8601String(),
         'packs': packs.map((p) => p.toJson()).toList(),
+        'operation_usage': operationUsage,
       };
 
   factory Entitlement.fromJson(Map<String, dynamic> json) => Entitlement(
@@ -185,6 +207,9 @@ class Entitlement {
                 .map((p) => QaPack.fromJson(p as Map<String, dynamic>))
                 .toList()
             : const [],
+        operationUsage: json['operation_usage'] != null
+            ? Map<String, int>.from(json['operation_usage'] as Map)
+            : const {},
       );
 
   @override
@@ -196,7 +221,8 @@ class Entitlement {
           expiresAt == other.expiresAt &&
           questionsUsedThisMonth == other.questionsUsedThisMonth &&
           questionsResetAt == other.questionsResetAt &&
-          packs.length == other.packs.length;
+          packs.length == other.packs.length &&
+          mapEquals(operationUsage, other.operationUsage);
 
   @override
   int get hashCode => Object.hash(
@@ -205,6 +231,7 @@ class Entitlement {
         questionsUsedThisMonth,
         questionsResetAt,
         packs.length,
+        Object.hashAll(operationUsage.entries.map((e) => MapEntry(e.key, e.value))),
       );
 
   Entitlement copyWith({
@@ -213,6 +240,7 @@ class Entitlement {
     int? questionsUsedThisMonth,
     DateTime? questionsResetAt,
     List<QaPack>? packs,
+    Map<String, int>? operationUsage,
   }) =>
       Entitlement(
         planTier: planTier ?? this.planTier,
@@ -220,5 +248,6 @@ class Entitlement {
         questionsUsedThisMonth: questionsUsedThisMonth ?? this.questionsUsedThisMonth,
         questionsResetAt: questionsResetAt ?? this.questionsResetAt,
         packs: packs ?? this.packs,
+        operationUsage: operationUsage ?? this.operationUsage,
       );
 }

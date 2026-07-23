@@ -9,12 +9,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/qa_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/family_screen.dart';
-import 'screens/family_visualization_screen.dart';import 'screens/more_screen.dart';
+import 'screens/family_visualization_screen.dart';
+import 'screens/more_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/claims_assistant_screen.dart';
 import 'screens/renewal_calendar_screen.dart';
@@ -34,6 +36,7 @@ import 'screens/profile_screen.dart';
 import 'screens/insurance_card_screen.dart';
 import 'screens/insurance_literacy_screen.dart';
 import 'screens/what_if_calculator_screen.dart';
+import 'screens/agent_requests_screen.dart';
 import 'screens/account_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/notification_preferences_screen.dart';
@@ -56,6 +59,7 @@ import 'providers/auth_provider.dart';
 import 'widgets/shared/global_error_boundary.dart';
 import 'widgets/shared/screen_error_boundary.dart';
 import 'widgets/shared/coverwise_snackbar.dart';
+import 'widgets/shared/offline_banner.dart';
 import 'theme/coverwise_theme.dart';
 import 'theme/coverwise_motion.dart';
 
@@ -64,89 +68,28 @@ void main() async {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Global error handlers are set up by GlobalErrorBoundary.initState()
-    // when the widget tree mounts. No need to duplicate them here.
-
-    AppConfig.validateReleaseConfiguration();
-    if (AppConfig.isProduction) {
-      debugPrint = (String? message, {int? wrapWidth}) {};
-    }
-    await Hive.initFlutter();
-
-    if (AppConfig.hasSupabaseAuthConfig) {
-      await AuthService.initializeAccountClient();
-    }
-
-    // R1.6 (2026-07-18): load install identity (install_id, is_reinstall,
-    // days_since_install, install_referrer_*) from SharedPreferences before
-    // AnalyticsService.init() runs, so the app_session_started event
-    // emitted from init() has accurate values. Must run before init().
-    await InstallService.ensureInitialized();
-
-    // Initialize principal encryption AFTER auth is ready but BEFORE opening encrypted boxes
-    // This ensures we have the principal ID for encryption key derivation
-    String principalId;
-    if (AuthService.hasAccountSession) {
-      // For authenticated sessions, use the account user ID
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      principalId = currentUser?.id ?? 'anonymous';
-    } else if (AppConfig.hasSupabaseAuthConfig) {
-      // For anonymous sessions, use the Supabase anonymous user ID when the
-      // project enables anonymous sign-ins. Some production projects disable
-      // that provider while still supporting email/OAuth accounts; in that
-      // case the account client remains available and local-only encryption is
-      // the safe startup fallback.
-      try {
-        final anonSession =
-            await Supabase.instance.client.auth.signInAnonymously();
-        principalId = anonSession.user?.id ?? 'anonymous';
-      } catch (error) {
-        debugPrint(
-          'Anonymous Supabase auth unavailable; using local principal: $error',
-        );
-        principalId = 'local-only-${InstallService.getInstallId()}';
-      }
+    // P0-01: Initialise Sentry crash reporting before any async work so
+    // startup errors (including Hive failures, key migration, etc.) are
+    // captured. The DSN is injected at build time via --dart-define;
+    // Sentry is silently disabled when the DSN is empty.
+    if (AppConfig.hasSentryConfig) {
+      await SentryFlutter.init(
+        (options) {
+          options.dsn = AppConfig.sentryDsn;
+          options.environment = AppConfig.environment;
+          options.release = AppConfig.appVersion;
+          options.tracesSampleRate = AppConfig.isProduction ? 0.1 : 1.0;
+        },
+        appRunner: () async {
+          // The appRunner callback runs the rest of startup inside
+          // Sentry's error-wrapped zone. All code below this block
+          // (up to runApp) is now covered by Sentry.
+          await _startup();
+        },
+      );
     } else {
-      // Local-only installs still need a stable principal. A timestamp here
-      // rotates the encryption key on every launch and makes existing Hive
-      // boxes unreadable. The persisted install id is stable until uninstall.
-      principalId = 'local-only-${InstallService.getInstallId()}';
+      await _startup();
     }
-
-    // Initialize PrincipalKeyService with the principal ID
-    await PrincipalKeyService().initForPrincipal(principalId);
-
-    // Migrate existing Hive boxes from device-key to principal-key encryption
-    await _migrateLegacyHiveBoxes();
-
-    // Now open encrypted Hive boxes
-    await HiveWorkspaceService.openForActivePrincipal();
-
-    // Analytics is initialized eagerly in _InsuranceAppState.initState()
-    // via ref.read(analyticsServiceProvider.notifier), which runs during
-    // runApp() after Hive/workspace boxes are open.
-    // The custom API anonymous identity and the Supabase principal are
-    // intentionally separate contracts. Acquire the API token only after the
-    // principal-scoped Hive/analytics workspace exists, so identity-created
-    // telemetry cannot race an unopened app-state box. AuthInterceptor still
-    // retains its first-request acquisition fallback.
-    unawaited(_warmAnonymousSession());
-    // Reconcile any local consent decisions that could not reach the server
-    // during onboarding or an offline upload. The service is principal-scoped
-    // and idempotent by current-decision signature.
-    unawaited(ConsentSyncService().syncAll());
-
-    // Check if onboarding has been completed
-    final prefs = await SharedPreferences.getInstance();
-    final hasOnboarded = prefs.getBool('onboarding_complete') ?? false;
-
-    runApp(
-      GlobalErrorBoundary(
-        child: ProviderScope(
-          child: InsuranceApp(showOnboarding: !hasOnboarded),
-        ),
-      ),
-    );
   }, (error, stackTrace) {
     // Catch zone errors that escape the framework
     if (kDebugMode) {
@@ -156,6 +99,93 @@ void main() async {
       debugPrint('==================');
     }
   });
+}
+
+/// All startup logic after Sentry initialisation (or skip if no DSN).
+Future<void> _startup() async {
+  // Global error handlers are set up by GlobalErrorBoundary.initState()
+  // when the widget tree mounts. No need to duplicate them here.
+
+  AppConfig.validateReleaseConfiguration();
+  if (AppConfig.isProduction) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+  await Hive.initFlutter();
+
+  if (AppConfig.hasSupabaseAuthConfig) {
+    await AuthService.initializeAccountClient();
+  }
+
+  // R1.6 (2026-07-18): load install identity (install_id, is_reinstall,
+  // days_since_install, install_referrer_*) from SharedPreferences before
+  // AnalyticsService.init() runs, so the app_session_started event
+  // emitted from init() has accurate values. Must run before init().
+  await InstallService.ensureInitialized();
+
+  // Initialize principal encryption AFTER auth is ready but BEFORE opening encrypted boxes
+  // This ensures we have the principal ID for encryption key derivation
+  String principalId;
+  if (AuthService.hasAccountSession) {
+    // For authenticated sessions, use the account user ID
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    principalId = currentUser?.id ?? 'anonymous';
+  } else if (AppConfig.hasSupabaseAuthConfig) {
+    // For anonymous sessions, use the Supabase anonymous user ID when the
+    // project enables anonymous sign-ins. Some production projects disable
+    // that provider while still supporting email/OAuth accounts; in that
+    // case the account client remains available and local-only encryption is
+    // the safe startup fallback.
+    try {
+      final anonSession =
+          await Supabase.instance.client.auth.signInAnonymously();
+      principalId = anonSession.user?.id ?? 'anonymous';
+    } catch (error) {
+      debugPrint(
+        'Anonymous Supabase auth unavailable; using local principal: $error',
+      );
+      principalId = 'local-only-${InstallService.getInstallId()}';
+    }
+  } else {
+    // Local-only installs still need a stable principal. A timestamp here
+    // rotates the encryption key on every launch and makes existing Hive
+    // boxes unreadable. The persisted install id is stable until uninstall.
+    principalId = 'local-only-${InstallService.getInstallId()}';
+  }
+
+  // Initialize PrincipalKeyService with the principal ID
+  await PrincipalKeyService().initForPrincipal(principalId);
+
+  // Migrate existing Hive boxes from device-key to principal-key encryption
+  await _migrateLegacyHiveBoxes();
+
+  // Now open encrypted Hive boxes
+  await HiveWorkspaceService.openForActivePrincipal();
+
+  // Analytics is initialized eagerly in _InsuranceAppState.initState()
+  // via ref.read(analyticsServiceProvider.notifier), which runs during
+  // runApp() after Hive/workspace boxes are open.
+  // The custom API anonymous identity and the Supabase principal are
+  // intentionally separate contracts. Acquire the API token only after the
+  // principal-scoped Hive/analytics workspace exists, so identity-created
+  // telemetry cannot race an unopened app-state box. AuthInterceptor still
+  // retains its first-request acquisition fallback.
+  unawaited(_warmAnonymousSession());
+  // Reconcile any local consent decisions that could not reach the server
+  // during onboarding or an offline upload. The service is principal-scoped
+  // and idempotent by current-decision signature.
+  unawaited(ConsentSyncService().syncAll());
+
+  // Check if onboarding has been completed
+  final prefs = await SharedPreferences.getInstance();
+  final hasOnboarded = prefs.getBool('onboarding_complete') ?? false;
+
+  runApp(
+    GlobalErrorBoundary(
+      child: ProviderScope(
+        child: InsuranceApp(showOnboarding: !hasOnboarded),
+      ),
+    ),
+  );
 }
 
 /// Migrates legacy Hive boxes from device-key encryption to principal-scoped DEK encryption
@@ -239,7 +269,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         if (principalId != null) {
           final preserveWorkspace =
               AuthService.consumeAnonymousWorkspaceClaim();
-          unawaited(_reopenWorkspaceForPrincipal(
+          unawaited(_handleAuthenticatedSessionTransition(
             principalId,
             preserveCurrentWorkspace: preserveWorkspace,
           ).then((_) => _retryPendingUploads()));
@@ -277,6 +307,23 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       }
     } catch (error) {
       debugPrint('Pending upload reconciliation failed: $error');
+    }
+  }
+
+  Future<void> _handleAuthenticatedSessionTransition(
+    String principalId, {
+    bool preserveCurrentWorkspace = false,
+  }) async {
+    await _reopenWorkspaceForPrincipal(
+      principalId,
+      preserveCurrentWorkspace: preserveCurrentWorkspace,
+    );
+    if (!preserveCurrentWorkspace) return;
+    try {
+      await AuthService.claimAnonymousData();
+    } catch (error) {
+      debugPrint(
+          'Anonymous workspace claim failed after auth transition: $error');
     }
   }
 
@@ -515,7 +562,8 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
               screenName: 'policy-detail',
               child: _MissingArgsScreen(
                 title: 'Policy details',
-                message: 'No policy was specified. Open a policy from Documents.',
+                message:
+                    'No policy was specified. Open a policy from Documents.',
                 recoveryRoute: '/documents',
                 recoveryLabel: 'Open documents',
               ),
@@ -569,6 +617,10 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/family/visualization': (context) => const ScreenErrorBoundary(
               screenName: 'family-visualization',
               child: FamilyVisualizationScreen(),
+            ),
+        '/agent-requests': (context) => const ScreenErrorBoundary(
+              screenName: 'agent-requests',
+              child: AgentRequestsScreen(),
             ),
         '/notifications': (context) => const ScreenErrorBoundary(
               screenName: 'notifications',
@@ -682,40 +734,47 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     }
 
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
+      body: Column(
         children: [
-          const ScreenErrorBoundary(
-            screenName: 'dashboard',
-            child: DashboardScreen(),
+          const OfflineBanner(),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                const ScreenErrorBoundary(
+                  screenName: 'dashboard',
+                  child: DashboardScreen(),
+                ),
+                _visitedTabs.contains(1)
+                    ? const ScreenErrorBoundary(
+                        screenName: 'documents',
+                        child: DocumentsScreen(),
+                      )
+                    : const SizedBox.shrink(),
+                _visitedTabs.contains(2)
+                    ? ScreenErrorBoundary(
+                        screenName: 'qa',
+                        child: QaScreen(
+                          key: ValueKey('qa-tab'),
+                          isActive: _selectedIndex == 2,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+                _visitedTabs.contains(3)
+                    ? const ScreenErrorBoundary(
+                        screenName: 'family',
+                        child: FamilyScreen(),
+                      )
+                    : const SizedBox.shrink(),
+                _visitedTabs.contains(4)
+                    ? const ScreenErrorBoundary(
+                        screenName: 'more',
+                        child: MoreScreen(),
+                      )
+                    : const SizedBox.shrink(),
+              ],
+            ),
           ),
-          _visitedTabs.contains(1)
-              ? const ScreenErrorBoundary(
-                  screenName: 'documents',
-                  child: DocumentsScreen(),
-                )
-              : const SizedBox.shrink(),
-          _visitedTabs.contains(2)
-              ? ScreenErrorBoundary(
-                  screenName: 'qa',
-                  child: QaScreen(
-                    key: ValueKey('qa-tab'),
-                    isActive: _selectedIndex == 2,
-                  ),
-                )
-              : const SizedBox.shrink(),
-          _visitedTabs.contains(3)
-              ? const ScreenErrorBoundary(
-                  screenName: 'family',
-                  child: FamilyScreen(),
-                )
-              : const SizedBox.shrink(),
-          _visitedTabs.contains(4)
-              ? const ScreenErrorBoundary(
-                  screenName: 'more',
-                  child: MoreScreen(),
-                )
-              : const SizedBox.shrink(),
         ],
       ),
       bottomNavigationBar: NavigationBar(

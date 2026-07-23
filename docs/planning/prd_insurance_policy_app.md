@@ -649,7 +649,7 @@ Our app differentiates through:
 
 2. **Backend Services**
    - Cloud Provider: AWS, GCP, or Azure
-   - Authentication: Firebase Auth or Amazon Cognito
+   - Authentication: Supabase Auth (canonical for current control plane); Firebase Auth or Amazon Cognito are historical/alternative migration options
    - Storage: Firebase Storage, S3, or equivalent
    - Functions: AWS Lambda, Google Cloud Functions, or Azure Functions
    - Database: Firestore, DynamoDB, or equivalent

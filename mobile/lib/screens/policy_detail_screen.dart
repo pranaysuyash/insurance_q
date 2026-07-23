@@ -18,6 +18,7 @@ import '../utils/date_validation.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/contextual_cta_card.dart';
 import '../widgets/shared/newsletter_signup_sheet.dart';
+import '../widgets/shared/agent_request_sheet.dart';
 import '../services/lead_generation_service.dart';
 import 'claim_assistance_screen.dart';
 import 'coverage_gap_screen.dart';
@@ -171,6 +172,7 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
       return _buildUnverifiedSummaryScaffold(
         context: context,
         documentId: backendDocumentId,
+        summary: summary,
         reason: summary.missingEvidenceReason ??
             'This summary is missing critical fields and cannot be safely displayed yet.',
       );
@@ -201,14 +203,19 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
         ],
       ),
       body: ListView(
+        key: const ValueKey('policy_detail_body'),
         padding: const EdgeInsets.only(bottom: 32),
         children: [
-          CoverWisePageHeader(
+CoverWisePageHeader(
             title: canonicalTypeName(policyType),
             subtitle: summary.insurer == null
                 ? 'Your policy, translated into the details that matter.'
-                : '${summary.insurer} • Your policy at a glance',
+                : '${summary.insurer} \u2022 Your policy at a glance',
           ),
+          if (summary.executiveSummary.isNotEmpty) ...[
+            _ExecutiveSummaryCard(summary: summary),
+            const SizedBox(height: 12),
+          ],
           if (_overrides.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -1145,12 +1152,84 @@ String buildShareSummaryText(PolicySummary summary) {
     }
   }
   buffer.writeln('');
-  buffer.writeln('Shared via CoverWise — Your Insurance Companion');
+  buffer.writeln('Shared via CoverWise \u2014 Your Insurance Companion');
   return buffer.toString();
 }
 
 void _shareSummary(PolicySummary summary) {
   SharePlus.instance.share(ShareParams(text: buildShareSummaryText(summary)));
+}
+
+class _ExecutiveSummaryCard extends StatelessWidget {
+  final PolicySummary summary;
+  const _ExecutiveSummaryCard({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final bullets = summary.executiveSummary.take(3).toList();
+
+    if (bullets.isEmpty) return const SizedBox.shrink();
+
+    return CoverWiseSurface(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CoverWiseIconBadge(
+                  icon: Icons.summarize_rounded,
+                  color: cs.primary,
+                  size: 36,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'At a glance',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...bullets.map((bullet) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 5),
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: cs.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          bullet,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            height: 1.45,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Phase 0 P0-0.4 (trust audit, 2026-07-18): the unverified-summary
@@ -1163,19 +1242,20 @@ void _shareSummary(PolicySummary summary) {
 Widget _buildUnverifiedSummaryScaffold({
   required BuildContext context,
   required String documentId,
+  required PolicySummary summary,
   required String reason,
 }) {
-  // Theme-derived warning color. The previous build used
-  // CoverWiseIconBadge with a `tone` parameter that doesn't exist on
-  // the current widget (it takes `icon` + `color`). Using a
-  // theme-derived warning color keeps this consistent with the
-  // existing policy detail screen and works in dark mode.
+  // Theme-derived warning color.
   final warningColor = Theme.of(context).colorScheme.tertiary;
   return Scaffold(
     appBar: AppBar(title: const Text('Policy details')),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        if (summary.executiveSummary.isNotEmpty) ...[
+          _ExecutiveSummaryCard(summary: summary),
+          const SizedBox(height: 24),
+        ],
         CoverWiseIconBadge(
           icon: Icons.gpp_maybe_outlined,
           color: warningColor,
@@ -1199,7 +1279,7 @@ Widget _buildUnverifiedSummaryScaffold({
         Text(
           'Your policy document is on file, but the extracted summary is missing one or more '
           'critical fields (policy number, insurer, dates, or coverage). Showing those fields '
-          'without evidence could mislead you, so CoverWise blocks the summary view until the '
+          'without evidence could mislead you, so CoverWise blocks the detailed summary view until the '
           'extraction is complete or the document is re-uploaded with clearer scans.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -1317,15 +1397,11 @@ class _PolicyCtas extends StatelessWidget {
         NewsletterSignupSheet.show(context);
       },
       onContactAgent: () {
-        CoverWiseSnackBar.warning(
+        AgentRequestSheet.show(
           context,
-          'Contact an insurance advisor — ask about your policy to get started.',
-          actionLabel: 'Ask a question',
-          onAction: () => Navigator.pushNamed(
-            context,
-            '/qa',
-            arguments: documentId,
-          ),
+          insurer: summary.insurer,
+          documentType: summary.documentType,
+          documentId: documentId,
         );
       },
     );

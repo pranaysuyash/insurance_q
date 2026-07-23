@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, AsyncGenerator
 from dataclasses import dataclass, field
 from openai import AsyncOpenAI
 from src.config.settings import settings
@@ -299,6 +299,93 @@ class LLMClient:
                         break
                     logger.warning(
                         "LLM call %s attempt %d/%d failed: %s", model, attempt, max_retries, e
+                    )
+                    if attempt < max_retries:
+                        wait = min(2 ** attempt, 30)
+                        await asyncio.sleep(wait)
+
+        logger.error("All LLM models failed (last model: %s), last error: %s", model, last_error)
+        raise last_error or RuntimeError("No LLM models available")
+
+    async def generate_stream(
+        self,
+        messages: list[dict],
+        temperature: float = 0.2,
+        max_tokens: Optional[int] = None,
+        max_retries: int = 3,
+        fallback_models: Optional[list[str]] = None,
+    ) -> AsyncGenerator[str, None]:
+        """Generate streaming response - yields tokens as they arrive."""
+        models_to_try = []
+        if self.client is not None:
+            models_to_try.append(self.model)
+        models_to_try.extend(fallback_models or [])
+        if self._groq_enabled and settings.groq_chat_model not in models_to_try:
+            models_to_try.append(settings.groq_chat_model)
+        if self._ollama_enabled:
+            if settings.ollama_chat_model not in models_to_try:
+                models_to_try.append(settings.ollama_chat_model)
+            if settings.ollama_alt_model not in models_to_try:
+                models_to_try.append(settings.ollama_alt_model)
+        if self._mlx_enabled and settings.mlx_model not in models_to_try:
+            models_to_try.append(settings.mlx_model)
+
+        def provider_available(model: str) -> bool:
+            if self._groq_enabled and model == settings.groq_chat_model:
+                return True
+            if self._ollama_enabled and (
+                model in (settings.ollama_chat_model, settings.ollama_alt_model)
+                or model.startswith("ollama/")
+            ):
+                return True
+            if self._mlx_enabled and (
+                model == settings.mlx_model or model.startswith("mlx-community/")
+            ):
+                return True
+            return self.client is not None
+
+        models_to_try = [model for model in models_to_try if provider_available(model)]
+        if not models_to_try:
+            raise RuntimeError(
+                "No LLM provider is configured; set OPENAI_API_KEY or enable a local/compatible provider"
+            )
+        last_error = None
+
+        for model in models_to_try:
+            client = self._select_client(model)
+            for attempt in range(1, max_retries + 1):
+                try:
+                    kwargs = dict(
+                        model=model,
+                        messages=messages,
+                        stream=True,
+                    )
+                    if not (model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3")):
+                        kwargs["temperature"] = temperature
+                    if max_tokens is not None:
+                        if model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3"):
+                            kwargs["max_completion_tokens"] = max_tokens
+                        else:
+                            kwargs["max_tokens"] = max_tokens
+
+                    async with self._semaphore:
+                        stream = await client.chat.completions.create(**kwargs)
+
+                    async for chunk in stream:
+                        if chunk.choices and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+
+                    if model != self.model:
+                        logger.info("LLM fallback: %s → %s", self.model, model)
+                    return
+
+                except Exception as e:
+                    last_error = e
+                    if self._is_permanent_error(e):
+                        logger.error("Permanent error on %s, trying next model: %s", model, e)
+                        break
+                    logger.warning(
+                        "LLM stream %s attempt %d/%d failed: %s", model, attempt, max_retries, e
                     )
                     if attempt < max_retries:
                         wait = min(2 ** attempt, 30)

@@ -31,6 +31,57 @@ static findings below are Tier 1 unless a test or prior runtime audit is named.
 
 ## J02–J07 journey state taxonomy (ideal/current/future)
 
+## Addendum — continuation pack (2026-07-22, live stack `127.0.0.1:8010`)
+
+Observed in this pass:
+
+- J02/J03/J04 non-happy gates:
+  - Upload without `processing_consent` still returns `422` + `processing_consent_required`.
+  - `/documents/upload` with valid consent returns `202` and a single `documents[]` row.
+  - Same file re-upload under same anonymous owner returns `idempotent_replay: true`.
+- J04/J05 path:
+  - Status moved `received → processing → completed_summary_partial` for
+    `tests/test_data/sample_insurance.pdf` in ~2 seconds.
+  - `/documents/{id}/summary` currently returns 404 (`No policy summary found ...`) for this sample while status is terminal summary-partial.
+  - `/documents/{id}/pages/1` renders an image (`14,482` bytes), showing page artifact availability in stack state when summary is partial.
+- J06 evidence:
+  - `/evidence/{id}/field-citations` returned `[]` for this sample document.
+- J07 retrieval:
+  - Canonical `/query` and compatibility `/documents/query` both returned a non-empty answer + source context for an in-scope doc when query was in-band.
+  - Cross-owner `/query` and `/documents/query` returned explicit no-information fallbacks with zero confidence and no sources.
+- J03 claim guardrail:
+  - `POST /user/claim-anonymous` with an account-required token shape (`anonymous_token` but anonymous principal) remains `403 An account is required to claim data`.
+
+Observed branch map updates:
+
+| Branch | Live result | Closure status |
+|---|---|---|
+| J02 consent required | closed (422 + typed code) | evidence captured |
+| J04 idempotent replay | closed (`idempotent_replay` true) | evidence captured |
+| J04 processing lifecycle | partial closure (`completed_summary_partial`) | open at typed summary completeness |
+| J06 source/page availability | partially closed (page artifact exists, citations empty) | open on typed provenance display |
+| J07 two-owner query isolation | closed (`fallback` + no-cross-owner data) | evidence captured |
+| J03 account-claim path | not closed (guardrail + auth context gap) | open |
+
+### 2026-07-22 live probe transcript summary
+
+- `POST /documents/upload` (without consent) -> `422 processing_consent_required`.
+- `POST /documents/upload` (with consent) -> `202` with document id `45915ab2-e7b8-4739-8d00-22917da9b4b0`.
+- `GET /documents/{id}/status` -> `received`, then `processing`, then `completed_summary_partial`.
+- `GET /documents/{id}/summary` -> `404 No policy summary found for document ...`.
+- `GET /documents/{id}/pages/1` -> HTTP 200 image bytes (`14,482` bytes).
+- `POST /query` -> answer + source when in-scope owner.
+- `POST /documents/query` -> answer + source when form `document_ids[]` provided.
+- `/query` owner-mismatch -> `No relevant information found in documents.` + confidence `0.0`.
+- `/documents/query` owner-mismatch -> same fallback payload shape (`confidence` low + no sources).
+
+### Next-pass closure priority (post this probe)
+
+1. Account-authenticated claim/restart replay path:
+   - anonymous upload -> account claim -> restart -> readback across `/documents/{id}/summary`, `/evidence/{id}/field-citations`, `/documents/{id}/pages/1`.
+2. Confirm whether partial terminal state (`completed_summary_partial`) should present neutral-policy UI signals and explicit next actions without implying verification.
+3. Verify cross-owner replay after account claim, including local encrypted principal migration visibility.
+
 Use this as the baseline before execution work:
 
 - **Ideal**: desired contract and user trust outcomes.
@@ -1431,3 +1482,169 @@ identity. The UI now derives submit availability from the text controller, and
 `QaAnswer` passes the top-level document identity into source parsing when a
 source omits its own identifier. Source-reference coverage passes 8 tests (Tier
 2). Live backend Q&A and authenticated source navigation remain unverified.
+
+## Addendum — same-session J02–J07 continuation probe on `127.0.0.1:8010` (2026-07-22)
+
+This pass reuses a running API stack and captures the highest-priority frontier
+branches with concrete tokens/doc IDs:
+
+- **J02/J04 consent gate**
+  - `POST /documents/upload` with `processing_consent=false` returns
+    `422` with `code=processing_consent_required`.
+  - malformed token path remains hard-failed with `401` on upload.
+- **J04 idempotent replay**
+  - same anonymous owner uploads the same `sample_insurance.pdf` sample twice.
+  - second response keeps the same `document.id` and sets
+    `documents[0].idempotent_replay=true`.
+- **J05 processing state**
+  - fresh uploads report `status=received` then `processing`, then
+    `completed_summary_partial` in repeated polls.
+  - `/documents/{id}/summary` remains `404 No policy summary found...` during this lane.
+  - `/evidence/{id}/field-citations` also returns `404 Document not found` while
+    processing is partial/early.
+- **J06 cross-owner isolation**
+  - owner A and owner B are distinct anonymous principals.
+  - owner B cannot read owner A across `/documents/{id}`, `/documents/{id}/status`,
+    or `/evidence/{id}/field-citations`.
+  - this is strong owner-boundary evidence for not-found/failure-safe behavior.
+- **J07 canonical and compatibility query**
+  - `/query` with in-scope owner A doc and question can return answer
+    scaffold plus sources and confidence metadata.
+  - `/query` for cross-owner attempts returns no-relevant fallback with zero
+    confidence.
+  - `/documents/query` remains a compatibility transport and in this stack it
+    required list form fields (`document_ids[]`) for multi-value parsing.
+
+Opened from this continuation:
+
+- positive branch proof for the partial-completion lane in this same session.
+  Route-level 404/Not Found behavior confirms the summary/evidence surfaces
+  remain fail-closed while `status=completed_summary_partial`,
+- two-principal authenticated replay/restart after claim,
+- two-principal page-artifact/source-page navigation under real user claim/restart.
+
+The open gates remain the same frontier family from prior runs, but now include
+one concrete behavioral point: `/documents/query` route validation is list-form
+sensitive in runtime and should be treated as part of the compatibility-retirement
+decision.
+
+## Addendum — focused lane repeat (2026-07-22, completed_summary_partial behavior)
+
+The same stack was reused in a tighter slice to map one document through the
+`received -> completed_summary_partial` branch and capture the exact downstream
+surface behavior:
+
+- **Document 1 (`sample_insurance.pdf`) status shape**
+  - upload accepted with `status=received` and processing metadata persisted.
+  - status polling reached `completed_summary_partial` within ~2–3s and remained
+    there across repeated checks (no promotion to fully completed summary in this
+    run).
+  - processing result included classification metadata (`document_type`,
+    `policy_number`) while still not exposing policy summary/evidence.
+
+- **Evidence/evidence-like endpoints (same principal + same token)**
+  - `/documents/{id}/summary` -> `No policy summary found for document ...` or
+    `Document not found` depending on token lineage context.
+  - `/documents/{id}/evidence`, `/documents/{id}/sources`,
+    `/documents/{id}/field-citations` -> `Not Found` in partial state.
+
+- **Q&A in partial state**
+  - `/query` with `document_ids` containing this document can return
+    `answer + citations + confidence=0.8` and `citation_status:"verified"` when
+    source text exists, even when LLM post-processing was unavailable (the
+    response is prefixed with `[LLM unavailable — showing raw context]` and still
+    carries provenance fields).
+  - `/query` with empty text and cross-owner principals continues to produce
+    safe no-relevant fallbacks (`confidence: 0.0`, `answer:"No relevant ..."`).
+
+- **Compatibility route behavior (same lane)**
+  - `/documents/query` returns equivalent answer/citation metadata in this lane,
+    and remains owner-scoped on both positive and no-relevant branches.
+
+Interpretation: this run strengthens J05→J06/J07 boundary clarity that
+`completed_summary_partial` is a deliberate non-blocking terminal class and that
+partial extraction can feed constrained Q&A while keeping summary/evidence routes
+closed until the backend deems content complete.
+
+
+## Addendum — claim-route guardrail and same-stack validation (2026-07-22)
+
+A direct `/user/claim-anonymous` probe was executed on `127.0.0.1:8010` to make the identity-claim frontier explicit:
+
+- `POST /user/claim-anonymous` with a valid anonymous caller token (not an account token):
+  - HTTP `403`
+  - body: `{"detail":"An account is required to claim data"}`
+- Same anonymous caller with a malformed `anonymous_token` in the body:
+  - HTTP `403`
+  - same account-required guard is enforced before payload parsing validation can complete for this unauthorized principal.
+- Anonymous caller with missing `anonymous_token` payload:
+  - HTTP `422` validation error (`missing field anonymous_token`)
+
+Interpretation: this validates that claim migration is intentionally account-only and not accessible from anonymous sessions, and keeps the J03 replay frontier scoped to account-token-backed migration with server-authority ownership transfer.
+
+## Addendum — J02–J07 evidence contract micro-diagram and local claim smoke check (2026-07-22)
+
+Latest in this pass adds a compact end-to-end evidence graph and one route-only
+identity smoke check.
+
+```mermaid
+flowchart TD
+    A[J02: launch] --> A1{Onboarding completion cached?}
+    A1 -->|No| A2["Collect terms/analytics consent"]
+    A1 -->|Yes| B[J03: workspace ready]
+    A2 -->|required terms decline| A3["Limited mode + explicit warning"]
+    A2 -->|accept / continue| B
+    A3 --> B
+
+    B --> B1{"Account transition now?"}
+    B1 -->|Stay anon| C[J04 upload path]
+    B1 -->|Sign in / claim| D[J03 claim path]
+    D -->|anonymous caller| D1["403 from /user/claim-anonymous (guardrail confirmed)"]
+    D -->|account caller| D2["transfer_owner + identity_link_status=completed"]
+
+    C --> C1{"Consent and validation"}
+    C1 -->|Missing consent| C2["422 processing_consent_required"]
+    C1 -->|Bad auth| C3["401/403 auth gate"]
+    C1 -->|Duplicate source| C4["idempotent_replay=true"]
+    C1 -->|Accepted| C5["accepted status + enqueue"]
+    C4 --> C5
+
+    C5 --> E[J05 process class]
+    E -->|received->processing->completed_summary_partial| F[J06 evidence read blocked (partial)"]
+    E -->|completed| G[J06 summary/evidence available"]
+    E -->|failed/ocr_required/partial| H[J05 recovery and explicit terminal state"]
+
+    F -->|retry/restart| E
+    H -->|replace/retry or wait| C
+    G --> I[J07 query]
+
+    I -->|owner match + context| J["cited answer + confidence"]
+    I -->|owner mismatch / no-context| K["fallback no-relevant + confidence 0.0"]
+    I -->|timeout/weak evidence| L["safe unknown + follow-up"]
+    J --> M[J07/next actions + history + usage trace"]
+    K --> M
+    L --> M
+```
+
+### Route-only J03 proof captured this pass
+
+- `uv run pytest tests/test_identity_link_service.py tests/test_document_owner_isolation.py -q`
+  — 17/17 passed (identity-link + owner-isolation behavior at service level).
+- Direct claim route execution with account token + mocked transfer:
+  - `POST /user/claim-anonymous` returned `200` and `identity_link_status: completed`
+  - one transfer from `anon` → `account` executed with `transferred_documents` value.
+- Anonymous caller claim guardrail remains confirmed:
+  - `POST /user/claim-anonymous` with anonymous Authorization token returned `403`.
+- Current local claim smoke does **not** cover full deployed restart/re-play across
+  backend services with active local encrypted store migration; that is still open.
+
+Closure status after this pass:
+
+| Frontier branch | Closure status |
+|---|---|
+| J03 claim route contract and account-gated access | closed (local route-level, mocked transfer) |
+| J02/J03 consent/server/onboarding contract split | partially open until server receipt + replay proof lands |
+| J04 upload/replay | closed at contract level (`idempotent_replay` and 422 branch) |
+| J05 partial/terminal classing | closed (partial + failed states stay non-claiming) |
+| J06 evidence availability gate | open for fully completed cross-owner proof |
+| J07 cross-owner/citation-source navigation after claim restart | open |

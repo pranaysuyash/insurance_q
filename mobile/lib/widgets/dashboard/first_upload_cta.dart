@@ -47,16 +47,39 @@ class FirstUploadCta extends StatelessWidget {
             Semantics(
               label:
                   'Your original policy is always available for you to review. We process it securely on our servers.',
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Column(
                 children: [
-                  Icon(Icons.verified_user_outlined, size: 18),
-                  SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Your original policy is always available. We process it securely to generate summaries.',
-                      textAlign: TextAlign.center,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.verified_user_outlined, size: 18),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Your original policy is always available. We process it securely to generate summaries.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 16),
+                      SizedBox(width: 6),
+                      Flexible(                          child: Text(
+                            'CoverWise is an information broker, not an insurer or agent. '
+                            'All policy data is for reference only.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.35,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

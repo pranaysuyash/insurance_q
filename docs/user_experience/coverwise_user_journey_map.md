@@ -353,6 +353,107 @@ flowchart TD
     G1 --> A1
 ```
 
+### J02–J07 per-journey end-to-end diagrams (happy, non-happy, optional)
+
+```mermaid
+flowchart LR
+    %% J02
+    subgraph J02["J02 Cold start + onboarding"]
+      J02_A["Open app"] --> J02_B{"Onboarding complete?"}
+      J02_B -- No --> J02_C["Show privacy/scope/terms"]
+      J02_B -- Yes --> J02_E["Workspace-ready home"]
+      J02_C --> J02_D{"Required terms?"}
+      J02_D -- Accept --> J02_F["Persist completion + purpose record"]
+      J02_D -- Decline --> J02_G["Limited mode with explicit warning"]
+      J02_D -- Skip --> J02_G
+      J02_G --> J02_E
+      J02_F --> J02_E
+    end
+
+    %% J03
+    subgraph J03["J03 Identity and ownership"]
+      J03_A["Use home workspace"] --> J03_B{"Stay anonymous or claim now?"}
+      J03_B -- Anonymous --> J03_C["Continue with anonymous principal"]
+      J03_B -- Sign-in --> J03_D["Auth callback"]
+      J03_D --> J03_E{"Auth success?"}
+      J03_E -- No --> J03_F["Retry / reset / support"]
+      J03_E -- Yes --> J03_G["Claim anonymous workspace"]
+      J03_F --> J03_D
+      J03_G --> J03_H["Principal namespace migration"]
+      J03_C --> J03_I["Owner-scoped operations"]
+      J03_H --> J03_I
+    end
+
+    %% J04
+    subgraph J04["J04 Upload"]
+      J04_A["Select source"] --> J04_B{"Selection mode"}
+      J04_B -- File --> J04_C["Validate format/size"]
+      J04_B -- Sample (opt) --> J04_C
+      J04_B -- Camera (future) --> J04_C
+      J04_C --> J04_D{"Validation + consent"}
+      J04_D -- Fail --> J04_E["Return actionable error"]
+      J04_D -- Consent missing --> J04_F["No upload + limited path"]
+      J04_D -- Pass --> J04_G["Create outbox envelope"]
+      J04_E --> J04_C
+      J04_F --> J04_G
+      J04_G --> J04_H{"Online?"}
+      J04_H -- Offline --> J04_I["Persist local pending"]
+      J04_H -- Online --> J04_J["Mark received/processing"]
+      J04_I --> J04_H
+    end
+
+    %% J05
+    subgraph J05["J05 Processing"]
+      J05_A["Worker lease attempt"] --> J05_B{"Lease acquired?"}
+      J05_B -- No --> J05_C["Backoff + bounded retry"]
+      J05_B -- Yes --> J05_D["OCR/extraction/parser"]
+      J05_C --> J05_B
+      J05_D --> J05_E{"Terminal class"}
+      J05_E -- Partial --> J05_F["Partial result + repair hint"]
+      J05_E -- OCR required --> J05_G["OCR path + retry"]
+      J05_E -- Failed --> J05_H["Failure state + operator-visible reason"]
+      J05_E -- Completed --> J05_I["Evidence ready / summary state"]
+      J05_E --> J05_H
+      J05_G --> J05_D
+      J05_F --> J05_I
+      J05_I --> J05_J["Store classification + provenance"]
+    end
+
+    %% J06
+    subgraph J06["J06 Evidence review"]
+      J06_A["Open policy detail"] --> J06_B{"Owner check"}
+      J06_B -- No --> J06_X["Owner denied"]
+      J06_B -- Yes --> J06_C["Load summary + citations + pages"]
+      J06_C --> J06_D{"Evidence state"}
+      J06_D -- Verified --> J06_E["Show value + source/page"]
+      J06_D -- Unknown / stale --> J06_F["Show not verified + action"]
+      J06_D -- Empty --> J06_G["Prompt reprocess / replace"]
+      J06_E --> J06_H["Capture user action"]
+      J06_F --> J06_H
+      J06_G --> J06_H
+      J06_H --> J06_I["Audit state + history"]
+    end
+
+    %% J07
+    subgraph J07["J07 Q&A"]
+      J07_A["Ask natural-language question"] --> J07_B{"Owner scoped context"}
+      J07_B -- No owner scope --> J07_C["400/403-style scope block"]
+      J07_B -- Owner yes --> J07_D{"Retrieval confidence"}
+      J07_D -- Strong --> J07_E["Cited answer + confidence"]
+      J07_D -- Weak --> J07_F["Safe not-found + follow-up"]
+      J07_D -- Timeout --> J07_G["Retry + fallback template"]
+      J07_F --> J07_H["History + usage counters"]
+      J07_G --> J07_H
+      J07_E --> J07_H
+      J07_C --> J07_H
+    end
+
+    J03_I --> J04_A
+    J04_J --> J05_A
+    J05_J --> J06_A
+    J06_H --> J07_A
+```
+
 ### Diagram legend
 
 - **Solid flow**: happy-chain progression.
@@ -635,9 +736,37 @@ flowchart TD
 | J02 | Onboarding path and consent gates remain behaviorally distinct | whether onboarding/consent is a hard server-enforced launch contract |
 | J03 | Anonymous upload + claim path observed; local migration hardening continues through tests | two-principal authenticated replay/restart across local + backend not yet closed |
 | J04 | Upload consent/auth/replay contract branches observed | proof that durable outbox branch is used for every production upload path |
-| J05 | failure and partial branches produce non-claiming policy state, 404-safe summary/evidence | recovery under restart + crash + duplicate lease with same processing document |
-| J06 | unauthorized owners cannot read foreign evidence; no cross-tenant leak in this branch | real-policy evidence-page navigation still not closed end-to-end |
-| J07 | `/query` canonical constraints and safe fallbacks observed | same-token two-owner authenticated query + citation navigation path to policy source |
+| J05 | failure and partial branches produce non-claiming terminal states (`completed_summary_partial`, `failed`) and explicit owner-scoped missing-doc responses | recovery under restart + crash + duplicate lease with same processing document |
+| J06 | cross-owner cannot read foreign evidence routes; same-owner partial documents return `404` for `/summary` and `/evidence/field-citations` until full policy extraction completes | evidence-page navigation and positive-field provenance for successful summaries remain open |
+| J07 | `/query` route returns no-context-safe fallbacks for weak/cross-owner context; legacy `/documents/query` compatibility route functions with form list semantics | canonical-route migration completion and cross-owner same-session replay still open |
+
+## 9.2 J02–J07 continuation execution checkpoint (2026-07-22, same-session 8010 replay)
+
+- **Live stack**: `http://127.0.0.1:8010`
+- **Probe tokenization**: one anonymous token per actor, one document used for per-lane evidence.
+
+Observed outcomes:
+
+1. `POST /documents/upload` without consent:
+   - `422` with `processing_consent_required`.
+2. `POST /documents/upload` with same anonymous owner and same bytes:
+   - idempotent contract held; response includes `documents[0].idempotent_replay=true` and same `document.id`.
+3. Processing:
+   - status path reaches `processing` then `completed_summary_partial` in short interval.
+   - `/documents/{id}/summary` remains `404 No policy summary found...` for this synthetic lane.
+4. Evidence and isolation:
+   - Owner A can read status; owner B receives 404 on `/documents/{id}`, `/documents/{id}/status`, and `/evidence/{id}/field-citations`.
+5. Q&A:
+   - `/query` with in-scope doc returns answer + source metadata with explicit confidence.
+   - owner mismatch `/query` returns safe no-context fallback (`confidence: 0.0`).
+   - `/documents/query` compatibility route is active and requires form list semantics (`document_ids=[]` expected).
+
+Open from this checkpoint:
+
+- Positive summary/evidence navigation for a completed doc under the same runtime lane is still open.
+- authenticated anonymous-to-account replay/restart and account-level migration closure remains open.
+
+This checkpoint keeps the frontier closed at the contract edge and explicit on what is still not closed.
 
 ## 10. Pass notes
 
@@ -663,6 +792,13 @@ Yes: the main hidden risk is not missing screens; it is a mismatch between a pol
 - **2026-07-22:** Added explicit J02–J07 end-to-end flow graph covering happy, non-happy, optional, and alternate transitions (onboarding/identity/upload/processing/evidence/Q&A), aligned with the same execution-ledger in `coverwise_j02_j07_deep_dive_2026-07-21.md`. Added diagram legend and clarified that sample/camera/future journeys are exploratory and must remain non-promissory.
 - **2026-07-22 (continuation):** Added live API checkpoints for J02–J07: consent-required upload rejection, invalid-token rejection, idempotent replay (`documents[0].idempotent_replay=true`), explicit document-owner isolation (`404` on foreign owner reads), and query fallback behavior (`/query`/`/documents/query`). Canonical/compatibility query split remains open for completion, as do identity replay and restart proof.
 - **2026-07-22 (continuation pass):** Cross-owner same-session probe confirms owner A/B cannot access each other’s documents or evidence routes; `/query` with owner A doc scope returns question + verified citations, while B receives a safe no-relevant fallback.
+- **2026-07-22 (continuation pass B):** Added same-session same-token replay evidence on `127.0.0.1:8010` for upload idempotency, partial completion (`completed_summary_partial`), summary/evidence 404 behavior, cross-owner status isolation, and compatibility query form-list requirements for `/documents/query`.
+- **2026-07-22 (continuation pass C):** Added claim-route guardrail evidence: `/user/claim-anonymous` is 403 when called by anonymous callers, while unauthorized/malformed body paths confirm payload parsing is still account-gated.
+- **2026-07-22 (continuation pass D):** Added local claim-route smoke proof:
+  - mocked account bearer to account-token claim flow returns `200` and `identity_link_status: completed`;
+  - anonymous bearer to claim returns `403 An account is required to claim data`;
+  - route smoke + unit suites capture transfer callback wiring (`begin_identity_link`, `complete_identity_link`, `transfer_owner`);
+  - `tests/test_identity_link_service.py` and `tests/test_document_owner_isolation.py` are green (`17/17`).
 
 ## 12. J02–J07 deep-dive addendum (2026-07-21)
 

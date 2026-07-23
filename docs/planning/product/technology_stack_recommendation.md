@@ -1,5 +1,10 @@
 # Insurance Policy Manager - Technology Stack Recommendation
 
+> **Historical strategy snapshot (pre-Supabase migration).** This is an early
+> technology planning document. The active production architecture for identity and
+> control plane is the managed Supabase stack in
+> [`docs/architecture/coverwise_canonical_architecture.md`](../../architecture/coverwise_canonical_architecture.md).
+
 ## 1. Introduction
 
 This document outlines the recommended technology stack for the Insurance Policy Manager mobile application. The stack has been carefully selected to fulfill the requirements for document processing, information extraction, data storage, retrieval, and a responsive mobile experience. It aims to balance cutting-edge functionality with development efficiency, scalability, and maintainability.
@@ -87,7 +92,7 @@ The application's functionality can be divided into several key technology areas
 | Coil | Image Loading | 2.4.0+ |
 | ML Kit | On-device ML capabilities | 17.0.0+ |
 | WorkManager | Background Processing | 2.8.0+ |
-| Firebase Auth | Authentication | 22.1.0+ |
+| Supabase Auth (historical stack migration target) | Authentication | Supabase-hosted Auth |
 | Play Services | Location and Maps | 21.0.0+ |
 
 ## 4. Backend Services
@@ -321,7 +326,7 @@ The application's functionality can be divided into several key technology areas
 
 ### 8.1 Authentication Service
 
-#### Recommendation: Firebase Authentication
+#### Recommendation: Firebase Authentication (historical)
 
 **Rationale**:
 - **Managed Service**: Reduces security implementation burden
@@ -521,7 +526,7 @@ The technology stack will be implemented in phases to ensure quick time-to-marke
 - **Document Processing**: Basic OCR with Tesseract
 - **NLP**: Simple embedding and retrieval
 - **Storage**: PostgreSQL and Cloud Storage
-- **Auth**: Firebase Authentication
+- **Auth**: Supabase Auth (if following current canonical stack)
 - **Deployment**: Manual with Docker
 
 ### 12.2 Phase 2: Enhanced Processing

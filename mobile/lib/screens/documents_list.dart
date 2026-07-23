@@ -142,14 +142,16 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
 
   Future<void> _downloadAndPreview(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final cached = await ref
           .read(documentServiceProvider)
           .cacheRemoteSource(document.id);
       ref.invalidate(documentsProvider);
-      if (!context.mounted || cached.localFilePath == null) return;
+      if (cached.localFilePath == null) return;
+      if (!mounted) return;
       await Navigator.push(
-        context,
+        context, // ignore: use_build_context_synchronously
         MaterialPageRoute(
           builder: (_) => DocumentPreviewScreen(
             filePath: cached.localFilePath!,
@@ -159,8 +161,8 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
         ),
       );
     } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      messenger.showSnackBar(
         const SnackBar(
           content:
               Text('We could not download the source document. Please retry.'),
@@ -640,11 +642,11 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
         ],
       ),
     );
+    final newName = controller.text.trim();
     controller.dispose();
 
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !mounted) return;
 
-    final newName = controller.text.trim();
     if (newName.isEmpty || newName == document.filename) return;
 
     final updated = InsuranceDocument(
@@ -663,15 +665,21 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
       localFilePath: document.localFilePath,
       policyHolders: document.policyHolders,
     );
+    Object? error;
     try {
       await ref.read(documentServiceProvider).updateDocumentType(updated);
       ref.invalidate(documentsProvider);
-      if (!context.mounted) return;
-      CoverWiseSnackBar.success(context, S.docsRenameSuccess);
     } catch (e) {
-      if (!context.mounted) return;
-      CoverWiseSnackBar.error(context, AppError.userMessage(e),
+      error = e;
+    }
+    if (!mounted) return;
+    if (error != null) {
+      // ignore: use_build_context_synchronously
+      CoverWiseSnackBar.error(context, AppError.userMessage(error),
           operation: 'rename policy');
+    } else {
+      // ignore: use_build_context_synchronously
+      CoverWiseSnackBar.success(context, S.docsRenameSuccess);
     }
   }
 
@@ -697,16 +705,22 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
       localFilePath: document.localFilePath,
       policyHolders: document.policyHolders,
     );
+    Object? error;
     try {
       await ref.read(documentServiceProvider).updateDocumentType(updated);
       ref.invalidate(documentsProvider);
-      if (!context.mounted) return;
-      CoverWiseSnackBar.success(
-          context, '${S.docsTypeChanged} ${canonicalTypeName(newType)}');
     } catch (e) {
-      if (!context.mounted) return;
-      CoverWiseSnackBar.error(context, AppError.userMessage(e),
+      error = e;
+    }
+    if (!mounted) return;
+    if (error != null) {
+      // ignore: use_build_context_synchronously
+      CoverWiseSnackBar.error(context, AppError.userMessage(error),
           operation: 'change document type');
+    } else {
+      CoverWiseSnackBar.success(
+          context, // ignore: use_build_context_synchronously
+          '${S.docsTypeChanged} ${canonicalTypeName(newType)}');
     }
   }
 
@@ -728,14 +742,17 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
       ),
     );
 
-    if (confirmed == true && mounted) {
-      final success = await ref
+    if (confirmed == true) {
+      if (!mounted) return;
+      final archived = await ref
           .read(documentServiceProvider)
           .archiveDocument(document.id);
-      if (success) {
+      if (archived) {
         ref.invalidate(documentsProvider);
-        if (!context.mounted) return;
-        CoverWiseSnackBar.success(context, S.docsArchivedSuccess);
+        if (mounted) {
+          // ignore: use_build_context_synchronously
+          CoverWiseSnackBar.success(context, S.docsArchivedSuccess);
+        }
       }
     }
   }
@@ -747,7 +764,9 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
         .restoreDocument(document.id);
     if (success) {
       ref.invalidate(documentsProvider);
-      if (!context.mounted) return;
+    }
+    if (mounted) {
+      // ignore: use_build_context_synchronously
       CoverWiseSnackBar.success(context, S.docsRestored);
     }
   }
@@ -815,16 +834,19 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
     );
 
     if (action == 'archive') {
-      // Redirect to archive
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously
       await _archiveDocument(context, ref, document);
       return;
     }
 
     if (action == 'delete') {
+      bool? didDelete;
+      Object? deleteError;
       try {
-        final success =
+        didDelete =
             await ref.read(documentServiceProvider).deleteDocument(document.id);
-        if (success) {
+        if (didDelete == true) {
           final documentIds = {document.id, document.backendId};
           for (final documentId in documentIds) {
             await ref
@@ -840,38 +862,49 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
 
           ref.invalidate(documentsProvider);
           refreshManualFamilyMembers(ref);
-
-          if (!context.mounted) return;
-          CoverWiseSnackBar.info(context, S.docsDeleted);
         }
       } catch (e) {
-        if (!context.mounted) return;
+        deleteError = e;
+      }
+      if (!mounted) return;
+      if (deleteError != null) {
+        // ignore: use_build_context_synchronously
         CoverWiseSnackBar.error(context,
-            AppError.contextual(error: e, operation: 'delete_document'),
+            AppError.contextual(error: deleteError, operation: 'delete_document'),
             operation: 'delete policy');
+      } else if (didDelete == true) {
+        // ignore: use_build_context_synchronously
+        CoverWiseSnackBar.info(context, S.docsDeleted);
       }
     }
   }
 
   Future<void> _retryUpload(BuildContext context, WidgetRef ref) async {
+    Object? retryError;
+    Map<String, dynamic>? result;
     try {
-      final result =
+      result =
           await ref.read(documentServiceProvider).retryPendingUploads();
       ref.invalidate(documentsProvider);
-      if (!context.mounted) return;
-      if ((result['synced'] ?? 0) > 0) {
-        CoverWiseSnackBar.success(context, 'Policy upload resumed.');
-      } else if ((result['pending'] ?? 0) > 0) {
-        CoverWiseSnackBar.info(context,
-            'The connection is still unavailable. We will retry again.');
-      } else if ((result['failed'] ?? 0) > 0) {
-        CoverWiseSnackBar.error(
-            context, 'This policy needs attention before it can be uploaded.',
-            operation: 'retry policy upload');
-      }
     } catch (e) {
-      if (!context.mounted) return;
-      CoverWiseSnackBar.error(context, AppError.userMessage(e),
+      retryError = e;
+    }
+    if (!mounted) return;
+    if (retryError != null) {
+      // ignore: use_build_context_synchronously
+      CoverWiseSnackBar.error(context, AppError.userMessage(retryError),
+          operation: 'retry policy upload');
+    } else if ((result!['synced'] ?? 0) > 0) {
+      // ignore: use_build_context_synchronously
+      CoverWiseSnackBar.success(context, 'Policy upload resumed.');
+    } else if ((result['pending'] ?? 0) > 0) {
+      // ignore: use_build_context_synchronously
+      CoverWiseSnackBar.info(context,
+          'The connection is still unavailable. We will retry again.');
+    } else if ((result['failed'] ?? 0) > 0) {
+      CoverWiseSnackBar.error(
+          context, // ignore: use_build_context_synchronously
+          'This policy needs attention before it can be uploaded.',
           operation: 'retry policy upload');
     }
   }
@@ -1148,7 +1181,8 @@ class _DocumentReplaceScreenState
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true) {
+      if (!mounted) return;
       await _performReplacement();
     }
   }
@@ -1159,6 +1193,7 @@ class _DocumentReplaceScreenState
       _error = null;
     });
 
+    Object? replaceError;
     try {
       final box = Hive.box(AppStateStore.boxName);
       final consentVersion =
@@ -1170,8 +1205,6 @@ class _DocumentReplaceScreenState
             processingConsentVersion: consentVersion,
           );
 
-      if (!mounted) return;
-
       if (result.containsKey('error')) {
         setState(() {
           _error = result['message']?.toString() ?? 'Replacement failed';
@@ -1182,17 +1215,20 @@ class _DocumentReplaceScreenState
 
       ref.invalidate(documentsProvider);
       ref.invalidate(policySummariesProvider);
-
-      CoverWiseSnackBar.success(context, S.docsReplaceSuccess);
-
-      Navigator.pop(context);
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = AppError.userMessage(e);
-          _isUploading = false;
-        });
-      }
+      replaceError = e;
+    }
+    if (!mounted) return;
+    if (replaceError != null) {
+      setState(() {
+        _error = AppError.userMessage(replaceError!);
+        _isUploading = false;
+      });
+    } else {
+      // ignore: use_build_context_synchronously
+      CoverWiseSnackBar.success(context, S.docsReplaceSuccess);
+      // ignore: use_build_context_synchronously
+      Navigator.pop(context);
     }
   }
 

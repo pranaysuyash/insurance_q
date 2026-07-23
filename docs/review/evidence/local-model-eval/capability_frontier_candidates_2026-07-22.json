@@ -128,7 +128,202 @@
       "EasyOCR",
       "CuneiForm",
       "LayoutXLM",
-      "LiLT"
+      "LiLT",
+      "OmniOCR",
+      "Typhoon-OCR",
+      "dots.ocr",
+      "HunyuanOCR-1.5"
     ]
-  }
+  },
+  "local_workbook_snapshot": {
+    "path": "/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx",
+    "sheet": "Master Catalog",
+    "rows": 150,
+    "cols": 17,
+    "class_counts": {
+      "Text OCR / extraction": {
+        "Yes": 121,
+        "Depends": 3,
+        "Partial": 2,
+        "No": 13,
+        "Via OCR": 2,
+        "Requires OCR": 7,
+        "Via pluggable OCR": 1
+      },
+      "Layout awareness": {
+        "Yes": 89,
+        "Depends": 2,
+        "Partial": 39,
+        "No": 17,
+        "Via models": 1,
+        "Semantic": 1
+      },
+      "Table extraction": {
+        "Yes": 91,
+        "Depends": 2,
+        "Partial": 18,
+        "No": 36,
+        "Via models": 1,
+        "Semantic": 1
+      },
+      "Header / section detection": {
+        "Yes": 86,
+        "Depends": 2,
+        "Partial": 18,
+        "No": 42,
+        "Via models": 1
+      },
+      "Coordinates / reading order": {
+        "Yes": 110,
+        "Depends": 2,
+        "Partial": 31,
+        "No": 5,
+        "Via models": 1
+      },
+      "Math / LaTeX": {
+        "Yes": 34,
+        "Partial": 37,
+        "Depends": 3,
+        "No": 75
+      }
+    },
+    "evidence_file": "docs/review/evidence/local-model-eval/workbook_class_summary_2026-07-22.json"
+  },
+  "summary_notes": {
+    "workbench_instructions": [
+      "Workbook covers sentence/image/form/handwriting/multilingual classes only indirectly; treat those as frontier or non-direct-signal lanes."
+    ],
+    "frontier_observations": [
+      "Web frontier scan adds explicit notes for structure heading-depth limits, managed DI form/KVP candidates, and chart/class/reading-order claims for PP-StructureV3/Marker; these are candidate lanes only.",
+      "ParseBench (paper + benchmark runtime) is now the primary parser-e2e closure lane for multi-column order, structure formatting, and downstream semantic claims."
+    ]
+  },
+  "web_frontier_scan": [
+    {
+      "capability_family": "reading order + structural output",
+      "finder": "Docling project",
+      "signal": "Docling exposes a hierarchical, source-spanning document model with tables, images, and key-value structures plus structured spans, useful for structure and artifact lineage closure.",
+      "source": "https://github.com/docling-project/docling",
+      "status_note": "use for structural fallback candidates; launch remains tied to local manifest gates."
+    },
+    {
+      "capability_family": "OCR + layout + tables + multilingual",
+      "finder": "Surya (OCR/layout parser suite)",
+      "signal": "Surya targets OCR, layout analysis, reading-order recovery, and table recognition across many languages; useful for scanned-table and structure gap lanes.",
+      "source": "https://github.com/VikParuchuri/surya",
+      "status_note": "frontier-only until table/reading-order/word-order fixtures close production gates."
+    },
+    {
+      "capability_family": "sections/structure + heading hierarchy",
+      "finder": "GROBID",
+      "signal": "GROBID provides publication-focused document segmentation with heading/section/figure/table/floating layout models and explicit mention of paragraph/section titles and structure labels; hierarchy depth is still imperfect and needs separate evaluation before semantic heading claims.",
+      "source": "https://github.com/grobidOrg/grobid",
+      "status_note": "candidate-only until heading-depth and hierarchy-grade fixtures are closed."
+    },
+    {
+      "capability_family": "form/kvp/selection-mark extraction",
+      "finder": "Microsoft Document Intelligence (Azure)",
+      "signal": "Azure Document Intelligence exposes prebuilt general-document and key-value APIs with section text, selection marks, and tables; useful managed fallback only with consent/residency + uncertainty contract.",
+      "source": "https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/prebuilt/general-document",
+      "status_note": "candidate lane only; keep managed KVP separate from native widget evidence until schema+review gates are in place."
+    },
+    {
+      "capability_family": "form/kvp + enterprise document parsing",
+      "finder": "Google Document AI",
+      "signal": "Google Document AI layout + form parsers provide table/key-value extraction and image-quality/de-skew preprocessing, but deployment remains managed-provider governed with contract and residency requirements.",
+      "source": "https://docs.cloud.google.com/document-ai/docs/layout-parse-chunk",
+      "status_note": "managed candidate lane; do not route policy assertions until governance and provider-policy gates are closed."
+    },
+    {
+      "capability_family": "layout + table + formula + chart parsing",
+      "finder": "PaddleOCR PP-StructureV3",
+      "signal": "PP-StructureV3 documentation lists layout and table recognition, formula support, and 25+ layout element classes including figure/chart/table with layout restoration and SER/RE style extraction in key-information workflows.",
+      "source": "https://swhl.github.io/PaddleOCR/main/en/version3.x/algorithm/PP-StructureV3/PP-StructureV3.html",
+      "status_note": "strong frontier candidate; keep as gated profile (especially rotated, low-quality, and multi-column tables)."
+    },
+    {
+      "capability_family": "layout + OCR + table + image parsing",
+      "finder": "Marker",
+      "signal": "Marker reports OCR-if-needed flow using Surya plus conversion to markdown/JSON/HTML with tables, forms, equations, layout/reading-order behavior, so useful as a full-document lane candidate.",
+      "source": "https://github.com/datalab-to/marker",
+      "status_note": "frontier candidate only; no production routing until deterministic benchmark closure."
+    },
+    {
+      "capability_family": "benchmark pressure (multifile, layout, tables, formulas, headings)",
+      "finder": "MPDocBench-Parse",
+      "signal": "Paper benchmark defines multi-page parsing protocol with text, table, formula, figure extraction plus reading order and heading hierarchy grading.",
+      "source": "https://arxiv.org/abs/2605.22100",
+      "status_note": "Use as hard stress benchmark source before claiming semantic structure/table/figure closure."
+    },
+    {
+      "capability_family": "benchmark pressure (expert-level difficult parsing)",
+      "finder": "Dr. DocBench",
+      "signal": "Paper describes challenging real-document parsing benchmarks focused on layout, reading order, hierarchical relations and block-level annotations across long documents.",
+      "source": "https://arxiv.org/abs/2606.01393",
+      "status_note": "Use this benchmark profile for long-document and hierarchical-order closure planning."
+    },
+    {
+      "capability_family": "layout + reading order + table continuity",
+      "finder": "RT-DocLayout",
+      "signal": "RT-DocLayout claims end-to-end layout analysis with learned reading-order prediction, with emphasis on distorted/scanned documents and downstream table/math/image reconstruction compatibility.",
+      "source": "https://arxiv.org/abs/2606.23344",
+      "status_note": "strong lane candidate for rotated/low-quality layout recovery; gate remains on rotated/multi-column/multi-script closure."
+    },
+    {
+      "capability_family": "multilingual document parsing benchmark",
+      "finder": "MDPBench",
+      "signal": "MDPBench defines multilingual real-world document parsing with language-aware reconstruction and extraction tracks, directly aligned to our gap on locale/Script quality.",
+      "source": "https://arxiv.org/abs/2603.28130",
+      "status_note": "use as the first-class benchmark anchor before closing multilingual quality claims."
+    },
+    {
+      "capability_family": "table extraction benchmarking (unstructured business docs)",
+      "finder": "Zero-Shot Table Extraction in Business Documents (WACV 2026)",
+      "signal": "Defines a unified benchmark with error taxonomy for business-document table extraction, including merged-cell and irregular grid stress coverage.",
+      "source": "https://openaccess.thecvf.com/content/WACV2026/html/Thomas_Zero-Shot_Table_Extraction_in_Business_Documents_A_Unified_Benchmark_with_WACV_2026_paper.html",
+      "status_note": "candidate benchmarking lane; use before rotating table and multilingual table production claims."
+    },
+    {
+      "capability_family": "document-to-table synthetic benchmarking",
+      "finder": "DTBench",
+      "signal": "Synthetic document-to-table benchmark with task-decomposed scoring and strong emphasis on structural reconstruction diagnostics.",
+      "source": "https://arxiv.org/abs/2602.13812",
+      "status_note": "candidate benchmarking lane for scanned-table and malformed-grid gate closure."
+    },
+    {
+      "capability_family": "handwriting / noisy form lane stress",
+      "finder": "socOCRbench",
+      "signal": "OCR benchmark covering degraded and historically messy records with handwriting and table-like document classes, useful for candidate-lane failure diagnostics.",
+      "source": "https://noahdasanaike.github.io/posts/sococrbench.html",
+      "status_note": "candidate lane only; map handwritten and noisy-form cases before routing claims."
+    },
+    {
+      "capability_family": "table extraction multilingual benchmark",
+      "finder": "PulseBench-Tab",
+      "signal": "PulseBench-Tab is a multilingual table-extraction benchmark over 9 languages using T-LAG structural+content scoring, useful for language-aware table closure planning.",
+      "source": "https://www.documentbenchmark.com/",
+      "status_note": "candidate benchmarking lane only; add per-language table fixture gates before promotion."
+    },
+    {
+      "capability_family": "reading-order and structure evaluation",
+      "finder": "Rethinking Reading Order (EACL 2026)",
+      "signal": "Recent reading-order modeling research highlights order as a separately benchmarked failure mode, reinforcing dedicated adversarial fixtures for this class.",
+      "source": "https://aclanthology.org/2026.eacl-long.192.pdf",
+      "status_note": "use this as benchmark signal for ordering/rotation/multi-column ordering gates."
+    },
+    {
+      "capability_family": "end-to-end parser benchmarking (text/fidelity/order/structure)",
+      "finder": "ParseBench",
+      "signal": "ParseBench publishes parser scoring on content faithfulness, reading-order correctness, semantic formatting, and structure hierarchy over noisy and multi-column pages.",
+      "source": "https://www.parsebench.ai/",
+      "status_note": "primary benchmark anchor for production readiness decisions on parser-derived structured outputs."
+    },
+    {
+      "capability_family": "OCR realism and LMM OCR robustness pressure",
+      "finder": "OCRBench v2",
+      "signal": "OCRBench v2 tracks practical OCR robustness gaps in multilingual and noisy-document conditions and helps close model-level risk before production routing.",
+      "source": "https://99franklin.github.io/ocrbench_v2/",
+      "status_note": "use as a pressure test for frontier OCR/VLM routing and pre/post-deployment gating."
+    }
+  ]
 }

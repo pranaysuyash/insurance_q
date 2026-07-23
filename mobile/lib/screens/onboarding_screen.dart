@@ -42,11 +42,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       accent: Color(0xFF7C5CE7),
     ),
     _OnboardingData(
-      eyebrow: 'STAY READY',
+      eyebrow: 'STAY INFORMED',
       assetPath: 'assets/onboarding/stay-ready.png',
       title: 'Know what needs attention next.',
       description:
-          'Keep policy details, renewals and preparation notes together—without selling you another policy.',
+          'See renewals, coverage gaps, and prep notes in one place. CoverWise is an information broker, not an insurer — all policy data is for reference only.',
       accent: Color(0xFF079A86),
     ),
   ];
@@ -309,6 +309,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   color: theme.colorScheme.onSurfaceVariant,
                                   height: 1.3,
                                 ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Scope disclaimer — CoverWise is an info broker, not an insurer
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2, right: 10),
+                            child: Icon(
+                              Icons.info_outline_rounded,
+                              size: 16,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'CoverWise is an information broker, not an insurance '
+                              'provider or agent. All policy information shown is for '
+                              'reference only and does not constitute professional advice.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                height: 1.35,
                               ),
                             ),
                           ),

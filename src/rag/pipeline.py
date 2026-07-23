@@ -610,6 +610,22 @@ class RAGPipeline:
         # Embedding uses retrieval_text (the LLM-augmented version when
         # contextual retrieval is enabled; otherwise equal to source_text).
         # Per ADR-2026-07-19-11.
+
+        # Prepend a document context header to each chunk's retrieval_text.
+        # This ensures that key policy fields (policy number, sum insured,
+        # insurer, premium, dates) are present in every chunk's embedding,
+        # so a query like "what is my sum insured" matches chunks that
+        # contain the VALUE even if the LABEL was split into a different chunk.
+        # This is critical for table-heavy insurance PDFs where PyMuPDF's
+        # text extraction separates labels from values across blocks.
+        doc_context_header = self._build_doc_context_header(document_metadata)
+
+        if doc_context_header:
+            for block in text_blocks:
+                original = block.get("retrieval_text", block.get("source_text", ""))
+                if original and not original.startswith("[Policy Context]"):
+                    block["retrieval_text"] = f"{doc_context_header}\n\n{original}"
+
         texts = [b.get("retrieval_text", b.get("source_text", "")) for b in text_blocks]
         if not texts:
             return {"status": "success", "message": "No text content.", "points_added": 0}
@@ -832,6 +848,59 @@ class RAGPipeline:
             return False
 
         return True
+
+    def _build_doc_context_header(self, metadata: Optional[Dict[str, Any]]) -> str:
+        """Build a compact context header from document metadata.
+
+        Prepended to every chunk's retrieval_text so that key policy fields
+        are present in every embedding. Critical for table-heavy insurance
+        PDFs where PyMuPDF separates labels from values across text blocks.
+        """
+        if not metadata:
+            return ""
+
+        parts = []
+        meta = metadata.get("policy_summary") or metadata or {}
+
+        # Extract from nested metadata structures
+        summary = meta if isinstance(meta, dict) else {}
+        classification = metadata.get("classification", {}) if isinstance(metadata, dict) else {}
+
+        policy_number = summary.get("policy_number") or classification.get("policy_number")
+        insurer = summary.get("insurer") or classification.get("insurer")
+        doc_type = summary.get("document_type") or classification.get("document_type")
+        coverage = summary.get("coverage_amount")
+        premium = summary.get("premium_amount")
+        start_date = summary.get("effective_date") or summary.get("start_date")
+        end_date = summary.get("expiration_date") or summary.get("end_date")
+
+        # Also check raw metadata keys (used by the processing service)
+        if not policy_number:
+            policy_number = metadata.get("policy_number") if isinstance(metadata, dict) else None
+        if not insurer:
+            insurer = metadata.get("insurer") if isinstance(metadata, dict) else None
+        if not doc_type:
+            doc_type = metadata.get("document_type") if isinstance(metadata, dict) else None
+
+        if doc_type:
+            parts.append(f"Document Type: {doc_type}")
+        if insurer:
+            parts.append(f"Insurer: {insurer}")
+        if policy_number:
+            parts.append(f"Policy Number: {policy_number}")
+        if coverage:
+            parts.append(f"Sum Insured: ₹{coverage}")
+        if premium:
+            parts.append(f"Premium: ₹{premium}")
+        if start_date:
+            parts.append(f"Effective: {start_date}")
+        if end_date:
+            parts.append(f"Expires: {end_date}")
+
+        if not parts:
+            return ""
+
+        return "[Policy Context] " + " | ".join(parts)
 
     def _split_into_sentences(self, text: str) -> List[Dict[str, Any]]:
         """Split text into sentence-level chunks with position metadata for sentence window retrieval.
@@ -1294,6 +1363,193 @@ class RAGPipeline:
         }
         self._store_cached_query_result(cache_key, response)
         return await _log_and_return(response)
+
+    async def query_rag_stream(
+        self,
+        user_query: str,
+        top_k: int = 5,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> AsyncGenerator[str, None]:
+        """Query with streaming response - yields tokens as they arrive."""
+        import time
+        import json
+        start_time = time.time()
+        
+        logger.info("Query stream: '%s' top_k=%d", user_query, top_k)
+
+        # Check cache first
+        cache_key = self._query_cache_key(user_query, top_k, filters)
+        cached_response = self._load_cached_query_result(cache_key)
+        if cached_response:
+            logger.info("Returning cached RAG response for query stream")
+            # Stream the cached answer token by token
+            answer = cached_response.get("result", {}).get("answer", "")
+            for token in answer.split():
+                yield f'{{"token": "{token} "}}'
+                await asyncio.sleep(0.01)  # Small delay to simulate streaming
+            yield '{"done": true}'
+            return
+
+        # Adaptive RAG: classify query and adjust retrieval strategy
+        query_type = self._classify_query(user_query)
+        logger.info("Query classified as: %s", query_type)
+
+        # RAG Fusion: generate query variants for broader coverage
+        query_variants = await self._generate_query_variants(user_query)
+        logger.info("RAG Fusion: %d query variants", len(query_variants))
+
+        # HyDE: Generate a hypothetical answer to embed instead of the raw query
+        hyde_query = await self._generate_hyde_query(user_query)
+        embed_query = hyde_query if hyde_query else user_query
+
+        dense_error: Exception | None = None
+
+        # For exact_lookup queries, skip embedding and use FTS only (faster)
+        if query_type == "exact_lookup":
+            if getattr(self, "vector_backend", "qdrant") == "supabase":
+                local_results = await self._query_hybrid_index_supabase(user_query, limit=max(top_k * 3, top_k), filters=filters)
+            else:
+                local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
+            results = local_results
+            dense_results = []
+        else:
+            try:
+                emb = await self._generate_embeddings_with_fallback([embed_query])
+                query_vector = emb[0]
+            except Exception as e:
+                logger.error("Query embedding failed: %s", e)
+                yield '{"error": "Query embedding failed"}'
+                return
+
+            dense_results = []
+            try:
+                if getattr(self, "vector_backend", "qdrant") == "supabase":
+                    dense_results = await self.vector_store.search(
+                        query_vector, max(top_k * 3, top_k), filters
+                    )
+                else:
+                    qdrant_filter = self._build_qdrant_filter(filters)
+                    dense_results = self.qdrant_client.search(
+                        collection_name=self.collection_name,
+                        query_vector=query_vector,
+                        limit=max(top_k * 3, top_k),
+                        with_payload=True,
+                        query_filter=qdrant_filter,
+                    )
+            except Exception as e:
+                dense_error = e
+                logger.error("Vector search failed: %s", e)
+
+            if getattr(self, "vector_backend", "qdrant") == "supabase":
+                local_results = await self._query_hybrid_index_supabase(user_query, limit=max(top_k * 3, top_k), filters=filters)
+            else:
+                local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
+
+            # RAG Fusion: also search for each query variant and merge all results
+            if len(query_variants) > 1:
+                for variant in query_variants[1:]:  # Skip original (already searched)
+                    try:
+                        variant_emb = await self._generate_embeddings_with_fallback([variant])
+                        variant_vector = variant_emb[0]
+                        if getattr(self, "vector_backend", "qdrant") == "supabase":
+                            variant_dense = await self.vector_store.search(
+                                variant_vector, max(top_k * 2, top_k), filters
+                            )
+                        else:
+                            qdrant_filter = self._build_qdrant_filter(filters)
+                            variant_dense = self.qdrant_client.search(
+                                collection_name=self.collection_name,
+                                query_vector=variant_vector,
+                                limit=max(top_k * 2, top_k),
+                                with_payload=True,
+                                query_filter=qdrant_filter,
+                            )
+                        # Merge variant results with existing dense results via RRF
+                        dense_results = self._merge_hybrid_results(dense_results, variant_dense)
+                    except Exception as e:
+                        logger.warning("RAG Fusion variant search failed: %s", e)
+
+            results = self._merge_hybrid_results(dense_results, local_results)
+
+        if not results:
+            if dense_error is not None and not local_results:
+                yield f'{{"error": "Vector search failed: {dense_error}"}}'
+                return
+            yield '{"token": "No relevant information found in documents.", "done": true}'
+            return
+
+        ranked_results = self._rank_results(user_query, results)
+        ranked_results = ranked_results[:top_k]
+
+        # Commit 3: expand top-k context with adjacent chunks (ADR-26).
+        ranked_results = await self._expand_with_adjacent_chunks(ranked_results, max_expand=3)
+
+        # Retrieval Evaluator: quality gate — if retrieval is too weak, don't hallucinate
+        if not self._evaluate_retrieval_quality(user_query, ranked_results):
+            logger.info("Retrieval quality too low, returning honest 'not found'")
+            yield '{"token": "I could not find relevant information in your documents to answer this question. Please try rephrasing or upload the relevant policy document.", "done": true}'
+            return
+
+        contexts = []
+        sources = []
+        for i, hit in enumerate(ranked_results):
+            payload = hit.payload or {}
+            text = payload.get("text_content", "")
+            contexts.append(self._format_context_block(i + 1, hit, text))
+            sources.append(self._format_source(hit, i + 1, text))
+
+        context_str = "\n\n".join(contexts)
+
+        # Stream LLM response
+        llm_unavailable = False
+        try:
+            # Use streaming LLM call
+            full_answer = ""
+            async for token in self.llm.generate_stream(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a careful insurance-document assistant. Answer only from the "
+                            "provided context. Cite the source indices that support each claim. "
+                            "If the context does not contain the answer, say so explicitly instead "
+                            "of guessing. Keep the answer concise and practical."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Retrieved context:\n{context_str}\n\n"
+                            f"Question: {user_query}\n\n"
+                            "Return a grounded answer with citations, confidence, missing "
+                            "information, and helpful follow-up questions."
+                        ),
+                    },
+                ],
+                temperature=0.1,
+                fallback_models=["gpt-4o-mini"],
+            ):
+                full_answer += token
+                yield f'{{"token": "{json.dumps(token)}"}}'
+
+        except Exception as e:
+            logger.warning("LLM streaming unavailable, using context-only mode: %s", e)
+            llm_unavailable = True
+
+        if llm_unavailable:
+            # Context-only fallback: extract best match from sources
+            top = sources[0] if sources else {}
+            answer = (
+                f"[LLM unavailable — showing raw context]\n\n"
+                f"Best match (score: {top.get('score', 0):.3f}): "
+                f"{top.get('text', 'No relevant content found.')}"
+            )
+            yield f'{{"token": "{json.dumps(answer)}", "done": true}}'
+            return
+
+        # Note: For full structured response with citations, we'd need a second pass
+        # For now, we just stream the answer text
+        yield '{"done": true}'
 
     async def _log_query_trace(self, trace_data: Dict[str, Any]) -> None:
         """Asynchronously log query trace to Supabase or structured JSON."""

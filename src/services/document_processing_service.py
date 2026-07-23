@@ -247,7 +247,8 @@ class DocumentProcessingService:
             "filename": filename,
             "owner_id": owner_id,
             "started_at": datetime.utcnow().isoformat(),
-            "progress": 0
+            "progress": 0,
+            "stages": {},  # Granular per-stage statuses (populated during pipeline)
         }
         
         try:
@@ -266,10 +267,15 @@ class DocumentProcessingService:
                 "status": "completed",
                 "storage": "ephemeral_processing_temp",
             }
+            # Sync stages to in-memory status so /status endpoint returns granular data
+            self.processing_status[document_id]["stages"] = dict(result["stages"])
             
             # Stage 2: OCR Processing (if needed)
             extracted_text = ""
             ocr_result: Dict[str, Any] = {}
+            # Sync stages after each major stage so the /status endpoint shows
+            # granular per-stage progress even before the pipeline completes.
+            self.processing_status[document_id]["stages"] = dict(result["stages"])
             if processing_mode in ["full", "ocr_only"]:
                 await self._update_status(document_id, "extracting_text", 30)
                 try:
@@ -286,6 +292,9 @@ class DocumentProcessingService:
                 result["stages"]["ocr"] = ocr_result
                 result["extracted_text"] = extracted_text
             
+            # Sync stages to status before policy extraction
+            self.processing_status[document_id]["stages"] = dict(result["stages"])
+
             # Stage 2.5: Structured Policy Extraction (if available)
             if processing_mode in ["full"] and extracted_text and self.policy_extraction_service:
                 await self._update_status(document_id, "extracting_policy_data", 45)
@@ -311,6 +320,9 @@ class DocumentProcessingService:
                         "error": "Policy extraction failed",
                     }
             
+            # Sync stages to status before RAG ingestion
+            self.processing_status[document_id]["stages"] = dict(result["stages"])
+
             # Stage 3: RAG Ingestion (if needed and available)
             if processing_mode in ["full", "rag_only"] and self.rag_pipeline:
                 await self._update_status(document_id, "creating_embeddings", 60)
@@ -454,6 +466,9 @@ class DocumentProcessingService:
             legacy_status = legacy_status_map.get(derived_state, "partial")
             await self._update_status(document_id, legacy_status, 100)
             result["status"] = legacy_status
+
+            # Final sync of all stages before returning
+            self.processing_status[document_id]["stages"] = dict(result.get("stages", {}))
 
             if derived_state == "ready":
                 logger.info("document_processing_completed document_id=%s", document_id)
@@ -796,7 +811,7 @@ class DocumentProcessingService:
                     method = "direct_text"
                     source_bytes = Path(file_path).read_bytes()
                     from src.ocr.native_pdf import extract_native_pdf_nodes
-                    native_nodes = extract_native_pdf_nodes(source_bytes)
+                    native_nodes = extract_native_pdf_nodes(source_bytes, pdf_password=pdf_password)
                     if image_only_pages > 0:
                         # Some pages had text, some didn't — partial extraction
                         logger.info(
@@ -1349,18 +1364,35 @@ class DocumentProcessingService:
                 logger.warning("processing event append failed error_type=%s", type(event_error).__name__)
 
     def get_processing_status(self, document_id: str, owner_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Get current processing status"""
+        """Get current processing status, including per-stage breakdown.
+
+        Returns a dict with:
+          - status: overall status string
+          - stage: current active stage name
+          - progress: 0-100 progress estimate
+          - stages: dict of individual stage_name -> {status, ...stage_specific_fields}
+          - started_at / updated_at / error: timestamps and error info
+
+        When the repository has a terminal status, the stages dict may
+        be empty (backward compat for documents processed before this
+        feature was added).
+        """
         if self.document_repository and owner_id:
             document = self.document_repository.get(document_id, owner_id)
             if document:
+                # Prefer in-memory stages (richer data) if available.
+                memory_status = self.processing_status.get(document_id, {})
+                stages = memory_status.get("stages", {}) or {}
                 return {
                     "status": document.status,
                     "stage": "completed" if document.status == "completed" else document.status,
-                    "progress": 100 if document.status == "completed" else 0,
+                    "progress": 100 if document.status == "completed" else memory_status.get("progress", 0),
                     "started_at": document.processing_started_at.isoformat()
                     if document.processing_started_at else None,
                     "error": document.error_message,
+                    "stages": stages,
                 }
+        # Fallback: return in-memory status (development / service restarted)
         return self.processing_status.get(document_id)
     
     def get_all_processing_status(self) -> Dict[str, Dict[str, Any]]:
@@ -1389,3 +1421,20 @@ class DocumentProcessingService:
                 "error": "The document query could not be completed.",
                 "error_type": type(e).__name__,
             }
+
+    async def query_documents_stream(self, query: str, filters: Optional[Dict] = None):
+        """Query processed documents using RAG with streaming response"""
+        if not self.rag_pipeline:
+            yield '{"error": "RAG pipeline not available"}'
+            return
+        
+        try:
+            async for token in self.rag_pipeline.query_rag_stream(
+                user_query=query,
+                filters=filters,
+                top_k=5
+            ):
+                yield token
+        except Exception as e:
+            logger.error("document_query_stream_failed error_type=%s", type(e).__name__)
+            yield f'{{"error": "The document query could not be completed."}}'

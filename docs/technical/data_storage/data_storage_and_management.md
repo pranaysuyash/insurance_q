@@ -12,7 +12,20 @@ This document outlines the data storage architecture and management strategies f
 
 ## Overview
 
-The data storage architecture is designed to efficiently handle various types of data including uploaded documents, processed text, and vector embeddings for semantic search. The system primarily uses Qdrant for vector and payload storage, and Redis for caching.
+> **Important:** The section below preserves historical architecture context from earlier versions.
+> It is **not** a replacement for the active architecture. Current canonical operational
+> architecture is documented in:
+>
+> - `docs/architecture/coverwise_canonical_architecture.md`
+> - `docs/review/coverwise_supabase_cutover_report_2026-07-21.md`
+> - `docs/review/coverwise_supabase_gap_register_2026-07-16.md`
+
+The following **Legacy snapshot** subsections describe historical components and are kept
+for reference only while migration and deprecation work continues.
+
+## Legacy architecture snapshot (historical reference)
+
+The historical snapshot describes early architecture where Qdrant and Redis were the primary vector/caching substrates.
 
 ## Data Categories
 
@@ -20,9 +33,9 @@ The application manages the following categories of data:
 
 1.  **Document Data**: Original policy documents (PDFs, images).
 2.  **Processed Text Data**: Text extracted from documents, potentially broken into chunks.
-3.  **Vector Data & Associated Payloads**: Embeddings for text chunks, along with their corresponding text content and metadata (e.g., document ID, page number, block ID), stored together in Qdrant.
-4.  **Cache Data**: OCR results, RAG query results, stored in Redis.
-5.  **User Data (Mobile-Focus)**: For the mobile application, user authentication and basic profile data are typically managed via Firebase Auth.
+3.  **Vector Data & Associated Payloads**: (Historical) Embeddings for text chunks, along with their corresponding text content and metadata (e.g., document ID, page number, block ID), stored together in Qdrant.
+4.  **Cache Data**: (Historical) OCR results, RAG query results, stored in Redis.
+5.  **User Data (Mobile-Focus)**: (Historical) For the mobile application, user identity was previously modeled through Firebase Auth.
 
 ## Storage Architecture
 
@@ -36,11 +49,11 @@ graph TD
         Mobile_App["Mobile App (Flutter)"]
     end
 
-    subgraph StorageLayer [Storage & Cache]
+    subgraph StorageLayer [Storage & Cache - historical snapshot]
         direction LR
-        QdrantDB[(Qdrant Vector DB)]
-        RedisCache[(Redis Cache)]
-        Firebase[(Firebase Auth/Firestore - for Mobile)]
+        QdrantDB[(Qdrant Vector DB - historical)]
+        RedisCache[(Redis Cache - historical)]
+        Firebase[(Firebase Auth/Firestore - historical)]
         LocalFS[Local Filesystem/Docker Volumes]
     end
 
@@ -61,9 +74,9 @@ graph TD
 
 ## Key Storage Components
 
-### 1. Qdrant (Vector Database)
+### 1. Qdrant (Vector Database) — historical snapshot
 
-Qdrant serves as the primary store for text embeddings and their associated payloads (which include the text content and metadata).
+Qdrant is a historical reference implementation for text embeddings and payload storage and is not the current canonical data substrate.
 
 **Stored Data:**
 -   Document chunk embeddings.
@@ -85,9 +98,9 @@ Qdrant serves as the primary store for text embeddings and their associated payl
 -   Support for rich payload filtering alongside vector search.
 -   Configured and accessed as defined in `docker-compose.yml` and used by `src/rag/pipeline.py`.
 
-### 2. Redis (Caching Layer)
+### 2. Redis (Caching Layer) — historical snapshot
 
-Redis is used for caching frequently accessed data to improve performance and reduce redundant computations or API calls.
+Redis is used as a historical reference cache layer and is not the current canonical retrieval cache contract.
 
 **Stored Data:**
 -   **OCR Results**: Full structured output from the `OCRPipeline` for processed documents, keyed by document ID. This allows quick retrieval without reprocessing.
@@ -99,7 +112,7 @@ Redis is used for caching frequently accessed data to improve performance and re
 -   Configurable TTL (Time-To-Live) for cached items.
 -   Used by `src/ocr/service.py` and `src/rag/pipeline.py`.
 
-### 3. Local Filesystem / Docker Volumes (Development)
+### 3. Local Filesystem / Docker Volumes (Development) — historical snapshot
 
 For local development using Docker:
 -   Uploaded original documents are temporarily stored on the filesystem accessible to the services within Docker.
@@ -107,17 +120,19 @@ For local development using Docker:
 
 *In a production environment, these would be replaced by a robust Object Storage solution (e.g., AWS S3, MinIO, Google Cloud Storage) for persistent and scalable storage of original policy documents and potentially their processed versions if needed outside Qdrant/Redis.*
 
-### 4. Firebase (Primarily for Mobile Application)
+### 4. Firebase (Primarily for Mobile Application) — historical snapshot
 
 If the Flutter mobile application (`mobile/`) is in use and requires user management:
 -   **Firebase Authentication**: Handles user sign-up, login (email/password, Google Sign-In, etc.), and session management.
 -   **Cloud Firestore (Optional)**: Could be used by the mobile app for storing user-specific preferences, mobile app state, or data directly managed by the mobile client.
 
-*The backend services (`ocr_service`, `rag_service`, `frontend` BFF) as defined in `src/` do not directly interact with Firebase in the current primary architecture; they are self-contained or interact with Qdrant/Redis.*
+*The backend services (`ocr_service`, `rag_service`, `frontend` BFF) as defined in `src/` do not directly interact with Firebase in the current primary architecture.*
 
 ## Data Management & Security
 
 ### Data Flow
+This section reflects the historical snapshot, not the active runtime. For the canonical Supabase-backed flow and ownership contracts, use `docs/architecture/coverwise_canonical_architecture.md`.
+
 -   **Ingestion**: Documents uploaded via the `frontend` (BFF) are passed to the `ocr_service`. The `ocr_service` processes them, caches results in Redis, and sends text blocks/metadata to the `rag_service`. The `rag_service` generates embeddings and stores them with payloads in Qdrant.
 -   **Querying**: Queries via the `frontend` (BFF) go to the `rag_service`. The `rag_service` checks Redis cache, then generates query embeddings, searches Qdrant, generates an answer (e.g., via OpenAI), caches the result in Redis, and returns it.
 
@@ -127,9 +142,12 @@ If the Flutter mobile application (`mobile/`) is in use and requires user manage
 -   **Original Files**: If stored on a persistent volume or object store, files would need to be deleted from there as well.
 
 ### Security
--   Access to Qdrant and Redis is managed by network configuration within the Docker environment (and by API keys/auth in production cloud deployments).
+-   Historical flow: Access to Qdrant and Redis is managed by network configuration within the Docker environment (and by API keys/auth in production cloud deployments).
 -   Sensitive data in `.env` (API keys) should be managed securely, especially for production.
 -   For data in transit, HTTPS should be enforced for all external-facing services in production.
 -   Data at rest in Qdrant/Redis can be encrypted if the underlying storage or service supports it (Qdrant Cloud often provides this).
 
-This document reflects the data storage mechanisms currently evident in the project's core backend services. As the application evolves, especially with regards to user management for the web frontend and more complex metadata storage, dedicated relational or document databases might be introduced or expanded.
+This document primarily preserves historical architecture context. The current operational canonical storage architecture is documented in:
+
+- `docs/architecture/coverwise_canonical_architecture.md`
+- `docs/review/coverwise_supabase_cutover_report_2026-07-21.md`

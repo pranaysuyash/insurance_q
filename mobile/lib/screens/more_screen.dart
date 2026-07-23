@@ -17,6 +17,9 @@ class MoreScreen extends StatelessWidget {
     _MoreGroup('Plan your cover', [
       _MoreItem(Icons.family_restroom_rounded, Color(0xFF16866B), 'Family',
           'People covered across your policies', '/family'),
+      _MoreItem(Icons.account_tree_outlined, Color(0xFF0B8F7D),
+          'Coverage map', 'See which members are covered by which policies',
+          '/family/visualization'),
       _MoreItem(Icons.event_available_outlined, Color(0xFF0B8F7D),
           'Renewal calendar', 'Track expiry dates and reminders', '/renewals'),
       _MoreItem(Icons.shield_outlined, Color(0xFF7C5CE7), 'Coverage gaps',
@@ -39,6 +42,9 @@ class MoreScreen extends StatelessWidget {
     _MoreGroup('Account and support', [
       _MoreItem(Icons.person_outline_rounded, Color(0xFF53657A), 'Profile',
           'Account information and identity', '/profile'),
+      _MoreItem(Icons.support_agent_rounded, Color(0xFF087F75),
+          'Advisor requests',
+          'View submitted advisor callback requests', '/agent-requests'),
       _MoreItem(Icons.settings_outlined, Color(0xFF53657A), 'Settings',
           'Appearance, reminders and local data', '/settings'),
       _MoreItem(Icons.notifications_outlined, Color(0xFF53657A), 'Notifications',

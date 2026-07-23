@@ -1,0 +1,155 @@
+{
+  "class_counts": {
+    "Coordinates / reading order": {
+      "Depends": 2,
+      "No": 5,
+      "Partial": 31,
+      "Via models": 1,
+      "Yes": 110
+    },
+    "Header / section detection": {
+      "Depends": 2,
+      "No": 42,
+      "Partial": 18,
+      "Via models": 1,
+      "Yes": 86
+    },
+    "Layout awareness": {
+      "Depends": 2,
+      "No": 17,
+      "Partial": 39,
+      "Semantic": 1,
+      "Via models": 1,
+      "Yes": 89
+    },
+    "Math / LaTeX": {
+      "Depends": 3,
+      "No": 75,
+      "Partial": 37,
+      "Yes": 34
+    },
+    "Table extraction": {
+      "Depends": 2,
+      "No": 36,
+      "Partial": 18,
+      "Semantic": 1,
+      "Via models": 1,
+      "Yes": 91
+    },
+    "Text OCR / extraction": {
+      "Depends": 3,
+      "No": 13,
+      "Partial": 2,
+      "Requires OCR": 7,
+      "Via OCR": 2,
+      "Via pluggable OCR": 1,
+      "Yes": 121
+    }
+  },
+  "columns": 17,
+  "generated_at_utc": "2026-07-22T13:18:16.934280Z",
+  "notes": [
+    "Class counts come from local workbook Master Catalog.",
+    "Sentences/line-fidelity is not a dedicated workbook column; infer via text/layout + segmentation lane.",
+    "This is an evidence-integrity file used by parser exploration notes."
+  ],
+  "rows": 149,
+  "runtime_capability_snapshot": {
+    "charts_and_diagrams": {
+      "quality_gate": "bounded_annotation_fixture_and_human_review_required",
+      "scope": null,
+      "status": "candidate"
+    },
+    "figures": {
+      "quality_gate": null,
+      "scope": "derived_caption_or_chart_annotation_not_source_evidence",
+      "status": "available"
+    },
+    "forms": {
+      "quality_gate": null,
+      "scope": "native_widgets",
+      "status": "available"
+    },
+    "formulas": {
+      "quality_gate": "benchmark_and_license_review_required",
+      "scope": null,
+      "status": "candidate"
+    },
+    "handwriting": {
+      "quality_gate": "manual_review_and_corpus_benchmark_required",
+      "scope": null,
+      "status": "unavailable"
+    },
+    "headings_and_sections": {
+      "quality_gate": "heading_boundary_and_hierarchy_benchmark_required",
+      "scope": "layout_blocks_are_not_semantic_headings",
+      "status": "candidate"
+    },
+    "image_understanding": {
+      "quality_gate": "image_fixture_benchmark_privacy_review_and_derived_label_required",
+      "scope": null,
+      "status": "candidate"
+    },
+    "key_value_extraction": {
+      "quality_gate": "field_geometry_schema_and_owner_evidence_benchmark_required",
+      "scope": "native_widgets_only",
+      "status": "candidate"
+    },
+    "layout": {
+      "quality_gate": null,
+      "scope": "native_pdf_observation_only_by_default",
+      "status": "available"
+    },
+    "multilingual": {
+      "quality_gate": "script_level_ocr_accuracy_pending",
+      "scope": null,
+      "status": "routing_only"
+    },
+    "native_text": {
+      "quality_gate": null,
+      "scope": null,
+      "status": "available"
+    },
+    "office_and_email_structure": {
+      "quality_gate": "additional_format_and_relationship_preservation_benchmark_required",
+      "scope": "paragraph_heading_table_cell_and_embedded_image_structure",
+      "status": "available"
+    },
+    "reading_order": {
+      "quality_gate": "multi_column_and_rotated_page_benchmark_required",
+      "scope": "emitted_block_order_not_quality_benchmarked",
+      "status": "available"
+    },
+    "scanned_ocr": {
+      "quality_gate": "synthetic_only_until_consented_corpus_benchmark",
+      "scope": null,
+      "status": "doctr[\"status\"]"
+    },
+    "selection_marks": {
+      "quality_gate": "checkbox_and_mark_detection_benchmark_required",
+      "scope": null,
+      "status": "unavailable"
+    },
+    "sentence_segmentation": {
+      "quality_gate": "language_specific_boundary_benchmark_required",
+      "scope": "punctuation_and_exact_offsets_only",
+      "status": "available"
+    },
+    "tables": {
+      "quality_gate": null,
+      "scope": "born_digital",
+      "status": "available"
+    },
+    "vlm_annotation": {
+      "quality_gate": "image_fixture_benchmark_and_provider_privacy_review_required",
+      "scope": "provider_and_image_contract_unverified",
+      "status": "candidate"
+    }
+  },
+  "scope_counts": {
+    "Broad": 81,
+    "Focused": 44,
+    "Primitive": 24
+  },
+  "source_workbook": "/Users/pranay/Downloads/document_parsers_extractors_catalog_2026_v2.xlsx"
+}
