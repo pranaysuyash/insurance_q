@@ -376,6 +376,11 @@ async def upload_document(
 
             def rollback_persisted_document() -> None:
                 """Best-effort rollback for a source with no work record."""
+                # This closure releases the reservation created for the current
+                # upload. Mark the outer binding explicitly so its cleanup
+                # cannot become an unbound local assignment on an outbox
+                # failure path.
+                nonlocal policy_reservation_id
                 try:
                     from src.services.artifact_registry import mark_document_deleted
                     mark_document_deleted(doc_id)

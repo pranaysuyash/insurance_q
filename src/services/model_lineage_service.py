@@ -23,7 +23,7 @@ class ModelLineageService:
             return
         if not url or not service_role_key:
             raise ModelLineageError("Supabase service-role configuration is required")
-        from supabase import create_client
+        from src.utils.supabase_client import create_client
         self._client = create_client(url, service_role_key)
 
     @classmethod

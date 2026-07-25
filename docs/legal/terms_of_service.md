@@ -9,7 +9,7 @@ By downloading, installing, or using CoverWise ("the App"), you agree to these T
 
 ## 2. Description of Service
 
-CoverWise is an **information broker** that helps you understand your insurance policies by:
+CoverWise is a **policy information assistant** that helps you understand your insurance policies by:
 - Extracting key information from policy documents
 - Answering questions about your coverage in plain language
 - Organizing policy details for easy reference
@@ -24,10 +24,12 @@ CoverWise provides general information based on your policy documents. This info
 - May contain errors or inaccuracies
 - Should **always** be verified against your actual policy document
 - Should **always** be confirmed with your insurer
+- Should **not** be used as proof of entitlement for claims, renewals, or coverage approvals
 
 ### Coverage Decisions
 - Coverage is determined by your policy and insurer, not by CoverWise
 - We do not make coverage decisions or claims determinations
+- Coverage summaries do not replace insurer communications or official endorsement records
 - Always contact your insurer for official coverage verification
 
 ### AI-Generated Content
@@ -102,7 +104,7 @@ We may update these Terms. Continued use after changes constitutes acceptance. W
 
 ## 11. Governing Law
 
-These Terms are governed by the laws of [Jurisdiction], without regard to conflict of law principles.
+These Terms are governed by the laws of India, without regard to conflict of law principles.
 
 ## 12. Contact
 

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -246,7 +245,7 @@ void main() {
   });
 
   group('claim flow (anonymous → account)', () {
-    Future<void> _openAllBoxes(Uint8List dek) async {
+    Future<void> openAllBoxes(Uint8List dek) async {
       final cipher = HiveAesCipher(dek);
       // Must match openForActivePrincipal() type signatures exactly.
       await Hive.openBox<String>(LocalStorageService.documentsBoxName,
@@ -267,7 +266,7 @@ void main() {
 
       // --- arrange: anonymous workspace ---
       await PrincipalKeyService().initForPrincipal(anonId);
-      await _openAllBoxes(PrincipalKeyService().getOrThrow());
+      await openAllBoxes(PrincipalKeyService().getOrThrow());
 
       // Open alignment: openForActivePrincipal opens docs/gaps/ledger/qa/fields/entitlements as
       // Box<String> and app_state_box as Box<dynamic>. Test accesses must match exactly because
@@ -291,22 +290,20 @@ void main() {
 
       // --- assert ---
       expect(
-        await Hive.box<String>(LocalStorageService.documentsBoxName)
-            .get('doc_1'),
+        Hive.box<String>(LocalStorageService.documentsBoxName).get('doc_1'),
         '{"id":"1","status":"active"}',
       );
       expect(
-        await Hive.box<String>(LocalStorageService.documentsBoxName)
-            .get('doc_2'),
+        Hive.box<String>(LocalStorageService.documentsBoxName).get('doc_2'),
         '{"id":"2","status":"pending"}',
       );
       expect(Hive.box(AppStateStore.boxName).get('theme'), 'dark');
-      expect(await Hive.box('consent_ledger').get('marketing'), 'v2');
-      expect(await Hive.box<String>('resolved_gaps').get('gap_a'), 'fixed');
+      expect(Hive.box('consent_ledger').get('marketing'), 'v2');
+      expect(Hive.box<String>('resolved_gaps').get('gap_a'), 'fixed');
 
-      expect(await Hive.box<String>('entitlements').get('premium'), isNull);
+      expect(Hive.box<String>('entitlements').get('premium'), isNull);
       expect(
-          await Hive.box<String>('analytics_events').get('session_1'), isNull);
+          Hive.box<String>('analytics_events').get('session_1'), isNull);
 
       expect(PrincipalKeyService().principalId, realId);
     });
@@ -316,7 +313,7 @@ void main() {
       const realId = 'user-no-preserve';
 
       await PrincipalKeyService().initForPrincipal(anonId);
-      await _openAllBoxes(PrincipalKeyService().getOrThrow());
+      await openAllBoxes(PrincipalKeyService().getOrThrow());
 
       await Hive.box<String>(LocalStorageService.documentsBoxName).put(
         'doc_1',
@@ -330,11 +327,10 @@ void main() {
       );
 
       expect(
-        await Hive.box<String>(LocalStorageService.documentsBoxName)
-            .get('doc_1'),
+        Hive.box<String>(LocalStorageService.documentsBoxName).get('doc_1'),
         isNull,
       );
-      expect(await Hive.box('consent_ledger').get('marketing'), isNull);
+      expect(Hive.box('consent_ledger').get('marketing'), isNull);
       expect(PrincipalKeyService().principalId, realId);
     });
 
@@ -343,7 +339,7 @@ void main() {
       const realId = 'user-session-clean';
 
       await PrincipalKeyService().initForPrincipal(anonId);
-      await _openAllBoxes(PrincipalKeyService().getOrThrow());
+      await openAllBoxes(PrincipalKeyService().getOrThrow());
 
       // Set up an existing session.
       final box = Hive.box(AppStateStore.boxName);

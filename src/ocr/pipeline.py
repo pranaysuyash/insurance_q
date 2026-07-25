@@ -14,8 +14,8 @@ import fitz  # PyMuPDF
 from datetime import datetime
 import uuid
 import time
+import warnings
 import numpy as np # For potential doctr input/output
-import sys # Add this at the top of the file
 
 from src.config.settings import settings
 
@@ -48,12 +48,12 @@ def pil_image_to_bytes(image: Image.Image, format="PNG") -> bytes:
 
 class OCRPipeline:
     def __init__(self):
-        """Initialize the local OCR predictor when the OCR path is requested.
+        """Configure OCR without loading the local predictor eagerly.
 
         doctr is a local accelerator, not a production import requirement.
-        Keeping this import inside construction allows the API and direct-text
-        PDF path to load in a slim deployment while preserving a clear
-        ImportError when a scan actually requires unavailable OCR.
+        Keeping predictor construction lazy means the API and direct-text PDF
+        path do not import the optional OCR stack. Scanned documents still get
+        the same clear ImportError when local OCR is actually required.
         """
         # HF_TOKEN might still be needed for other things (e.g., DocQA if re-enabled, or RAG embedding models)
         # self.hf_token = os.getenv("HF_TOKEN")
@@ -61,8 +61,30 @@ class OCRPipeline:
         #     logger.warning("HF_TOKEN environment variable not set. This might be an issue if other HF models are used.")
             # raise ValueError("HF_TOKEN environment variable not set.")
         
+        self.doctr_predictor = None
+
+        # DocQA model (currently bypassed, but definition kept for potential future use)
+        self.doc_qa_model_name = os.getenv("HF_DOC_QA_MODEL", "impira/layoutlm-document-qa") # Renamed from self.doc_qa_model
+        # logger.info(f"OCRPipeline initialized. Using local doctr for OCR. DocQA Model (if used): {self.doc_qa_model_name}")
+        logger.info(f"OCRPipeline initialized. Using local doctr for OCR. DocQA Model set to: {self.doc_qa_model_name} (currently bypassed in _get_layout_elements_for_image).")
+
+    def _get_doctr_predictor(self) -> Any:
+        """Load and cache the local predictor only for a real OCR request."""
+        if self.doctr_predictor is not None:
+            return self.doctr_predictor
+
         try:
-            from doctr.models import ocr_predictor as doctr_ocr_predictor
+            # python-doctr 1.0.1 still imports defusedxml.cElementTree even
+            # though defusedxml marks that compatibility alias deprecated.
+            # Keep this narrowly scoped to the optional third-party import;
+            # application deprecations remain visible and fail warning gates.
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r"defusedxml\.cElementTree is deprecated.*",
+                    category=DeprecationWarning,
+                )
+                from doctr.models import ocr_predictor as doctr_ocr_predictor
         except (ImportError, OSError) as error:
             logger.warning(
                 "Local doctr OCR is unavailable error_type=%s",
@@ -73,31 +95,20 @@ class OCRPipeline:
                 "use on-device OCR for scanned documents."
             ) from error
 
-        # Initialize doctr OCR predictor
-        # Common defaults: db_resnet50 for detection, crnn_vgg16_bn for recognition
-        # export_as_straight_boxes=True can simplify downstream processing if you don't need rotated boxes
-        # assume_straight_pages=True can speed up if pages are generally upright
         try:
             logger.info("Initializing doctr OCR predictor...")
-            # You might need to specify device depending on your Docker setup & available hardware
-            # e.g., doctr_ocr_predictor(..., device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-            # For now, let's let doctr decide or default to CPU.
             self.doctr_predictor = doctr_ocr_predictor(
-                det_arch='db_resnet50',          # Detection model architecture
-                reco_arch='crnn_vgg16_bn',       # Recognition model architecture
-                pretrained=True,                 # Use pretrained weights
-                export_as_straight_boxes=True,   # Output straight bounding boxes
-                assume_straight_pages=True       # Assume pages are mostly upright
+                det_arch="db_resnet50",
+                reco_arch="crnn_vgg16_bn",
+                pretrained=True,
+                export_as_straight_boxes=True,
+                assume_straight_pages=True,
             )
             logger.info("doctr OCR predictor initialized successfully.")
-        except Exception as e:
-            logger.error(f"Failed to initialize doctr OCR predictor: {e}", exc_info=True)
+        except Exception:
+            logger.error("Failed to initialize doctr OCR predictor", exc_info=True)
             raise
-
-        # DocQA model (currently bypassed, but definition kept for potential future use)
-        self.doc_qa_model_name = os.getenv("HF_DOC_QA_MODEL", "impira/layoutlm-document-qa") # Renamed from self.doc_qa_model
-        # logger.info(f"OCRPipeline initialized. Using local doctr for OCR. DocQA Model (if used): {self.doc_qa_model_name}")
-        logger.info(f"OCRPipeline initialized. Using local doctr for OCR. DocQA Model set to: {self.doc_qa_model_name} (currently bypassed in _get_layout_elements_for_image).")
+        return self.doctr_predictor
 
 
     async def _process_pdf_with_docling(self, pdf_path: str) -> Optional[Dict[str, Any]]:
@@ -359,6 +370,7 @@ class OCRPipeline:
                 )
 
             original_image = np.asarray(pil_image.convert("RGB"))
+            doctr_predictor = self._get_doctr_predictor()
 
             # Run the untouched RGB page first. The detector/recognizer was
             # trained on natural RGB page images, and thresholding can erase
@@ -367,7 +379,7 @@ class OCRPipeline:
             # skewed scans rather than being allowed to replace readable text.
             logger.debug(f"Page {page_num}: Sending original image to local doctr OCR predictor.")
             ocr_text, page_text_parts, original_confidence = _text_from_prediction(
-                self.doctr_predictor([original_image])
+                doctr_predictor([original_image])
             )
 
             # Confidence is used as a routing signal, not as a truth claim.
@@ -388,7 +400,7 @@ class OCRPipeline:
                     processed_image = np.repeat(processed_image[:, :, None], 3, axis=2)
 
                 processed_text, processed_parts, processed_confidence = _text_from_prediction(
-                    self.doctr_predictor([processed_image])
+                    doctr_predictor([processed_image])
                 )
                 if processed_confidence > original_confidence or len("".join(ocr_text.split())) < 5:
                     ocr_text, page_text_parts = processed_text, processed_parts
@@ -469,6 +481,7 @@ class OCRPipeline:
 
         try:
             from src.llm.client import LLMClient
+            from src.security.prompt_injection import fence_untrusted_content
             from src.models.extraction import InsuranceDocumentExtraction
 
             llm = LLMClient()
@@ -480,7 +493,7 @@ class OCRPipeline:
                 f"- {q['id']} ({q['type']}): {q['question']}" for q in questions
             )
             user_prompt = (
-                f"Document text (page {page_num}):\n{page_text[:8000]}\n\n"
+                f"Document text (page {page_num}):\n{fence_untrusted_content('ocr_document', page_text, max_chars=8000)}\n\n"
                 f"Extract these fields:\n{question_descriptions}"
             )
 

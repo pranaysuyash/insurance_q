@@ -9,7 +9,7 @@ from src.utils import anonymous_auth
 
 def test_issued_anonymous_token_round_trips(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key-which-is-at-least-32-bytes")
 
     token, issued = anonymous_auth.issue_anonymous_token()
     verified = anonymous_auth.verify_anonymous_token(token)
@@ -20,7 +20,7 @@ def test_issued_anonymous_token_round_trips(monkeypatch):
 
 def test_refresh_token_preserves_anonymous_owner(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key-which-is-at-least-32-bytes")
 
     original, claims = anonymous_auth.issue_anonymous_token()
     refreshed, refreshed_claims = anonymous_auth.issue_anonymous_token(claims["sub"])
@@ -32,21 +32,21 @@ def test_refresh_token_preserves_anonymous_owner(monkeypatch):
 
 def test_rotated_signing_key_accepts_still_valid_previous_token(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "old-test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "old-test-signing-key-which-is-at-least-32-bytes")
     token, claims = anonymous_auth.issue_anonymous_token()
 
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "new-test-signing-key")
-    monkeypatch.setenv("ANONYMOUS_AUTH_PREVIOUS_SIGNING_KEYS", "old-test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "new-test-signing-key-which-is-at-least-32-bytes")
+    monkeypatch.setenv("ANONYMOUS_AUTH_PREVIOUS_SIGNING_KEYS", "old-test-signing-key-which-is-at-least-32-bytes")
 
     assert anonymous_auth.verify_anonymous_token(token)["sub"] == claims["sub"]
 
 
 def test_rotated_signing_key_rejects_token_after_previous_key_is_removed(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "old-test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "old-test-signing-key-which-is-at-least-32-bytes")
     token, _ = anonymous_auth.issue_anonymous_token()
 
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "new-test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "new-test-signing-key-which-is-at-least-32-bytes")
     monkeypatch.delenv("ANONYMOUS_AUTH_PREVIOUS_SIGNING_KEYS", raising=False)
 
     with pytest.raises(HTTPException) as error:
@@ -56,7 +56,7 @@ def test_rotated_signing_key_rejects_token_after_previous_key_is_removed(monkeyp
 
 def test_invalid_anonymous_token_is_rejected(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key-which-is-at-least-32-bytes")
 
     with pytest.raises(HTTPException) as error:
         anonymous_auth.verify_anonymous_token("not-a-jwt")
@@ -72,9 +72,28 @@ def test_production_requires_explicit_signing_key(monkeypatch):
         anonymous_auth.issue_anonymous_token()
 
 
+def test_production_rejects_short_signing_key(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "too-short")
+
+    with pytest.raises(RuntimeError, match="at least 32 bytes"):
+        anonymous_auth.issue_anonymous_token()
+
+
+def test_production_rejects_short_previous_signing_key(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv(
+        "ANONYMOUS_AUTH_SIGNING_KEY", "active-signing-key-which-is-at-least-32-bytes"
+    )
+    monkeypatch.setenv("ANONYMOUS_AUTH_PREVIOUS_SIGNING_KEYS", "too-short")
+
+    with pytest.raises(RuntimeError, match="at least 32 bytes"):
+        anonymous_auth.verify_anonymous_token("not-a-jwt")
+
+
 def test_anonymous_identity_can_access_its_profile(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key-which-is-at-least-32-bytes")
     app = FastAPI()
     app.include_router(user_router)
 
@@ -90,7 +109,7 @@ def test_anonymous_identity_can_access_its_profile(monkeypatch):
 
 def test_anonymous_identity_refresh_keeps_the_same_profile(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key")
+    monkeypatch.setenv("ANONYMOUS_AUTH_SIGNING_KEY", "test-signing-key-which-is-at-least-32-bytes")
     app = FastAPI()
     app.include_router(user_router)
 

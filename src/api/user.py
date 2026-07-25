@@ -11,6 +11,13 @@ from src.services.identity_link_service import begin as begin_identity_link
 from src.services.identity_link_service import complete as complete_identity_link
 from src.services.identity_link_service import fail as fail_identity_link
 from src.utils.runtime_config import supabase_server_key
+import structlog
+
+# CSO F8: structured audit logger for auth events.
+# Configuration is done centrally in src/app/main.py lifespan. This module
+# only creates the logger — never calls structlog.configure() to avoid
+# overwriting the application's processor chain.
+audit_logger = structlog.get_logger("coverwise.auth")
 
 router = APIRouter(prefix="/user", tags=["user"])
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -80,13 +87,25 @@ def get_current_user(
             claims = verify_supabase_token(token)
     else:
         claims = verify_supabase_token(token)
-    return User(
+
+    user = User(
         uid=claims["sub"],
         identity_type=claims.get("identity_type", "account"),
         email=claims.get("email"),
         phone=None,
         display_name=claims.get("display_name"),
     )
+
+    # CSO F8: structured audit log for every authenticated request.
+    audit_logger.info(
+        "auth_token_verified",
+        auth_event="token_verify",
+        principal_id=user.uid[:12],
+        identity_type=user.identity_type,
+        has_email=bool(user.email),
+    )
+
+    return user
 
 
 @router.post("/claim-anonymous")
@@ -96,19 +115,44 @@ def claim_anonymous_documents(
 ):
     """Move this device's anonymous documents to the signed-in account once."""
     if not current_user.is_account:
+        audit_logger.warning(
+            "identity_link_rejected_not_account",
+            auth_event="identity_link_rejected",
+            principal_id=current_user.uid[:12],
+        )
         raise HTTPException(status_code=403, detail="An account is required to claim data")
     anonymous_claims = verify_anonymous_token(request.anonymous_token)
     anonymous_owner = anonymous_claims["sub"]
     try:
         link = begin_identity_link(anonymous_owner, current_user.uid)
     except ValueError as error:
+        audit_logger.warning(
+            "identity_link_failed_conflict",
+            auth_event="identity_link_failed",
+            anonymous_owner=anonymous_owner[:12],
+            principal_id=current_user.uid[:12],
+            reason=str(error)[:80],
+        )
         raise HTTPException(status_code=409, detail=str(error)) from error
     except RuntimeError as error:
+        audit_logger.warning(
+            "identity_link_unavailable",
+            auth_event="identity_link_unavailable",
+            anonymous_owner=anonymous_owner[:12],
+            principal_id=current_user.uid[:12],
+        )
         raise HTTPException(status_code=503, detail="Identity linking is temporarily unavailable") from error
 
     # A completed link is the idempotency record. Returning it makes retries
     # safe after a client timeout or a duplicated account-submit action.
     if link.status == "completed":
+        audit_logger.info(
+            "identity_link_skipped_already_completed",
+            auth_event="identity_link_completed",
+            anonymous_owner=anonymous_owner[:12],
+            principal_id=current_user.uid[:12],
+            transferred_documents=link.transferred_documents,
+        )
         return {
             "transferred_documents": link.transferred_documents,
             "owner_id": current_user.uid,
@@ -121,11 +165,25 @@ def claim_anonymous_documents(
             anonymous_owner, current_user.uid
         )
         complete_identity_link(anonymous_owner, current_user.uid, transferred)
+        audit_logger.info(
+            "identity_link_completed",
+            auth_event="identity_link_completed",
+            anonymous_owner=anonymous_owner[:12],
+            principal_id=current_user.uid[:12],
+            transferred_documents=transferred,
+        )
     except Exception as error:
         try:
             fail_identity_link(anonymous_owner, current_user.uid, type(error).__name__)
         except Exception:
             pass
+        audit_logger.error(
+            "identity_link_transfer_failed",
+            auth_event="identity_link_failed",
+            anonymous_owner=anonymous_owner[:12],
+            principal_id=current_user.uid[:12],
+            error_type=type(error).__name__,
+        )
         raise HTTPException(status_code=503, detail="Anonymous workspace transfer did not complete") from error
     return {
         "transferred_documents": transferred,
@@ -136,6 +194,13 @@ def claim_anonymous_documents(
 @router.post("/anonymous")
 def create_anonymous_identity():
     token, claims = issue_anonymous_token()
+    # CSO F8: audit anonymous identity creation
+    audit_logger.info(
+        "anonymous_identity_created",
+        auth_event="identity_create",
+        principal_id=claims["sub"][:12],
+        identity_type="anonymous",
+    )
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -148,6 +213,13 @@ def create_anonymous_identity():
 def refresh_anonymous_identity(current_user: User = Depends(get_current_user)):
     """Rotate a still-valid device credential without changing ownership."""
     token, claims = issue_anonymous_token(current_user.uid)
+    # CSO F8: audit token refresh
+    audit_logger.info(
+        "anonymous_token_refreshed",
+        auth_event="token_refresh",
+        principal_id=current_user.uid[:12],
+        identity_type=current_user.identity_type,
+    )
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -275,7 +347,7 @@ def delete_account(current_user: User = Depends(get_current_user)):
     auth_deleted = False
     auth_error = None
     try:
-        from supabase import create_client
+        from src.utils.supabase_client import create_client
 
         supabase_url = os.getenv("SUPABASE_URL", "")
         service_role_key = supabase_server_key()

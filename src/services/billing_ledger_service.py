@@ -35,7 +35,7 @@ class BillingLedger:
         key = supabase_server_key()
         if not url or not key:
             raise RuntimeError("Supabase billing ledger requires server credentials")
-        from supabase import create_client
+        from src.utils.supabase_client import create_client
 
         return cls(create_client(url, key))
 

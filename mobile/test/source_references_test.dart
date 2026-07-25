@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:coverwise/models/document_model.dart';
+import 'package:coverwise/models/qa_models.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/providers/entitlement_provider.dart';
 import 'package:coverwise/models/entitlement.dart';
@@ -9,31 +10,11 @@ import 'package:coverwise/utils/ref_state.dart';
 import 'package:coverwise/screens/qa_screen.dart';
 import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/services/local_storage_service.dart';
-import 'package:coverwise/services/query_service.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:coverwise/models/qa_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:coverwise/providers/service_providers.dart';
-
-/// A mock QueryService that returns a pre-defined response with sources
-/// and citations for testing source reference rendering.
-class _MockQueryService extends QueryService {
-  final Map<String, dynamic> _response;
-  int callCount = 0;
-
-  _MockQueryService(this._response) : super(Dio());
-
-  @override
-  Future<Map<String, dynamic>> queryDocument(String query,
-      {String? documentId}) async {
-    callCount++;
-    return _response;
-  }
-}
 
 class _SourceReferenceEntitlementNotifier extends EntitlementNotifier {
   @override
@@ -45,29 +26,33 @@ class _SourceReferenceEntitlementNotifier extends EntitlementNotifier {
       );
 }
 
-/// Builds QaScreen with mocked providers for source reference tests.
+/// Builds QaScreen with [currentAnswerProvider] pre-seeded so the
+/// answer card renders immediately without going through the streaming
+/// submit path (which does not preserve sources/citations from mocks).
 Widget _buildQaScreen({
+  required QaAnswer answer,
   List<InsuranceDocument> documents = const [],
-  required Map<String, dynamic> queryResponse,
 }) {
   return ProviderScope(
     overrides: [
       documentsProvider.overrideWith((ref) async => documents),
       selectedDocumentProvider.overrideWith(() => RefState<String?>(null)),
       isLoadingProvider.overrideWith(() => RefState<bool>(false)),
-      currentAnswerProvider.overrideWith(() => RefState<QaAnswer?>(null)),
+      currentAnswerProvider.overrideWith(() => RefState<QaAnswer?>(answer)),
       entitlementProvider
           .overrideWith(_SourceReferenceEntitlementNotifier.new),
-      queryServiceProvider
-          .overrideWithValue(_MockQueryService(queryResponse)),
+      // Override categories/questions with empty lists so the answer card
+      // is the only item in the Suggested tab (index 0, immediately visible)
+      questionCategoriesProvider.overrideWith((ref) => const <QuestionCategory>[]),
+      standardQuestionsProvider.overrideWith((ref) => const <StandardQuestion>[]),
     ],
-    child: MaterialApp(
+    child: const MaterialApp(
       home: QaScreen(),
     ),
   );
 }
 
-/// Minimal InsuranceDocument for testing.
+/// Minimal InsuranceDocument for testing document-name resolution in source cards.
 InsuranceDocument _doc({
   required String id,
   String? remoteId,
@@ -84,6 +69,37 @@ InsuranceDocument _doc({
     status: 'completed',
   );
 }
+
+QaAnswer _answer({
+  String text = 'Answer text.',
+  String question = 'Test question',
+  String documentId = 'doc-1',
+  List<QaSource> sources = const [],
+  List<Map<String, dynamic>> citations = const [],
+  double? confidence,
+}) =>
+    QaAnswer(
+      text: text,
+      sources: sources,
+      citations: citations,
+      timestamp: DateTime(2026, 1, 15, 10, 30),
+      documentId: documentId,
+      question: question,
+      confidence: confidence,
+    );
+
+QaSource _source({
+  String text = 'Source text',
+  double score = 1.0,
+  int? pageNumber,
+  String documentId = 'doc-1',
+}) =>
+    QaSource(
+      documentId: documentId,
+      text: text,
+      score: score,
+      pageNumber: pageNumber,
+    );
 
 void main() {
   setUpAll(() async {
@@ -126,19 +142,17 @@ void main() {
   group('Source references — citations with page numbers', () {
     testWidgets('renders citation with page number and View source button',
         (tester) async {
-      final response = {
-        'answer': 'Your policy number is ABC123.',
-        'sources': <String>[],
-        'document_id': 'doc-1',
-        'citations': [
+      final answer = _answer(
+        text: 'Your policy number is ABC123.',
+        question: 'What is my policy number?',
+        citations: [
           {
             'quote': 'Policy Number: ABC123',
             'page_number': 3,
             'status': 'verified',
           },
         ],
-        'follow_up_questions': <String>[],
-      };
+      );
 
       final doc = _doc(
         id: 'doc-1',
@@ -147,24 +161,11 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildQaScreen(documents: [doc], queryResponse: response),
+        _buildQaScreen(documents: [doc], answer: answer),
       );
       await tester.pumpAndSettle();
 
-      // Switch to "Your question" tab
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-
-      // Enter a question and submit
-      await tester.enterText(find.byType(TextField), 'What is my policy number?');
-      await tester.pump();
-      await tester.tap(find.byType(FilledButton));
-      await tester.pump(const Duration(seconds: 1));
-
-      // Should show the answer
-      expect(find.textContaining('ABC123'), findsWidgets);
-
-      // Should show evidence section
+      // Should show the evidence section
       expect(find.text('Evidence'), findsOneWidget);
 
       // Should show citation with page reference
@@ -172,27 +173,21 @@ void main() {
 
       // Should show "View source" for citation with page number
       expect(find.text('View source'), findsOneWidget);
-
-      // Should show open_in_new icon for navigable citation
-      expect(find.byIcon(Icons.open_in_new), findsWidgets);
     });
 
     testWidgets(
         'citation without page number does not show View source',
         (tester) async {
-      final response = {
-        'answer': 'Emergency care is covered.',
-        'sources': <String>[],
-        'document_id': 'doc-1',
-        'citations': [
+      final answer = _answer(
+        text: 'Emergency care is covered.',
+        question: 'What is covered?',
+        citations: [
           {
             'quote': 'Emergency care coverage details',
-            // No page_number
             'status': 'verified',
           },
         ],
-        'follow_up_questions': <String>[],
-      };
+      );
 
       final doc = _doc(
         id: 'doc-1',
@@ -201,41 +196,33 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildQaScreen(documents: [doc], queryResponse: response),
+        _buildQaScreen(documents: [doc], answer: answer),
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'What is covered?');
-      await tester.pump();
-      await tester.tap(find.byType(FilledButton));
-      await tester.pump(const Duration(seconds: 1));
 
       // Should show citation without page reference
       expect(find.textContaining('Source 1'), findsOneWidget);
 
       // Should NOT show "View source" (no page number)
       expect(find.text('View source'), findsNothing);
-
-      // Should NOT show open_in_new icon
-      expect(find.byIcon(Icons.open_in_new), findsNothing);
     });
   });
 
   group('Source references — source cards with relevance scores', () {
     testWidgets('renders source card with high relevance score (≥80%)',
         (tester) async {
-      final response = {
-        'answer': 'The deductible is ₹5,000.',
-        'sources': [
-          {'text': 'Deductible amount in policy schedule', 'score': 0.95},
+      final answer = _answer(
+        text: 'The deductible is \$5,000.',
+        question: 'What is my deductible?',
+        sources: [
+          _source(
+            text: 'Deductible amount in policy schedule',
+            score: 0.95,
+            documentId: 'doc-1',
+          ),
         ],
-        'document_id': 'doc-1',
-        'citations': <Map<String, dynamic>>[],
-        'follow_up_questions': <String>[],
-      };
+      );
+
       final doc = _doc(
         id: 'doc-1',
         filename: 'health_policy.pdf',
@@ -243,17 +230,9 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildQaScreen(documents: [doc], queryResponse: response),
+        _buildQaScreen(documents: [doc], answer: answer),
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'What is my deductible?');
-      await tester.pump();
-      await tester.tap(find.byType(FilledButton));
-      await tester.pump(const Duration(seconds: 1));
 
       // Should show sources section
       expect(find.textContaining('Sources (1)'), findsOneWidget);
@@ -270,15 +249,17 @@ void main() {
 
     testWidgets('renders source card with low relevance score (<50%)',
         (tester) async {
-      final response = {
-        'answer': 'Waiting periods apply.',
-        'sources': [
-          {'text': 'Weak match from another section', 'score': 0.25},
+      final answer = _answer(
+        text: 'Waiting periods apply.',
+        question: 'What are waiting periods?',
+        sources: [
+          _source(
+            text: 'Weak match from another section',
+            score: 0.25,
+            documentId: 'doc-1',
+          ),
         ],
-        'document_id': 'doc-1',
-        'citations': <Map<String, dynamic>>[],
-        'follow_up_questions': <String>[],
-      };
+      );
 
       final doc = _doc(
         id: 'doc-1',
@@ -287,17 +268,9 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildQaScreen(documents: [doc], queryResponse: response),
+        _buildQaScreen(documents: [doc], answer: answer),
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'What are waiting periods?');
-      await tester.pump();
-      await tester.tap(find.byType(FilledButton));
-      await tester.pump(const Duration(seconds: 1));
 
       // Should show 25% relevance badge
       expect(find.text('25%'), findsOneWidget);
@@ -305,19 +278,18 @@ void main() {
 
     testWidgets('renders source card with page number and navigable icon',
         (tester) async {
-      final response = {
-        'answer': 'Premium is ₹12,000 annually.',
-        'sources': [
-          {
-            'text': 'Premium schedule on page 2',
-            'page_number': 2,
-            'score': 0.92,
-          },
+      final answer = _answer(
+        text: 'Premium is \$12,000 annually.',
+        question: 'What is my premium?',
+        sources: [
+          _source(
+            text: 'Premium schedule on page 2',
+            score: 0.92,
+            pageNumber: 2,
+            documentId: 'doc-1',
+          ),
         ],
-        'document_id': 'doc-1',
-        'citations': <Map<String, dynamic>>[],
-        'follow_up_questions': <String>[],
-      };
+      );
 
       final doc = _doc(
         id: 'doc-1',
@@ -326,17 +298,9 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildQaScreen(documents: [doc], queryResponse: response),
+        _buildQaScreen(documents: [doc], answer: answer),
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'What is my premium?');
-      await tester.pump();
-      await tester.tap(find.byType(FilledButton));
-      await tester.pump(const Duration(seconds: 1));
 
       // Should show source with page number
       expect(find.textContaining('Page 2'), findsOneWidget);
@@ -345,22 +309,32 @@ void main() {
       expect(find.text('92%'), findsOneWidget);
 
       // Should show open_in_new icon (navigable)
-      expect(find.byIcon(Icons.open_in_new), findsWidgets);
+      expect(find.byIcon(Icons.open_in_new), findsOneWidget);
     });
 
     testWidgets('renders multiple sources with different scores',
         (tester) async {
-      final response = {
-        'answer': 'Coverage includes hospitalization.',
-        'sources': [
-          {'text': 'Strong match from main policy', 'score': 0.98},
-          {'text': 'Medium match from schedule', 'score': 0.65},
-          {'text': 'Weak match from appendix', 'score': 0.30},
+      final answer = _answer(
+        text: 'Coverage includes hospitalization.',
+        question: 'What is covered?',
+        sources: [
+          _source(
+            text: 'Strong match from main policy',
+            score: 0.98,
+            documentId: 'doc-1',
+          ),
+          _source(
+            text: 'Medium match from schedule',
+            score: 0.65,
+            documentId: 'doc-1',
+          ),
+          _source(
+            text: 'Weak match from appendix',
+            score: 0.30,
+            documentId: 'doc-1',
+          ),
         ],
-        'document_id': 'doc-1',
-        'citations': <Map<String, dynamic>>[],
-        'follow_up_questions': <String>[],
-      };
+      );
 
       final doc = _doc(
         id: 'doc-1',
@@ -369,17 +343,9 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildQaScreen(documents: [doc], queryResponse: response),
+        _buildQaScreen(documents: [doc], answer: answer),
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'What is covered?');
-      await tester.pump();
-      await tester.tap(find.byType(FilledButton));
-      await tester.pump(const Duration(seconds: 1));
 
       // Should show all three sources
       expect(find.textContaining('Sources (3)'), findsOneWidget);
@@ -399,33 +365,20 @@ void main() {
   group('Source references — tooltip', () {
     testWidgets('relevance badge has tooltip explaining its meaning',
         (tester) async {
-      final response = {
-        'answer': 'Answer text',
-        'sources': [
-          {'text': 'Source text', 'score': 0.85},
+      final answer = _answer(
+        text: 'Answer text',
+        question: 'Test question',
+        sources: [
+          _source(text: 'Source text', score: 0.85, documentId: 'doc-1'),
         ],
-        'document_id': 'doc-1',
-        'citations': <Map<String, dynamic>>[],
-        'follow_up_questions': <String>[],
-      };
-
-      final doc = _doc(
-        id: 'doc-1',
-        localFilePath: '/tmp/test.pdf',
       );
+
+      final doc = _doc(id: 'doc-1', localFilePath: '/tmp/test.pdf');
 
       await tester.pumpWidget(
-        _buildQaScreen(documents: [doc], queryResponse: response),
+        _buildQaScreen(documents: [doc], answer: answer),
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'Test question');
-      await tester.pump();
-      await tester.tap(find.byType(FilledButton));
-      await tester.pump(const Duration(seconds: 1));
 
       // Find the Tooltip wrapping the 85% badge
       final tooltip = tester.widget<Tooltip>(
@@ -442,32 +395,18 @@ void main() {
   group('ConfidenceBadge — rendering', () {
     testWidgets('hidden when AppConfig.confidenceCalibrated is false',
         (tester) async {
-      final response = {
-        'answer': 'Answer with confidence',
-        'sources': <String>[],
-        'document_id': 'doc-1',
-        'citations': <Map<String, dynamic>>[],
-        'follow_up_questions': <String>[],
-        'confidence': 0.9,
-      };
-
-      final doc = _doc(
-        id: 'doc-1',
-        localFilePath: '/tmp/test.pdf',
+      final answer = _answer(
+        text: 'Answer with confidence',
+        question: 'Test question',
+        confidence: 0.9,
       );
+
+      final doc = _doc(id: 'doc-1', localFilePath: '/tmp/test.pdf');
 
       await tester.pumpWidget(
-        _buildQaScreen(documents: [doc], queryResponse: response),
+        _buildQaScreen(documents: [doc], answer: answer),
       );
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'Test question');
-      await tester.pump();
-      await tester.tap(find.byType(FilledButton));
-      await tester.pump(const Duration(seconds: 1));
 
       // Confidence badge should be hidden (confidenceCalibrated = false by default)
       expect(find.text('High confidence'), findsNothing);

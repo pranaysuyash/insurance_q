@@ -1,0 +1,900 @@
+{
+  "total_questions": 52,
+  "correct_answers": 29,
+  "accuracy": 0.5576923076923077,
+  "source_coverage": 1.0,
+  "context_coverage": 1.0,
+  "citation_rate": 0.9615384615384616,
+  "hallucination_rate": 0.3333333333333333,
+  "per_question": [
+    {
+      "question": "What is my policy number?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "Your policy number is 4214i/CPHSR/407834350/00/000.",
+      "expected": "4214i/CPHSR/407834350/00/000",
+      "contexts": [
+        "Policy Servicing \n\u2022 You may contact us on our Toll Free no: 1800 2666, or email to \n  customersupport@icicilombard.com or use our IL TakeCare App or send a Hi to RIA, \n  our Responsive Intelligent Assistant on WhatsApp (7738282666) for policy services.",
+        "1453\nno\nHealth Shield 360 Retail \u2013 Classic Plus\nCustomer Information Sheet/ Know Your Policy\nThis document provides key information about your policy. You are advised to\ngo through your policy document.\nSr. No\n                                                       Description \n(Please refer to applicable Policy Clause Number in next column)\n\nPolicy Clause Number\n 1.\nName of Insurance Product/Policy  \nHealth Shield 360 Retail \u2013 Classic Plus\n 2.\n\nPolicy Number  \n4214i/CPHSR/407834350/00/000\n 3.\nType of Insurance Product/Policy  \nBoth Indemnity and Benefit\n 4.\nSum Insured (Basis) \nFloater Sum Insured- Rs. 2500000 \u2013 where all members under the policy have a single \nsum insured limit which maybe utilized by any or all members \n  5.\n\nPolicy Coverage (What the policy covers?) \nExpenses in respect of:",
+        "It is \ncounted from the beginning of the policy coverage \n1.",
+        "Policy Coverage (What the policy covers?) \nExpenses in respect of:",
+        "Exclusions (What does the policy not cover) \nStandard Exclusion \ni."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Who is the insurer for this policy?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The insurer is ICICI Lombard.",
+      "expected": "ICICI Lombard General Insurance",
+      "contexts": [
+        "Multiple Policy: \nln case of multiple policies taken by an insured person during a period from one or \nmore insurers to indemnify treatment costs, the insured person shall have the right to \nrequire a settlement of his/her claim in terms of any of his/her policies. ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy.",
+        "ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy.",
+        "Migration and Portability: \na. The insured has the choice to port his / her policies from one Insurer to another. \nb. The insured is entitled to transfer the credits gained to the extent of the sum insured \nand the benefits available in the previous policy, subject to the underwriting policy of \nthe Company \nc. The company shall decide and communicate on the proposal upon receipt of \ninformation from Existing insurer within prescribed timelines . \nd. This benefit is not applicable for enhanced sum insured. \nThe insured person will have the option to migrate the policy to other health insurance \nproducts/plans offered by the company. The Company may underwrite the proposal in \ncase of migration, if the insured is not continuously covered for 36 months. \nIn case You are keen on migrating or outward porting Your Policy, kindly contact us at \ncustomersupport@icicilombard.com.",
+        "Dear PRANAY  SUYASH,\nThis is to certify that the Company has received the premium dated Aug 27, 2025 for Health\ninsurance coverage under \"Health Insurance Policy\" with the following details.",
+        "Warm Regards,\nFor Team ICICI Lombard\nAuthorised Signatory\nNote: This certificate must be surrendered to the Insurance Company in case of Cancellation \nof the Policy."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the claims helpline number?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The claims helpline number is not provided in the provided context. The retrieved source only states 'For claims, please call us at our toll free no.' without listing the digits.",
+      "expected": "1800 2666",
+      "contexts": [
+        "For claims, please call us at our toll free no.",
+        "Claims/Claims Procedure",
+        "Step 3 \u2013 The claim will be processed within 15 days of receipt of claim along with claim \nform and documents \nStep 4 \u2013 The approved amount in the claim would be reimbursed to you \nStep 5 \u2013 You can check and track your claim status live on IL TakeCare app or \nWhatsApp",
+        "1. Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%. \n   d.B.Optional \n2. Road Emergency Ambulance \u2013 Up to \u20b9 35,000/- \n   Cover.11\n3. Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above. \nDependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days. \n   d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.\n\nDeductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9.\nClaims/Claims Procedure",
+        "It is \ncounted from the beginning of the policy coverage \n1."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the customer care email address?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The customer care email address is customersupport@icicilombard.com.",
+      "expected": "ihealthcare@icicilombard.com",
+      "contexts": [
+        "Policy Servicing \n\u2022 You may contact us on our Toll Free no: 1800 2666, or email to \n  customersupport@icicilombard.com or use our IL TakeCare App or send a Hi to RIA, \n  our Responsive Intelligent Assistant on WhatsApp (7738282666) for policy services.",
+        "Policy Servicing \n\u2022 You may contact us on our Toll Free no: 1800 2666, or email to \n  customersupport@icicilombard.com or use our IL TakeCare App or send a Hi to RIA, \n  our Responsive Intelligent Assistant on WhatsApp (7738282666) for policy services. \n\u2022 For details of Company officials kindly visit our \n  websitehttps://www.icicilombard.com/customer-support . \n  f. General   \n  terms and \n  conditions \n  11.\nGrievances/Complaints \n\u2022 In case of any grievance the insured person may contact the Company through: - \n  Website: www.icicilombard.com \n  Toll free number: 1800 2666 \n  Email: customersupport@icicilombard.com \n  f. General terms and \n  conditions .15 \n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg. No. 115\nCIN: L67200MH2000PLC129408\nHealth Shield 360 Retail\nUIN - ICIHLIP25037V022425\nMailing Address:\nRegistered address:\nToll free no.: 1800 2666\nICICI Lombard General Insurance Company\nLimited, Interface Building No.: 16, 601 / 602,\n6th Floor, New Link Road, Malad (West),\nMumbai - 400 064.\nICICI Lombard House, 414 Veer\nSavarkar Marg, Near Siddhi\nVinayak Temple, Prabhadevi,\nMumbai - 400 025.\nAlternate No.: +918655 222 666 (chargeable)\nEmail: customersupport@icicilombard.com\nWebsite: www.icicilombard.com\n13 / 16",
+        "email: customersupport@icicilombard.com",
+        "email: customersupport@icicilombard.com",
+        "email: customersupport@icicilombard.com"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the premium amount for this policy?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "Premium amount for this policy is \u20b931,705.00 (Total Premium) for the Financial Year 2025-2026. Breakdown: Basic Premium \u20b926,868.64; IGST 18%; Total Tax Payable \u20b94,836.36.",
+      "expected": "31705",
+      "contexts": [
+        "Premium Details (\u20b9)\nBasic Premium\nIGST\nTotal Tax Payable\nTotal Premium\n%\n`\n26868.64\n18\n4836.36\n4836.36\n31705\nFinancial Year\nAmount (\u20b9)\n2025-2026\n31705.00\nThe product is eligible for deduction u/s 80D of the Income Tax, 1961 and any amendments made\nthere to.\nWarm Regards,\nFor Team ICICI Lombard\nAuthorised Signatory\nNote: This certificate must be surrendered to the Insurance Company in case of Cancellation \nof the Policy. In the event of incorrect representation of this declaration, the liability shall be \nupon the policyholder. \nIn case You find any variations against Your proposal or any discrepancy in the Policy, please \ncontact Us immediately on the numbers available on our website www.icicilombard.com Or call \non our toll free no. 1800 2666\n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg. No. 115\nCIN: L67200MH2000PLC129408\nHealth Shield 360 Retail\nUIN - ICIHLIP25037V022425\nMailing Address:\nRegistered address:\nToll free no.: 1800 2666\nICICI Lombard General Insurance Company\nLimited, Interface Building No.: 16, 601 / 602,\n6th Floor, New Link Road, Malad (West),\nMumbai - 400 064.\nICICI Lombard House, 414 Veer\nSavarkar Marg, Near Siddhi\nVinayak Temple, Prabhadevi,\nMumbai - 400 025.\nAlternate No.: +918655 222 666 (chargeable)\nEmail: customersupport@icicilombard.com\nWebsite: www.icicilombard.com\n4 / 16",
+        "Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period.",
+        "Premium Details (\u20b9)\nBasic Premium\nIGST\nTotal Tax Payable\nTotal Premium\n%\n`\n26868.64\n18\n4836.36\n4836.36\n31705\nFinancial Year\nAmount (\u20b9)\n2025-2026\n31705.00\nThe product is eligible for deduction u/s 80D of the Income Tax, 1961 and any amendments made\nthere to.",
+        "Dear PRANAY  SUYASH,\nThis is to certify that the Company has received the premium dated Aug 27, 2025 for Health\ninsurance coverage under \"Health Insurance Policy\" with the following details.",
+        "Cancellation: \n\u2022 The insured may cancel the policy at any time during the term, by giving 7 days \nnotice in writing. The Company shall \na. Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period. \nb. Refund premium for the unexpired policy period, in respect of policies with term \nmore than 1 year and risk coverage for such policy years has not commenced. \n\u2022 Notwithstanding anything contained herein or otherwise, no refunds of premium shall\n\nf. i.14\n\nf. i.6\n\nf. i.9\n\nf. i.7 & 8\n\nf. ii.10"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Who is the policyholder or insured person?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The documents do not name a policyholder or insured person by a specific identity. They refer to the insured person/policyholder generically throughout the text without identifying an individual.",
+      "expected": "Pranay Suyyala",
+      "contexts": [
+        "The insured person will have the option to migrate the policy to other health insurance \nproducts/plans offered by the company.",
+        "Multiple Policy: \nln case of multiple policies taken by an insured person during a period from one or \nmore insurers to indemnify treatment costs, the insured person shall have the right to \nrequire a settlement of his/her claim in terms of any of his/her policies.",
+        "Multiple Policy: \nln case of multiple policies taken by an insured person during a period from one or \nmore insurers to indemnify treatment costs, the insured person shall have the right to \nrequire a settlement of his/her claim in terms of any of his/her policies. ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy.",
+        "d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.",
+        "ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the plan or product name?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "Product name: Health Shield 360 Retail. Plan name: Classic_Plus_HS360_Retail.",
+      "expected": "iHealth Plus",
+      "contexts": [
+        "(a)  Policy Schedule (Policy Certificate)\nPOLICYALL\n4\n4\n3\n3\nICIHLIP25037V022425\nhttps://www.icicilombard.com/docs/default-source/d\nT2\nProposer Name\nPRANAY  SUYASH\nProduct name\nHealth Shield 360 Retail\nAddress\nA-27, KUDREMUKH COLONY,   BANGALORE,\nKARNATAKA - 560034\nPlan Name\nClassic_Plus_HS360_Retail\n\nPolicy No.",
+        "(a)  Policy Schedule (Policy Certificate)\nPOLICYALL\n4\n4\n3\n3\nICIHLIP25037V022425\nhttps://www.icicilombard.com/docs/default-source/d\nT2\nProposer Name\nPRANAY  SUYASH\nProduct name\nHealth Shield 360 Retail\nAddress\nA-27, KUDREMUKH COLONY,   BANGALORE,\nKARNATAKA - 560034\nPlan Name\nClassic_Plus_HS360_Retail\n\nPolicy No.\n4214i/CPHSR/407834350/00/000\nContact No.\n99******02\nPeriod of Insurance\nFrom 00:00 hrs 27-Aug-2025 To 23:59\nhrs 26-Aug-2026\nEmail Address\nPR***********@GMAIL.COM\n\nPolicy Tenure\n1\nNominee Name\n\nAlternate Policy No.\n\nLAN No.\nNA\nRelationship With\nPolicyholder\n\nPolicy Issuing Office\nPrabhadevi\nAppointee Name\n\nPolicy Issued On\n14-Sep-2025\nNominee Age\nNA \nPrevious Policy No.\n4128i/HERN/176804574/04/000\nGSTIN No. (Customer)",
+        "Name of Insurance Product/Policy  \nHealth Shield 360 Retail \u2013 Classic Plus\n 2.",
+        "The insured person will have the option to migrate the policy to other health insurance \nproducts/plans offered by the company.",
+        "1453\nno\nHealth Shield 360 Retail \u2013 Classic Plus\nCustomer Information Sheet/ Know Your Policy\nThis document provides key information about your policy. You are advised to\ngo through your policy document.\nSr. No\n                                                       Description \n(Please refer to applicable Policy Clause Number in next column)\n\nPolicy Clause Number\n 1.\nName of Insurance Product/Policy  \nHealth Shield 360 Retail \u2013 Classic Plus\n 2.\n\nPolicy Number  \n4214i/CPHSR/407834350/00/000\n 3.\nType of Insurance Product/Policy  \nBoth Indemnity and Benefit\n 4.\nSum Insured (Basis) \nFloater Sum Insured- Rs. 2500000 \u2013 where all members under the policy have a single \nsum insured limit which maybe utilized by any or all members \n  5.\n\nPolicy Coverage (What the policy covers?) \nExpenses in respect of:"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the TPA name?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The TPA name is not available in the provided policy documents.",
+      "expected": "ICICI Lombard",
+      "contexts": [
+        "(a)  Policy Schedule (Policy Certificate)\nPOLICYALL\n4\n4\n3\n3\nICIHLIP25037V022425\nhttps://www.icicilombard.com/docs/default-source/d\nT2\nProposer Name\nPRANAY  SUYASH\nProduct name\nHealth Shield 360 Retail\nAddress\nA-27, KUDREMUKH COLONY,   BANGALORE,\nKARNATAKA - 560034\nPlan Name\nClassic_Plus_HS360_Retail\n\nPolicy No.",
+        "Name\n: Pranay  Suyash\nPolicy No.",
+        "Name\n: ADVAY SINHA\nPolicy No.",
+        "Tax Certificate\n4\nTo\nPRANAY  SUYASH\nA-27, KUDREMUKH COLONY\nBANGALORE\nKARNATAKA - 560034\nANNUAL\nSubject: Premium certificate for the purpose of deduction under section 80D of Income Tax\nAct, 1961 and any amendments made thereafter.\nDear PRANAY  SUYASH,\nThis is to certify that the Company has received the premium dated Aug 27, 2025 for Health\ninsurance coverage under \"Health Insurance Policy\" with the following details.\nPolicyholder's\nName\nPRANAY  SUYASH\n\nPolicy Number\n4214i/CPHSR/407834350/\n00/000\n\nPolicy Start Date\nAug 27, 2025\n\nPolicy End Date\nAug 26, 2026\nPlan Name\nClassic_Plus_HS360_R_2A\ndult_1Child_1Year\nTotal Premium Paid \n(`)\n31705\nGSTIN Number\n(Customer)\n\nGSTIN Reg.No (ICICI\nLombard)\n09AAACI7904G1ZL\nServicing Branch\nName\nLucknow\nServicing Branch\nAddress\nSummit Building B-503 To\nB- 508, Fifth Floor, Plot No\nTcg 3/3, Vibhutikhand\nGomti Nagar, Lucknow\nUttar Pradesh-226010",
+        "It is \ncounted from the beginning of the policy coverage \n1."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": false
+    },
+    {
+      "question": "What is the total coverage amount or sum insured?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "Sum insured (coverage amount) is not a single total; the policy supports multiple bands. It includes lower bands and higher bands: 3 Lacs to 30 Lacs (\u20b93,000) and 50 Lacs to 300 Lacs (\u20b95,000), with cov",
+      "expected": "2500000",
+      "contexts": [
+        "This cover is available for Sum Insured 50 Lacs and above.",
+        "1. Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%. \n   d.B.Optional \n2. Road Emergency Ambulance \u2013 Up to \u20b9 35,000/- \n   Cover.11\n3. Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above. \nDependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days. \n   d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.\n\nDeductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9.\nClaims/Claims Procedure",
+        "Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above.",
+        "This cover is not available for Sum Insured 3 Lacs.",
+        "Wherever, the sum insured is enhanced, completion of sixty continuous \nmonths would be applicable from the date of enhancement of sums insured only on \nthe enhanced limits\n  13."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the maternity coverage limit?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "Maternity coverage limit depends on the Sum Insured (SI):\n- SI up to 5L/7L: Rs 25,000\n- SI 10L, 15L, 20L, 25L, 30L, 50L: Rs 40,000\n- SI 75L, 100L, 200L, 300L: Rs 50,000\nThese limits apply to both norm",
+      "expected": "40000",
+      "contexts": [
+        "3000 per day\nThese limits are payable  max up to 10days & minimum 3 days\nhospitalization is mandatory  \nMaternity Cover & New Born Baby Cover\nNot Applicable for Annual Sum Insured 3 Lacs\nMaternity Limit:\nFor SI 5L/7L=  Rs 25,000 \nFor SI 10L/15L/ 20L/ 25L/ 30L/ 50L= Rs 40,000\nFor SI  75L/ 100L/200L/300L =  Rs 50,000\nThe above limits are for both normal and C section, maximum upto 2 events\nNew Born Baby Cover: \nFor >3L SI options = 10,000 \nWorld Wide Cover (Cover Outside India)\nAvailable only",
+        "Maternity Cover and New Born Baby Cover \u2013 Covers medical expenses up to the",
+        "d.B.Optional \n    Cover.7 \n  d.B.Optional \n    Cover.3\n8\nFinancial limits of coverage \nSub-limit (It is a pre- defined limit and the insurance \ncompany will not pay any amount in excess of this limit) \nThe policy will pay only up to the limits specified hereunder for \nthe following diseases/procedures:\nBasic Covers: - \nDomestic Road Ambulance Cover \nDomestic Road Ambulance Cover \n  \u2022 For Cashless claims: same will be at Actuals\n   d.",
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6.",
+        "e. ii. i\n\ne. ii. j\n\ne. ii. k\n\ne. ii. l\n  7.\nWaiting period\n\nTime period during which specified diseases/treatments are not covered. It is \ncounted from the beginning of the policy coverage \n1. Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury). \n2. Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment. (Please refer to the policy \n    clauses for the full listing) \n3. Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage. \n4. In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases. \n5. Maternity waiting period: 36 months\n\n6. BeFit: 30 days\n\ne. i. 4.\n\ne. i. 2\n\ne. i. 1\n\ne. i. 3"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the room rent limit per day?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "Room rent limit per day is tiered by Sum Insured (SI):\n- 1000 per day for SI 7L and 10L. (Source 2)\n- 2000 per day for SI 15L, 20L, 25L, 30L, 50L, 75L and 100L/200L/300L. (Source 3)\n- 3000 per day (_s",
+      "expected": "1% of sum insured",
+      "contexts": [
+        "Dependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days.",
+        "1000 per day\nSI 7L & 10L: Rs.",
+        "2000 per day\nSI 15L, 20L, 25L, 30L, 50L, 75L & 100L/200L/300L: Rs.",
+        "3000 per day\nThese limits are payable  max up to 10days & minimum 3 days\nhospitalization is mandatory  \nMaternity Cover & New Born Baby Cover\nNot Applicable for Annual Sum Insured 3 Lacs\nMaternity Limit:\nFor SI 5L/7L=  Rs 25,000 \nFor SI 10L/15L/ 20L/ 25L/ 30L/ 50L= Rs 40,000\nFor SI  75L/ 100L/200L/300L =  Rs 50,000\nThe above limits are for both normal and C section, maximum upto 2 events\nNew Born Baby Cover: \nFor >3L SI options = 10,000 \nWorld Wide Cover (Cover Outside India)\nAvailable only",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is there a deductible or co-pay?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "Yes. There is a co-pay of 10% on hospitalization (up to the Annual Sum Insured). Outside India, a 10% co-pay also applies to treatment. There is no deductible in this policy (deductible not applicable",
+      "expected": "not applicable",
+      "contexts": [
+        "Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%.",
+        "Hospitalization expenses incurred anywhere in the world outside India will \nbe covered up to Annual Sum Insured subject to a co-pay of 10%.",
+        "d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.",
+        "1. Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%. \n   d.B.Optional \n2. Road Emergency Ambulance \u2013 Up to \u20b9 35,000/- \n   Cover.11\n3. Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above. \nDependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days. \n   d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.\n\nDeductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9.\nClaims/Claims Procedure",
+        "Deductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the restore benefit amount?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "The restore benefit amount is not specified in the provided policy excerpts.",
+      "expected": "100% of sum insured",
+      "contexts": [
+        "This benefit is payable only \nfor one immediate family member.",
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6.",
+        "This benefit is not applicable for enhanced sum insured.",
+        "Important: Insurance benefit shall become voidable at the option of the company, in the event of any untrue or incorrect statement, misrepresentation \nnon-description of any material particular in the proposal form/ personal statement, declaration and connected documents, or any material information has been \nwithheld by beneficiary or anyone acting on beneficiary's behalf to obtain insurance benefit.",
+        "The insured is entitled to transfer the credits gained to the extent of the sum insured \nand the benefits available in the previous policy, subject to the underwriting policy of \nthe Company \nc."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": false
+    },
+    {
+      "question": "What is the no-claim bonus percentage?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "No-claim bonus (loyalty bonus) is 20% of the Annual Sum Insured for each completed and continuous policy year, subject to a maximum of 100% of the sum insured.",
+      "expected": "50%",
+      "contexts": [
+        "a. Health Assistance [HAT]- Available\nb. Ambulance Assistance \u2013 Available\nc. Discounts on services and products- Available\nLoyalty Bonus - 20% of Annual Sum Insured for each completed and continuous\n\nPolicy Year subject to a maximum of 100%. No reduction in the event of a claim \nTele Consultation(s) \u2013 Unlimited: 24x7, 365 days of the year\n\nIncentives associated with vaccination against Pneumococcal disease - Discount \nof 2.5% on premium for all adult members in the policy have been vaccinated with the \nconjugate pneumococcal vaccine in the one year immediately prior to policy start date. \nLifetime discount upon renewal.\n\nOptional Covers (In-built in the plan): -",
+        "d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.",
+        "Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period.",
+        "Moratorium Period: After completion of sixty continuous months of coverage \n(including portability and migration) in health insurance policy, no policy and claim shall \nbe contestable by the insurer on grounds of non-disclosure, misrepresentation, except \non grounds of established fraud. This period of sixty continuous months is called as \nmoratorium period. The moratorium would be applicable for the sums insured of the \nfirst policy. Wherever, the sum insured is enhanced, completion of sixty continuous \nmonths would be applicable from the date of enhancement of sums insured only on \nthe enhanced limits\n  13.\nYour Obligations \n\u2022 Please disclose all pre-existing disease/s or condition/s before buying a policy. \n  Non-disclosure may affect the claim settlement. \n\u2022 If there is misrepresentation, non-disclosure of material facts, fraud, or non- \n  cooperation in the proposal form, personal statement, medical history, or claim \n  documents, the policy becomes void. In such cases, any benefits obtained through \n  fraudulent means result in the forfeiture of all paid premiums. \n  f. General terms and \n  terms and \n  conditions \n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg. No. 115\nCIN: L67200MH2000PLC129408\nHealth Shield 360 Retail\nUIN - ICIHLIP25037V022425\nMailing Address:\nRegistered address:\nToll free no.: 1800 2666\nICICI Lombard General Insurance Company\nLimited, Interface Building No.: 16, 601 / 602,\n6th Floor, New Link Road, Malad (West),\nMumbai - 400 064.\nICICI Lombard House, 414 Veer\nSavarkar Marg, Near Siddhi\nVinayak Temple, Prabhadevi,\nMumbai - 400 025.\nAlternate No.: +918655 222 666 (chargeable)\nEmail: customersupport@icicilombard.com\nWebsite: www.icicilombard.com\n15 / 16",
+        "1. Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%. \n   d.B.Optional \n2. Road Emergency Ambulance \u2013 Up to \u20b9 35,000/- \n   Cover.11\n3. Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above. \nDependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days. \n   d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.\n\nDeductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9.\nClaims/Claims Procedure"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the AYUSH treatment limit?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "AYUSH treatment is covered up to the Annual Sum Insured.",
+      "expected": "25000",
+      "contexts": [
+        "In Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness.",
+        "Coverage for modern treatments\nUpto Annual Sum Insured\nPre Hospitalisation Medical Expenses\n60 days\nPost Hospitalisation Medical Expenses\n180 days\nIn Patient AYUSH hospitalisation\nUpto Annual Sum Insured\nReset Benefit\nUnlimited times for different illness and once for same illness.",
+        "policy_number: AYUSH",
+        "policy_number: AYUSH",
+        "d.B.Optional \n    Cover.7 \n  d.B.Optional \n    Cover.3\n8\nFinancial limits of coverage \nSub-limit (It is a pre- defined limit and the insurance \ncompany will not pay any amount in excess of this limit) \nThe policy will pay only up to the limits specified hereunder for \nthe following diseases/procedures:\nBasic Covers: - \nDomestic Road Ambulance Cover \nDomestic Road Ambulance Cover \n  \u2022 For Cashless claims: same will be at Actuals\n   d."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the OPD consultation limit?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "\u20b9 2,000",
+      "expected": "1500",
+      "contexts": [
+        "Benefits/Plan\nD\nE\nOutpatient Consultation\n8\n18\nRoutine Diagnostics Cover and\nMinor Procedures Cover\n\u20b9 2,000\n\u20b9 7,500\nPharmacy Cover\n\u20b9 2,000\n\u20b9 7,500\nPhysiotherapy Session\n8\n12\ne-Counselling \n8\nUnlimited\nDiet and Nutrition\ne-Consultation\n8\nUnlimited\nSum Insured \nAmount\n3L to 30L\n\u20b91,000\n50L to 300L\n\u20b92,000\n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg.",
+        "No reduction in the event of a claim \nTele Consultation(s) \u2013 Unlimited: 24x7, 365 days of the year\n\nIncentives associated with vaccination against Pneumococcal disease - Discount \nof 2.5% on premium for all adult members in the policy have been vaccinated with the \nconjugate pneumococcal vaccine in the one year immediately prior to policy start date.",
+        "Diet and Nutrition e-Consultation\nNursing at Home (Post Hospitalisation) \u2013 Expenses incurred up to the limits \nmentioned in table under \u2018Sr.",
+        "Outpatient Consultation\nb.",
+        "d.B.Optional \n    Cover.7 \n  d.B.Optional \n    Cover.3\n8\nFinancial limits of coverage \nSub-limit (It is a pre- defined limit and the insurance \ncompany will not pay any amount in excess of this limit) \nThe policy will pay only up to the limits specified hereunder for \nthe following diseases/procedures:\nBasic Covers: - \nDomestic Road Ambulance Cover \nDomestic Road Ambulance Cover \n  \u2022 For Cashless claims: same will be at Actuals\n   d."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "When does my policy start?",
+      "category": "date",
+      "negative": false,
+      "answer": "Your policy start date is August 27, 2025.",
+      "expected": "2025-08-27",
+      "contexts": [
+        "Policyholder's\nName\nPRANAY  SUYASH\n\nPolicy Number\n4214i/CPHSR/407834350/\n00/000\n\nPolicy Start Date\nAug 27, 2025\n\nPolicy End Date\nAug 26, 2026\nPlan Name\nClassic_Plus_HS360_R_2A\ndult_1Child_1Year\nTotal Premium Paid \n(`)\n31705\nGSTIN Number\n(Customer)\n\nGSTIN Reg.No (ICICI\nLombard)\n09AAACI7904G1ZL\nServicing Branch\nName\nLucknow\nServicing Branch\nAddress\nSummit Building B-503 To\nB- 508, Fifth Floor, Plot No\nTcg 3/3, Vibhutikhand\nGomti Nagar, Lucknow\nUttar Pradesh-226010",
+        "No reduction in the event of a claim \nTele Consultation(s) \u2013 Unlimited: 24x7, 365 days of the year\n\nIncentives associated with vaccination against Pneumococcal disease - Discount \nof 2.5% on premium for all adult members in the policy have been vaccinated with the \nconjugate pneumococcal vaccine in the one year immediately prior to policy start date.",
+        "NA\nRelationship With\nPolicyholder\n\nPolicy Issuing Office\nPrabhadevi\nAppointee Name\n\nPolicy Issued On\n14-Sep-2025\nNominee Age\nNA \nPrevious Policy No.",
+        "policy_number: POLICYALL",
+        "policy_number: PRANAY"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "When does my policy expire?",
+      "category": "date",
+      "negative": false,
+      "answer": "The retrieved documents do not include a policy expiration date. The available data show the policy issue date as 14-Sep-2025 and do not provide an expiration date.",
+      "expected": "2026-08-26",
+      "contexts": [
+        "NA\nRelationship With\nPolicyholder\n\nPolicy Issuing Office\nPrabhadevi\nAppointee Name\n\nPolicy Issued On\n14-Sep-2025\nNominee Age\nNA \nPrevious Policy No.",
+        "policy_number: POLICYALL",
+        "policy_number: PRANAY",
+        "policy_number: GMAIL",
+        "policy_number: ICIHLIP25037V022425"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the policy period?",
+      "category": "date",
+      "negative": false,
+      "answer": "The policy term is up to one year (the policy period can be a maximum of 12 months). If the term is more than one year, refunds apply for the unexpired portion only if the risk coverage for that extra",
+      "expected": "27-Aug-2025 to 26-Aug-2026",
+      "contexts": [
+        "e. ii. i\n\ne. ii. j\n\ne. ii. k\n\ne. ii. l\n  7.\nWaiting period\n\nTime period during which specified diseases/treatments are not covered. It is \ncounted from the beginning of the policy coverage \n1. Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury). \n2. Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment. (Please refer to the policy \n    clauses for the full listing) \n3. Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage. \n4. In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases. \n5. Maternity waiting period: 36 months\n\n6. BeFit: 30 days\n\ne. i. 4.\n\ne. i. 2\n\ne. i. 1\n\ne. i. 3",
+        "Moratorium Period: After completion of sixty continuous months of coverage \n(including portability and migration) in health insurance policy, no policy and claim shall \nbe contestable by the insurer on grounds of non-disclosure, misrepresentation, except \non grounds of established fraud. This period of sixty continuous months is called as \nmoratorium period. The moratorium would be applicable for the sums insured of the \nfirst policy. Wherever, the sum insured is enhanced, completion of sixty continuous \nmonths would be applicable from the date of enhancement of sums insured only on \nthe enhanced limits\n  13.\nYour Obligations \n\u2022 Please disclose all pre-existing disease/s or condition/s before buying a policy. \n  Non-disclosure may affect the claim settlement. \n\u2022 If there is misrepresentation, non-disclosure of material facts, fraud, or non- \n  cooperation in the proposal form, personal statement, medical history, or claim \n  documents, the policy becomes void. In such cases, any benefits obtained through \n  fraudulent means result in the forfeiture of all paid premiums. \n  f. General terms and \n  terms and \n  conditions \n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg. No. 115\nCIN: L67200MH2000PLC129408\nHealth Shield 360 Retail\nUIN - ICIHLIP25037V022425\nMailing Address:\nRegistered address:\nToll free no.: 1800 2666\nICICI Lombard General Insurance Company\nLimited, Interface Building No.: 16, 601 / 602,\n6th Floor, New Link Road, Malad (West),\nMumbai - 400 064.\nICICI Lombard House, 414 Veer\nSavarkar Marg, Near Siddhi\nVinayak Temple, Prabhadevi,\nMumbai - 400 025.\nAlternate No.: +918655 222 666 (chargeable)\nEmail: customersupport@icicilombard.com\nWebsite: www.icicilombard.com\n15 / 16",
+        "Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period.",
+        "Cancellation: \n\u2022 The insured may cancel the policy at any time during the term, by giving 7 days \nnotice in writing. The Company shall \na. Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period. \nb. Refund premium for the unexpired policy period, in respect of policies with term \nmore than 1 year and risk coverage for such policy years has not commenced. \n\u2022 Notwithstanding anything contained herein or otherwise, no refunds of premium shall\n\nf. i.14\n\nf. i.6\n\nf. i.9\n\nf. i.7 & 8\n\nf. ii.10",
+        "Multiple Policy: \nln case of multiple policies taken by an insured person during a period from one or \nmore insurers to indemnify treatment costs, the insured person shall have the right to \nrequire a settlement of his/her claim in terms of any of his/her policies. ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the effective date of the policy?",
+      "category": "date",
+      "negative": false,
+      "answer": "The effective date of the policy is not provided in the retrieved context.",
+      "expected": "2025-08-27",
+      "contexts": [
+        "Dear PRANAY  SUYASH,\nThis is to certify that the Company has received the premium dated Aug 27, 2025 for Health\ninsurance coverage under \"Health Insurance Policy\" with the following details.",
+        "Place:\nSignature of the Policy Holder\nDate:\nNOTE: In case of any conflict, the terms and conditions mentioned in the policy document shall prevail.",
+        "No reduction in the event of a claim \nTele Consultation(s) \u2013 Unlimited: 24x7, 365 days of the year\n\nIncentives associated with vaccination against Pneumococcal disease - Discount \nof 2.5% on premium for all adult members in the policy have been vaccinated with the \nconjugate pneumococcal vaccine in the one year immediately prior to policy start date.",
+        "The Company shall \ncondone a delay in renewal up to the grace period from the due date of renewal without \nconsidering such condonation as a break in policy.",
+        "It is \ncounted from the beginning of the policy coverage \n1."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is not covered by this policy?",
+      "category": "exclusion",
+      "negative": false,
+      "answer": "Not covered by this policy (based on the retrieved policy text) includes: \n- Standard exclusions indicated by the policy: \"Exclusions (What does the policy not cover) Standard Exclusion i.\" [Source 1]",
+      "expected": "pre-existing diseases, cosmetic surgery, dental treatment",
+      "contexts": [
+        "Exclusions (What does the policy not cover) \nStandard Exclusion \ni.",
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6.",
+        "This cover is not available for Sum Insured 3 Lacs.",
+        "Waiting period\n\nTime period during which specified diseases/treatments are not covered.",
+        "Claim Protector - Expenses incurred on items that are not payable as per specific list \nof non-payable items shall be covered\n\nOptional Covers: -Applicable if opted by the insured \nBeFit - Provides following benefits on cashless basis via our mobile application up to"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Are pre-existing diseases covered?",
+      "category": "exclusion",
+      "negative": false,
+      "answer": "Pre-existing diseases are not automatically covered. They are covered after 24 months of continuous coverage only if declared and accepted. There is a 90-day waiting period for hypertension, diabetes ",
+      "expected": "No, pre-existing diseases are excluded for the waiting period",
+      "contexts": [
+        "Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage.",
+        "Please note that any claims arising out of pre-existing illness/ \ninjury/ symptoms is excluded from the scope of this policy subject to applicable terms and conditions.",
+        "e. ii. i\n\ne. ii. j\n\ne. ii. k\n\ne. ii. l\n  7.\nWaiting period\n\nTime period during which specified diseases/treatments are not covered. It is \ncounted from the beginning of the policy coverage \n1. Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury). \n2. Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment. (Please refer to the policy \n    clauses for the full listing) \n3. Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage. \n4. In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases. \n5. Maternity waiting period: 36 months\n\n6. BeFit: 30 days\n\ne. i. 4.\n\ne. i. 2\n\ne. i. 1\n\ne. i. 3",
+        "In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases.",
+        "Your Obligations \n\u2022 Please disclose all pre-existing disease/s or condition/s before buying a policy."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is cosmetic surgery covered?",
+      "category": "exclusion",
+      "negative": false,
+      "answer": "No. Cosmetic or plastic surgery is excluded from coverage under Code- Excl08: Cosmetic / plastic surgery.",
+      "expected": "No, cosmetic surgery is explicitly excluded",
+      "contexts": [
+        "Exclusions (What does the policy not cover) \nStandard Exclusion \ni. Code- Excl04: Investigation & Evaluation \nii. Code- Excl05: Exclusion Name: Rest Cure, rehabilitation and respite care \niii. Code- Excl06: Obesity/ Weight Control \niv. Code- Excl07: Change of Gender treatments \nv. Code- Excl08: Cosmetic / plastic surgery \nvi. Code- Excl09: Hazardous or Adventure sports \nvii. Code- Excl10: Breach of law \nviii.Code- Excl11: Excluded Providers \nix. Code- Excl12: Treatment for alcoholism, drug or substance abuse or any addictive \n     condition and consequences thereof. \nx. Code- Excl13: Treatments received in heath hydros, nature cure clinics, spas or \n    similar establishments or private beds registered as a nursing home attached to \n    such establishments or where admission is arranged wholly or partly for domestic \n    reasons. \nxi. Code- Excl14: Dietary supplements and substances that can be purchased without \n     prescription, including but not limited to Vitamins, minerals and organic substances \n     unless prescribed by a medical practitioner as part of hospitalisation claim or day \n     care procedure. \nxii. Code- Excl15: Refractive Error: Treatment for correction of eye sight due to \n      refractive error less than 7.5 dioptres \nxiii.Code- Excl16: Unproven Treatments \nxiv. Code- Excl17: Sterility and Infertility \nxv. Code- Excl18: Maternity:",
+        "Code- Excl08: Cosmetic / plastic surgery \nvi.",
+        "Treatment, procedures and preventive, diagnostic, restorative, cosmetic services \n    related to disease, disorder and conditions related to natural teeth and gingiva \n    except if required by an Insured Person while Hospitalized due to an Accident.",
+        "a. Any ailment/ illness/ injury/ condition or treatment or service that is specifically \n    excluded in the Policy Schedule under Special Conditions \nb. Prosthesis, corrective devices, external durable medical equipment of any kind, like \n    wheelchairs, crutches, instruments used in treatment of sleep apnoea syndrome or \n    cost of cochlear implant(s) unless necessitated by an Accident or required \n    intra-operatively. \nc. Treatment, procedures and preventive, diagnostic, restorative, cosmetic services \n    related to disease, disorder and conditions related to natural teeth and gingiva \n    except if required by an Insured Person while Hospitalized due to an Accident. \nd. Personal comfort, cosmetics, convenience and hygiene related items and services \ne. Acupressure, acupuncture, magnetic and other therapies \nf. Circumcision unless necessary for treatment of an Illness or necessitated due to an \n   accident. \ng. Venereal disease or any sexually transmitted disease except HIV.",
+        "Benefits covered \nunder   the Policy\n\nd."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is dental treatment covered?",
+      "category": "exclusion",
+      "negative": false,
+      "answer": "The provided policy context does not specify dental treatment coverage.",
+      "expected": "Dental treatment is generally not covered unless requiring hospitalization",
+      "contexts": [
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered.",
+        "Waiting period\n\nTime period during which specified diseases/treatments are not covered.",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered. \nTechnological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured. \nPre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital. \nIn Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness. Not \napplicable on the first claim in the Policy Year. \nExpenses in respect of:",
+        "Technological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured.",
+        "d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is war or act of war covered?",
+      "category": "exclusion",
+      "negative": false,
+      "answer": "No. War or acts of war are excluded from coverage.",
+      "expected": "No, war-related injuries are excluded",
+      "contexts": [
+        "Any injury or illness caused by or arising from or attributed to war, invasion, acts of \n    foreign enemies, hostilities (whether war be declared or not), civil war, commotion, \n    unrest, rebellion,revolution, military or usurped power or confiscation or \n    nationalisation or requisition of or damage by or under the order of any \n    government or public local authority.",
+        "g. Venereal disease or any sexually transmitted disease except HIV. \nh. Screening, counselling or Treatment relating to external birth defects and external \n    congenital Illnesses or defects or anomalies. \ni. Treatment taken outside the country, unless Worldwide Cover has been opted for. \nj. Intentional self-injury (whether arising from an attempt to commit suicide or otherwise) \nk. Any injury or illness caused by or arising from or attributed to war, invasion, acts of \n    foreign enemies, hostilities (whether war be declared or not), civil war, commotion, \n    unrest, rebellion,revolution, military or usurped power or confiscation or \n    nationalisation or requisition of or damage by or under the order of any \n    government or public local authority. \nl. Any Illness or Injury caused by or contributed to by nuclear weapons/materials or \n   contributed to by or arising from ionising radiation or contamination by \n   radioactivity by any nuclear fuel or from any nuclear waste or from the \n   combustion of nuclear fuel.\n  e. ii. h",
+        "Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage.",
+        "The Company may underwrite the proposal in \ncase of migration, if the insured is not continuously covered for 36 months.",
+        "Any Illness or Injury caused by or contributed to by nuclear weapons/materials or \n   contributed to by or arising from ionising radiation or contamination by \n   radioactivity by any nuclear fuel or from any nuclear waste or from the \n   combustion of nuclear fuel."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is suicide or self-harm covered?",
+      "category": "exclusion",
+      "negative": false,
+      "answer": "No. The policy excludes intentional self-injury (including attempts at suicide) from coverage.",
+      "expected": "No, self-inflicted injuries are excluded",
+      "contexts": [
+        "Intentional self-injury (whether arising from an attempt to commit suicide or otherwise) \nk.",
+        "g. Venereal disease or any sexually transmitted disease except HIV. \nh. Screening, counselling or Treatment relating to external birth defects and external \n    congenital Illnesses or defects or anomalies. \ni. Treatment taken outside the country, unless Worldwide Cover has been opted for. \nj. Intentional self-injury (whether arising from an attempt to commit suicide or otherwise) \nk. Any injury or illness caused by or arising from or attributed to war, invasion, acts of \n    foreign enemies, hostilities (whether war be declared or not), civil war, commotion, \n    unrest, rebellion,revolution, military or usurped power or confiscation or \n    nationalisation or requisition of or damage by or under the order of any \n    government or public local authority. \nl. Any Illness or Injury caused by or contributed to by nuclear weapons/materials or \n   contributed to by or arising from ionising radiation or contamination by \n   radioactivity by any nuclear fuel or from any nuclear waste or from the \n   combustion of nuclear fuel.\n  e. ii. h",
+        "Benefits covered \nunder   the Policy\n\nd.",
+        "Dependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr.",
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is treatment outside India covered?",
+      "category": "exclusion",
+      "negative": false,
+      "answer": "Yes, outside-India treatment is covered only if Worldwide Cover Outside India is opted for. If that cover is active, hospitalization expenses incurred outside India are covered up to the Annual Sum In",
+      "expected": "Coverage is within India unless specified",
+      "contexts": [
+        "d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.",
+        "Treatment taken outside the country, unless Worldwide Cover has been opted for.",
+        "Hospitalization expenses incurred anywhere in the world outside India will \nbe covered up to Annual Sum Insured subject to a co-pay of 10%.",
+        "no.8\u2019 below will be provided for the medical services of a \nQualified Nurse at the Insured Person\u2019s residence for each day subject to a maximum \nof 15 days post Hospitalization \nWorldwide Cover (Outside India)\u2013 \n1.",
+        "d.B.Optional \n   Cover.5\nWorldwide Cover (Outside India) - \nSum Insured \nAmount\n5L & 7L\nUp to \u20b925,000\n10L to 50L\nUp to \u20b940,000\n75L to  300L\nUp to \u20b950,000\nSum Insured\n3L/ 5L\n7L/ 10L/ 15L/ 20L/ 25L/30L/\n50L/  75L/ 100L/200L/300L"
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Does this policy cover hospitalization?",
+      "category": "benefit",
+      "negative": false,
+      "answer": "Yes. The policy covers hospitalization under multiple provisions, including in-patient treatment for hospital admissions, Day Care procedures, and related benefits such as pre- and post-hospitalizatio",
+      "expected": "Yes, in-patient hospitalization is covered",
+      "contexts": [
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered.",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered. \nTechnological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured. \nPre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital. \nIn Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness. Not \napplicable on the first claim in the Policy Year. \nExpenses in respect of:",
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6.",
+        "In Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness.",
+        "Hospitalization expenses incurred anywhere in the world outside India will \nbe covered up to Annual Sum Insured subject to a co-pay of 10%."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is pre-hospitalization covered and for how many days?",
+      "category": "benefit",
+      "negative": false,
+      "answer": "Yes. Pre-hospitalization medical expenses are covered up to 60 days prior to hospital admission, on a reimbursement basis only.",
+      "expected": "30 days before hospitalization",
+      "contexts": [
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered. \nTechnological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured. \nPre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital. \nIn Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness. Not \napplicable on the first claim in the Policy Year. \nExpenses in respect of:",
+        "Pre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital.",
+        "no.8\u2019 below will be provided for each completed day of Hospitalization for 3 \nconsecutive days up to a maximum of 10 days in a policy year.",
+        "Coverage for modern treatments\nUpto Annual Sum Insured\nPre Hospitalisation Medical Expenses\n60 days\nPost Hospitalisation Medical Expenses\n180 days\nIn Patient AYUSH hospitalisation\nUpto Annual Sum Insured\nReset Benefit\nUnlimited times for different illness and once for same illness.",
+        "no.8\u2019 below will be provided once in each Policy year, for Hospitalization for \na duration of minimum 10 consecutive days."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is post-hospitalization covered and for how many days?",
+      "category": "benefit",
+      "negative": false,
+      "answer": "Yes. Post Hospitalization Medical Expenses are covered up to 180 days immediately after admission to a Hospital.",
+      "expected": "60 days after hospitalization",
+      "contexts": [
+        "no.8\u2019 below will be provided for the medical services of a \nQualified Nurse at the Insured Person\u2019s residence for each day subject to a maximum \nof 15 days post Hospitalization \nWorldwide Cover (Outside India)\u2013 \n1.",
+        "Optional Covers: - Applicable if opted by the insured \nBeFit - Up to limits as mentioned Below \n   d.B.Optional \n   Cover.3\nPlease refer the Policy Schedule for applicable limits \nNursing at Home (Post Hospitalisation) Will be provided to a \nmaximum of 15 days post Hospitalization as per the SI.",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered. \nTechnological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured. \nPre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital. \nIn Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness. Not \napplicable on the first claim in the Policy Year. \nExpenses in respect of:",
+        "Pre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital.",
+        "no.8\u2019 below will be provided for each completed day of Hospitalization for 3 \nconsecutive days up to a maximum of 10 days in a policy year."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is ambulance cover included?",
+      "category": "benefit",
+      "negative": false,
+      "answer": "Yes. The policy includes ambulance cover for both air and domestic road ambulance: Air Ambulance Cover up to the Annual Sum Insured (and available for Sum Insured of 50 Lacs and above); Domestic Road ",
+      "expected": "Yes, ambulance charges are covered",
+      "contexts": [
+        "Air Ambulance Cover - Covers Expenses incurred on air ambulance services which \nare offered by a healthcare or an air ambulance service provider up to Annual Sum \nInsured.",
+        "Domestic Road Ambulance Cover - For Cashless claims: on actuals; For \nReimbursement: maximum up to 1% of Annual Sum Insured max up to ` 10,000 within \nAnnual Sum Insured. \nAir Ambulance Cover - Covers Expenses incurred on air ambulance services which \nare offered by a healthcare or an air ambulance service provider up to Annual Sum \nInsured. \nDonor Expenses - for an organ donor\u2019s Hospitalization for any organ donated to the \nInsured Person \nDomiciliary Hospitalization - Covers the Medical Expenses incurred in respect of \nthe Domiciliary Hospitalization up to Annual Sum Insured \nHome Care Treatment - up to 5% of Annual Sum Insured subject to a maximum of ` \n25,000 \nWellness Program - Wellness program intends to promote, incentivize and reward the \ninsured person for their healthy behavior. Redemption of wellness points will be \nthrough utilization of services on our mobile application. \na. Health Assistance [HAT]- Available\n  d. Benefits covered \nunder   the Policy\n\nd. A. Basic cover- 1.",
+        "Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above.",
+        "Domestic Road Ambulance Cover - For Cashless claims: on actuals; For \nReimbursement: maximum up to 1% of Annual Sum Insured max up to ` 10,000 within \nAnnual Sum Insured.",
+        "Domestic Road Ambulance Cover\nCashless: Actuals; Reimbursement: 1% of Sum Insured ; maximum up to \u20b9\n10,000, within annual sum insured\nAir Ambulance Cover \nUpto Annual Sum Insured\nDonor expenses\nUpto Annual Sum Insured\nDomicillary hospitalisation\nUpto Annual Sum Insured\nHome Care Treatment\n5% of Annual Sum Insured ; maximum upto \u20b9 25,000\nWellness Program \n\u2022 Includes wellness program, health assistance, ambulance assistance and\ndiscounts on services and products \n\u2022 Redemption of points will be through utilisation of services on our mobile\napplication \nLoyalty Bonus\n20% of the SI and maximum up to 100%, no reduction in case of claims\nTele consultations\nUnlimited \nIncentives associated with vaccination against Pneumococcal\ndisease\n2.5% discount on premium if all adults in the policy have been vaccinated\nwith pneumococcal vaccine\nOptional Covers \u2013(In-built in the plan) \nPreventive Health Check-Up\nAs per Annual Sum Insured package eligibility\nConvalescence Benefit\nFor SI <= 10 lacs - Rs."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is domiciliary hospitalization covered?",
+      "category": "benefit",
+      "negative": false,
+      "answer": "Yes. Domiciliary hospitalization is covered up to the Annual Sum Insured.",
+      "expected": "Yes, domiciliary treatment is covered under conditions",
+      "contexts": [
+        "Donor Expenses - for an organ donor\u2019s Hospitalization for any organ donated to the \nInsured Person \nDomiciliary Hospitalization - Covers the Medical Expenses incurred in respect of \nthe Domiciliary Hospitalization up to Annual Sum Insured \nHome Care Treatment - up to 5% of Annual Sum Insured subject to a maximum of ` \n25,000 \nWellness Program - Wellness program intends to promote, incentivize and reward the \ninsured person for their healthy behavior.",
+        "Domestic Road Ambulance Cover - For Cashless claims: on actuals; For \nReimbursement: maximum up to 1% of Annual Sum Insured max up to ` 10,000 within \nAnnual Sum Insured. \nAir Ambulance Cover - Covers Expenses incurred on air ambulance services which \nare offered by a healthcare or an air ambulance service provider up to Annual Sum \nInsured. \nDonor Expenses - for an organ donor\u2019s Hospitalization for any organ donated to the \nInsured Person \nDomiciliary Hospitalization - Covers the Medical Expenses incurred in respect of \nthe Domiciliary Hospitalization up to Annual Sum Insured \nHome Care Treatment - up to 5% of Annual Sum Insured subject to a maximum of ` \n25,000 \nWellness Program - Wellness program intends to promote, incentivize and reward the \ninsured person for their healthy behavior. Redemption of wellness points will be \nthrough utilization of services on our mobile application. \na. Health Assistance [HAT]- Available\n  d. Benefits covered \nunder   the Policy\n\nd. A. Basic cover- 1.",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered. \nTechnological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured. \nPre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital. \nIn Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness. Not \napplicable on the first claim in the Policy Year. \nExpenses in respect of:",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered.",
+        "Hospitalization expenses incurred anywhere in the world outside India will \nbe covered up to Annual Sum Insured subject to a co-pay of 10%."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Are day care procedures covered?",
+      "category": "benefit",
+      "negative": false,
+      "answer": "Yes. Day care procedures are covered under the policy.",
+      "expected": "Yes, day care procedures are covered",
+      "contexts": [
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered.",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered. \nTechnological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured. \nPre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital. \nIn Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness. Not \napplicable on the first claim in the Policy Year. \nExpenses in respect of:",
+        "Table of Benefits\nBasic Covers\n\nBenefits\nIn Patient Treatment\nUpto Annual Sum Insured\nNo room rent capping \nDaycare procedures/treatment \nAll procedures covered up to Annual Sum Insured",
+        "Routine Diagnostics Cover and Minor Procedures Cover\nc.",
+        "Code- Excl14: Dietary supplements and substances that can be purchased without \n     prescription, including but not limited to Vitamins, minerals and organic substances \n     unless prescribed by a medical practitioner as part of hospitalisation claim or day \n     care procedure."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is maternity covered?",
+      "category": "benefit",
+      "negative": false,
+      "answer": "Yes. The policy provides Maternity Cover and New Born Baby Cover with defined limits and conditions:\n- Not applicable for Annual Sum Insured (ASI) 3 Lacs. (Source 3)\n- Maternity limits by Sum Insured ",
+      "expected": "Yes, maternity is covered up to Rs 40,000 after waiting period",
+      "contexts": [
+        "Maternity Cover and New Born Baby Cover \u2013 Covers medical expenses up to the",
+        "Cover.2\n   d.B.Optional \n   Cover.4\nMaternity Cover and New Born Baby Cover- Covers Medical\nexpenses as mentioned in table below.",
+        "3000 per day\nThese limits are payable  max up to 10days & minimum 3 days\nhospitalization is mandatory  \nMaternity Cover & New Born Baby Cover\nNot Applicable for Annual Sum Insured 3 Lacs\nMaternity Limit:\nFor SI 5L/7L=  Rs 25,000 \nFor SI 10L/15L/ 20L/ 25L/ 30L/ 50L= Rs 40,000\nFor SI  75L/ 100L/200L/300L =  Rs 50,000\nThe above limits are for both normal and C section, maximum upto 2 events\nNew Born Baby Cover: \nFor >3L SI options = 10,000 \nWorld Wide Cover (Cover Outside India)\nAvailable only",
+        "limits mentioned in table under \u2018Sr. no.8\u2019 below for normal and LSCS (including pre/post-\nnatal expenses) incurred for maximum 2 deliveries/ terminations where Insured Person \nand spouse, both are covered, after a waiting period of 3 years. \nFor new born baby: up to 90 days from date of birth, if a Maternity claim has been \naccepted. \nSum Insured Protector - The Sum Insured will be increased on cumulative basis at \neach renewal on the basis of inflation rate in previous year. The % increase will be \napplicable only on Annual Sum Insured. \nClaim Protector - Expenses incurred on items that are not payable as per specific list \nof non-payable items shall be covered\n\nOptional Covers: -Applicable if opted by the insured \nBeFit - Provides following benefits on cashless basis via our mobile application up to",
+        "Code- Excl18: Maternity:"
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Are there any waiting periods?",
+      "category": "waiting_period",
+      "negative": false,
+      "answer": "Yes. There are waiting periods. Key examples include: Initial waiting period: 30 days for all illnesses (except Hospitalization due to injury). Specific waiting period: First 24 months for specific il",
+      "expected": "Yes, 30-day initial waiting period applies",
+      "contexts": [
+        "In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases.",
+        "Waiting period\n\nTime period during which specified diseases/treatments are not covered.",
+        "e. ii. i\n\ne. ii. j\n\ne. ii. k\n\ne. ii. l\n  7.\nWaiting period\n\nTime period during which specified diseases/treatments are not covered. It is \ncounted from the beginning of the policy coverage \n1. Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury). \n2. Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment. (Please refer to the policy \n    clauses for the full listing) \n3. Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage. \n4. In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases. \n5. Maternity waiting period: 36 months\n\n6. BeFit: 30 days\n\ne. i. 4.\n\ne. i. 2\n\ne. i. 1\n\ne. i. 3",
+        "Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury).",
+        "Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the waiting period for pre-existing diseases?",
+      "category": "waiting_period",
+      "negative": false,
+      "answer": "Pre-existing diseases are covered after 24 months of continuous coverage. Note: for hypertension, diabetes and cardiac conditions, there is a 90-day waiting period unless disclosed as pre-existing dis",
+      "expected": "48 months",
+      "contexts": [
+        "In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases.",
+        "e. ii. i\n\ne. ii. j\n\ne. ii. k\n\ne. ii. l\n  7.\nWaiting period\n\nTime period during which specified diseases/treatments are not covered. It is \ncounted from the beginning of the policy coverage \n1. Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury). \n2. Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment. (Please refer to the policy \n    clauses for the full listing) \n3. Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage. \n4. In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases. \n5. Maternity waiting period: 36 months\n\n6. BeFit: 30 days\n\ne. i. 4.\n\ne. i. 2\n\ne. i. 1\n\ne. i. 3",
+        "Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage.",
+        "Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury).",
+        "Waiting period\n\nTime period during which specified diseases/treatments are not covered."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the waiting period for maternity benefits?",
+      "category": "waiting_period",
+      "negative": false,
+      "answer": "The maternity waiting period is 36 months (3 years).",
+      "expected": "24 months",
+      "contexts": [
+        "Maternity waiting period: 36 months\n\n6.",
+        "limits mentioned in table under \u2018Sr. no.8\u2019 below for normal and LSCS (including pre/post-\nnatal expenses) incurred for maximum 2 deliveries/ terminations where Insured Person \nand spouse, both are covered, after a waiting period of 3 years. \nFor new born baby: up to 90 days from date of birth, if a Maternity claim has been \naccepted. \nSum Insured Protector - The Sum Insured will be increased on cumulative basis at \neach renewal on the basis of inflation rate in previous year. The % increase will be \napplicable only on Annual Sum Insured. \nClaim Protector - Expenses incurred on items that are not payable as per specific list \nof non-payable items shall be covered\n\nOptional Covers: -Applicable if opted by the insured \nBeFit - Provides following benefits on cashless basis via our mobile application up to",
+        "Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury).",
+        "e. ii. i\n\ne. ii. j\n\ne. ii. k\n\ne. ii. l\n  7.\nWaiting period\n\nTime period during which specified diseases/treatments are not covered. It is \ncounted from the beginning of the policy coverage \n1. Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury). \n2. Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment. (Please refer to the policy \n    clauses for the full listing) \n3. Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage. \n4. In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases. \n5. Maternity waiting period: 36 months\n\n6. BeFit: 30 days\n\ne. i. 4.\n\ne. i. 2\n\ne. i. 1\n\ne. i. 3",
+        "no.8\u2019 below for normal and LSCS (including pre/post-\nnatal expenses) incurred for maximum 2 deliveries/ terminations where Insured Person \nand spouse, both are covered, after a waiting period of 3 years."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the waiting period for specific diseases?",
+      "category": "waiting_period",
+      "negative": false,
+      "answer": "The waiting period for specific diseases is 24 months (the first 24 months for specific illness and treatment), and it is not applicable for claims arising due to an accident.",
+      "expected": "24 months for listed specific conditions",
+      "contexts": [
+        "e. ii. i\n\ne. ii. j\n\ne. ii. k\n\ne. ii. l\n  7.\nWaiting period\n\nTime period during which specified diseases/treatments are not covered. It is \ncounted from the beginning of the policy coverage \n1. Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury). \n2. Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment. (Please refer to the policy \n    clauses for the full listing) \n3. Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage. \n4. In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases. \n5. Maternity waiting period: 36 months\n\n6. BeFit: 30 days\n\ne. i. 4.\n\ne. i. 2\n\ne. i. 1\n\ne. i. 3",
+        "Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment.",
+        "In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases.",
+        "Waiting period\n\nTime period during which specified diseases/treatments are not covered.",
+        "Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury)."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the room rent cap and how does it affect my claim?",
+      "category": "clause_semantic",
+      "negative": false,
+      "answer": "There is no room rent cap in this policy; room rent is not capped. In-patient hospitalization is covered with no room rent capping, meaning room rent charges are eligible without a cap. However, the t",
+      "expected": "Room rent is limited to 1% of sum insured. If you choose a room above this limit, all associated costs are proportionately reduced.",
+      "contexts": [
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered.",
+        "Non-disclosure may affect the claim settlement.",
+        "Table of Benefits\nBasic Covers\n\nBenefits\nIn Patient Treatment\nUpto Annual Sum Insured\nNo room rent capping \nDaycare procedures/treatment \nAll procedures covered up to Annual Sum Insured",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered. \nTechnological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured. \nPre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital. \nIn Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness. Not \napplicable on the first claim in the Policy Year. \nExpenses in respect of:",
+        "ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "How does the restore benefit work?",
+      "category": "clause_semantic",
+      "negative": false,
+      "answer": "The restore benefit (Reset Benefit) is described as: 'Reset Benefit -Unlimited times for different illness and once for same illness.' It is applicable to In Patient AYUSH Hospitalization and is cover",
+      "expected": "If the sum insured is exhausted, it is automatically reinstated once per policy year for unrelated illnesses.",
+      "contexts": [
+        "In Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness.",
+        "This benefit is payable only \nfor one immediate family member.",
+        "Important: Insurance benefit shall become voidable at the option of the company, in the event of any untrue or incorrect statement, misrepresentation \nnon-description of any material particular in the proposal form/ personal statement, declaration and connected documents, or any material information has been \nwithheld by beneficiary or anyone acting on beneficiary's behalf to obtain insurance benefit.",
+        "\u2022 Notwithstanding anything contained herein or otherwise, no refunds of premium shall \nbe made in respect of Cancellation where, any claim has been admitted or has been \nlodged or any benefit has been availed by the Insured person under the Policy.",
+        "Migration and Portability: \na. The insured has the choice to port his / her policies from one Insurer to another. \nb. The insured is entitled to transfer the credits gained to the extent of the sum insured \nand the benefits available in the previous policy, subject to the underwriting policy of \nthe Company \nc. The company shall decide and communicate on the proposal upon receipt of \ninformation from Existing insurer within prescribed timelines . \nd. This benefit is not applicable for enhanced sum insured. \nThe insured person will have the option to migrate the policy to other health insurance \nproducts/plans offered by the company. The Company may underwrite the proposal in \ncase of migration, if the insured is not continuously covered for 36 months. \nIn case You are keen on migrating or outward porting Your Policy, kindly contact us at \ncustomersupport@icicilombard.com."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What happens if I don't make a claim this year?",
+      "category": "clause_semantic",
+      "negative": false,
+      "answer": "If you don\u2019t make a claim this year, you may receive a proportionate refund of the unused premium when you cancel the policy. Specifically: (1) for policy terms up to one year with no claims, you get ",
+      "expected": "You receive a no-claim bonus of 50% increase in sum insured for the next policy year",
+      "contexts": [
+        "Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period.",
+        "Not applicable\non the first claim in the Policy Year.",
+        "Not \napplicable on the first claim in the Policy Year.",
+        "Cancellation: \n\u2022 The insured may cancel the policy at any time during the term, by giving 7 days \nnotice in writing. The Company shall \na. Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period. \nb. Refund premium for the unexpired policy period, in respect of policies with term \nmore than 1 year and risk coverage for such policy years has not commenced. \n\u2022 Notwithstanding anything contained herein or otherwise, no refunds of premium shall\n\nf. i.14\n\nf. i.6\n\nf. i.9\n\nf. i.7 & 8\n\nf. ii.10",
+        "\u2022 If there is misrepresentation, non-disclosure of material facts, fraud, or non- \n  cooperation in the proposal form, personal statement, medical history, or claim \n  documents, the policy becomes void."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the cashless hospitalization process?",
+      "category": "clause_semantic",
+      "negative": false,
+      "answer": "Cashless hospitalization process:\n1) Step 1 \u2013 Get your treatment at our network hospital, submit a copy of health card and photo ID proof at Hospital Insurance desk during admission.\n2) Step 2 \u2013 The h",
+      "expected": "Contact TPA before admission at a network hospital. Pre-authorization is required.",
+      "contexts": [
+        "Cashless (Pre-Authorization) Procedure: \nStep 1 \u2013 Get your treatment at our network hospital, submit a copy of health card \nand photo ID proof at Hospital Insurance desk during admission. \nStep 2 \u2013 The hospital sends an approval request for your cashless admission along \nwith relevant documents (cashless pre-authorization form, investigation reports, past \nconsultation papers (as applicable), copy of health card and photo ID proof, etc.) \nStep 3 \u2013 Request will be processed as per policy terms and conditions \nStep 4 \u2013 While you avail treatment the claim payment is settled directly to the \nProvider/Hospital \nStep 5 \u2013 You can check and track your claim status live on IL TakeCare app or \nWhatsApp",
+        "Step 2 \u2013 The hospital sends an approval request for your cashless admission along \nwith relevant documents (cashless pre-authorization form, investigation reports, past \nconsultation papers (as applicable), copy of health card and photo ID proof, etc.) \nStep 3 \u2013 Request will be processed as per policy terms and conditions \nStep 4 \u2013 While you avail treatment the claim payment is settled directly to the \nProvider/Hospital \nStep 5 \u2013 You can check and track your claim status live on IL TakeCare app or \nWhatsApp",
+        "We are to be provided with a duly completed \u2018Claim Form\u2019 and the requisite claim \ndocuments, as soon as practicable, latest within 30 days from the date of discharge \nfrom the Hospital, failing which we will have the right to treat the claim as inadmissible. \nThe claim will be processed within 15 days of receipt of claim along with claim form. \nFind our extensive list of hospitals providing cashless services on our website \nhttps://www.icicilombard.com/health-insurance/health-claim/partner-hospital \nor the IL TakeCare App. \nList of excluded providers/delisted hospitals is available on our website \nhttps://www.icicilombard.com/docs/default-source/apps/ \nhealthclaims/assets/files/delisted-hospital-list.pdf  \nNotify us 48 hours before planned admission or within 24 hours for emergencies \nwhen using cashless services. \nNon-medical and non-payable expenses are your responsibility. \nYou shall be required to furnish the following documents for or in support of a Claim: \n1. Duly completed Claim form signed by You and the Medical Practitioner. The claim \nform can be downloaded from our website www.icicilombard.com \n2. Original bills, receipts and discharge certificate/ card from the Hospital/ Medical \nPractitioner \n3. Original bills from chemists supported by proper prescription. \n4. Original investigation test reports and payment receipts. \n5. Indoor case papers \n6. Medical Practitioner's referral letter advising Hospitalization in non-Accident cases. \n7. Any other document as required by Us or to investigate the Claim or Our obligation \nto make payment for it",
+        "Domestic Road Ambulance Cover - For Cashless claims: on actuals; For \nReimbursement: maximum up to 1% of Annual Sum Insured max up to ` 10,000 within \nAnnual Sum Insured. \nAir Ambulance Cover - Covers Expenses incurred on air ambulance services which \nare offered by a healthcare or an air ambulance service provider up to Annual Sum \nInsured. \nDonor Expenses - for an organ donor\u2019s Hospitalization for any organ donated to the \nInsured Person \nDomiciliary Hospitalization - Covers the Medical Expenses incurred in respect of \nthe Domiciliary Hospitalization up to Annual Sum Insured \nHome Care Treatment - up to 5% of Annual Sum Insured subject to a maximum of ` \n25,000 \nWellness Program - Wellness program intends to promote, incentivize and reward the \ninsured person for their healthy behavior. Redemption of wellness points will be \nthrough utilization of services on our mobile application. \na. Health Assistance [HAT]- Available\n  d. Benefits covered \nunder   the Policy\n\nd. A. Basic cover- 1.",
+        "List of excluded providers/delisted hospitals is available on our website \nhttps://www.icicilombard.com/docs/default-source/apps/ \nhealthclaims/assets/files/delisted-hospital-list.pdf  \nNotify us 48 hours before planned admission or within 24 hours for emergencies \nwhen using cashless services."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "How do I file a reimbursement claim?",
+      "category": "clause_semantic",
+      "negative": false,
+      "answer": "To file a reimbursement claim, follow these steps:\n\n1) Get treatment at a non-network hospital by paying all the treatment costs. (Step 1) [source: Source 3]\n2) Collect all the documents of treatment ",
+      "expected": "Submit original bills and discharge summary within 30 days of discharge",
+      "contexts": [
+        "Step 3 \u2013 The claim will be processed within 15 days of receipt of claim along with claim \nform and documents \nStep 4 \u2013 The approved amount in the claim would be reimbursed to you \nStep 5 \u2013 You can check and track your claim status live on IL TakeCare app or \nWhatsApp",
+        "emboss the original documents and submit an e-claim on the ILTakecare app. If an \neclaim is submitted please retain all the original documents and produce if asked by \nInsurance to submit in original hard copy. \nStep 3 \u2013 The claim will be processed within 15 days of receipt of claim along with claim \nform and documents \nStep 4 \u2013 The approved amount in the claim would be reimbursed to you \nStep 5 \u2013 You can check and track your claim status live on IL TakeCare app or \nWhatsApp",
+        "Reimbursement Procedure: \nStep 1 \u2013 Get treatment at a non-network hospital by paying all the treatment costs.",
+        "Collect all the documents of treatment and expenses incurred \nStep 2 \u2013 Send the claim documents along with the claim form to insurance.",
+        "If You notify pre authorization request for cashless facility through any of Our \nempanelled network hospitals along with complete set of documents & information, We \nwill respond within 1 hour of the actual receipt of such pre authorization request. \nFurther, we shall grant final authorization within three hours of the receipt of discharge \nauthorization request from the hospital.\n\nReimbursement Procedure: \nStep 1 \u2013 Get treatment at a non-network hospital by paying all the treatment costs. \nCollect all the documents of treatment and expenses incurred \nStep 2 \u2013 Send the claim documents along with the claim form to insurance. You can \nemboss the original documents and submit an e-claim on the ILTakecare app. If an \n  g.  Other \n  Terms and \n  Conditions\n\ng.1. A"
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What happens if the hospital is not in the network?",
+      "category": "clause_semantic",
+      "negative": false,
+      "answer": "If the hospital is not in the network, you must pay all treatment costs up front and then file a claim for reimbursement with the insurer. You can submit the claim documents to insurance and even embo",
+      "expected": "You must pay upfront and file a reimbursement claim within the specified period",
+      "contexts": [
+        "If You notify pre authorization request for cashless facility through any of Our \nempanelled network hospitals along with complete set of documents & information, We \nwill respond within 1 hour of the actual receipt of such pre authorization request. \nFurther, we shall grant final authorization within three hours of the receipt of discharge \nauthorization request from the hospital.\n\nReimbursement Procedure: \nStep 1 \u2013 Get treatment at a non-network hospital by paying all the treatment costs. \nCollect all the documents of treatment and expenses incurred \nStep 2 \u2013 Send the claim documents along with the claim form to insurance. You can \nemboss the original documents and submit an e-claim on the ILTakecare app. If an \n  g.  Other \n  Terms and \n  Conditions\n\ng.1. A",
+        "Reimbursement Procedure: \nStep 1 \u2013 Get treatment at a non-network hospital by paying all the treatment costs.",
+        "If You notify pre authorization request for cashless facility through any of Our \nempanelled network hospitals along with complete set of documents & information, We \nwill respond within 1 hour of the actual receipt of such pre authorization request.",
+        "Cashless (Pre-Authorization) Procedure: \nStep 1 \u2013 Get your treatment at our network hospital, submit a copy of health card \nand photo ID proof at Hospital Insurance desk during admission. \nStep 2 \u2013 The hospital sends an approval request for your cashless admission along \nwith relevant documents (cashless pre-authorization form, investigation reports, past \nconsultation papers (as applicable), copy of health card and photo ID proof, etc.) \nStep 3 \u2013 Request will be processed as per policy terms and conditions \nStep 4 \u2013 While you avail treatment the claim payment is settled directly to the \nProvider/Hospital \nStep 5 \u2013 You can check and track your claim status live on IL TakeCare app or \nWhatsApp",
+        "\u2022 If there is misrepresentation, non-disclosure of material facts, fraud, or non- \n  cooperation in the proposal form, personal statement, medical history, or claim \n  documents, the policy becomes void."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is my nominee's name?",
+      "category": "negative",
+      "negative": true,
+      "answer": "The nominee name is not explicitly provided in the retrieved policy context. The policy schedule shows a 'Nominee Name' field with no value (Source 3). There is also a line stating 'Name: ADVAY SINHA'",
+      "expected": "not mentioned in this policy",
+      "contexts": [
+        "99******02\nPeriod of Insurance\nFrom 00:00 hrs 27-Aug-2025 To 23:59\nhrs 26-Aug-2026\nEmail Address\nPR***********@GMAIL.COM\n\nPolicy Tenure\n1\nNominee Name\n\nAlternate Policy No.",
+        "NA\nRelationship With\nPolicyholder\n\nPolicy Issuing Office\nPrabhadevi\nAppointee Name\n\nPolicy Issued On\n14-Sep-2025\nNominee Age\nNA \nPrevious Policy No.",
+        "(a)  Policy Schedule (Policy Certificate)\nPOLICYALL\n4\n4\n3\n3\nICIHLIP25037V022425\nhttps://www.icicilombard.com/docs/default-source/d\nT2\nProposer Name\nPRANAY  SUYASH\nProduct name\nHealth Shield 360 Retail\nAddress\nA-27, KUDREMUKH COLONY,   BANGALORE,\nKARNATAKA - 560034\nPlan Name\nClassic_Plus_HS360_Retail\n\nPolicy No.\n4214i/CPHSR/407834350/00/000\nContact No.\n99******02\nPeriod of Insurance\nFrom 00:00 hrs 27-Aug-2025 To 23:59\nhrs 26-Aug-2026\nEmail Address\nPR***********@GMAIL.COM\n\nPolicy Tenure\n1\nNominee Name\n\nAlternate Policy No.\n\nLAN No.\nNA\nRelationship With\nPolicyholder\n\nPolicy Issuing Office\nPrabhadevi\nAppointee Name\n\nPolicy Issued On\n14-Sep-2025\nNominee Age\nNA \nPrevious Policy No.\n4128i/HERN/176804574/04/000\nGSTIN No. (Customer)",
+        "Name\n: Pranay  Suyash\nPolicy No.",
+        "Name\n: ADVAY SINHA\nPolicy No."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is my vehicle registration number?",
+      "category": "negative",
+      "negative": true,
+      "answer": "The provided documents do not include your vehicle registration number.",
+      "expected": "not mentioned in this policy",
+      "contexts": [
+        "Policy Servicing \n\u2022 You may contact us on our Toll Free no: 1800 2666, or email to \n  customersupport@icicilombard.com or use our IL TakeCare App or send a Hi to RIA, \n  our Responsive Intelligent Assistant on WhatsApp (7738282666) for policy services.",
+        "It is \ncounted from the beginning of the policy coverage \n1.",
+        "1453\nno\nHealth Shield 360 Retail \u2013 Classic Plus\nCustomer Information Sheet/ Know Your Policy\nThis document provides key information about your policy. You are advised to\ngo through your policy document.\nSr. No\n                                                       Description \n(Please refer to applicable Policy Clause Number in next column)\n\nPolicy Clause Number\n 1.\nName of Insurance Product/Policy  \nHealth Shield 360 Retail \u2013 Classic Plus\n 2.\n\nPolicy Number  \n4214i/CPHSR/407834350/00/000\n 3.\nType of Insurance Product/Policy  \nBoth Indemnity and Benefit\n 4.\nSum Insured (Basis) \nFloater Sum Insured- Rs. 2500000 \u2013 where all members under the policy have a single \nsum insured limit which maybe utilized by any or all members \n  5.\n\nPolicy Coverage (What the policy covers?) \nExpenses in respect of:",
+        "Exclusions (What does the policy not cover) \nStandard Exclusion \ni.",
+        "This cover is available for Sum Insured 50 Lacs and above."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Does this policy cover international travel medical emergencies?",
+      "category": "negative",
+      "negative": true,
+      "answer": "Yes. The policy includes Worldwide Cover (Outside India), indicating coverage for medical emergencies abroad.",
+      "expected": "Coverage is limited to India unless an international rider is attached",
+      "contexts": [
+        "d.B.Optional \n    Cover.7 \n  d.B.Optional \n    Cover.3\n8\nFinancial limits of coverage \nSub-limit (It is a pre- defined limit and the insurance \ncompany will not pay any amount in excess of this limit) \nThe policy will pay only up to the limits specified hereunder for \nthe following diseases/procedures:\nBasic Covers: - \nDomestic Road Ambulance Cover \nDomestic Road Ambulance Cover \n  \u2022 For Cashless claims: same will be at Actuals\n   d.",
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6.",
+        "Exclusions (What does the policy not cover) \nStandard Exclusion \ni.",
+        "no.8\u2019 below will be provided for the medical services of a \nQualified Nurse at the Insured Person\u2019s residence for each day subject to a maximum \nof 15 days post Hospitalization \nWorldwide Cover (Outside India)\u2013 \n1.",
+        "Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is my credit card number linked to this policy?",
+      "category": "negative",
+      "negative": true,
+      "answer": "I don\u2019t have access to or display credit card numbers for policies. The provided policy excerpts do not contain any credit card or payment-card details linked to your policy. For payment-method inform",
+      "expected": "not mentioned in this policy",
+      "contexts": [
+        "The insured is entitled to transfer the credits gained to the extent of the sum insured \nand the benefits available in the previous policy, subject to the underwriting policy of \nthe Company \nc.",
+        "Migration and Portability: \na. The insured has the choice to port his / her policies from one Insurer to another. \nb. The insured is entitled to transfer the credits gained to the extent of the sum insured \nand the benefits available in the previous policy, subject to the underwriting policy of \nthe Company \nc. The company shall decide and communicate on the proposal upon receipt of \ninformation from Existing insurer within prescribed timelines . \nd. This benefit is not applicable for enhanced sum insured. \nThe insured person will have the option to migrate the policy to other health insurance \nproducts/plans offered by the company. The Company may underwrite the proposal in \ncase of migration, if the insured is not continuously covered for 36 months. \nIn case You are keen on migrating or outward porting Your Policy, kindly contact us at \ncustomersupport@icicilombard.com.",
+        "Please note that any claims arising out of pre-existing illness/ \ninjury/ symptoms is excluded from the scope of this policy subject to applicable terms and conditions.",
+        "Step 2 \u2013 The hospital sends an approval request for your cashless admission along \nwith relevant documents (cashless pre-authorization form, investigation reports, past \nconsultation papers (as applicable), copy of health card and photo ID proof, etc.) \nStep 3 \u2013 Request will be processed as per policy terms and conditions \nStep 4 \u2013 While you avail treatment the claim payment is settled directly to the \nProvider/Hospital \nStep 5 \u2013 You can check and track your claim status live on IL TakeCare app or \nWhatsApp",
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the surrender value of this policy?",
+      "category": "negative",
+      "negative": true,
+      "answer": "The surrender value is not specified in the provided policy context.",
+      "expected": "This is a health insurance policy, not a life or investment policy. There is no surrender value.",
+      "contexts": [
+        "Warm Regards,\nFor Team ICICI Lombard\nAuthorised Signatory\nNote: This certificate must be surrendered to the Insurance Company in case of Cancellation \nof the Policy.",
+        "Premium Details (\u20b9)\nBasic Premium\nIGST\nTotal Tax Payable\nTotal Premium\n%\n`\n26868.64\n18\n4836.36\n4836.36\n31705\nFinancial Year\nAmount (\u20b9)\n2025-2026\n31705.00\nThe product is eligible for deduction u/s 80D of the Income Tax, 1961 and any amendments made\nthere to.\nWarm Regards,\nFor Team ICICI Lombard\nAuthorised Signatory\nNote: This certificate must be surrendered to the Insurance Company in case of Cancellation \nof the Policy. In the event of incorrect representation of this declaration, the liability shall be \nupon the policyholder. \nIn case You find any variations against Your proposal or any discrepancy in the Policy, please \ncontact Us immediately on the numbers available on our website www.icicilombard.com Or call \non our toll free no. 1800 2666\n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg. No. 115\nCIN: L67200MH2000PLC129408\nHealth Shield 360 Retail\nUIN - ICIHLIP25037V022425\nMailing Address:\nRegistered address:\nToll free no.: 1800 2666\nICICI Lombard General Insurance Company\nLimited, Interface Building No.: 16, 601 / 602,\n6th Floor, New Link Road, Malad (West),\nMumbai - 400 064.\nICICI Lombard House, 414 Veer\nSavarkar Marg, Near Siddhi\nVinayak Temple, Prabhadevi,\nMumbai - 400 025.\nAlternate No.: +918655 222 666 (chargeable)\nEmail: customersupport@icicilombard.com\nWebsite: www.icicilombard.com\n4 / 16",
+        "It is \ncounted from the beginning of the policy coverage \n1.",
+        "Please note that any claims arising out of pre-existing illness/ \ninjury/ symptoms is excluded from the scope of this policy subject to applicable terms and conditions.",
+        "In the absence of any communication from you within the period of 15 days of receipt of this document, the policy would be \ndeemed to be in order and issued as per your proposal."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is my loan outstanding against this policy?",
+      "category": "negative",
+      "negative": true,
+      "answer": "The retrieved context does not contain any information about the loan outstanding against this policy.",
+      "expected": "not mentioned in this policy",
+      "contexts": [
+        "In case You find any variations against Your proposal or any discrepancy in the Policy, please \ncontact Us immediately on the numbers available on our website www.icicilombard.com Or call \non our toll free no.",
+        "SYSESB00172313336\nThis policy has been issued based on the details furnished by the policyholder.",
+        "Please note that any claims arising out of pre-existing illness/ \ninjury/ symptoms is excluded from the scope of this policy subject to applicable terms and conditions.",
+        "Exclusions (What does the policy not cover) \nStandard Exclusion \ni.",
+        "Policy Coverage (What the policy covers?) \nExpenses in respect of:"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Does this policy have a higher or lower sum insured than a typical Rs 5 lakh health plan?",
+      "category": "comparison",
+      "negative": false,
+      "answer": "Higher. The policy offers a floater sum insured of 25 lakh for all members and provides higher sum insured options (up to 100L/200L/300L), which exceed Rs 5 lakh.",
+      "expected": "This policy has a higher sum insured of Rs 25 lakh compared to the Rs 5 lakh reference",
+      "contexts": [
+        "2500000 \u2013 where all members under the policy have a single \nsum insured limit which maybe utilized by any or all members \n  5.",
+        "This benefit is not applicable for enhanced sum insured.",
+        "Sum Insured (Basis) \nFloater Sum Insured- Rs.",
+        "Coverage for modern treatments\nUpto Annual Sum Insured\nPre Hospitalisation Medical Expenses\n60 days\nPost Hospitalisation Medical Expenses\n180 days\nIn Patient AYUSH hospitalisation\nUpto Annual Sum Insured\nReset Benefit\nUnlimited times for different illness and once for same illness. Not applicable\non the first claim in the Policy Year.\nDomestic Road Ambulance Cover\nCashless: Actuals; Reimbursement: 1% of Sum Insured ; maximum up to \u20b9\n10,000, within annual sum insured\nAir Ambulance Cover \nUpto Annual Sum Insured\nDonor expenses\nUpto Annual Sum Insured\nDomicillary hospitalisation\nUpto Annual Sum Insured\nHome Care Treatment\n5% of Annual Sum Insured ; maximum upto \u20b9 25,000\nWellness Program \n\u2022 Includes wellness program, health assistance, ambulance assistance and\ndiscounts on services and products \n\u2022 Redemption of points will be through utilisation of services on our mobile\napplication \nLoyalty Bonus\n20% of the SI and maximum up to 100%, no reduction in case of claims\nTele consultations\nUnlimited \nIncentives associated with vaccination against Pneumococcal\ndisease\n2.5% discount on premium if all adults in the policy have been vaccinated\nwith pneumococcal vaccine\nOptional Covers \u2013(In-built in the plan) \nPreventive Health Check-Up\nAs per Annual Sum Insured package eligibility\nConvalescence Benefit\nFor SI <= 10 lacs - Rs. 10,000; \nFor SI >10 lacs - Rs.20,000 \nHospital Daily Cash\nSI 3L & 5L: Rs. 1000 per day\nSI 7L & 10L: Rs. 2000 per day\nSI 15L, 20L, 25L, 30L, 50L, 75L & 100L/200L/300L: Rs. 3000 per day\nThese limits are payable  max up to 10days & minimum 3 days\nhospitalization is mandatory  \nMaternity Cover & New Born Baby Cover\nNot Applicable for Annual Sum Insured 3 Lacs\nMaternity Limit:\nFor SI 5L/7L=  Rs 25,000 \nFor SI 10L/15L/ 20L/ 25L/ 30L/ 50L= Rs 40,000\nFor SI  75L/ 100L/200L/300L =  Rs 50,000\nThe above limits are for both normal and C section, maximum upto 2 events\nNew Born Baby Cover: \nFor >3L SI options = 10,000 \nWorld Wide Cover (Cover Outside India)\nAvailable only for Annual Sum Insured 50 Lacs & above. \n1. Hospitalisation expenses incurred anywhere in the world outside India\nwill be covered up to Annual sum insured subject to a co-pay of 10%. \n2. Road Emergency Ambulance \u2013 Up to \u20b935,000/- \n3. Air Ambulance \u2013 Up to Annual Sum Insured \nClaim Protector\nUp to the Annual Sum Insured\nClaim Protector\nAvailable\nAgent Details\nAgent\nName\nAMERICAN\nEXPRESS\nBANKING CORP\nAgent\nCode\nCA0066\nAgent\ncontact No.\n9717759244\n4\n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg. No. 115\nCIN: L67200MH2000PLC129408\nHealth Shield 360 Retail\nUIN - ICIHLIP25037V022425\nMailing Address:\nRegistered address:\nToll free no.: 1800 2666\nICICI Lombard General Insurance Company\nLimited, Interface Building No.: 16, 601 / 602,\n6th Floor, New Link Road, Malad (West),\nMumbai - 400 064.\nICICI Lombard House, 414 Veer\nSavarkar Marg, Near Siddhi\nVinayak Temple, Prabhadevi,\nMumbai - 400 025.\nAlternate No.: +918655 222 666 (chargeable)\nEmail: customersupport@icicilombard.com\nWebsite: www.icicilombard.com\n2 / 16",
+        "Change in Sum Insured: The sum insured can be modified (increase/decrease) only \nat renewal or anytime, subject to company underwriting. Waiting period restarts for \nincreased sum insured."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is the room rent limit in this policy standard or restrictive?",
+      "category": "comparison",
+      "negative": false,
+      "answer": "The policy does not cap room rent; there is no room rent capping. Coverage is up to the Annual Sum Insured, with room rent not capped.",
+      "expected": "1% of sum insured is a standard room rent limit found in most indemnity health policies",
+      "contexts": [
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6.",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered.",
+        "Exclusions (What does the policy not cover) \nStandard Exclusion \ni.",
+        "Table of Benefits\nBasic Covers\n\nBenefits\nIn Patient Treatment\nUpto Annual Sum Insured\nNo room rent capping \nDaycare procedures/treatment \nAll procedures covered up to Annual Sum Insured",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered. \nTechnological advancements and Treatments \u2013 Covers medical expenses for listed \nmodern treatments up to the Annual Sum Insured. \nPre Hospitalization Medical expenses - up to 60 days period immediately before \nadmission to a Hospital (on reimbursement basis only) \nPost Hospitalization Medical Expenses \u2013 up to 180 days immediately after \nadmission to a Hospital. \nIn Patient AYUSH Hospitalization \u2013 Covered up to the Annual Sum Insured\n\nReset Benefit -Unlimited times for different illness and once for same illness. Not \napplicable on the first claim in the Policy Year. \nExpenses in respect of:"
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    }
+  ],
+  "ragas_metrics": {
+    "faithfulness": 0.8368055555555555,
+    "context_precision": 0.4557959401431541,
+    "answer_relevancy": 0.7147533979445853
+  }
+}

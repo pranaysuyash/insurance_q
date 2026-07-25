@@ -16,11 +16,15 @@ _NONCE_BYTES = 12
 _MIN_SECRET_LENGTH = 32
 
 
+def _base64url_encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii")
+
+
 def _key() -> bytes:
     secret = os.getenv("PROCESSING_PAYLOAD_ENCRYPTION_KEY", "").strip()
-    if len(secret) < _MIN_SECRET_LENGTH:
+    if len(secret.encode("utf-8")) < _MIN_SECRET_LENGTH:
         raise RuntimeError(
-            "PROCESSING_PAYLOAD_ENCRYPTION_KEY must be at least 32 characters"
+            "PROCESSING_PAYLOAD_ENCRYPTION_KEY must be at least 32 bytes"
         )
     return hashlib.sha256(secret.encode("utf-8")).digest()
 
@@ -44,8 +48,7 @@ def encrypt_processing_inputs(
     ciphertext = AESGCM(_key()).encrypt(
         nonce, plaintext, document_id.encode("utf-8")
     )
-    encode = lambda value: base64.urlsafe_b64encode(value).decode("ascii")
-    return f"{_VERSION}.{encode(nonce)}.{encode(ciphertext)}"
+    return f"{_VERSION}.{_base64url_encode(nonce)}.{_base64url_encode(ciphertext)}"
 
 
 def decrypt_processing_inputs(*, document_id: str, envelope: str) -> dict[str, Any]:

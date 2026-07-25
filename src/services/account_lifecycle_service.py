@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 
 def _supabase():
-    from supabase import create_client
+    from src.utils.supabase_client import create_client
 
     url = os.getenv("SUPABASE_URL", "").strip()
     key = supabase_server_key()

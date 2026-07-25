@@ -185,8 +185,7 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
         claimCount: count,
         onFileClaim: () {
           Navigator.pop(sheetContext);
-          ClaimWizardSheet.show(context,
-              preselectedPolicy: preselected);
+          ClaimWizardSheet.show(context, preselectedPolicy: preselected);
         },
         onViewClaims: () {
           Navigator.pop(sheetContext);
@@ -199,7 +198,9 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
   PolicySummary? _findSelectedPolicy() {
     if (_selectedDocumentId == null) return null;
     final summaries = ref.read(policySummariesProvider);
-    return summaries.where((s) => s.documentId == _selectedDocumentId).firstOrNull;
+    return summaries
+        .where((s) => s.documentId == _selectedDocumentId)
+        .firstOrNull;
   }
 
   int _claimCount() => AppStateRepository.getClaimRecords().length;
@@ -287,12 +288,13 @@ class _ClaimGuideSheet extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 24),
-            // File a Claim CTA — opens the claim wizard with the guide's context
+            // Record a claim CTA — opens the private claim-log wizard with the
+            // guide's context. It does not send a claim to an insurer.
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 icon: const Icon(Icons.add_circle_outline_rounded),
-                label: const Text('File a claim'),
+                label: const Text('Record a claim'),
                 onPressed: onFileClaim,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),

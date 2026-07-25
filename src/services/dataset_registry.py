@@ -31,7 +31,7 @@ class DatasetRegistry:
         if not url or not service_role_key:
             raise DatasetRegistryError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
         try:
-            from supabase import create_client
+            from src.utils.supabase_client import create_client
         except ImportError as error:  # pragma: no cover
             raise DatasetRegistryError("supabase package is required") from error
         self._client = create_client(url, service_role_key)

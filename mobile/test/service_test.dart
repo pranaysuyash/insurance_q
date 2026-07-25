@@ -134,6 +134,7 @@ void main() {
         documentId: 'doc1',
         question: 'Test question',
         confidence: 0.9,
+        verificationStatus: 'fully_backed',
       );
       final pair = QaPair(
           question: 'Test question',
@@ -148,6 +149,7 @@ void main() {
       expect(restored.answer.sources.length, 1);
       expect(restored.answer.sources.first.text, 'Source text');
       expect(restored.answer.sources.first.pageNumber, 1);
+      expect(restored.answer.verificationStatus, 'fully_backed');
     });
   });
 

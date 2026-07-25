@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../config/app_config.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
+import '../providers/connectivity_provider.dart';
 import '../providers/policy_providers.dart';
 import '../providers/entitlement_provider.dart';
 import '../services/analytics_service.dart';
@@ -234,6 +235,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final selectedFile = _selectedFile;
     final selectedWebFile = _selectedWebFile;
     if (selectedFile == null && selectedWebFile == null) return;
+
+    // Check connectivity before attempting upload — show instant offline
+    // feedback instead of a silent failure or timeout.
+    if (!ref.read(isOnlineProvider)) {
+      if (!mounted) return;
+      CoverWiseSnackBar.warning(
+        context,
+        'You are offline. Please check your connection and try again.',
+      );
+      return;
+    }
 
     final currentPolicyCount =
         ref.read(documentsProvider).asData?.value.length ?? 0;
@@ -745,12 +757,32 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 
   /// Upload all batch entries sequentially, updating per-file status.
+  ///
+  /// Event contract notes:
+  /// - `batch_upload_started`: fired once per upload batch with `file_count`.
+  /// - `batch_upload_completed`: fired after batch run with `completed`/`failed`/`total`.
+  /// - `first_upload_started`, `document_processing_succeeded`, `document_processing_failed`,
+  ///   `first_value_delivered` track the single-document first-value funnel.
+  ///
+  /// Property and decision ownership are maintained in
+  /// `docs/analysis/analytics_tracking_event_registry.md`.
   Future<void> _uploadBatch() async {
     if (_batchEntries.isEmpty) return;
     final pending = _batchEntries
         .where((e) => e.state == BatchUploadState.pending)
         .toList();
     if (pending.isEmpty) return;
+
+    // Check connectivity before attempting batch upload — show instant
+    // offline feedback instead of silent failures.
+    if (!ref.read(isOnlineProvider)) {
+      if (!mounted) return;
+      CoverWiseSnackBar.warning(
+        context,
+        'You are offline. Please check your connection and try again.',
+      );
+      return;
+    }
 
     // Entitlement check: prompt paywall immediately if already at limit.
     final currentPolicyCount =
@@ -1266,32 +1298,47 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 }
 
-/// Compact hint showing supported file types and size limit.
+/// Compact hint showing supported file types, size limit, and policy types.
 class _FileTypeHint extends StatelessWidget {
   const _FileTypeHint();
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 8,
-      runSpacing: 4,
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _HintChip(
-          icon: Icons.picture_as_pdf_outlined,
-          label: 'PDF',
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            _HintChip(
+              icon: Icons.picture_as_pdf_outlined,
+              label: 'PDF',
+            ),
+            _HintChip(
+              icon: Icons.image_outlined,
+              label: 'JPEG',
+            ),
+            _HintChip(
+              icon: Icons.image_outlined,
+              label: 'PNG',
+            ),
+            _HintChip(
+              icon: Icons.sd_card_outlined,
+              label: 'Max 20 MB',
+            ),
+          ],
         ),
-        _HintChip(
-          icon: Icons.image_outlined,
-          label: 'JPEG',
-        ),
-        _HintChip(
-          icon: Icons.image_outlined,
-          label: 'PNG',
-        ),
-        _HintChip(
-          icon: Icons.sd_card_outlined,
-          label: 'Max 20 MB',
+        const SizedBox(height: 10),
+        Text(
+          'We support Health, Auto, Life, Home, and Travel policies',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
         ),
       ],
     );

@@ -133,7 +133,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
 
 logging.basicConfig(
     level=logging.INFO,
@@ -143,6 +142,7 @@ log = logging.getLogger("embedding_benchmark")
 
 
 # --- 1. Configuration ---
+
 
 @dataclass
 class BenchmarkConfig:
@@ -162,9 +162,7 @@ class BenchmarkConfig:
 
     # Paths
     ground_truth_path: Path = field(
-        default_factory=lambda: Path(
-            "tools/embedding_benchmark/ground_truth.jsonl"
-        )
+        default_factory=lambda: Path("tools/embedding_benchmark/ground_truth.jsonl")
     )
     results_dir: Path = field(
         default_factory=lambda: Path("tools/embedding_benchmark/results")
@@ -202,19 +200,16 @@ class BenchmarkConfig:
             policy_limit=int(
                 os.getenv("BENCHMARK_POLICY_LIMIT", str(cls.policy_limit))
             ),
-            query_limit=int(
-                os.getenv("BENCHMARK_QUERY_LIMIT", str(cls.query_limit))
-            ),
+            query_limit=int(os.getenv("BENCHMARK_QUERY_LIMIT", str(cls.query_limit))),
             embedding_batch=int(
-                os.getenv(
-                    "BENCHMARK_EMBEDDING_BATCH", str(cls.embedding_batch)
-                )
+                os.getenv("BENCHMARK_EMBEDDING_BATCH", str(cls.embedding_batch))
             ),
         )
         return cfg
 
 
 # --- 2. Result types ---
+
 
 @dataclass
 class QueryResult:
@@ -280,6 +275,7 @@ class BenchmarkRun:
 
 # --- 3. Embedding API adapters ---
 
+
 class EmbeddingClient:
     """Adapter for the two embedding providers. Each provider
     has its own API; the adapter normalizes the call shape and
@@ -306,13 +302,13 @@ class EmbeddingClient:
 
             self._openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
         except ImportError:
-            log.warning("openai package not installed; text-embedding-3-small unavailable")
+            log.warning(
+                "openai package not installed; text-embedding-3-small unavailable"
+            )
         try:
             import voyageai
 
-            self._voyage = voyageai.Client(
-                api_key=os.getenv("VOYAGE_API_KEY", "")
-            )
+            self._voyage = voyageai.Client(api_key=os.getenv("VOYAGE_API_KEY", ""))
         except ImportError:
             log.warning("voyageai package not installed; voyage-3 unavailable")
 
@@ -321,10 +317,7 @@ class EmbeddingClient:
         vector per text. In --dry-run mode, returns deterministic
         pseudo-embeddings of the right dimension."""
         if self._dry_run:
-            return [
-                _pseudo_embedding(t, model_cfg["dimensions"])
-                for t in texts
-            ]
+            return [_pseudo_embedding(t, model_cfg["dimensions"]) for t in texts]
         provider = model_cfg["provider"]
         if provider == "openai":
             return self._embed_openai(model_cfg, texts)
@@ -332,9 +325,7 @@ class EmbeddingClient:
             return self._embed_voyage(model_cfg, texts)
         raise ValueError(f"unknown provider: {provider}")
 
-    def _embed_openai(
-        self, model_cfg: dict, texts: list[str]
-    ) -> list[list[float]]:
+    def _embed_openai(self, model_cfg: dict, texts: list[str]) -> list[list[float]]:
         if self._openai is None:
             raise RuntimeError("openai client not initialized")
         response = self._openai.embeddings.create(
@@ -342,9 +333,7 @@ class EmbeddingClient:
         )
         return [item.embedding for item in response.data]
 
-    def _embed_voyage(
-        self, model_cfg: dict, texts: list[str]
-    ) -> list[list[float]]:
+    def _embed_voyage(self, model_cfg: dict, texts: list[str]) -> list[list[float]]:
         if self._voyage is None:
             raise RuntimeError("voyage client not initialized")
         result = self._voyage.embed(texts, model=model_cfg["model_name"])
@@ -361,6 +350,7 @@ def _pseudo_embedding(text: str, dimensions: int) -> list[float]:
     NOT used for the model decision.
     """
     import hashlib
+
     h = hashlib.sha256(text.encode("utf-8")).digest()
     # Use the hash to seed a deterministic random vector.
     seed = int.from_bytes(h[:8], "big")
@@ -374,6 +364,7 @@ def _pseudo_embedding(text: str, dimensions: int) -> list[float]:
 
 # --- 4. Vector search (cosine similarity) ---
 
+
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     """Cosine similarity between two equal-length vectors. The
     pgvector `<=>` operator is cosine distance (= 1 - similarity).
@@ -381,9 +372,7 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
     supabase-py round-trip; results are equivalent.
     """
     if len(a) != len(b):
-        raise ValueError(
-            f"dimension mismatch: {len(a)} vs {len(b)}"
-        )
+        raise ValueError(f"dimension mismatch: {len(a)} vs {len(b)}")
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = sum(x * x for x in a) ** 0.5
     norm_b = sum(x * x for x in b) ** 0.5
@@ -398,15 +387,13 @@ def top_k_indices(
     """Return the indices of the top-k documents by cosine
     similarity. Ties are broken by index order (lower index
     wins), which matches pgvector's default ordering."""
-    scored = [
-        (cosine_similarity(query_vec, d), i)
-        for i, d in enumerate(doc_vecs)
-    ]
+    scored = [(cosine_similarity(query_vec, d), i) for i, d in enumerate(doc_vecs)]
     scored.sort(key=lambda x: (-x[0], x[1]))
     return [i for _, i in scored[:k]]
 
 
 # --- 5. Data loading ---
+
 
 def load_chunks(
     config: BenchmarkConfig, supabase_url: str, supabase_key: str
@@ -422,9 +409,7 @@ def load_chunks(
 
         client = create_client(supabase_url, supabase_key)
     except ImportError as error:
-        raise RuntimeError(
-            "supabase package required for live benchmark"
-        ) from error
+        raise RuntimeError("supabase package required for live benchmark") from error
     response = (
         client.table("document_chunks")
         .select("document_id, chunk_text")
@@ -435,9 +420,7 @@ def load_chunks(
         return {}
     by_policy: dict[str, list[str]] = {}
     for row in response.data:
-        by_policy.setdefault(row["document_id"], []).append(
-            row["chunk_text"]
-        )
+        by_policy.setdefault(row["document_id"], []).append(row["chunk_text"])
     return by_policy
 
 
@@ -499,7 +482,8 @@ def load_ground_truth(
             out.append(json.loads(line))
     # Filter to policies that exist in the loaded chunks.
     out = [
-        g for g in out
+        g
+        for g in out
         if g["policy_id"] in chunks_by_policy
         and max(g["relevant_chunk_indices"], default=-1)
         < len(chunks_by_policy[g["policy_id"]])
@@ -515,33 +499,81 @@ def _fixture_ground_truth() -> list[dict]:
     0.4-0.5, not 0 or 1."""
     return [
         # Policy 1: queries about room rent, maternity, PED
-        {"policy_id": "fixture-policy-1", "query": "what is the room rent cap", "relevant_chunk_indices": [1]},
-        {"policy_id": "fixture-policy-1", "query": "is maternity covered", "relevant_chunk_indices": [3]},
-        {"policy_id": "fixture-policy-1", "query": "waiting period for pre-existing diseases", "relevant_chunk_indices": [2]},
-        {"policy_id": "fixture-policy-1", "query": "what is the day care list", "relevant_chunk_indices": [4]},
+        {
+            "policy_id": "fixture-policy-1",
+            "query": "what is the room rent cap",
+            "relevant_chunk_indices": [1],
+        },
+        {
+            "policy_id": "fixture-policy-1",
+            "query": "is maternity covered",
+            "relevant_chunk_indices": [3],
+        },
+        {
+            "policy_id": "fixture-policy-1",
+            "query": "waiting period for pre-existing diseases",
+            "relevant_chunk_indices": [2],
+        },
+        {
+            "policy_id": "fixture-policy-1",
+            "query": "what is the day care list",
+            "relevant_chunk_indices": [4],
+        },
         # Policy 2: critical illness queries
-        {"policy_id": "fixture-policy-2", "query": "what conditions are covered", "relevant_chunk_indices": [0]},
-        {"policy_id": "fixture-policy-2", "query": "how much sum insured", "relevant_chunk_indices": [1]},
-        {"policy_id": "fixture-policy-2", "query": "is it a lump sum", "relevant_chunk_indices": [2]},
-        {"policy_id": "fixture-policy-2", "query": "what is the survival period", "relevant_chunk_indices": [3]},
+        {
+            "policy_id": "fixture-policy-2",
+            "query": "what conditions are covered",
+            "relevant_chunk_indices": [0],
+        },
+        {
+            "policy_id": "fixture-policy-2",
+            "query": "how much sum insured",
+            "relevant_chunk_indices": [1],
+        },
+        {
+            "policy_id": "fixture-policy-2",
+            "query": "is it a lump sum",
+            "relevant_chunk_indices": [2],
+        },
+        {
+            "policy_id": "fixture-policy-2",
+            "query": "what is the survival period",
+            "relevant_chunk_indices": [3],
+        },
         # Policy 3: personal accident queries
-        {"policy_id": "fixture-policy-3", "query": "is this worldwide", "relevant_chunk_indices": [1]},
-        {"policy_id": "fixture-policy-3", "query": "do I need a medical test", "relevant_chunk_indices": [2]},
-        {"policy_id": "fixture-policy-3", "query": "is there a family discount", "relevant_chunk_indices": [4]},
-        {"policy_id": "fixture-policy-3", "query": "what does personal accident cover", "relevant_chunk_indices": [0]},
+        {
+            "policy_id": "fixture-policy-3",
+            "query": "is this worldwide",
+            "relevant_chunk_indices": [1],
+        },
+        {
+            "policy_id": "fixture-policy-3",
+            "query": "do I need a medical test",
+            "relevant_chunk_indices": [2],
+        },
+        {
+            "policy_id": "fixture-policy-3",
+            "query": "is there a family discount",
+            "relevant_chunk_indices": [4],
+        },
+        {
+            "policy_id": "fixture-policy-3",
+            "query": "what does personal accident cover",
+            "relevant_chunk_indices": [0],
+        },
     ]
 
 
 # --- 6. Caching ---
+
 
 def cache_key(model_id: str, text: str) -> str:
     """A stable cache key for one (model, text) pair. Hashes
     both the model name and the text so collisions across
     models are impossible."""
     import hashlib
-    h = hashlib.sha256(
-        (model_id + "::" + text).encode("utf-8")
-    ).hexdigest()
+
+    h = hashlib.sha256((model_id + "::" + text).encode("utf-8")).hexdigest()
     return h[:32]
 
 
@@ -558,9 +590,7 @@ def load_cache(config: BenchmarkConfig) -> dict[str, list[float]]:
         return {}
 
 
-def save_cache(
-    config: BenchmarkConfig, cache: dict[str, list[float]]
-) -> None:
+def save_cache(config: BenchmarkConfig, cache: dict[str, list[float]]) -> None:
     config.cache_dir.mkdir(parents=True, exist_ok=True)
     cache_file = config.cache_dir / "embeddings.json"
     with cache_file.open("w") as f:
@@ -568,6 +598,7 @@ def save_cache(
 
 
 # --- 7. The benchmark loop ---
+
 
 def run_benchmark(config: BenchmarkConfig) -> BenchmarkRun:
     """The main benchmark. Returns a BenchmarkRun with the
@@ -601,7 +632,8 @@ def run_benchmark(config: BenchmarkConfig) -> BenchmarkRun:
         model_started = time.time()
         log.info(
             "benchmarking model %s (%d dimensions)",
-            model_cfg["id"], model_cfg["dimensions"],
+            model_cfg["id"],
+            model_cfg["dimensions"],
         )
         # Embed all chunks for this model.
         chunk_embeddings: dict[str, list[list[float]]] = {}
@@ -615,17 +647,13 @@ def run_benchmark(config: BenchmarkConfig) -> BenchmarkRun:
                     if config.dry_run:
                         # In dry-run, the cache is not used.
                         chunk_vecs.append(
-                            _pseudo_embedding(
-                                chunk, model_cfg["dimensions"]
-                            )
+                            _pseudo_embedding(chunk, model_cfg["dimensions"])
                         )
                     else:
                         # Batch the cache misses.
                         # For simplicity in v1, embed one at a
                         # time. v2 batches across policies.
-                        vecs = embed_client.embed(
-                            model_cfg, [chunk]
-                        )
+                        vecs = embed_client.embed(model_cfg, [chunk])
                         chunk_vecs.append(vecs[0])
                         cache[key] = vecs[0]
             chunk_embeddings[policy_id] = chunk_vecs
@@ -638,9 +666,7 @@ def run_benchmark(config: BenchmarkConfig) -> BenchmarkRun:
             query = gt["query"]
             relevant = gt["relevant_chunk_indices"]
             # Embed the query.
-            query_vecs = embed_client.embed(
-                model_cfg, [query]
-            )
+            query_vecs = embed_client.embed(model_cfg, [query])
             query_vec = query_vecs[0]
             # Compute top-3.
             doc_vecs = chunk_embeddings.get(policy_id, [])
@@ -649,35 +675,37 @@ def run_benchmark(config: BenchmarkConfig) -> BenchmarkRun:
             is_relevant = any(r in top3 for r in relevant)
             if is_relevant:
                 queries_with_relevant += 1
-            query_results.append(QueryResult(
-                policy_id=policy_id,
-                query=query,
-                relevant_chunk_indices=relevant,
-                top_3_indices=top3,
-                is_relevant_in_top_3=is_relevant,
-            ))
+            query_results.append(
+                QueryResult(
+                    policy_id=policy_id,
+                    query=query,
+                    relevant_chunk_indices=relevant,
+                    top_3_indices=top3,
+                    is_relevant_in_top_3=is_relevant,
+                )
+            )
 
-        recall = (
-            queries_with_relevant / len(ground_truth)
-            if ground_truth
-            else 0.0
-        )
+        recall = queries_with_relevant / len(ground_truth) if ground_truth else 0.0
         duration = time.time() - model_started
-        model_results.append(ModelResult(
-            model_id=model_cfg["id"],
-            model_name=model_cfg["model_name"],
-            dimensions=model_cfg["dimensions"],
-            provider=model_cfg["provider"],
-            queries_total=len(ground_truth),
-            queries_with_relevant_in_top_3=queries_with_relevant,
-            recall_at_3=recall,
-            duration_seconds=duration,
-        ))
+        model_results.append(
+            ModelResult(
+                model_id=model_cfg["id"],
+                model_name=model_cfg["model_name"],
+                dimensions=model_cfg["dimensions"],
+                provider=model_cfg["provider"],
+                queries_total=len(ground_truth),
+                queries_with_relevant_in_top_3=queries_with_relevant,
+                recall_at_3=recall,
+                duration_seconds=duration,
+            )
+        )
         model_query_results[model_cfg["id"]] = query_results
         log.info(
             "  %s: recall@3=%.3f (%d/%d) in %.1fs",
             model_cfg["id"],
-            recall, queries_with_relevant, len(ground_truth),
+            recall,
+            queries_with_relevant,
+            len(ground_truth),
             duration,
         )
 
@@ -713,20 +741,20 @@ def _per_query_results(
     for model_result in model_results:
         model_id = model_result.model_id
         for qr in model_query_results.get(model_id, []):
-            rows.append({
-                "model_id": model_id,
-                "policy_id": qr.policy_id,
-                "query": qr.query,
-                "relevant_chunk_indices": qr.relevant_chunk_indices,
-                "top_3_indices": qr.top_3_indices,
-                "is_relevant_in_top_3": qr.is_relevant_in_top_3,
-            })
+            rows.append(
+                {
+                    "model_id": model_id,
+                    "policy_id": qr.policy_id,
+                    "query": qr.query,
+                    "relevant_chunk_indices": qr.relevant_chunk_indices,
+                    "top_3_indices": qr.top_3_indices,
+                    "is_relevant_in_top_3": qr.is_relevant_in_top_3,
+                }
+            )
     return rows
 
 
-def _decide(
-    results: list[ModelResult], threshold: float
-) -> tuple[str, str]:
+def _decide(results: list[ModelResult], threshold: float) -> tuple[str, str]:
     """Apply the decision rule. The rule (per ADR-2026-07-19-03):
     - If voyage_3 recall@3 > small recall@3 by >= threshold,
       recommend switching to voyage_3.
@@ -768,6 +796,7 @@ def _decide(
 
 
 # --- 8. Output ---
+
 
 def write_results(config: BenchmarkConfig, run: BenchmarkRun) -> Path:
     """Write the run results to a timestamped directory. Returns
@@ -816,29 +845,31 @@ def write_results(config: BenchmarkConfig, run: BenchmarkRun) -> Path:
             f"{r.recall_at_3:.3f} | {r.queries_with_relevant_in_top_3} | "
             f"{r.queries_total} | {r.duration_seconds:.1f}s |"
         )
-    readme_lines.extend([
-        "",
-        "## Files",
-        "",
-        "- `summary.json`: the decision-grade numbers (machine-readable)",
-        "- `per_query.jsonl`: per-(policy, query) results",
-        "- `per_chunk_predictions/`: the top-3 predictions per model",
-        "",
-        "## Next steps",
-        "",
-        (
-            "1. Review the rationale. If the decision is SWITCH_TO_VOYAGE_3, "
-            "follow the migration plan in docs/decisions/ADR-2026-07-19-03."
-        ),
-        (
-            "2. If the decision is KEEP_SMALL or STRONG_KEEP_SMALL, no "
-            "action is needed; the default stays text-embedding-3-small."
-        ),
-        (
-            "3. Re-run the benchmark every 6 months, or whenever the "
-            "model lineup changes."
-        ),
-    ])
+    readme_lines.extend(
+        [
+            "",
+            "## Files",
+            "",
+            "- `summary.json`: the decision-grade numbers (machine-readable)",
+            "- `per_query.jsonl`: per-(policy, query) results",
+            "- `per_chunk_predictions/`: the top-3 predictions per model",
+            "",
+            "## Next steps",
+            "",
+            (
+                "1. Review the rationale. If the decision is SWITCH_TO_VOYAGE_3, "
+                "follow the migration plan in docs/decisions/ADR-2026-07-19-03."
+            ),
+            (
+                "2. If the decision is KEEP_SMALL or STRONG_KEEP_SMALL, no "
+                "action is needed; the default stays text-embedding-3-small."
+            ),
+            (
+                "3. Re-run the benchmark every 6 months, or whenever the "
+                "model lineup changes."
+            ),
+        ]
+    )
     with (run_dir / "README.md").open("w") as f:
         f.write("\n".join(readme_lines))
 
@@ -846,6 +877,7 @@ def write_results(config: BenchmarkConfig, run: BenchmarkRun) -> Path:
 
 
 # --- 9. CLI ---
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(

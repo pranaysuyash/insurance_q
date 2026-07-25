@@ -5,6 +5,7 @@ import '../services/consent_ledger.dart';
 import '../services/analytics_service.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
+import 'consent_activity_screen.dart';
 import 'privacy_policy_screen.dart';
 
 /// Privacy & Security: visible copy follows the production data architecture.
@@ -116,21 +117,39 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             subtitle:
                 'See what stays on your device, what is synced for app features, and how to remove it.',
           ),
-          if (AppConfig.hasPrivacyPolicy) ...[              CoverWiseSurface(
-              child: CoverWiseActionRow(
-                icon: Icons.privacy_tip_outlined,
-                color: CoverWiseColors.blueDeep,
-                title: 'View full privacy policy',
-                subtitle: AppConfig.hasPrivacyPolicy
-                    ? 'Opens in your browser'
-                    : 'View in app',
-                onTap: _openPrivacyPolicy,
-                trailing: AppConfig.hasPrivacyPolicy
-                    ? const Icon(Icons.open_in_new_rounded)
-                    : null,
+          // A release requires a hosted policy URL, but development and
+          // review builds must still expose the bundled, versioned policy.
+          // Hiding this row when no URL is injected would make the fallback
+          // unreachable exactly when a reviewer needs to inspect it.
+          CoverWiseSurface(
+            child: CoverWiseActionRow(
+              icon: Icons.privacy_tip_outlined,
+              color: CoverWiseColors.blueDeep,
+              title: 'View full privacy policy',
+              subtitle: AppConfig.hasPrivacyPolicy
+                  ? 'Opens in your browser'
+                  : 'View in app',
+              onTap: _openPrivacyPolicy,
+              trailing: AppConfig.hasPrivacyPolicy
+                  ? const Icon(Icons.open_in_new_rounded)
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 10),
+          CoverWiseSurface(
+            child: CoverWiseActionRow(
+              icon: Icons.history_rounded,
+              color: CoverWiseColors.blueDeep,
+              title: 'View consent activity',
+              subtitle:
+                  'See the account record of privacy choices and policy versions',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ConsentActivityScreen(),
+                ),
               ),
             ),
-          ],
+          ),
           const CoverWiseSectionLabel('Data we collect'),
           const _PrivacyItem(
             icon: Icons.description,
@@ -187,9 +206,9 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Help improve CoverWise by sharing anonymous usage '
-                            'statistics. No personal data or policy content is '
-                            'included — only anonymous event counts and '
-                            'feature usage patterns.',
+                        'statistics. No personal data or policy content is '
+                        'included — only anonymous event counts and '
+                        'feature usage patterns.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme

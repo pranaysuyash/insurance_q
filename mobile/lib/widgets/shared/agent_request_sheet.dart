@@ -214,7 +214,7 @@ class _AgentRequestSheetState extends State<AgentRequestSheet> {
           ),
           const SizedBox(height: 12),
           Text(
-            'CoverWise helps you understand your policies. For personalized advice, share your details below and an independent insurance advisor will reach out.',
+            'CoverWise helps you understand your policies. For personalized advice from an independent advisor, share your details below and they will reach out.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.4,
@@ -438,8 +438,8 @@ class _AgentRequestSheetState extends State<AgentRequestSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            'CoverWise shares your name and phone number with partner advisors. '
-            'Your policy data stays on this device and is never shared.',
+            'This request shares your name and phone number with partner advisors. '
+            'Review the Privacy Policy for how policy data is processed.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
               fontSize: 11,

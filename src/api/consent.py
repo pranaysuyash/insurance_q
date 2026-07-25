@@ -13,16 +13,11 @@ other route returns consent data.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from src.api.user import get_current_user
-from src.models.consent import (
-    ConsentType,
-    CurrentConsent,
-    RecordConsentRequest,
-)
+from src.models.consent import CurrentConsent, RecordConsentRequest
 from src.models.user import User
 from src.services.consent_ledger_service import (
     ConsentAppendOnlyViolation,

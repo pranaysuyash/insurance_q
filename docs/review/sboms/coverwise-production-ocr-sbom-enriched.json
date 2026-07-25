@@ -1,0 +1,3812 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.4.schema.json",
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "BomRef.34832734534136134.7314635783653849",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "aiofiles",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "23.2.1"
+    },
+    {
+      "bom-ref": "BomRef.747920075297236.8036252509294206",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "annotated-doc",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "0.0.4"
+    },
+    {
+      "bom-ref": "BomRef.35966664145777694.13752266064556629",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "annotated-types",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "0.8.0"
+    },
+    {
+      "bom-ref": "BomRef.672283918651909.22252934410328162",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: ISC License (ISCL)"
+          }
+        }
+      ],
+      "name": "anyascii",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: ISC License (ISCL)"
+        }
+      ],
+      "type": "library",
+      "version": "0.3.3"
+    },
+    {
+      "bom-ref": "BomRef.37943357537363065.82377976700624",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "anyio",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "4.14.2"
+    },
+    {
+      "bom-ref": "BomRef.48812978561415343.7315198626383614",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "asyncio-throttle",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.0.2"
+    },
+    {
+      "bom-ref": "BomRef.30090236677139715.27581555030607796",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "bcrypt",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "5.0.0"
+    },
+    {
+      "bom-ref": "BomRef.8478903502748623.21008476861161762",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "boto3",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache License 2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "1.34.162"
+    },
+    {
+      "bom-ref": "BomRef.28489850589168.49541405621686474",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "botocore",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache License 2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "1.34.162"
+    },
+    {
+      "bom-ref": "BomRef.5694490959864851.9390772288434055",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+          }
+        }
+      ],
+      "name": "certifi",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MPL-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+        }
+      ],
+      "type": "library",
+      "version": "2026.7.22"
+    },
+    {
+      "bom-ref": "BomRef.04850126001970767.5515735033680719",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT-0"
+          }
+        }
+      ],
+      "name": "cffi",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT-0"
+        }
+      ],
+      "type": "library",
+      "version": "2.1.0"
+    },
+    {
+      "bom-ref": "BomRef.3714773869931085.8589080557577831",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "charset-normalizer",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "3.4.9"
+    },
+    {
+      "bom-ref": "BomRef.026246003887257063.6122874488353071",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "click",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "8.4.2"
+    },
+    {
+      "bom-ref": "BomRef.7659055664644265.2767045330247375",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0 OR BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "cryptography",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "Apache-2.0 OR BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "49.0.0"
+    },
+    {
+      "bom-ref": "BomRef.7145480708116868.825492083062592",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Python Software Foundation License"
+          }
+        }
+      ],
+      "name": "defusedxml",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "PSFL"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Python Software Foundation License"
+        }
+      ],
+      "type": "library",
+      "version": "0.7.1"
+    },
+    {
+      "bom-ref": "BomRef.276421061011064.07272020969018644",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "deprecation",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache 2"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "2.1.0"
+    },
+    {
+      "bom-ref": "BomRef.007926791678336764.11315715157243478",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "distro",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache License, Version 2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "1.9.0"
+    },
+    {
+      "bom-ref": "BomRef.176892123365177.07927297334570116",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: ISC License (ISCL)"
+          }
+        }
+      ],
+      "name": "dnspython",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "ISC"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: ISC License (ISCL)"
+        }
+      ],
+      "type": "library",
+      "version": "2.8.0"
+    },
+    {
+      "bom-ref": "BomRef.5185804684369495.932642751317494",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: The Unlicense (Unlicense)"
+          }
+        }
+      ],
+      "name": "email-validator",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Unlicense"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: The Unlicense (Unlicense)"
+        }
+      ],
+      "type": "library",
+      "version": "2.3.0"
+    },
+    {
+      "bom-ref": "BomRef.7197713693100165.19018961090240993",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "et-xmlfile",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "2.0.0"
+    },
+    {
+      "bom-ref": "BomRef.897242646154246.1501309078466183",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "fastapi",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "0.139.2"
+    },
+    {
+      "bom-ref": "BomRef.48874131630039774.9995642178101161",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "filelock",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "3.32.0"
+    },
+    {
+      "bom-ref": "BomRef.6564033668300584.6544389538878933",
+      "name": "fsspec",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "version-mismatch"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        }
+      ],
+      "type": "library",
+      "version": "2026.6.0"
+    },
+    {
+      "bom-ref": "BomRef.23240886973098096.027604808376172185",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "grpcio",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "Apache-2.0"
+        }
+      ],
+      "type": "library",
+      "version": "1.83.0"
+    },
+    {
+      "bom-ref": "BomRef.7808006264338553.22987132566083557",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "h11",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "0.16.0"
+    },
+    {
+      "bom-ref": "BomRef.1948091375034856.18368207819165172",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "h2",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "4.4.0"
+    },
+    {
+      "bom-ref": "BomRef.3277115306840329.1287093864162141",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "h5py",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "3.16.0"
+    },
+    {
+      "bom-ref": "BomRef.6934088870919891.5060844209190845",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "hf-xet",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "1.5.2"
+    },
+    {
+      "bom-ref": "BomRef.7577444016116873.757642185711793",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "hpack",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "4.2.0"
+    },
+    {
+      "bom-ref": "BomRef.2908699199957657.5384028336296443",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "httpcore",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "1.0.9"
+    },
+    {
+      "bom-ref": "BomRef.5358133148459218.23768382658630605",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "httptools",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "0.8.0"
+    },
+    {
+      "bom-ref": "BomRef.02823942494875953.6415722509349325",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "httpx",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD-3-Clause"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "0.28.1"
+    },
+    {
+      "bom-ref": "BomRef.8877772792925758.21721473611657083",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "huggingface-hub",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "0.36.2"
+    },
+    {
+      "bom-ref": "BomRef.6836652237302936.9469374055922832",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "hyperframe",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "The MIT License (MIT)\n\nCopyright (c) 2014 Cory Benfield\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "6.1.0"
+    },
+    {
+      "bom-ref": "BomRef.3112937079724192.919182600194085",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "idna",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "3.18"
+    },
+    {
+      "bom-ref": "BomRef.3675268884319074.6778272727992221",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "jinja2",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "3.1.6"
+    },
+    {
+      "bom-ref": "BomRef.3121535453717246.7668497149886279",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "jiter",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "0.16.0"
+    },
+    {
+      "bom-ref": "BomRef.3429472431415804.7880674526243149",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "jmespath",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.1.0"
+    },
+    {
+      "bom-ref": "BomRef.8848167489774426.6037952747150205",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "langdetect",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "1.0.9"
+    },
+    {
+      "bom-ref": "BomRef.8622921474623895.610558165363227",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "lxml",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "6.1.1"
+    },
+    {
+      "bom-ref": "BomRef.3147858770502906.877859947269274",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "markupsafe",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "3.0.3"
+    },
+    {
+      "bom-ref": "BomRef.13684960559223436.014594005642701302",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "ml-dtypes",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "Apache-2.0"
+        }
+      ],
+      "type": "library",
+      "version": "0.5.4"
+    },
+    {
+      "bom-ref": "BomRef.29045275280260097.6608484878370822",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "mpmath",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "1.3.0"
+    },
+    {
+      "bom-ref": "BomRef.45231579033652736.17284186691835512",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "multidict",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache License 2.0"
+        }
+      ],
+      "type": "library",
+      "version": "6.7.1"
+    },
+    {
+      "bom-ref": "BomRef.3043081833421941.5641760495352066",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "networkx",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "3.6.1"
+    },
+    {
+      "bom-ref": "BomRef.08472340290647684.398164662569661",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "numpy",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD-3-Clause"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "1.24.3"
+    },
+    {
+      "bom-ref": "BomRef.26066135343719143.1470206073326742",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "onnx",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "Apache-2.0"
+        }
+      ],
+      "type": "library",
+      "version": "1.22.0"
+    },
+    {
+      "bom-ref": "BomRef.3809504722078012.29986792058530043",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "openai",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "1.109.1"
+    },
+    {
+      "bom-ref": "BomRef.8545044504789474.7449188519103823",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "opencv-python",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache 2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "4.11.0.86"
+    },
+    {
+      "bom-ref": "BomRef.39408536883623224.8119830920243561",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "openpyxl",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "3.1.5"
+    },
+    {
+      "bom-ref": "BomRef.380824616388885.9516034218829846",
+      "name": "packaging",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "version-mismatch"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        }
+      ],
+      "type": "library",
+      "version": "26.2"
+    },
+    {
+      "bom-ref": "BomRef.5396633729707935.5471166687993874",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "passlib",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD"
+        }
+      ],
+      "type": "library",
+      "version": "1.7.4"
+    },
+    {
+      "bom-ref": "BomRef.3385995481835945.3011543163004661",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "pdf2image",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.17.0"
+    },
+    {
+      "bom-ref": "BomRef.8056537365160902.06213788321853697",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT-CMU"
+          }
+        }
+      ],
+      "name": "pillow",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT-CMU"
+        }
+      ],
+      "type": "library",
+      "version": "12.3.0"
+    },
+    {
+      "bom-ref": "BomRef.10664154490007782.3331135578513529",
+      "name": "portalocker",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "version-mismatch"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        }
+      ],
+      "type": "library",
+      "version": "3.2.0"
+    },
+    {
+      "bom-ref": "BomRef.6973632167034706.009633296516850076",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "postgrest",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "2.31.0"
+    },
+    {
+      "bom-ref": "BomRef.5271248586341416.35468579109959697",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "prometheus-client",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache Software License 2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "0.19.0"
+    },
+    {
+      "bom-ref": "BomRef.7935892478956.9698473418091235",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "propcache",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "0.5.2"
+    },
+    {
+      "bom-ref": "BomRef.8975810330406165.2619230641286793",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "protobuf",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "3-Clause BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "7.35.1"
+    },
+    {
+      "bom-ref": "BomRef.26239473264359003.47131890354020256",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "pyclipper",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved; License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.4.0"
+    },
+    {
+      "bom-ref": "BomRef.905654654268467.17793944586341603",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "pycparser",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "3.0"
+    },
+    {
+      "bom-ref": "BomRef.3522722133621712.8070630468408208",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "pydantic",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "2.13.4"
+    },
+    {
+      "bom-ref": "BomRef.3935061587381823.8834647373312133",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "pydantic-core",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "2.46.4"
+    },
+    {
+      "bom-ref": "BomRef.15551329389542612.1858287556109668",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "pydantic-settings",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "2.2.1"
+    },
+    {
+      "bom-ref": "BomRef.47587361177732945.24844170643107766",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "pyjwt",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "2.13.0"
+    },
+    {
+      "bom-ref": "BomRef.6911185296139656.4896849789355304",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-only"
+          }
+        }
+      ],
+      "name": "pymupdf",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "GNU AFFERO GPL 3.0"
+        }
+      ],
+      "type": "library",
+      "version": "1.23.8"
+    },
+    {
+      "bom-ref": "BomRef.6928928770948581.43836580107701095",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-only"
+          }
+        }
+      ],
+      "name": "pymupdfb",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "GNU AFFERO GPL 3.0"
+        }
+      ],
+      "type": "library",
+      "version": "1.23.7"
+    },
+    {
+      "bom-ref": "BomRef.11662729914051928.7913972909893147",
+      "name": "pypdfium2",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "version-mismatch"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        }
+      ],
+      "type": "library",
+      "version": "5.12.1"
+    },
+    {
+      "bom-ref": "BomRef.3079148773110618.5450636016199965",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "python-dateutil",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Dual License"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License; License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "2.8.2"
+    },
+    {
+      "bom-ref": "BomRef.014745478429803782.12795182804677285",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "python-doctr",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Defi"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "1.0.1"
+    },
+    {
+      "bom-ref": "BomRef.9314531535730086.6715990640326802",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "python-docx",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.2.0"
+    },
+    {
+      "bom-ref": "BomRef.5465961705949095.279944601364037",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "python-dotenv",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "1.2.2"
+    },
+    {
+      "bom-ref": "BomRef.2942568116080183.8057204642081542",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "python-multipart",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "0.0.31"
+    },
+    {
+      "bom-ref": "BomRef.006313062779297107.8307348211252501",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "python-pptx",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.0.2"
+    },
+    {
+      "bom-ref": "BomRef.11275638472134486.8044254939271577",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "pyyaml",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "6.0.3"
+    },
+    {
+      "bom-ref": "BomRef.13014034861021762.7386615452894085",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "qdrant-client",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "1.18.0"
+    },
+    {
+      "bom-ref": "BomRef.22229893955664082.31425139372458766",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "rapidfuzz",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "3.14.5"
+    },
+    {
+      "bom-ref": "BomRef.5411135603280322.8951085415939982",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "realtime",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "2.31.0"
+    },
+    {
+      "bom-ref": "BomRef.13309417953760572.04025747267341662",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "redis",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "5.0.1"
+    },
+    {
+      "bom-ref": "BomRef.6265599741165576.4895853719217744",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "requests",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "2.33.0"
+    },
+    {
+      "bom-ref": "BomRef.5089034798678396.9602845926776318",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "s3transfer",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache License 2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License"
+        }
+      ],
+      "type": "library",
+      "version": "0.10.4"
+    },
+    {
+      "bom-ref": "BomRef.711936111926734.5599222420058935",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "scipy",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Copyright (c) 2001-2002 Enthought, Inc. 2003-2024, SciPy Developers.\n All rights reserved.\n\n Redistribution and use in source and binary forms, with or without\n modification, are permitted provided th"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "1.15.3"
+    },
+    {
+      "bom-ref": "BomRef.38144669216210025.48336001443340304",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "shapely",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD 3-Clause"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "2.1.2"
+    },
+    {
+      "bom-ref": "BomRef.6016509499844114.6730126643286967",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "six",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.17.0"
+    },
+    {
+      "bom-ref": "BomRef.09361821014234673.07417963341706857",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "sniffio",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License; License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.3.1"
+    },
+    {
+      "bom-ref": "BomRef.40310260823944855.31303170396058155",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "starlette",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        }
+      ],
+      "type": "library",
+      "version": "1.3.1"
+    },
+    {
+      "bom-ref": "BomRef.7771300069124013.5048903637401748",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "storage3",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "2.31.0"
+    },
+    {
+      "bom-ref": "BomRef.8638076693799385.32719269358913705",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "strenum",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "0.4.15"
+    },
+    {
+      "bom-ref": "BomRef.39297392389205166.22960133286857842",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT OR Apache-2.0"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "structlog",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT OR Apache-2.0"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License; License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "23.2.0"
+    },
+    {
+      "bom-ref": "BomRef.8551907129055927.12082059681144097",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "supabase",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "2.31.0"
+    },
+    {
+      "bom-ref": "BomRef.7273749025536775.8408886770720103",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "supabase-auth",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "2.31.0"
+    },
+    {
+      "bom-ref": "BomRef.799226219972283.858124822131466",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "supabase-functions",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "2.31.0"
+    },
+    {
+      "bom-ref": "BomRef.011812825359415968.034871280421406636",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "sympy",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "1.14.0"
+    },
+    {
+      "bom-ref": "BomRef.024738727272804795.9168486640496292",
+      "name": "tqdm",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MPL-2.0 AND MIT"
+        }
+      ],
+      "type": "library",
+      "version": "4.69.0"
+    },
+    {
+      "bom-ref": "BomRef.06848798784649823.22165303713655948",
+      "licenses": [
+        {
+          "license": {
+            "id": "PSF-2.0"
+          }
+        }
+      ],
+      "name": "typing-extensions",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "PSF-2.0"
+        }
+      ],
+      "type": "library",
+      "version": "4.16.0"
+    },
+    {
+      "bom-ref": "BomRef.45520745367068915.023059953893508345",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "typing-inspection",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "MIT"
+        }
+      ],
+      "type": "library",
+      "version": "0.4.2"
+    },
+    {
+      "bom-ref": "BomRef.8090463452436747.5152984004485412",
+      "name": "urllib3",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "version-mismatch"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        }
+      ],
+      "type": "library",
+      "version": "2.7.0"
+    },
+    {
+      "bom-ref": "BomRef.8068524002823503.2140489046552556",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "uvicorn",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_expression",
+          "value": "BSD-3-Clause"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "0.24.0"
+    },
+    {
+      "bom-ref": "BomRef.49798250752274476.4471919192658831",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: Apache Software License"
+          }
+        },
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "uvloop",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT License"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: Apache Software License; License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "0.22.1"
+    },
+    {
+      "bom-ref": "BomRef.7219678114904187.46150393134250145",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "validators",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "0.22.0"
+    },
+    {
+      "bom-ref": "BomRef.011034596777042882.3092969673778412",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: MIT License"
+          }
+        }
+      ],
+      "name": "watchfiles",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "MIT"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: MIT License"
+        }
+      ],
+      "type": "library",
+      "version": "1.2.0"
+    },
+    {
+      "bom-ref": "BomRef.619260214960491.8996919047191438",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "websockets",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD-3-Clause"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "15.0.1"
+    },
+    {
+      "bom-ref": "BomRef.1485106455618903.0012300103305737942",
+      "licenses": [
+        {
+          "license": {
+            "id": "OSI Approved :: BSD License"
+          }
+        }
+      ],
+      "name": "xlsxwriter",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "BSD-2-Clause"
+        },
+        {
+          "name": "coverwise:declared_license_classifiers",
+          "value": "License :: OSI Approved :: BSD License"
+        }
+      ],
+      "type": "library",
+      "version": "3.2.9"
+    },
+    {
+      "bom-ref": "BomRef.2604495803071808.7305665350382418",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "yarl",
+      "properties": [
+        {
+          "name": "coverwise:license_review_status",
+          "value": "legal-review-required"
+        },
+        {
+          "name": "coverwise:license_match_status",
+          "value": "matched"
+        },
+        {
+          "name": "coverwise:license_metadata_source",
+          "value": "installed-distribution-metadata"
+        },
+        {
+          "name": "coverwise:declared_license_text",
+          "value": "Apache-2.0"
+        }
+      ],
+      "type": "library",
+      "version": "1.24.5"
+    }
+  ],
+  "coverwise:enrichment": {
+    "enriched_at": "2026-07-25T13:10:23.865571+00:00",
+    "metadata_source": "licence-metadata review candidate; not a compliance approval",
+    "tool": "tools/enrich_sbom_license_metadata.py",
+    "founder_approval": {
+      "approved_at": "2026-07-25T13:26:15.316135+00:00",
+      "approved_by": "founder",
+      "decisions": {
+        "agpl_dependencies": "approved",
+        "dual_license_python_doctr": "approved",
+        "missing_license_components": "documented_for_review",
+        "overall_sbom": "approved_for_publication"
+      },
+      "notes": "AGPL (pymupdf, pymupdfb) accepted as SaaS-compatible. python-doctr dual license accepted. 6 components without license data documented as exceptions for future review."
+    }
+  },
+  "dependencies": [
+    {
+      "ref": "BomRef.006313062779297107.8307348211252501"
+    },
+    {
+      "ref": "BomRef.007926791678336764.11315715157243478"
+    },
+    {
+      "ref": "BomRef.011034596777042882.3092969673778412"
+    },
+    {
+      "ref": "BomRef.011812825359415968.034871280421406636"
+    },
+    {
+      "ref": "BomRef.014745478429803782.12795182804677285"
+    },
+    {
+      "ref": "BomRef.024738727272804795.9168486640496292"
+    },
+    {
+      "ref": "BomRef.026246003887257063.6122874488353071"
+    },
+    {
+      "ref": "BomRef.02823942494875953.6415722509349325"
+    },
+    {
+      "ref": "BomRef.04850126001970767.5515735033680719"
+    },
+    {
+      "ref": "BomRef.06848798784649823.22165303713655948"
+    },
+    {
+      "ref": "BomRef.08472340290647684.398164662569661"
+    },
+    {
+      "ref": "BomRef.09361821014234673.07417963341706857"
+    },
+    {
+      "ref": "BomRef.10664154490007782.3331135578513529"
+    },
+    {
+      "ref": "BomRef.11275638472134486.8044254939271577"
+    },
+    {
+      "ref": "BomRef.11662729914051928.7913972909893147"
+    },
+    {
+      "ref": "BomRef.13014034861021762.7386615452894085"
+    },
+    {
+      "ref": "BomRef.13309417953760572.04025747267341662"
+    },
+    {
+      "ref": "BomRef.13684960559223436.014594005642701302"
+    },
+    {
+      "ref": "BomRef.1485106455618903.0012300103305737942"
+    },
+    {
+      "ref": "BomRef.15551329389542612.1858287556109668"
+    },
+    {
+      "ref": "BomRef.176892123365177.07927297334570116"
+    },
+    {
+      "ref": "BomRef.1948091375034856.18368207819165172"
+    },
+    {
+      "ref": "BomRef.22229893955664082.31425139372458766"
+    },
+    {
+      "ref": "BomRef.23240886973098096.027604808376172185"
+    },
+    {
+      "ref": "BomRef.2604495803071808.7305665350382418"
+    },
+    {
+      "ref": "BomRef.26066135343719143.1470206073326742"
+    },
+    {
+      "ref": "BomRef.26239473264359003.47131890354020256"
+    },
+    {
+      "ref": "BomRef.276421061011064.07272020969018644"
+    },
+    {
+      "ref": "BomRef.28489850589168.49541405621686474"
+    },
+    {
+      "ref": "BomRef.29045275280260097.6608484878370822"
+    },
+    {
+      "ref": "BomRef.2908699199957657.5384028336296443"
+    },
+    {
+      "ref": "BomRef.2942568116080183.8057204642081542"
+    },
+    {
+      "ref": "BomRef.30090236677139715.27581555030607796"
+    },
+    {
+      "ref": "BomRef.3043081833421941.5641760495352066"
+    },
+    {
+      "ref": "BomRef.3079148773110618.5450636016199965"
+    },
+    {
+      "ref": "BomRef.3112937079724192.919182600194085"
+    },
+    {
+      "ref": "BomRef.3121535453717246.7668497149886279"
+    },
+    {
+      "ref": "BomRef.3147858770502906.877859947269274"
+    },
+    {
+      "ref": "BomRef.3277115306840329.1287093864162141"
+    },
+    {
+      "ref": "BomRef.3385995481835945.3011543163004661"
+    },
+    {
+      "ref": "BomRef.3429472431415804.7880674526243149"
+    },
+    {
+      "ref": "BomRef.34832734534136134.7314635783653849"
+    },
+    {
+      "ref": "BomRef.3522722133621712.8070630468408208"
+    },
+    {
+      "ref": "BomRef.35966664145777694.13752266064556629"
+    },
+    {
+      "ref": "BomRef.3675268884319074.6778272727992221"
+    },
+    {
+      "ref": "BomRef.3714773869931085.8589080557577831"
+    },
+    {
+      "ref": "BomRef.37943357537363065.82377976700624"
+    },
+    {
+      "ref": "BomRef.380824616388885.9516034218829846"
+    },
+    {
+      "ref": "BomRef.3809504722078012.29986792058530043"
+    },
+    {
+      "ref": "BomRef.38144669216210025.48336001443340304"
+    },
+    {
+      "ref": "BomRef.39297392389205166.22960133286857842"
+    },
+    {
+      "ref": "BomRef.3935061587381823.8834647373312133"
+    },
+    {
+      "ref": "BomRef.39408536883623224.8119830920243561"
+    },
+    {
+      "ref": "BomRef.40310260823944855.31303170396058155"
+    },
+    {
+      "ref": "BomRef.45231579033652736.17284186691835512"
+    },
+    {
+      "ref": "BomRef.45520745367068915.023059953893508345"
+    },
+    {
+      "ref": "BomRef.47587361177732945.24844170643107766"
+    },
+    {
+      "ref": "BomRef.48812978561415343.7315198626383614"
+    },
+    {
+      "ref": "BomRef.48874131630039774.9995642178101161"
+    },
+    {
+      "ref": "BomRef.49798250752274476.4471919192658831"
+    },
+    {
+      "ref": "BomRef.5089034798678396.9602845926776318"
+    },
+    {
+      "ref": "BomRef.5185804684369495.932642751317494"
+    },
+    {
+      "ref": "BomRef.5271248586341416.35468579109959697"
+    },
+    {
+      "ref": "BomRef.5358133148459218.23768382658630605"
+    },
+    {
+      "ref": "BomRef.5396633729707935.5471166687993874"
+    },
+    {
+      "ref": "BomRef.5411135603280322.8951085415939982"
+    },
+    {
+      "ref": "BomRef.5465961705949095.279944601364037"
+    },
+    {
+      "ref": "BomRef.5694490959864851.9390772288434055"
+    },
+    {
+      "ref": "BomRef.6016509499844114.6730126643286967"
+    },
+    {
+      "ref": "BomRef.619260214960491.8996919047191438"
+    },
+    {
+      "ref": "BomRef.6265599741165576.4895853719217744"
+    },
+    {
+      "ref": "BomRef.6564033668300584.6544389538878933"
+    },
+    {
+      "ref": "BomRef.672283918651909.22252934410328162"
+    },
+    {
+      "ref": "BomRef.6836652237302936.9469374055922832"
+    },
+    {
+      "ref": "BomRef.6911185296139656.4896849789355304"
+    },
+    {
+      "ref": "BomRef.6928928770948581.43836580107701095"
+    },
+    {
+      "ref": "BomRef.6934088870919891.5060844209190845"
+    },
+    {
+      "ref": "BomRef.6973632167034706.009633296516850076"
+    },
+    {
+      "ref": "BomRef.711936111926734.5599222420058935"
+    },
+    {
+      "ref": "BomRef.7145480708116868.825492083062592"
+    },
+    {
+      "ref": "BomRef.7197713693100165.19018961090240993"
+    },
+    {
+      "ref": "BomRef.7219678114904187.46150393134250145"
+    },
+    {
+      "ref": "BomRef.7273749025536775.8408886770720103"
+    },
+    {
+      "ref": "BomRef.747920075297236.8036252509294206"
+    },
+    {
+      "ref": "BomRef.7577444016116873.757642185711793"
+    },
+    {
+      "ref": "BomRef.7659055664644265.2767045330247375"
+    },
+    {
+      "ref": "BomRef.7771300069124013.5048903637401748"
+    },
+    {
+      "ref": "BomRef.7808006264338553.22987132566083557"
+    },
+    {
+      "ref": "BomRef.7935892478956.9698473418091235"
+    },
+    {
+      "ref": "BomRef.799226219972283.858124822131466"
+    },
+    {
+      "ref": "BomRef.8056537365160902.06213788321853697"
+    },
+    {
+      "ref": "BomRef.8068524002823503.2140489046552556"
+    },
+    {
+      "ref": "BomRef.8090463452436747.5152984004485412"
+    },
+    {
+      "ref": "BomRef.8478903502748623.21008476861161762"
+    },
+    {
+      "ref": "BomRef.8545044504789474.7449188519103823"
+    },
+    {
+      "ref": "BomRef.8551907129055927.12082059681144097"
+    },
+    {
+      "ref": "BomRef.8622921474623895.610558165363227"
+    },
+    {
+      "ref": "BomRef.8638076693799385.32719269358913705"
+    },
+    {
+      "ref": "BomRef.8848167489774426.6037952747150205"
+    },
+    {
+      "ref": "BomRef.8877772792925758.21721473611657083"
+    },
+    {
+      "ref": "BomRef.897242646154246.1501309078466183"
+    },
+    {
+      "ref": "BomRef.8975810330406165.2619230641286793"
+    },
+    {
+      "ref": "BomRef.905654654268467.17793944586341603"
+    },
+    {
+      "ref": "BomRef.9314531535730086.6715990640326802"
+    }
+  ],
+  "metadata": {
+    "timestamp": "2026-07-24T18:55:28.379317+00:00"
+  },
+  "serialNumber": "urn:uuid:4fd34d15-2a41-4736-9bde-5b1c1127e075",
+  "specVersion": "1.4",
+  "version": 1
+}

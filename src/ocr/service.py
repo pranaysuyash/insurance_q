@@ -14,12 +14,12 @@ Migration:
 Removal target: next major release after all consumers are migrated.
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import redis
 import httpx # For making requests to RAG service
-from typing import Optional, Dict, Any, List # Added List
+from typing import Optional, Dict, Any
 import json
 import logging
 import sys # Make sure sys is imported at the top if not already

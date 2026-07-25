@@ -9,4 +9,6 @@
 pdf2image==1.17.0
 torch==2.1.0
 torchvision==0.16.0
-python-doctr[torch]==0.7.0
+# docTR 1.0.1 has no `torch` extra. Torch is installed explicitly in the
+# container before this profile so the runtime and resolver agree.
+python-doctr==1.0.1

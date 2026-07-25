@@ -74,7 +74,7 @@ async def test_evidence_pipeline_invoked_on_successful_upload(
     from src.services.document_processing_service import (
         DocumentProcessingService,
     )
-    from src.services.evidence_pipeline import EvidencePipeline, PipelineResult
+    from src.services.evidence_pipeline import PipelineResult
 
     service = DocumentProcessingService(
         rag_pipeline=MagicMock(),
@@ -147,7 +147,6 @@ async def test_evidence_pipeline_skipped_when_substrate_not_configured(
     from src.services.document_processing_service import (
         DocumentProcessingService,
     )
-    from src.services.evidence_pipeline import EvidencePipeline
 
     service = DocumentProcessingService(rag_pipeline=MagicMock())
     service._save_file = AsyncMock(return_value="/tmp/fake.pdf")

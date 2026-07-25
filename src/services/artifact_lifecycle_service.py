@@ -16,7 +16,7 @@ def _client() -> Optional[Any]:
         if os.getenv("ENVIRONMENT", "development").lower() == "production":
             raise RuntimeError("Supabase artifact lifecycle is required in production")
         return None
-    from supabase import create_client
+    from src.utils.supabase_client import create_client
     return create_client(url, key)
 
 

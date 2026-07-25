@@ -104,6 +104,7 @@ RUN pip install --upgrade pip && \
 
 # Copy application code
 COPY src/ src/
+COPY docs/legal/ docs/legal/
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/temp

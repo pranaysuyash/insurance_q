@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:coverwise/services/auth_service.dart';
+import 'package:coverwise/services/app_state_store.dart';
 
 Map<String, String> _secureStorage = {};
 
@@ -37,14 +42,34 @@ void _mockSecureStorage() {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late ProviderContainer container;
 
-  setUp(() {
+  setUp(() async {
     _secureStorage = {};
     _mockSecureStorage();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (call) async => '/tmp/coverwise-auth-tests',
+    );
+    final dir = Directory('/tmp/coverwise-auth-tests');
+    if (!dir.existsSync()) {
+      await dir.create(recursive: true);
+    }
+    await Hive.initFlutter(dir.path);
+    if (!Hive.isBoxOpen(AppStateStore.boxName)) {
+      await Hive.openBox(AppStateStore.boxName);
+    }
+    container = ProviderContainer();
+    // Instantiate AuthNotifier so AuthService's static methods
+    // delegate to a real notifier instead of short-circuiting.
+    container.read(authServiceProvider.notifier);
   });
 
-  tearDown(() {
+  tearDown(() async {
     _secureStorage = {};
+    container.dispose();
+    await Hive.close();
   });
 
   test('anonymous claim intent flag is single-use', () async {

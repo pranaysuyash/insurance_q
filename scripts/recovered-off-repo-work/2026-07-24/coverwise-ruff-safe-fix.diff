@@ -1,0 +1,708 @@
+--- src/models/job_outbox.py
++++ src/models/job_outbox.py
+@@ -10,7 +10,7 @@
+ 
+ from datetime import datetime
+ from enum import Enum
+-from typing import Any, Optional
++from typing import Optional
+ from uuid import UUID
+ 
+ from pydantic import BaseModel, Field, field_validator, model_validator
+
+--- tests/test_answer_verifier.py
++++ tests/test_answer_verifier.py
+@@ -13,7 +13,6 @@
+ 
+ from __future__ import annotations
+ 
+-import pytest
+ from src.models.rag import RAGCitation
+ from src.services.answer_verifier import (
+     verify_answer,
+
+--- src/policy_rag_hybrid.py
++++ src/policy_rag_hybrid.py
+@@ -9,18 +9,5 @@
+     • Ask a free-form question, e.g. "since when am I with Niva Bupa".
+ """
+ 
+-import os, re, json, hashlib, time
+-from pathlib import Path
+-from tempfile import NamedTemporaryFile
+-from typing import List, Tuple, Dict, Any, Optional, Union
+-from datetime import datetime
+ 
+-import streamlit as st
+-from dotenv import load_dotenv
+-import pdfplumber
+-import pytesseract
+-from pdf2image import convert_from_path
+-from pypdf import PdfReader
+-import pandas as pd
+ 
+-from langchain_community.document_loaders import Py
+\ No newline at end of file
+
+--- src/api/analytics.py
++++ src/api/analytics.py
+@@ -127,7 +127,7 @@
+             session_id TEXT,
+             is_reinstall INTEGER NOT NULL DEFAULT 0
+         )
+-    """);
++    """)
+     # In-place upgrades for pre-R1.4 tables. Each ALTER wrapped to be idempotent.
+     for alter in (
+         "ALTER TABLE analytics_events ADD COLUMN install_id TEXT",
+@@ -142,27 +142,27 @@
+     conn.execute("""
+         CREATE INDEX IF NOT EXISTS idx_analytics_event_name
+         ON analytics_events(event_name)
+-    """);
++    """)
+     conn.execute("""
+         CREATE INDEX IF NOT EXISTS idx_analytics_user_uid
+         ON analytics_events(user_uid)
+-    """);
++    """)
+     conn.execute("""
+         CREATE INDEX IF NOT EXISTS idx_analytics_error_window
+         ON analytics_events(event_name, received_at)
+-    """);
++    """)
+     conn.execute("""
+         CREATE INDEX IF NOT EXISTS idx_analytics_summary
+         ON analytics_events(received_at, event_name, user_uid)
+-    """);
++    """)
+     conn.execute("""
+         CREATE INDEX IF NOT EXISTS idx_analytics_install_id
+         ON analytics_events(install_id) WHERE install_id IS NOT NULL
+-    """);
++    """)
+     conn.execute("""
+         CREATE INDEX IF NOT EXISTS idx_analytics_session_id
+         ON analytics_events(session_id) WHERE session_id IS NOT NULL
+-    """);
++    """)
+     conn.commit()
+     conn.close()
+ 
+
+--- tests/test_evidence_pipeline.py
++++ tests/test_evidence_pipeline.py
+@@ -28,11 +28,10 @@
+ import sys
+ from unittest.mock import AsyncMock, MagicMock
+ 
+-import pytest
+ 
+ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+ 
+-from src.models.evidence import ParserKind, SpanType, ValueType  # noqa: E402
++from src.models.evidence import ParserKind, ValueType  # noqa: E402
+ from src.services.evidence_pipeline import (  # noqa: E402
+     EvidencePipeline,
+     InsurerNameExtractor,
+
+--- src/api/consent.py
++++ src/api/consent.py
+@@ -13,13 +13,11 @@
+ from __future__ import annotations
+ 
+ import logging
+-from typing import Optional
+ 
+ from fastapi import APIRouter, Depends, HTTPException, Request
+ 
+ from src.api.user import get_current_user
+ from src.models.consent import (
+-    ConsentType,
+     CurrentConsent,
+     RecordConsentRequest,
+ )
+
+--- src/frontend/app.py
++++ src/frontend/app.py
+@@ -10,11 +10,10 @@
+ from fastapi.responses import HTMLResponse, PlainTextResponse, Response, FileResponse
+ import os
+ import httpx
+-from typing import Optional, Dict, Any, List
++from typing import Optional
+ from pydantic import BaseModel
+ import structlog
+ import time
+-import json
+ from src.utils.runtime_access import require_nonproduction
+ from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
+ 
+
+--- tests/test_supabase_fts.py
++++ tests/test_supabase_fts.py
+@@ -1,5 +1,5 @@
+ import pytest
+-from unittest.mock import Mock, AsyncMock, MagicMock
++from unittest.mock import MagicMock
+ from src.services.supabase_vector_store import SupabaseVectorStore
+ from types import SimpleNamespace
+ 
+
+--- src/rag/backfill.py
++++ src/rag/backfill.py
+@@ -4,7 +4,7 @@
+ """
+ import asyncio
+ import logging
+-from typing import Dict, Any, List, Optional
++from typing import Dict, Any, Optional
+ from src.rag.pipeline import RAGPipeline
+ 
+ logger = logging.getLogger(__name__)
+
+--- tests/test_evidence_pipeline_integration.py
++++ tests/test_evidence_pipeline_integration.py
+@@ -74,7 +74,7 @@
+     from src.services.document_processing_service import (
+         DocumentProcessingService,
+     )
+-    from src.services.evidence_pipeline import EvidencePipeline, PipelineResult
++    from src.services.evidence_pipeline import PipelineResult
+ 
+     service = DocumentProcessingService(
+         rag_pipeline=MagicMock(),
+@@ -147,7 +147,6 @@
+     from src.services.document_processing_service import (
+         DocumentProcessingService,
+     )
+-    from src.services.evidence_pipeline import EvidencePipeline
+ 
+     service = DocumentProcessingService(rag_pipeline=MagicMock())
+     service._save_file = AsyncMock(return_value="/tmp/fake.pdf")
+
+--- tests/test_policy_extraction.py
++++ tests/test_policy_extraction.py
+@@ -1,7 +1,6 @@
+ """
+ Tests for the policy extraction service, RRF merge, and cross-encoder reranking.
+ """
+-import os
+ import tempfile
+ 
+ import pytest
+
+--- src/services/document_processing_service.py
++++ src/services/document_processing_service.py
+@@ -1467,4 +1467,4 @@
+                 yield token
+         except Exception as e:
+             logger.error("document_query_stream_failed error_type=%s", type(e).__name__)
+-            yield f'{{"error": "The document query could not be completed."}}'
++            yield '{"error": "The document query could not be completed."}'
+
+--- tests/test_user_account_deletion.py
++++ tests/test_user_account_deletion.py
+@@ -14,7 +14,6 @@
+   `status == 'deletion_partial'`
+ """
+ 
+-import sys
+ from unittest.mock import MagicMock, patch
+ from fastapi import FastAPI
+ from fastapi.testclient import TestClient
+
+--- tests/test_evidence_substrate_service.py
++++ tests/test_evidence_substrate_service.py
+@@ -360,7 +360,8 @@
+ def test_get_field_citations_returns_empty_on_no_rows():
+     svc = _service_with_mocked_client()
+     svc._client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+-    import uuid, asyncio
++    import uuid
++    import asyncio
+     result = asyncio.run(svc.get_field_citations(uuid.uuid4()))
+     assert result == []
+ 
+@@ -381,7 +382,8 @@
+         "page_sha256": "0" * 64,
+     }
+     svc._client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [raw_row]
+-    import uuid, asyncio
++    import uuid
++    import asyncio
+     result = asyncio.run(svc.get_field_citations(uuid.uuid4()))
+     assert len(result) == 1
+     cite = result[0]
+@@ -399,7 +401,8 @@
+     chain = MagicMock()
+     chain.execute.return_value.data = []
+     svc._client.table.return_value.select.return_value.eq.return_value.in_.return_value = chain
+-    import uuid, asyncio
++    import uuid
++    import asyncio
+     result = asyncio.run(
+         svc.get_field_citations(uuid.uuid4(), field_names=["sum_insured"])
+     )
+
+--- tests/test_performance.py
++++ tests/test_performance.py
+@@ -6,8 +6,6 @@
+ """
+ import pytest
+ import time
+-from unittest.mock import AsyncMock, MagicMock, patch
+-from types import SimpleNamespace
+ 
+ 
+ class TestQueryLatency:
+
+--- src/services/document_repository.py
++++ src/services/document_repository.py
+@@ -9,13 +9,12 @@
+ 
+ from __future__ import annotations
+ 
+-import json
+ import os
+ import sqlite3
+ import threading
+ from datetime import datetime, timedelta, timezone
+ from pathlib import Path
+-from typing import Iterable, Optional
++from typing import Optional
+ 
+ from src.models.document import Document
+ from src.utils.runtime_config import supabase_server_key
+
+--- src/api/evidence.py
++++ src/api/evidence.py
+@@ -10,7 +10,6 @@
+ from __future__ import annotations
+ 
+ import logging
+-import os
+ from typing import Optional
+ 
+ from fastapi import APIRouter, Depends, HTTPException
+
+--- tests/test_qa_usage_service.py
++++ tests/test_qa_usage_service.py
+@@ -1,5 +1,5 @@
+ from types import SimpleNamespace
+-from uuid import UUID, uuid4
++from uuid import uuid4
+ 
+ import pytest
+ 
+
+--- tools/sign_off_17_25.py
++++ tools/sign_off_17_25.py
+@@ -4,7 +4,6 @@
+ This is a one-shot helper. It updates the Status line and adds
+ a sign-off entry to the Update log for each ADR.
+ """
+-import re
+ from pathlib import Path
+ 
+ DECISIONS_DIR = Path("/Users/pranay/Projects/medpiper/insurance_app/docs/decisions")
+
+--- tests/test_production_health.py
++++ tests/test_production_health.py
+@@ -13,10 +13,8 @@
+ """
+ 
+ import json
+-import os
+ import sys
+ from pathlib import Path
+-from unittest.mock import ANY
+ 
+ import pytest
+ from fastapi.testclient import TestClient
+@@ -293,7 +291,6 @@
+ 
+     def test_verify_deployed_launch_imports_cleanly(self):
+         """The verify_deployed_launch.py script must import without errors."""
+-        import importlib.util
+         module_path = Path(__file__).resolve().parents[1] / "tools" / "verify_deployed_launch.py"
+         with open(module_path, "r") as f:
+             try:
+
+--- src/services/answer_verifier.py
++++ src/services/answer_verifier.py
+@@ -22,7 +22,7 @@
+ from __future__ import annotations
+ 
+ import re
+-from typing import List, Literal, Optional, Tuple
++from typing import List, Tuple
+ 
+ from src.models.rag import RAGCitation, VerificationStatus
+ 
+
+--- src/models/document.py
++++ src/models/document.py
+@@ -1,4 +1,4 @@
+-from pydantic import BaseModel, Field
++from pydantic import BaseModel
+ from datetime import datetime
+ from typing import Optional, List, Dict, Any
+ 
+
+--- tests/test_azure_api.py
++++ tests/test_azure_api.py
+@@ -1,7 +1,6 @@
+ import pytest
+ import httpx
+ import os
+-from datetime import datetime
+ import logging
+ import pytest_asyncio
+ 
+
+--- tools/benchmark_embedding_models.py
++++ tools/benchmark_embedding_models.py
+@@ -133,7 +133,6 @@
+ from dataclasses import dataclass, field
+ from datetime import datetime, timezone
+ from pathlib import Path
+-from typing import Any, Optional
+ 
+ logging.basicConfig(
+     level=logging.INFO,
+
+--- src/rag/service.py
++++ src/rag/service.py
+@@ -13,14 +13,11 @@
+ import os
+ import time
+ import uuid
+-from contextlib import asynccontextmanager
+-from datetime import datetime, timezone
+ from typing import Any, Dict, List, Optional
+ 
+ from fastapi import FastAPI, HTTPException, Body, Request
+ from pydantic import BaseModel, Field
+ 
+-import uvicorn
+ from src.rag.pipeline import RAGPipeline
+ 
+ logger = logging.getLogger(__name__)
+
+--- tests/test_claims_api.py
++++ tests/test_claims_api.py
+@@ -11,7 +11,6 @@
+ """
+ from __future__ import annotations
+ 
+-import json
+ import os
+ import sys
+ from datetime import datetime
+@@ -22,7 +21,6 @@
+ 
+ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+ 
+-from fastapi import HTTPException  # noqa: E402
+ from fastapi.testclient import TestClient  # noqa: E402
+ 
+ # We need the app but with mocked dependencies
+
+--- tests/test_composite_evidence_face.py
++++ tests/test_composite_evidence_face.py
+@@ -29,7 +29,7 @@
+ import os
+ import sys
+ from unittest.mock import MagicMock
+-from uuid import UUID, uuid4
++from uuid import uuid4
+ 
+ import pytest
+ 
+
+--- src/services/evidence_pipeline.py
++++ src/services/evidence_pipeline.py
+@@ -36,7 +36,6 @@
+     ExtractedValue,
+     ExtractionCostRecord,
+     ParserKind,
+-    SpanType,
+     ValueType,
+ )
+ from src.models.extraction import RoomRentCapExtraction
+
+--- tests/test_citation_verifier.py
++++ tests/test_citation_verifier.py
+@@ -11,7 +11,6 @@
+ """
+ from __future__ import annotations
+ 
+-import pytest
+ from src.models.rag import RAGCitation
+ from src.services.citation_verifier import (
+     CitationRejectionReason,
+
+--- src/services/evidence_substrate_service.py
++++ src/services/evidence_substrate_service.py
+@@ -21,7 +21,7 @@
+ import logging
+ import os
+ from typing import Iterable, Optional
+-from uuid import UUID, uuid4
++from uuid import UUID
+ 
+ from src.models.evidence import (
+     ExtractedFieldRecord,
+@@ -32,7 +32,6 @@
+     ParserKind,
+     SourceSpan,
+     SourceSpanRecord,
+-    SpanType,
+     ValueType,
+ )
+ from src.utils.runtime_config import supabase_server_key
+
+--- src/api/policy.py
++++ src/api/policy.py
+@@ -10,7 +10,9 @@
+ from src.models.policy import Policy
+ from typing import List, Optional
+ from datetime import datetime
+-import os, uuid, shutil
++import os
++import uuid
++import shutil
+ 
+ router = APIRouter(prefix="/policy", tags=["policy"])
+ 
+
+--- tests/test_integration.py
++++ tests/test_integration.py
+@@ -5,8 +5,7 @@
+ Run with: pytest tests/test_integration.py -v
+ """
+ import pytest
+-import asyncio
+-from unittest.mock import AsyncMock, MagicMock, patch
++from unittest.mock import AsyncMock, MagicMock
+ from types import SimpleNamespace
+ 
+ 
+
+--- src/ocr/pipeline.py
++++ src/ocr/pipeline.py
+@@ -16,7 +16,6 @@
+ import time
+ import warnings
+ import numpy as np # For potential doctr input/output
+-import sys # Add this at the top of the file
+ 
+ from src.config.settings import settings
+ 
+
+--- tests/test_job_outbox.py
++++ tests/test_job_outbox.py
+@@ -27,11 +27,9 @@
+ 
+ from src.models.job_outbox import (  # noqa: E402
+     ClaimResult,
+-    DeadLetterRecord,
+     EnqueueRequest,
+     JobStatus,
+     JobType,
+-    OutboxHealthSnapshot,
+     OutboxJob,
+ )
+ from src.services.job_dispatcher import (  # noqa: E402
+@@ -39,7 +37,6 @@
+     _exponential_backoff,
+ )
+ from src.services.job_outbox_service import (  # noqa: E402
+-    JobNotClaimable,
+     JobOutboxError,
+     JobOutboxService,
+     JobOutboxUnavailable,
+
+--- src/app/main.py
++++ src/app/main.py
+@@ -29,7 +29,7 @@
+ from src.services.qa_usage_service import QaUsageService, production_qa_usage_enabled
+ 
+ # Import RAG components and enhanced document processing
+-from typing import Dict, Any, List, Optional, Union, AsyncGenerator
++from typing import Dict, Any, List, Optional, Union
+ import sys
+ import logging
+ import os
+@@ -627,7 +627,7 @@
+             except Exception as error:
+                 logger.error("qa_usage_reservation_failed error_type=%s", type(error).__name__)
+                 return StreamingResponse(
+-                    iter([f"data: {{\"error\": \"qa_usage_unavailable\"}}\n\n"]),
++                    iter(["data: {\"error\": \"qa_usage_unavailable\"}\n\n"]),
+                     media_type="text/event-stream",
+                 )
+             if not bool(usage.get("allowed")):
+@@ -637,7 +637,7 @@
+                     usage.get("reason", "qa_budget_exhausted"),
+                 )
+                 return StreamingResponse(
+-                    iter([f"data: {{\"error\": \"qa_budget_exhausted\"}}\n\n"]),
++                    iter(["data: {\"error\": \"qa_budget_exhausted\"}\n\n"]),
+                     media_type="text/event-stream",
+                 )
+             qa_reservation = (qa_usage_service, current_user.uid, request_id)
+@@ -652,7 +652,7 @@
+         if not document_processing_service:
+             release_qa_reservation()
+             return StreamingResponse(
+-                iter([f"data: {{\"error\": \"Document processing service not initialized\"}}\n\n"]),
++                iter(["data: {\"error\": \"Document processing service not initialized\"}\n\n"]),
+                 media_type="text/event-stream",
+             )
+ 
+@@ -675,7 +675,7 @@
+                     yield f"data: {token}\n\n"
+             except Exception as e:
+                 logger.error("stream_query_failed error_type=%s", type(e).__name__)
+-                yield f"data: {{\"error\": \"Stream failed\"}}\n\n"
++                yield "data: {\"error\": \"Stream failed\"}\n\n"
+             finally:
+                 finalize_qa_reservation()
+ 
+@@ -692,7 +692,7 @@
+         release_qa_reservation()
+         logger.error("document_query_stream_failed error_type=%s", type(e).__name__)
+         return StreamingResponse(
+-            iter([f"data: {{\"error\": \"Document query failed\"}}\n\n"]),
++            iter(["data: {\"error\": \"Document query failed\"}\n\n"]),
+             media_type="text/event-stream",
+         )
+ 
+
+--- src/services/job_dispatcher.py
++++ src/services/job_dispatcher.py
+@@ -15,7 +15,7 @@
+ 
+ import asyncio
+ import logging
+-from typing import Any, Awaitable, Callable
++from typing import Awaitable, Callable
+ 
+ from src.models.job_outbox import JobStatus, JobType, OutboxJob
+ from src.services.job_outbox_service import JobOutboxService
+
+--- src/utils/document_classifier.py
++++ src/utils/document_classifier.py
+@@ -4,10 +4,9 @@
+ Intelligently determines document type from content using RAG queries.
+ """
+ 
+-import json
+ import re
+ import logging
+-from typing import Dict, Optional, List, Tuple
++from typing import Dict, Optional
+ from datetime import datetime
+ 
+ logger = logging.getLogger(__name__)
+
+--- src/ocr/service.py
++++ src/ocr/service.py
+@@ -14,12 +14,12 @@
+ Removal target: next major release after all consumers are migrated.
+ """
+ 
+-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
++from fastapi import FastAPI, HTTPException, UploadFile, File
+ from fastapi.middleware.cors import CORSMiddleware
+ import os
+ import redis
+ import httpx # For making requests to RAG service
+-from typing import Optional, Dict, Any, List # Added List
++from typing import Optional, Dict, Any # Added List
+ import json
+ import logging
+ import sys # Make sure sys is imported at the top if not already
+
+--- tests/test_citation_verifier_integration.py
++++ tests/test_citation_verifier_integration.py
+@@ -1,5 +1,4 @@
+ """Tests for citation verifier with three-tier model (ADR-26, Commit 1)."""
+-import pytest
+ from src.models.rag import RAGCitation
+ from src.services.citation_verifier import (
+     verify_citation,
+
+--- src/utils/anti_abuse.py
++++ src/utils/anti_abuse.py
+@@ -7,7 +7,7 @@
+ import re
+ import redis
+ from datetime import datetime, timedelta, timezone
+-from typing import Dict, Optional, Tuple, List
++from typing import Dict, Tuple
+ import logging
+ from functools import wraps
+ import os
+
+--- src/utils/database_migration.py
++++ src/utils/database_migration.py
+@@ -6,7 +6,6 @@
+ import sqlite3
+ import logging
+ from datetime import datetime
+-import os
+ 
+ logger = logging.getLogger(__name__)
+ 
+
+--- tests/test_frontend.py
++++ tests/test_frontend.py
+@@ -1,8 +1,6 @@
+ import pytest
+ from fastapi.testclient import TestClient
+ from src.frontend.app import app
+-import json
+-from unittest.mock import patch
+ 
+ client = TestClient(app)
+ 
+
+--- tests/test_analytics_errors.py
++++ tests/test_analytics_errors.py
+@@ -9,15 +9,13 @@
+ """
+ import json
+ import sqlite3
+-import tempfile
+ from datetime import datetime, timezone, timedelta
+-from pathlib import Path
+ 
+ import pytest
+ from fastapi import FastAPI
+ from fastapi.testclient import TestClient
+ 
+-from src.api.analytics import router as analytics_router, DB_PATH, _init_analytics_table
++from src.api.analytics import router as analytics_router, _init_analytics_table
+ from src.api.user import router as user_router
+ 
+ 
+
+--- tests/test_analytics_benchmark.py
++++ tests/test_analytics_benchmark.py
+@@ -16,10 +16,8 @@
+ import json
+ import sqlite3
+ import time
+-import tempfile
+ from datetime import datetime, timezone
+-from pathlib import Path
+-from typing import Dict, List, Tuple, Optional
++from typing import Dict
+ 
+ import pytest
+ 
+
+Would fix 113 errors (3 additional fixes available with `--unsafe-fixes`).

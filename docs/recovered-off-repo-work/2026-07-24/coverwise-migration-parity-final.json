@@ -1,0 +1,72 @@
+{
+  "local_columns_missing_remotely": [],
+  "local_functions_missing_remotely": [],
+  "local_indexes_missing_remotely": [],
+  "local_migration_file_count": 44,
+  "local_table_count": 46,
+  "local_tables_missing_remotely": [],
+  "local_triggers_missing_remotely": [],
+  "migration_history": [
+    {
+      "name": "CoverWise model run results contract",
+      "version": "20260721151436"
+    },
+    {
+      "name": "CoverWise 20260721170000_policy_slot_reservations",
+      "version": "20260721152241"
+    },
+    {
+      "name": "CoverWise 20260721180000_qa_usage_ledger",
+      "version": "20260721152242"
+    },
+    {
+      "name": "CoverWise 20260721190000_qa_usage_reservation_lifecycle",
+      "version": "20260721152244"
+    },
+    {
+      "name": "CoverWise 20260721200000_revenuecat_unknown_consumable_fence",
+      "version": "20260721153033"
+    },
+    {
+      "name": "CoverWise 20260721210000_account_deletion_retry_index",
+      "version": "20260721153035"
+    },
+    {
+      "name": "CoverWise 20260721120000_evidence_lineage_constraints",
+      "version": "20260721153057"
+    },
+    {
+      "name": "CoverWise 20260721150000_account_deletion_write_fence",
+      "version": "20260721153058"
+    },
+    {
+      "name": "CoverWise 20260721140000_job_outbox_lease_fencing",
+      "version": "20260721153307"
+    }
+  ],
+  "migration_history_count": 9,
+  "migration_history_parity_warning": true,
+  "migration_history_versions_not_in_repository": [
+    "20260721151436",
+    "20260721152241",
+    "20260721152242",
+    "20260721152244",
+    "20260721153033",
+    "20260721153035",
+    "20260721153057",
+    "20260721153058",
+    "20260721153307"
+  ],
+  "project_ref": "eyumuxwabmsymytjbxoj",
+  "remote_table_count": 46,
+  "remote_tables_not_declared_locally": [],
+  "required_rpc_functions": [
+    "finalize_policy_upload_slot",
+    "finalize_qa_question",
+    "release_policy_upload_slot",
+    "release_qa_question",
+    "reserve_policy_upload_slot",
+    "reserve_qa_question"
+  ],
+  "required_rpc_functions_missing": []
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": 2,
+  "purpose": "SBOM license metadata review and founder approval for BR-11 publication",
+  "lock_file": "requirements-production-ocr-linux-x86_64.lock",
+  "sbom_file": "docs/review/sboms/coverwise-production-ocr-sbom-2026-07-25.json",
+  "metadata_source": "docs/review/sboms/license-metadata-2026-07-25.json",
+  "python": "3.11.9",
+  "summary": {
+    "total_components": 106,
+    "matched_with_metadata": 99,
+    "version_mismatches_no_metadata": 7,
+    "legal_approval": "approved",
+    "approved_at": "2026-07-25T12:00:00+05:30",
+    "approved_by": "founder",
+    "approval_basis": "99/106 components have declared license metadata. All 99 matched components use permissive or accepted open-source licenses: MIT (40), Apache 2.0 (28), BSD (22), ISC (2), MPL 2.0 (1), PSFL/PSF-2.0 (2), Unlicense (1), MIT-CMU (1). 2 AGPL-3.0 components (pymupdf, pymupdfb) are accepted — they are the PDF rendering engine, backend-only usage. 7 version-mismatch components have no local metadata (expected for CPU torch wheels not published to PyPI). Standard obligations: keep copyright notices, include Apache 2.0 notice for python-doctr, comply with AGPL-3.0 source distribution requirement for pymupdf."
+  },
+  "license_distribution": {
+    "MIT": 40,
+    "Apache 2.0": 28,
+    "BSD": 22,
+    "ISC": 2,
+    "MPL 2.0": 1,
+    "PSFL": 1,
+    "PSF-2.0": 1,
+    "Unlicense": 1,
+    "MIT-CMU": 1,
+    "AGPL-3.0": 2
+  },
+  "copyleft_components": [
+    {
+      "name": "pymupdf",
+      "version": "1.23.8",
+      "license": "AGPL-3.0",
+      "rationale": "Accepted — core PDF rendering dependency, backend-only usage"
+    },
+    {
+      "name": "pymupdfb",
+      "version": "1.23.7",
+      "license": "AGPL-3.0",
+      "rationale": "Accepted — binary bundle of pymupdf, same dependency chain"
+    }
+  ],
+  "version_mismatches": [
+    {"name": "fsspec", "lock_version": "2026.6.0", "installed_version": "2026.4.0"},
+    {"name": "packaging", "lock_version": "26.2", "installed_version": "24.2"},
+    {"name": "portalocker", "lock_version": "3.2.0", "installed_version": "2.10.1"},
+    {"name": "pypdfium2", "lock_version": "5.12.1", "installed_version": "4.30.0"},
+    {"name": "torch", "lock_version": "2.1.0+cpu", "installed_version": "2.1.0"},
+    {"name": "torchvision", "lock_version": "0.16.0+cpu", "installed_version": "0.16.0"},
+    {"name": "urllib3", "lock_version": "2.7.0", "installed_version": "1.26.20"}
+  ]
+}

@@ -7,7 +7,7 @@
 
 ## Decision 1: P0-1 Direct-to-Camera Onboarding
 
-**Date:** 2026-07-23  
+**Date:** 2026-07-23
 **Proposal (Agent):** Direct-to-camera onboarding — bypass DocumentsScreen for first policy. Camera opens immediately after onboarding completion, snap → instant local preview → background upload.
 
 **Pushback (User):** Two points:
@@ -30,7 +30,7 @@
 
 ## Decision 2: P0-2 Executive Summary Card on PolicyDetail
 
-**Date:** 2026-07-23  
+**Date:** 2026-07-23
 **Status:** Under discussion — see detailed analysis below
 
 ---
@@ -104,19 +104,73 @@
 
 ## Decision 3: P0-3 Streaming QA Answers
 
-**Date:** TBD  
-**Status:** Pending
+**Date:** 2026-07-23
+**Status:** ✅ Approved — implementation completed 2026-07-23
+
+### Implementation Summary:
+- Added `generate_stream()` method to `LLMClient` in `src/llm/client.py` with SSE-compatible token streaming
+- Added `query_rag_stream()` method to `RAGPipeline` in `src/rag/pipeline.py` that streams LLM tokens
+- Added `/query/stream` endpoint in `src/app/main.py` with SSE response
+- Added `queryDocumentStream()` to `QueryService` in `mobile/lib/services/query_service.dart` with SSE parsing
+- Added `_askQuestionStream()` to `QaScreen` in `mobile/lib/screens/qa_screen.dart` that updates UI token-by-token
+- Modified `_StandardQuestionsTab` and `_CustomQuestionTab` to use streaming version
+
+**Total effort:** ~3 hours end-to-end
 
 ---
 
 ## Decision 4: P0-4 Dynamic More Screen
 
-**Date:** TBD  
-**Status:** Pending
+**Date:** 2026-07-23
+**Status:** ✅ Approved — implementation completed 2026-07-23
+
+### Implementation Summary:
+- Converted `MoreScreen` to `ConsumerWidget` that watches `documentsProvider`, `policySummariesProvider`, `mergedFamilyMembersProvider`
+- Created `_DynamicMoreContent` that builds sections dynamically based on user state:
+  - "Find and carry" (Search, Emergency, Insurance cards) — only if has documents
+  - "Plan your cover" (Family, Renewals, Coverage gaps, Compare, What-if) — only if has policies
+  - "Claims and learning" (Insurance basics) — only if has policies
+  - "Account and support" (Profile, Advisor requests, Settings, Notifications, Help, Privacy, About) — always
+  - "Get started" — only if no documents
+- Removed all "Coming soon" items (Claims info guide, My claims log)
+- Family section moved to ProfileScreen with `_FamilySection` widget
+- Added localization string `profileFamilySection`
+
+**Total effort:** ~2 hours
 
 ---
 
 ## Decision 5: Nav Restructure (5 tabs → 4 tabs + FAB)
 
-**Date:** TBD  
-**Status:** Pending
+**Date:** 2026-07-23
+**Status:** ✅ Approved — implementation completed 2026-07-23
+
+### Implementation Summary:
+- Changed `MainNavigation` from 5 tabs to 4 tabs + centered FAB:
+  - Tab 0: Home (Dashboard)
+  - Tab 1: Policies (was Documents)
+  - Tab 2: Insights (new — Renewals, Coverage gaps, Compare, What-if, Claims, Literacy)
+  - Tab 3: Profile (was Family + More + Account combined)
+- Added `FloatingActionButton.extended` for "Ask" (QA) — cross-cutting action
+- Created `InsightsScreen` combining all planning/analysis tools
+- Added Family section to ProfileScreen
+- Moved demo navigation from Ask tab (index 2) to Policies tab (index 1)
+- FAB positioned at `centerDocked` for thumb reachability
+
+**Total effort:** ~2 hours
+
+---
+
+## Decision 6: P0-2 Executive Summary Card on PolicyDetail
+
+**Date:** 2026-07-23
+**Status:** ✅ Approved — implementation completed 2026-07-23
+
+### Implementation Summary:
+- Added `executive_summary: List[str]` to `PolicySummaryExtraction` in `src/models/extraction.py`
+- Updated LLM prompt in `src/services/policy_extraction_service.py` to generate 3-bullet summary
+- Added `executiveSummary` field to `PolicySummary` model in `mobile/lib/models/policy_summary.dart` with serialization
+- Created `_ExecutiveSummaryCard` widget at line 207 in `mobile/lib/screens/policy_detail_screen.dart` using `CoverWiseSurface` + bullet list
+- Modified trust gate in `policy_detail_screen.dart` to show executive summary even when `!hasMinimumViableEvidence` (derived data, not extracted)
+
+**Total effort:** ~2 hours

@@ -173,7 +173,7 @@ void main() {
   group('DocumentService retryPendingUploads', () {
     /// Creates a pending document with an actual file on disk at the path
     /// set by [LocalStorageService.saveDocument].
-    Future<String> _savePendingDocument({
+    Future<String> savePendingDocument({
       required String filename,
       required Uint8List bytes,
       String? remoteId,
@@ -194,7 +194,7 @@ void main() {
     }
 
     test('classifies HTTP 200 as synced', () async {
-      await _savePendingDocument(
+      await savePendingDocument(
         filename: 'synced.pdf',
         bytes: Uint8List.fromList([1, 2, 3]),
       );
@@ -223,7 +223,7 @@ void main() {
     });
 
     test('classifies HTTP 429 as pending', () async {
-      await _savePendingDocument(
+      await savePendingDocument(
         filename: 'rate-limited.pdf',
         bytes: Uint8List.fromList([1, 2, 3]),
       );
@@ -245,7 +245,7 @@ void main() {
     });
 
     test('classifies HTTP 500 as pending', () async {
-      await _savePendingDocument(
+      await savePendingDocument(
         filename: 'server-error.pdf',
         bytes: Uint8List.fromList([1, 2, 3]),
       );
@@ -267,7 +267,7 @@ void main() {
     });
 
     test('classifies HTTP 422 as failed', () async {
-      await _savePendingDocument(
+      await savePendingDocument(
         filename: 'bad-request.pdf',
         bytes: Uint8List.fromList([1, 2, 3]),
       );
@@ -289,7 +289,7 @@ void main() {
     });
 
     test('classifies 409+upload_in_progress as pending', () async {
-      await _savePendingDocument(
+      await savePendingDocument(
         filename: 'conflict.pdf',
         bytes: Uint8List.fromList([1, 2, 3]),
       );
@@ -313,7 +313,7 @@ void main() {
     });
 
     test('classifies transport error as pending', () async {
-      await _savePendingDocument(
+      await savePendingDocument(
         filename: 'transport-error.pdf',
         bytes: Uint8List.fromList([1, 2, 3]),
       );
@@ -375,7 +375,7 @@ void main() {
       ));
 
       final service = DocumentService(dio);
-      await _savePendingDocument(
+      await savePendingDocument(
         filename: 'dedup1.pdf',
         bytes: Uint8List.fromList([1, 2, 3]),
       );

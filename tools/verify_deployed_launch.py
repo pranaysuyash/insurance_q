@@ -13,6 +13,7 @@ import json
 import sys
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 
@@ -21,6 +22,14 @@ class Result:
     name: str
     ok: bool
     detail: str
+
+
+def validate_https_url(url: str, *, label: str) -> str | None:
+    """Return a deployment URL error without issuing a network request."""
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        return f"{label} must be an absolute HTTPS URL"
+    return None
 
 
 def request(base_url: str, path: str, *, method: str = "GET", token: str | None = None,
@@ -63,6 +72,11 @@ def main() -> int:
         "--worker-url",
         help="Optional internal URL for the durable outbox worker health listener",
     )
+    parser.add_argument(
+        "--require-worker",
+        action="store_true",
+        help="Fail early unless --worker-url is supplied and passes readiness",
+    )
     parser.add_argument("--origin", help="Expected public web origin for CORS verification")
     parser.add_argument(
         "--allow-identity-creation",
@@ -71,6 +85,22 @@ def main() -> int:
     )
     args = parser.parse_args()
     base_url = args.base_url.rstrip("/")
+    if error := validate_https_url(base_url, label="--base-url"):
+        print(f"launch verifier failed before checks: {error}", file=sys.stderr)
+        return 2
+    if args.worker_url:
+        worker_url = args.worker_url.rstrip("/")
+        if error := validate_https_url(worker_url, label="--worker-url"):
+            print(f"launch verifier failed before checks: {error}", file=sys.stderr)
+            return 2
+    else:
+        worker_url = None
+    if args.require_worker and worker_url is None:
+        print(
+            "launch verifier failed before checks: --require-worker requires --worker-url",
+            file=sys.stderr,
+        )
+        return 2
     results: list[Result] = []
 
     try:
@@ -91,9 +121,9 @@ def main() -> int:
         )
         results.append(Result("service health", health_ok, f"HTTP {status}"))
 
-        if args.worker_url:
+        if worker_url:
             worker_status, _, worker_payload = request(
-                args.worker_url.rstrip("/"), "/readyz"
+                worker_url, "/readyz"
             )
             worker_ok = (
                 worker_status == 200

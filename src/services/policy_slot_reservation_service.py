@@ -24,7 +24,7 @@ class PolicySlotReservationService:
         key = supabase_server_key()
         if not url or not key:
             raise RuntimeError("Policy-slot reservation requires Supabase server credentials")
-        from supabase import create_client
+        from src.utils.supabase_client import create_client
 
         return cls(create_client(url, key))
 

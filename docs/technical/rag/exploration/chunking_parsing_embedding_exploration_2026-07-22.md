@@ -10,6 +10,52 @@ This document supersedes the parsing/chunking sections of `docs/technical/rag_me
 
 ## 1. The problem statement
 
+## Addendum — actual corpus/evaluation re-entry (2026-07-24)
+
+The supplied `document_parsers_extractors_catalog_2026_v2.xlsx` was re-read
+for this pass: it contains 149 catalogued tools, 77 recent (2024+) systems,
+and a separate 33-model general-VLM/OCR frontier. The meaningful expansion is
+therefore stage-specific, not a generic mobile-LLM list: Baidu Unlimited-OCR,
+ByteDance Dolphin, HunyuanOCR, Infinity-Parser2, PaddleOCR-VL, SmolDocling,
+MinerU, Docling, Marker, and general VLMs are parser/recovery candidates;
+EmbeddingGemma/Qwen3 Embedding are retrieval candidates; Qwen3 Reranker is a
+reranking candidate; and generation is a final, citation-gated stage.
+
+An actual run of the current `policy.pdf` + `policy_qa_v1.json` corpus was
+started on 2026-07-24 with the real RAG pipeline. The corpus has 52 reviewed
+questions across exact-field, numeric, exclusion, benefit, semantic, negative,
+date, waiting-period, and comparison categories. It was stopped after the
+early queries because the current vector path raised
+`'QdrantClient' object has no attribute 'search'`. The pipeline continued via
+local FTS enough to make OpenAI calls, but that is **not a valid retrieval
+benchmark**; spending further provider credit would confound parser/model
+results with a broken retrieval backend. This is Tier 4 runtime evidence of a
+pipeline blocker, not model failure.
+
+The compatibility fault was then corrected in `src/rag/pipeline.py` by routing
+all Qdrant retrieval through current `query_points(...).points` rather than the
+removed `search` API; normal and streaming paths now share that boundary. The
+focused RAG suite passed 9/9 after the change. A single real-corpus probe then
+completed with source/context/citation coverage and exact-answer match at 1/1
+(14.5 s); this is a smoke recovery, **not** a corpus benchmark. The 52-question
+run remains the next gate, followed by parser/embedding/reranker alternatives.
+
+The repaired full baseline then completed against all 52 reviewed questions:
+28/52 expected-answer matches (53.85%), 100% source/context coverage, 94.23%
+citation presence, and a 50% negative-question hallucination rate under the
+existing evaluator definition. RAGAS itself is not installed, so no
+faithfulness/context-precision/answer-relevancy score was produced. This is a
+development baseline using the local FTS/in-memory vector configuration after
+the remote Qdrant connection fallback; it is not production-Supabase proof.
+It is nevertheless decisive evidence that parser/structure, retrieval,
+verifier, and negative-case work must be evaluated before selecting a new
+generation model.
+
+The benchmark must resume only after the Qdrant compatibility failure is fixed
+or a declared local-FTS-only evaluation configuration is created. The stage
+matrix is now tracked in
+[`mobile_model_exploration_map_2026-07-24.md`](../../../review/mobile_model_exploration_map_2026-07-24.md): parser/structure → chunks → embeddings → reranking → grounded generation, with distinct provider/model candidates and gates.
+
 CoverWise ingests Indian insurance policy PDFs and answers questions via RAG.
 The core failure mode: **table-heavy policies where PyMuPDF extracts text as
 positional blocks, separating labels from values.** "Annual Sum Insured (₹)"

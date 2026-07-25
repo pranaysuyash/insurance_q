@@ -186,8 +186,8 @@ class DocumentService {
         if (!_isOfflineTransportFailure(e)) {
           return {
             'error': 'upload_failed',
-            'message':
-                'We could not save this policy securely. Please try again before closing the app.',
+                'message':
+                'We could not save this policy. Please try again before closing the app.',
           };
         }
 
@@ -223,7 +223,7 @@ class DocumentService {
       debugPrint('Unexpected document upload failure.');
       return {
         'error': 'upload_failed',
-        'message': 'We could not save this policy securely. Please try again.',
+        'message': 'We could not save this policy. Please try again.',
       };
     }
   }
@@ -251,6 +251,16 @@ class DocumentService {
         return 'Home Insurance';
       case PolicyType.travel:
         return 'Travel Insurance';
+      case PolicyType.asset:
+        return 'Asset Insurance';
+      case PolicyType.liability:
+        return 'Liability Insurance';
+      case PolicyType.marine:
+        return 'Marine Insurance';
+      case PolicyType.cyber:
+        return 'Cyber Insurance';
+      case PolicyType.pet:
+        return 'Pet Insurance';
       case PolicyType.other:
         return 'Insurance Policy';
     }
@@ -551,8 +561,8 @@ class DocumentService {
         if (!_isOfflineTransportFailure(e)) {
           return {
             'error': 'upload_failed',
-            'message':
-                'We could not save this policy securely. Please try again before closing the app.',
+                'message':
+                'We could not save this policy. Please try again before closing the app.',
           };
         }
 
@@ -587,7 +597,7 @@ class DocumentService {
       debugPrint('Unexpected web document upload failure.');
       return {
         'error': 'upload_failed',
-        'message': 'We could not save this policy securely. Please try again.',
+        'message': 'We could not save this policy. Please try again.',
       };
     }
   }

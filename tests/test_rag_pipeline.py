@@ -245,8 +245,8 @@ async def test_query_rag_reranks_sources_and_returns_structured_answer(monkeypat
         _make_hit("2", 0.87, "General policy overview", document_id="doc-1", page_number=1),
         _make_hit("3", 0.72, "Deductible is 5000", document_id="doc-1", page_number=3),
     ]
-    search_mock = MagicMock(return_value=search_hits)
-    pipeline.qdrant_client.search = search_mock
+    query_mock = MagicMock(return_value=SimpleNamespace(points=search_hits))
+    pipeline.qdrant_client.query_points = query_mock
 
     result = await RAGPipeline.query_rag(
         pipeline,
@@ -262,9 +262,9 @@ async def test_query_rag_reranks_sources_and_returns_structured_answer(monkeypat
     ]
     assert result["result"]["retrieval_strategy"] == "dense_plus_local_fts"
     assert result["result"]["sources"][0]["text"] == "Policy Number: POL-12345"
-    pipeline.qdrant_client.search.assert_called_once()
-    assert pipeline.qdrant_client.search.call_args.kwargs["query_filter"] is None
-    assert pipeline.qdrant_client.search.call_args.kwargs["limit"] == 6
+    pipeline.qdrant_client.query_points.assert_called_once()
+    assert pipeline.qdrant_client.query_points.call_args.kwargs["query_filter"] is None
+    assert pipeline.qdrant_client.query_points.call_args.kwargs["limit"] == 6
 
 
 @pytest.mark.asyncio

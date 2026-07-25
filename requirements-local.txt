@@ -16,6 +16,11 @@
 # Local embedding + reranker fallbacks
 sentence-transformers==2.7.0
 
+# Governed RAG quality evaluation. This stays local-only because it adds
+# evaluator dependencies and must never be mistaken for a production request
+# dependency. `src.eval.ragas_eval` and scripts/run_eval.sh require it.
+ragas==0.1.21
+
 # Background task queue (unused in single-container deploy, kept for local dev)
 celery==5.3.4
 kombu==5.3.4
@@ -25,4 +30,8 @@ pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-cov==4.1.0
 pytest-mock==3.12.0
+# Starlette 1.3's TestClient uses this transport. Keep it local-only: runtime
+# clients continue to use the production-pinned httpx package.
+httpx2==2.9.0
 ruff==0.15.22
+pip-audit==2.10.1

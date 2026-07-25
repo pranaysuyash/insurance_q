@@ -39,4 +39,4 @@ Questions should be sent to **[SUPPORT EMAIL OR URL]**.
 
 ## Approval gate
 
-Do not link this draft from the production website or Play Store until the placeholders and release-specific terms are resolved and reviewed by the operator/legal reviewer.
+Do not link this draft from the production website or Play Store until the placeholders and release-specific terms are resolved and reviewed by the operator (or a reviewer you choose, if you want).

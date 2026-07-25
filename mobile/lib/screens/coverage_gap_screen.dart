@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/field_citation.dart';
 import '../widgets/not_yet_extracted_section.dart';
 
-/// The coverage-gap view (Trust audit ADR-09 thin slice).
+/// The coverage review (Trust audit ADR-09 thin slice).
 ///
 /// Per docs/decisions/ADR-2026-07-19-04-...md, the thin slice
 /// shows the substrate's existing `room_rent_cap` field (the
-/// most-asked-about coverage gap) and the `insurer_name` (for
-/// context). Other coverage gaps (maternity, dental, OPD,
+/// commonly reviewed policy detail) and the `insurer_name` (for
+/// context). Other coverage questions (maternity, dental, OPD,
 /// pre-existing disease waiting period) are NOT in the
 /// substrate yet; the `NotYetExtractedSection` makes the
 /// limits visible at the UI layer.
@@ -53,7 +53,7 @@ class CoverageGapScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Coverage gaps'),
+        title: const Text('Coverage review'),
       ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
@@ -61,7 +61,7 @@ class CoverageGapScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Text(
-              'What your policy says',
+              'What your policy text shows',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
@@ -71,7 +71,11 @@ class CoverageGapScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Text(
-              'Each item below is taken from a specific page of your policy document.',
+              'Each item below shows its evidence tier — how reliable the information is. '
+              '"Cross-checked" items are extracted and cross-checked against your policy text '
+              '(Tier 2). "Lower confidence" items are extracted but need manual '
+              'verification (Tier 1). "Pending extraction" items are not yet in the '
+              'system (Tier 0). Missing items do not mean your policy lacks that coverage.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -101,7 +105,8 @@ class CoverageGapScreen extends StatelessWidget {
             // could not extract from. The screen is honest.
             Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 24,
+                horizontal: 16,
+                vertical: 24,
               ),
               child: Text(
                 "We don't have this information for your policy yet. "
@@ -162,11 +167,23 @@ class _CoverageGapRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+            // Evidence-tier badge + label
+            Row(
+              children: [
+                _EvidenceTierBadge(
+                  tier: lowConfidence ? 'Lower confidence' : 'Cross-checked',
+                  color: lowConfidence
+                      ? colorScheme.tertiary
+                      : const Color(0xFF2E7D32),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
@@ -186,10 +203,13 @@ class _CoverageGapRow extends StatelessWidget {
                     color: colorScheme.tertiary,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    'Less reliable — verify against your policy',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.tertiary,
+                  Expanded(
+                    child: Text(
+                      'This field was extracted but could not be fully verified '
+                      'against your policy text. Please verify against the source document.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.tertiary,
+                      ),
                     ),
                   ),
                 ],
@@ -198,7 +218,8 @@ class _CoverageGapRow extends StatelessWidget {
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 6,
+                horizontal: 10,
+                vertical: 6,
               ),
               decoration: BoxDecoration(
                 color: colorScheme.secondaryContainer,
@@ -225,6 +246,49 @@ class _CoverageGapRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Evidence-tier badge showing the reliability level of an extracted field.
+class _EvidenceTierBadge extends StatelessWidget {
+  final String tier;
+  final Color color;
+
+  const _EvidenceTierBadge({
+    required this.tier,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.shield_outlined,
+            size: 11,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            tier,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }

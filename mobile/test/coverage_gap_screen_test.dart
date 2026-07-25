@@ -48,7 +48,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Coverage gaps'), findsOneWidget);
+    expect(find.text('Coverage overview'), findsOneWidget);
     expect(find.text('What your policy says'), findsOneWidget);
   });
 
@@ -71,12 +71,14 @@ void main() {
       _harness(
         CoverageGapScreen(
           documentId: 'doc-1',
-          citations: [_citation(
-            fieldName: 'insurer_name',
-            display: 'HDFC ERGO',
-            citeString: 'page 1',
-            pageNumber: 1,
-          )],
+          citations: [
+            _citation(
+              fieldName: 'insurer_name',
+              display: 'HDFC ERGO',
+              citeString: 'page 1',
+              pageNumber: 1,
+            )
+          ],
         ),
       ),
     );

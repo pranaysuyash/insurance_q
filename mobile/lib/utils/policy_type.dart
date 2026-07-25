@@ -13,6 +13,11 @@ enum PolicyType {
   life,
   home,
   travel,
+  asset,
+  liability,
+  marine,
+  cyber,
+  pet,
   other,
 }
 
@@ -81,6 +86,31 @@ PolicyType classifyPolicyType(String? documentType) {
     return PolicyType.travel;
   }
 
+  // Asset — covers asset, property (distinct from home insurance)
+  if (t.contains('asset insurance') || t == 'asset') {
+    return PolicyType.asset;
+  }
+
+  // Liability — covers professional indemnity, public liability
+  if (t.contains('liability') || t.contains('indemnity')) {
+    return PolicyType.liability;
+  }
+
+  // Marine — covers marine, cargo, shipping
+  if (t.contains('marine') || t.contains('cargo') || t.contains('shipping') || t.contains('boat')) {
+    return PolicyType.marine;
+  }
+
+  // Cyber — covers cyber, data breach, ransomware
+  if (t.contains('cyber') || t.contains('data breach') || t.contains('ransomware')) {
+    return PolicyType.cyber;
+  }
+
+  // Pet — covers pet, animal, veterinary
+  if (t.contains('pet') || t.contains('animal') || t.contains('veterinary')) {
+    return PolicyType.pet;
+  }
+
   return PolicyType.other;
 }
 
@@ -97,6 +127,16 @@ String canonicalTypeName(PolicyType type) {
       return 'Home Insurance';
     case PolicyType.travel:
       return 'Travel Insurance';
+    case PolicyType.asset:
+      return 'Asset Insurance';
+    case PolicyType.liability:
+      return 'Liability Insurance';
+    case PolicyType.marine:
+      return 'Marine Insurance';
+    case PolicyType.cyber:
+      return 'Cyber Insurance';
+    case PolicyType.pet:
+      return 'Pet Insurance';
     case PolicyType.other:
       return 'Other Insurance';
   }
@@ -115,6 +155,16 @@ IconData iconForPolicyType(PolicyType type) {
       return Icons.home_rounded;
     case PolicyType.travel:
       return Icons.flight_rounded;
+    case PolicyType.asset:
+      return Icons.account_balance_rounded;
+    case PolicyType.liability:
+      return Icons.gavel_rounded;
+    case PolicyType.marine:
+      return Icons.directions_boat_rounded;
+    case PolicyType.cyber:
+      return Icons.security_rounded;
+    case PolicyType.pet:
+      return Icons.pets_rounded;
     case PolicyType.other:
       return Icons.inventory_2_rounded;
   }
@@ -137,6 +187,16 @@ Color colorForPolicyType(
       return dark ? const Color(0xFFB9A5FF) : const Color(0xFF6046AF);
     case PolicyType.travel:
       return dark ? const Color(0xFFFFB976) : const Color(0xFFA94E00);
+    case PolicyType.asset:
+      return dark ? const Color(0xFFB9A5FF) : const Color(0xFF5E35B1);
+    case PolicyType.liability:
+      return dark ? const Color(0xFFFF879A) : const Color(0xFFB52F4B);
+    case PolicyType.marine:
+      return dark ? const Color(0xFF80CBC4) : const Color(0xFF00695C);
+    case PolicyType.cyber:
+      return dark ? const Color(0xFFA5D6A7) : const Color(0xFF2E7D32);
+    case PolicyType.pet:
+      return dark ? const Color(0xFFFFE082) : const Color(0xFFF57F17);
     case PolicyType.other:
       return dark ? const Color(0xFFA8BED8) : const Color(0xFF40556D);
   }

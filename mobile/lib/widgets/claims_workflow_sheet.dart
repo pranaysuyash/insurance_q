@@ -13,13 +13,13 @@ import '../theme/coverwise_theme.dart';
 import 'shared/coverwise_components.dart';
 import 'shared/coverwise_snackbar.dart';
 
-/// A multi-step bottom sheet for filing an insurance claim with photo evidence.
+/// A multi-step bottom sheet for recording a private claim note with photo evidence.
 ///
 /// Steps:
 /// 1. Select incident type and related policy
 /// 2. Capture or choose photo evidence (optional)
 /// 3. Add description and notes
-/// 4. Save to claim log
+/// 4. Save to the on-device claim log; CoverWise never submits it to an insurer.
 class ClaimWizardSheet extends ConsumerStatefulWidget {
   final PolicySummary? preselectedPolicy;
 
@@ -143,7 +143,8 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
       }
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final destPath = '${claimsDir.path}/claim_${_selectedDocId ?? 'new'}_$timestamp.jpg';
+      final destPath =
+          '${claimsDir.path}/claim_${_selectedDocId ?? 'new'}_$timestamp.jpg';
       await File(picked.path).copy(destPath);
 
       if (mounted) {
@@ -208,7 +209,9 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
                         color: isPast
                             ? Theme.of(context).colorScheme.primary
                             : isActive
-                                ? Theme.of(context).colorScheme.primary
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .primary
                                     .withValues(alpha: 0.5)
                                 : Theme.of(context)
                                     .colorScheme
@@ -282,8 +285,8 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
       children: [
         Text(
           'What happened?',
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
+          style:
+              theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
         Text(
@@ -293,7 +296,13 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
           ),
         ),
         const SizedBox(height: 20),
-
+        const CoverWiseInfoPanel(
+          icon: Icons.info_outline_rounded,
+          title: 'Private claim note',
+          body:
+              'This records information on this device only. It does not file, submit, or update a claim with an insurer.',
+        ),
+        const SizedBox(height: 20),
         const CoverWiseSectionLabel('Incident type'),
         const SizedBox(height: 6),
         ..._incidentTypes.map(
@@ -308,7 +317,6 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
             ),
           ),
         ),
-
         if (summaries.isNotEmpty) ...[
           const SizedBox(height: 16),
           const CoverWiseSectionLabel('Related policy (optional)'),
@@ -320,8 +328,7 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
               border: OutlineInputBorder(),
             ),
             items: [
-              const DropdownMenuItem(
-                  value: null, child: Text('None selected')),
+              const DropdownMenuItem(value: null, child: Text('None selected')),
               ...summaries.map(
                 (s) => DropdownMenuItem(
                   value: s.documentId,
@@ -349,8 +356,8 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
       children: [
         Text(
           'Photo evidence',
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
+          style:
+              theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
         Text(
@@ -388,8 +395,7 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
                     top: 4,
                     right: 4,
                     child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _photoPaths.removeAt(i)),
+                      onTap: () => setState(() => _photoPaths.removeAt(i)),
                       child: Container(
                         padding: const EdgeInsets.all(2),
                         decoration: const BoxDecoration(
@@ -459,7 +465,7 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Photos are optional but help insurers process claims faster.',
+                    'Photos are optional. They stay on this device and can help you organize information before you contact your insurer.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -482,8 +488,8 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
       children: [
         Text(
           'Review & save',
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
+          style:
+              theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
         Text(
@@ -501,8 +507,8 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _summaryRow(
-                    context, Icons.warning_amber_rounded, 'Incident', _incidentType),
+                _summaryRow(context, Icons.warning_amber_rounded, 'Incident',
+                    _incidentType),
                 if (_selectedDocId != null)
                   _summaryRow(
                       context, Icons.policy_outlined, 'Policy', 'Linked'),

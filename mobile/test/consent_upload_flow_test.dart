@@ -1,4 +1,5 @@
 import 'package:coverwise/models/document_model.dart';
+import 'package:coverwise/providers/connectivity_provider.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/services/consent_ledger.dart';
 import 'package:coverwise/screens/documents_screen.dart';
@@ -32,6 +33,24 @@ void main() {
     );
 
     await HiveTestHelper.setUp();
+
+    // Mock connectivity_plus so connectivityProvider doesn't throw
+    // MissingPluginException during option-menu widget builds.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('dev.fluttercommunity.plus/connectivity'),
+      (call) async {
+        if (call.method == 'check') {
+          // Return a single ConnectivityResult.wifi as a list
+          // so connectivityProvider yields an online state.
+          return ['wifi'];
+        }
+        if (call.method == 'checkConnectivity') {
+          return ['wifi'];
+        }
+        return null;
+      },
+    );
   });
 
   tearDownAll(() async {
@@ -105,6 +124,10 @@ void main() {
       overrides: [
         documentsProvider.overrideWith((ref) async => documents),
         usageStatsProvider.overrideWith((ref) async => <String, dynamic>{}),
+        // Override isOnlineProvider so _uploadFile() doesn't bail early
+        // before calling _ensureConsent(). The real connectivityProvider
+        // is a StreamProvider that may not have emitted yet on frame 1.
+        isOnlineProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(
         home: DocumentsScreen(initialFileName: 'policy.pdf'),

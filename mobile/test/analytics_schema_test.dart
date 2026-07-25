@@ -3,6 +3,65 @@ import 'package:coverwise/services/analytics_schema.dart';
 
 void main() {
   group('validateAnalyticsEvent', () {
+    const eventNamesWithNoRequiredPayload = <String>{
+      'analytics_consent_re_enabled',
+      'dashboard_emergency_shortcut_tapped',
+      'dashboard_first_upload_cta_tapped',
+      'dashboard_preventive_tips_dismiss_all',
+      'phone_capture_dismissed',
+    };
+
+    const runtimeEmittedEventNames = <String>{
+      'account_created',
+      'analytics_consent_re_enabled',
+      'answer_feedback_submitted',
+      'answer_rendered',
+      'app_session_started',
+      'batch_upload_completed',
+      'batch_upload_started',
+      'claim_failed',
+      'claim_initiated',
+      'claim_succeeded',
+      'cta_clicked',
+      'cta_dismissed',
+      'dashboard_activity_item_tapped',
+      'dashboard_coverage_type_tapped',
+      'dashboard_emergency_shortcut_tapped',
+      'dashboard_family_member_tapped',
+      'dashboard_first_upload_cta_tapped',
+      'dashboard_health_score_expanded',
+      'dashboard_policy_tapped',
+      'dashboard_preventive_tip_dismissed',
+      'dashboard_preventive_tips_dismiss_all',
+      'dashboard_quick_action_tapped',
+      'dashboard_recent_claim_tapped',
+      'dashboard_recent_claims_tapped',
+      'document_processing_failed',
+      'document_processing_succeeded',
+      'first_upload_started',
+      'first_value_delivered',
+      'free_tier_limit_hit',
+      'global_error',
+      'global_error_recovered',
+      'identity_created',
+      'paywall_viewed',
+      'phone_capture_dismissed',
+      'phone_capture_shown',
+      'phone_otp_requested',
+      'phone_otp_verified',
+      'plan_purchase_completed',
+      'plan_purchase_failed',
+      'plan_purchase_started',
+      'qa_pack_balance_reconciled',
+      'qa_pack_purchase_completed',
+      'qa_pack_purchase_failed',
+      'qa_pack_purchase_started',
+      'qa_question_blocked_no_budget',
+      'question_submitted',
+      'subscription_state_synced',
+      'support_intent',
+    };
+
     test('returns empty list for valid payload', () {
       final errors = validateAnalyticsEvent('question_submitted', {
         'question_length_bucket': 'short',
@@ -10,11 +69,12 @@ void main() {
       expect(errors, isEmpty);
     });
 
-    test('returns empty list for unknown event names (forward-compat)', () {
+    test('returns error for unknown event names', () {
       final errors = validateAnalyticsEvent('future_event_v2', {
         'any_key': 'any_value',
       });
-      expect(errors, isEmpty);
+      expect(errors, isNotEmpty);
+      expect(errors.first, contains('Unknown analytics event'));
     });
 
     test('returns error for missing required property', () {
@@ -167,12 +227,24 @@ void main() {
       for (final entry in kEventSchemas.entries) {
         final eventName = entry.key;
         final schema = entry.value;
-        expect(schema.isNotEmpty, isTrue,
+        final allowEmptySchema = eventNamesWithNoRequiredPayload.contains(eventName);
+        expect(
+            schema.isNotEmpty || allowEmptySchema, isTrue,
             reason: 'Event "$eventName" has empty schema');
         for (final prop in schema.entries) {
           expect(prop.key.isNotEmpty, isTrue,
               reason: 'Event "$eventName" has empty property key');
         }
+      }
+    });
+
+    test('all runtime emitted events are registered in schema', () {
+      for (final eventName in runtimeEmittedEventNames) {
+        expect(
+          kEventSchemas.keys,
+          contains(eventName),
+          reason: 'Runtime event "$eventName" is missing from kEventSchemas',
+        );
       }
     });
 
@@ -203,10 +275,30 @@ void main() {
     test('global_error validates all string properties', () {
       final errors = validateAnalyticsEvent('global_error', {
         'error_type': 'FlutterError',
-        'error_summary': 'Null check operator used on a null value',
+        'library': 'Flutter',
         'error_code': 'abc123',
       });
       expect(errors, isEmpty);
+    });
+
+    test('global_error_recovered validates library and hash properties', () {
+      final errors = validateAnalyticsEvent('global_error_recovered', {
+        'error_type': 'FlutterError',
+        'library': 'Flutter',
+        'error_code': 'abc123',
+      });
+      expect(errors, isEmpty);
+    });
+
+    test('phone events avoid phone number property names', () {
+      final requestErrors = validateAnalyticsEvent('phone_otp_requested', {
+        'otp_channel': 'sms',
+      });
+      final verifyErrors = validateAnalyticsEvent('phone_otp_verified', {
+        'otp_channel': 'sms',
+      });
+      expect(requestErrors, isEmpty);
+      expect(verifyErrors, isEmpty);
     });
   });
 }

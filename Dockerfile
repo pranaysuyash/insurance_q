@@ -25,21 +25,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgdk-pixbuf-2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (for better Docker caching)
-COPY requirements.txt requirements-production-ocr.txt .
+# Copy the declared sources and the Linux release lock first (for better Docker
+# caching and reproducible image builds).
+COPY requirements.txt requirements-production-ocr.txt requirements-production-ocr-linux-x86_64.lock ./
 
 # Install the canonical customer-facing production profile. OCR is part of the
 # document contract; keeping it out of this image would make scanned-policy
 # behavior differ between local and deployed environments.
 RUN pip install --upgrade pip && \
-    if [ "$(uname -m)" = "x86_64" ]; then \
-      pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
-        torch==2.1.0 torchvision==0.16.0; \
-    fi && \
-    pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements-production-ocr.txt
+    test "$(uname -m)" = "x86_64" && \
+    pip install --no-cache-dir --timeout 1000 --retries 5 --require-hashes \
+      --extra-index-url https://download.pytorch.org/whl/cpu \
+      -r requirements-production-ocr-linux-x86_64.lock
 
-# Copy application code
+# Copy application code and the canonical, versioned legal documents rendered
+# by the public frontend. Do not copy a second legal-content representation.
 COPY src/ src/
+COPY docs/legal/ docs/legal/
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/temp /app/storage/documents

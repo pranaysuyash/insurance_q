@@ -11,7 +11,6 @@ Per ADR-2026-07-19-11 (substrate as primary deliverable):
 """
 from __future__ import annotations
 
-import pytest
 from src.models.rag import RAGCitation
 from src.services.citation_verifier import (
     CitationRejectionReason,

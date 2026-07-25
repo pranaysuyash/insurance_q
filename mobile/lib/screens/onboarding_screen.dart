@@ -46,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       assetPath: 'assets/onboarding/stay-ready.png',
       title: 'Know what needs attention next.',
       description:
-          'See renewals, coverage gaps, and prep notes in one place. CoverWise is an information broker, not an insurer — all policy data is for reference only.',
+          'See policy dates, document-based questions, and preparation notes in one place. CoverWise helps organize policy information; it is not an insurer, broker, or adviser.',
       accent: Color(0xFF079A86),
     ),
   ];
@@ -315,7 +315,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ],
                       ),
                     ),
-                    // Scope disclaimer — CoverWise is an info broker, not an insurer
+                    // Scope disclaimer — CoverWise is an information assistant.
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
@@ -331,8 +331,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                           Expanded(
                             child: Text(
-                              'CoverWise is an information broker, not an insurance '
-                              'provider or agent. All policy information shown is for '
+                              'CoverWise is a policy information assistant, not an insurer, '
+                              'agent, or broker. All policy information shown is for '
                               'reference only and does not constitute professional advice.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,

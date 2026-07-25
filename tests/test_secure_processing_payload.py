@@ -49,3 +49,16 @@ def test_empty_processing_inputs_do_not_create_an_envelope(monkeypatch):
     assert encrypt_processing_inputs(
         document_id="doc-1", pdf_password=None, on_device_ocr_text=None
     ) is None
+
+
+def test_processing_payload_key_length_is_measured_in_utf8_bytes(monkeypatch):
+    monkeypatch.setenv("PROCESSING_PAYLOAD_ENCRYPTION_KEY", "🔐" * 8)
+
+    envelope = encrypt_processing_inputs(
+        document_id="doc-1", pdf_password="password", on_device_ocr_text=None
+    )
+
+    assert envelope is not None
+    assert decrypt_processing_inputs(document_id="doc-1", envelope=envelope)[
+        "pdf_password"
+    ] == "password"

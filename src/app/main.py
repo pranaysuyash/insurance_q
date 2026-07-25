@@ -1,3 +1,7 @@
+# ruff: noqa: E402
+# Runtime bootstrap must precede API/service imports so macOS native OCR/PDF
+# libraries and the server-only Supabase key alias are available. The frontend
+# import remains after API route registration so API routes take precedence.
 from src.utils.native_runtime import configure_native_library_paths
 from src.utils.runtime_config import normalize_supabase_environment
 
@@ -6,6 +10,7 @@ normalize_supabase_environment()
 
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from src.api.user import router as user_router, get_current_user
@@ -13,6 +18,7 @@ from src.api.analytics import router as analytics_router
 from src.api.consent import router as consent_router
 from src.api.subscription import router as subscription_router
 from src.api.evidence import router as evidence_router
+from src.api.claims import router as claims_router
 from src.models.user import User
 from src.api.document import (
     router as document_router,
@@ -23,12 +29,16 @@ from src.api.document import (
     document_repository,
 )
 from src.utils.runtime_access import require_nonproduction
-from src.utils.runtime_config import allowed_cors_origins, production_configuration_errors
+from src.utils.runtime_config import (
+    allowed_cors_origins,
+    allowed_hostnames,
+    production_configuration_errors,
+)
 from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
 from src.services.qa_usage_service import QaUsageService, production_qa_usage_enabled
 
 # Import RAG components and enhanced document processing
-from typing import Dict, Any, List, Optional, Union, AsyncGenerator
+from typing import Dict, Any, List, Optional, Union
 import sys
 import logging
 import os
@@ -49,6 +59,7 @@ _cors_env = os.environ.get("ENVIRONMENT", "development")
 _allowed_origins = allowed_cors_origins(
     _cors_env, os.environ.get("ALLOWED_ORIGINS", "")
 )
+_allowed_hosts = allowed_hostnames(_cors_env, os.environ.get("ALLOWED_HOSTS", ""))
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,6 +68,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
 
 # Initialize services
 rag_pipeline = None
@@ -309,6 +321,7 @@ app.include_router(analytics_router)
 app.include_router(evidence_router)
 app.include_router(consent_router)
 app.include_router(subscription_router)
+app.include_router(claims_router)
 
 @app.get("/healthz")
 async def liveness_check():
@@ -625,7 +638,7 @@ async def query_documents_stream(request: QueryRequest, current_user: User = Dep
             except Exception as error:
                 logger.error("qa_usage_reservation_failed error_type=%s", type(error).__name__)
                 return StreamingResponse(
-                    iter([f"data: {{\"error\": \"qa_usage_unavailable\"}}\n\n"]),
+                    iter(["data: {\"error\": \"qa_usage_unavailable\"}\n\n"]),
                     media_type="text/event-stream",
                 )
             if not bool(usage.get("allowed")):
@@ -635,7 +648,7 @@ async def query_documents_stream(request: QueryRequest, current_user: User = Dep
                     usage.get("reason", "qa_budget_exhausted"),
                 )
                 return StreamingResponse(
-                    iter([f"data: {{\"error\": \"qa_budget_exhausted\"}}\n\n"]),
+                    iter(["data: {\"error\": \"qa_budget_exhausted\"}\n\n"]),
                     media_type="text/event-stream",
                 )
             qa_reservation = (qa_usage_service, current_user.uid, request_id)
@@ -650,7 +663,7 @@ async def query_documents_stream(request: QueryRequest, current_user: User = Dep
         if not document_processing_service:
             release_qa_reservation()
             return StreamingResponse(
-                iter([f"data: {{\"error\": \"Document processing service not initialized\"}}\n\n"]),
+                iter(["data: {\"error\": \"Document processing service not initialized\"}\n\n"]),
                 media_type="text/event-stream",
             )
 
@@ -673,7 +686,7 @@ async def query_documents_stream(request: QueryRequest, current_user: User = Dep
                     yield f"data: {token}\n\n"
             except Exception as e:
                 logger.error("stream_query_failed error_type=%s", type(e).__name__)
-                yield f"data: {{\"error\": \"Stream failed\"}}\n\n"
+                yield "data: {\"error\": \"Stream failed\"}\n\n"
             finally:
                 finalize_qa_reservation()
 
@@ -690,7 +703,7 @@ async def query_documents_stream(request: QueryRequest, current_user: User = Dep
         release_qa_reservation()
         logger.error("document_query_stream_failed error_type=%s", type(e).__name__)
         return StreamingResponse(
-            iter([f"data: {{\"error\": \"Document query failed\"}}\n\n"]),
+            iter(["data: {\"error\": \"Document query failed\"}\n\n"]),
             media_type="text/event-stream",
         )
 

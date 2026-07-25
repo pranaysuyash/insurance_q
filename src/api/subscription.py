@@ -61,7 +61,9 @@ def _ensure_subscription_schema(conn: sqlite3.Connection) -> None:
         )
     """)
     try:
-        conn.execute("ALTER TABLE subscription_sync ADD COLUMN source TEXT NOT NULL DEFAULT 'client_sync'")
+        conn.execute(
+            "ALTER TABLE subscription_sync ADD COLUMN source TEXT NOT NULL DEFAULT 'client_sync'"
+        )
     except sqlite3.OperationalError:
         pass
     conn.execute("""
@@ -91,7 +93,9 @@ def _ensure_subscription_schema(conn: sqlite3.Connection) -> None:
         )
     """)
     try:
-        conn.execute("ALTER TABLE revenuecat_webhook_events ADD COLUMN event_timestamp_ms INTEGER")
+        conn.execute(
+            "ALTER TABLE revenuecat_webhook_events ADD COLUMN event_timestamp_ms INTEGER"
+        )
     except sqlite3.OperationalError:
         pass
     conn.commit()
@@ -109,6 +113,7 @@ def _init_subscription_table() -> None:
 class SubscriptionSyncRequest(BaseModel):
     """Client sends the plan tier and RevenueCat customer info after each
     purchase, restore, or app startup sync."""
+
     plan_tier: str = Field(
         default="free",
         description="PlanTier name: free, plus, or family",
@@ -154,19 +159,22 @@ def sync_subscription(
     """
     # Security: log a warning when a non-free plan is synced. Client sync is
     # reconciliation telemetry; verified webhook state remains authoritative.
-    _valid_tiers = ('free', 'plus', 'family')
+    _valid_tiers = ("free", "plus", "family")
     plan_tier = request.plan_tier
     if plan_tier not in _valid_tiers:
         logger.warning(
             "SPOOFING_ATTEMPT user=%s claimed_plan=%s — unknown tier rejected, forced to free",
-            current_user.uid[:8], plan_tier,
+            current_user.uid[:8],
+            plan_tier,
         )
-        plan_tier = 'free'
-    elif plan_tier != 'free':
+        plan_tier = "free"
+    elif plan_tier != "free":
         logger.warning(
             "NON_FREE_PLAN_SYNC user=%s plan=%s product=%s — "
             "reconcile against RevenueCat webhook state",
-            current_user.uid[:8], plan_tier, request.product_id or 'none',
+            current_user.uid[:8],
+            plan_tier,
+            request.product_id or "none",
         )
 
     server_now = datetime.now(timezone.utc).isoformat()
@@ -183,8 +191,12 @@ def sync_subscription(
                 synced_at=server_now,
             )
         except Exception as error:
-            logger.error("Supabase billing client sync unavailable: %s", type(error).__name__)
-            raise HTTPException(status_code=503, detail="Subscription ledger unavailable") from error
+            logger.error(
+                "Supabase billing client sync unavailable: %s", type(error).__name__
+            )
+            raise HTTPException(
+                status_code=503, detail="Subscription ledger unavailable"
+            ) from error
 
     _init_subscription_table()
 
@@ -218,7 +230,8 @@ def sync_subscription(
         if raw_info and len(raw_info) > 4096:
             logger.warning(
                 "raw_customer_info truncated from %d to 4096 bytes for user %s",
-                len(raw_info), current_user.uid[:8],
+                len(raw_info),
+                current_user.uid[:8],
             )
             raw_info = raw_info[:4096]  # Truncate to prevent storage abuse
 
@@ -259,7 +272,9 @@ def sync_subscription(
             "synced_at": server_now,
         }
     except Exception as e:
-        logger.warning("Subscription sync failed for user %s: %s", current_user.uid[:8], e)
+        logger.warning(
+            "Subscription sync failed for user %s: %s", current_user.uid[:8], e
+        )
         raise HTTPException(status_code=500, detail="Subscription sync failed")
     finally:
         conn.close()
@@ -270,7 +285,9 @@ def _require_revenuecat_webhook(
 ) -> None:
     expected = os.getenv("REVENUECAT_WEBHOOK_AUTHORIZATION", "").strip()
     if not expected:
-        raise HTTPException(status_code=503, detail="RevenueCat webhook authorization is not configured")
+        raise HTTPException(
+            status_code=503, detail="RevenueCat webhook authorization is not configured"
+        )
     if not authorization or not hmac.compare_digest(authorization, expected):
         raise HTTPException(status_code=401, detail="Unauthorized webhook")
 
@@ -314,8 +331,9 @@ async def revenuecat_webhook(
 
     RevenueCat retries non-200 deliveries. The event ID is therefore the
     idempotency key; duplicate deliveries return 200 without reapplying state.
-    Cancellation preserves access until expiration, while expiration/revoked
-    events remove the verified active entitlement.
+    Cancellation preserves access until expiration, while expiration removes
+    the verified active entitlement. A provider refund reversal can restore
+    access only through the provider-reported expiration.
     """
     _require_revenuecat_webhook(authorization)
     try:
@@ -329,7 +347,9 @@ async def revenuecat_webhook(
         if not event_id or not event_type or not app_user_id:
             raise ValueError("missing event identity")
     except (ValueError, TypeError, json.JSONDecodeError) as error:
-        raise HTTPException(status_code=400, detail="Invalid RevenueCat webhook payload") from error
+        raise HTTPException(
+            status_code=400, detail="Invalid RevenueCat webhook payload"
+        ) from error
 
     now = datetime.now(timezone.utc).isoformat()
     expiry = _webhook_expiry(event)
@@ -343,9 +363,14 @@ async def revenuecat_webhook(
         "PRODUCT_CHANGE",
         "SUBSCRIPTION_EXTENDED",
         "NON_RENEWING_PURCHASE",
+        "REFUND_REVERSED",
     }
-    revoke_events = {"EXPIRATION", "REFUND_REVERSED"}
-    if event_type not in active_events | revoke_events | {"CANCELLATION", "BILLING_ISSUE", "TRANSFER"}:
+    revoke_events = {"EXPIRATION"}
+    if event_type not in active_events | revoke_events | {
+        "CANCELLATION",
+        "BILLING_ISSUE",
+        "TRANSFER",
+    }:
         # Unknown event types are acknowledged safely. RevenueCat may add
         # event types without making old deployments retry forever.
         return {"status": "ignored", "event_id": event_id, "event_type": event_type}
@@ -379,8 +404,12 @@ async def revenuecat_webhook(
             )
             return {"status": "accepted", "event_id": event_id, "queued": True}
         except Exception as error:
-            logger.error("RevenueCat webhook could not be queued: %s", type(error).__name__)
-            raise HTTPException(status_code=503, detail="Webhook queue unavailable") from error
+            logger.error(
+                "RevenueCat webhook could not be queued: %s", type(error).__name__
+            )
+            raise HTTPException(
+                status_code=503, detail="Webhook queue unavailable"
+            ) from error
 
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -404,7 +433,11 @@ async def revenuecat_webhook(
                 "WHERE app_user_id = ? AND event_id <> ? AND event_timestamp_ms IS NOT NULL",
                 (app_user_id, event_id),
             ).fetchone()
-            if latest and latest[0] is not None and event_timestamp_ms <= int(latest[0]):
+            if (
+                latest
+                and latest[0] is not None
+                and event_timestamp_ms <= int(latest[0])
+            ):
                 conn.execute(
                     "UPDATE revenuecat_webhook_events SET processed_at=?, processing_result='stale_ignored' WHERE event_id=?",
                     (now, event_id),
@@ -416,7 +449,13 @@ async def revenuecat_webhook(
                     "event_type": event_type,
                 }
 
-        current_active = event_type in active_events or (
+        current_active = (
+            event_type in active_events
+            and (
+                expiry is None
+                or datetime.fromisoformat(expiry) > datetime.now(timezone.utc)
+            )
+        ) or (
             event_type in {"CANCELLATION", "BILLING_ISSUE"}
             and expiry is not None
             and datetime.fromisoformat(expiry) > datetime.now(timezone.utc)
@@ -465,7 +504,9 @@ async def revenuecat_webhook(
             (now, type(error).__name__, event_id),
         )
         conn.commit()
-        raise HTTPException(status_code=500, detail="RevenueCat webhook processing failed") from error
+        raise HTTPException(
+            status_code=500, detail="RevenueCat webhook processing failed"
+        ) from error
     finally:
         conn.close()
 
@@ -483,8 +524,12 @@ def get_subscription_status(
         try:
             row = BillingLedger.from_env().get_status(current_user.uid)
         except Exception as error:
-            logger.error("Supabase billing status unavailable: %s", type(error).__name__)
-            raise HTTPException(status_code=503, detail="Subscription ledger unavailable") from error
+            logger.error(
+                "Supabase billing status unavailable: %s", type(error).__name__
+            )
+            raise HTTPException(
+                status_code=503, detail="Subscription ledger unavailable"
+            ) from error
         if row is None:
             return {
                 "plan_tier": "free",
@@ -560,8 +605,12 @@ def get_qa_pack_balance(
         try:
             balance = BillingLedger.from_env().get_qa_pack_balance(current_user.uid)
         except Exception as error:
-            logger.error("Supabase Q&A pack balance unavailable: %s", type(error).__name__)
-            raise HTTPException(status_code=503, detail="Q&A pack ledger unavailable") from error
+            logger.error(
+                "Supabase Q&A pack balance unavailable: %s", type(error).__name__
+            )
+            raise HTTPException(
+                status_code=503, detail="Q&A pack ledger unavailable"
+            ) from error
         return {
             "packs": balance.get("packs", []),
             "pack_questions_remaining": int(balance.get("pack_questions_remaining", 0)),

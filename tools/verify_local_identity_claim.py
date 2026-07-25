@@ -49,6 +49,45 @@ def _json_request(
         raise RuntimeError(f"network failure: {error.reason}") from error
 
 
+def _admin_client(supabase_url: str, server_key: str):
+    try:
+        from supabase import create_client
+    except Exception as exc:  # pragma: no cover - dependency path
+        raise RuntimeError(
+            "SUPABASE SDK not available; install dependencies (create_client)."
+        ) from exc
+    return create_client(supabase_url, server_key)
+
+
+def _admin_create_user(
+    supabase_url: str, server_key: str, email: str, password: str
+) -> str:
+    client = _admin_client(supabase_url, server_key)
+    try:
+        created = client.auth.admin.create_user({
+            "email": email,
+            "password": password,
+            "email_confirm": True,
+        })
+    except Exception as exc:  # pragma: no cover - auth transport errors
+        raise RuntimeError(f"admin user creation failed: {exc}") from exc
+
+    payload = _admin_payload(created)
+    user_id = _field(payload, "id")
+    if not user_id:
+        raise RuntimeError(f"admin user creation failed: invalid response {payload}")
+    return user_id
+
+
+def _admin_delete_user(supabase_url: str, server_key: str, user_id: str) -> bool:
+    client = _admin_client(supabase_url, server_key)
+    try:
+        client.auth.admin.delete_user(user_id)
+        return True
+    except Exception:  # pragma: no cover - delete transport errors
+        return False
+
+
 def _parse_payload(raw: str) -> object:
     if not raw:
         return {}
@@ -58,7 +97,7 @@ def _parse_payload(raw: str) -> object:
         return {}
 
 
-def _is_local_supabase_url(url: str) -> bool:
+def _is_local_url(url: str) -> bool:
     return url.startswith(("http://127.0.0.1:", "http://localhost:"))
 
 
@@ -76,10 +115,26 @@ def _nested_field(payload: object, parent: str, name: str) -> str | None:
     return _field(nested, name)
 
 
+def _admin_payload(admin_result: object) -> object:
+    if not admin_result:
+        return {}
+    if isinstance(admin_result, dict):
+        return admin_result
+    user = getattr(admin_result, "user", None)
+    if user is None:
+        return {}
+    return user.__dict__ if hasattr(user, "__dict__") else {"id": str(user.id) if getattr(user, "id", None) else None}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--api-url", default=os.getenv("COVERWISE_API_BASE_URL", "http://127.0.0.1:8005"))
     parser.add_argument("--supabase-url", default=os.getenv("SUPABASE_URL", "http://127.0.0.1:54321"))
+    parser.add_argument(
+        "--allow-remote-supabase",
+        action="store_true",
+        help="Allow a remote (non-localhost) Supabase URL. The API URL must still be local.",
+    )
     args = parser.parse_args()
 
     supabase_url = args.supabase_url.rstrip("/")
@@ -89,8 +144,12 @@ def main() -> int:
         os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
         or os.getenv("SUPABASE_SECRET_KEY", "").strip()
     )
-    if not _is_local_supabase_url(supabase_url):
+    if not _is_local_url(supabase_url) and not args.allow_remote_supabase:
         print("FAIL local-only guard: SUPABASE_URL must point to localhost", file=sys.stderr)
+        print("      Pass --allow-remote-supabase to run against a deployed Supabase instance.", file=sys.stderr)
+        return 2
+    if not _is_local_url(api_url):
+        print("FAIL local-only guard: API URL must point to localhost", file=sys.stderr)
         return 2
     if not publishable_key or not server_key:
         print("FAIL configuration: Supabase publishable and server keys are required", file=sys.stderr)
@@ -99,25 +158,34 @@ def main() -> int:
     email = f"coverwise-e2e-{secrets.token_hex(8)}@example.com"
     password = _random_password()
     user_id: str | None = None
-    auth_headers = {"apikey": publishable_key}
-    admin_headers = {"apikey": server_key, "Authorization": f"Bearer {server_key}"}
+    access_token: str | None = None
+    _supabase = None
     checks: list[tuple[str, bool, str]] = []
     try:
-        signup = _json_request(
-            f"{supabase_url}/auth/v1/signup",
-            method="POST",
-            headers=auth_headers,
-            payload={"email": email, "password": password},
-        )
-        user_id = (
-            _field(signup.payload, "id")
-            or _field(signup.payload, "user_id")
-            or _nested_field(signup.payload, "user", "id")
-        )
-        access_token = _field(signup.payload, "access_token")
-        checks.append(("local Supabase account signup", signup.status in {200, 201} and bool(user_id), f"HTTP {signup.status}"))
-        if not user_id or not access_token:
-            print("FAIL account signup did not return a usable local session", file=sys.stderr)
+        # Use supabase Python library (handles JWT internally via service_role key)
+        from supabase import create_client
+
+        _supabase = create_client(supabase_url, publishable_key)
+
+        # Create user via admin API (bypasses email rate limits)
+        user_id = _admin_create_user(supabase_url, server_key, email, password)
+        checks.append(("admin user creation", bool(user_id), "via supabase admin client"))
+        if not user_id:
+            return 1
+
+        # Sign in to get a session token
+        session_resp = _supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password,
+        })
+        session = session_resp
+        if hasattr(session, "session") and session.session:
+            access_token = session.session.access_token
+        elif isinstance(session, dict):
+            access_token = session.get("access_token")
+        checks.append(("user sign-in", bool(access_token), "via supabase lib"))
+        if not access_token:
+            print("FAIL user sign-in did not return an access token", file=sys.stderr)
             return 1
 
         guest = _json_request(f"{api_url}/user/anonymous", method="POST")
@@ -143,15 +211,24 @@ def main() -> int:
         profile_ok = profile.status == 200 and isinstance(profile.payload, dict) and profile.payload.get("uid") == user_id and profile.payload.get("identity_type") == "account"
         checks.append(("account profile", profile_ok, f"HTTP {profile.status}"))
         return _report(checks)
+    except RuntimeError as exc:
+        print(f"FAIL {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:  # pragma: no cover - defensive safety net
+        print(f"FAIL runtime error: {exc}", file=sys.stderr)
+        return 1
     finally:
         if user_id:
-            cleanup = _json_request(
-                f"{supabase_url}/auth/v1/admin/users/{user_id}",
-                method="DELETE",
-                headers=admin_headers,
-            )
-            if cleanup.status not in {200, 204}:
-                print(f"WARNING synthetic account cleanup returned HTTP {cleanup.status}", file=sys.stderr)
+            try:
+                if _supabase is not None and _admin_delete_user(supabase_url, server_key, user_id):
+                    print(f"INFO cleanup removed user {user_id[:12]}...")
+                elif _supabase is not None:
+                    print(f"WARNING synthetic account cleanup returned non-success for {user_id[:12]}...")
+            except Exception as cleanup_error:
+                print(
+                    f"WARNING synthetic account cleanup failed: {cleanup_error}",
+                    file=sys.stderr,
+                )
 
 
 def _report(checks: list[tuple[str, bool, str]]) -> int:

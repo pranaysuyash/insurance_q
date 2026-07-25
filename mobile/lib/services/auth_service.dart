@@ -18,9 +18,17 @@ class AuthServiceState {
   final bool accountClientReady;
   final bool preserveAnonymousWorkspaceForClaim;
 
+  /// Set to true when a 401 response arrives and token refresh fails.
+  /// The UI shows a non-blocking "Session expired — Sign in again" banner
+  /// instead of a generic error. The user can continue viewing cached data
+  /// while being prompted to re-auth.
+  /// Cleared when a new token is successfully acquired or the user signs in.
+  final bool sessionExpired;
+
   const AuthServiceState({
     required this.accountClientReady,
     required this.preserveAnonymousWorkspaceForClaim,
+    this.sessionExpired = false,
   });
 }
 
@@ -129,6 +137,13 @@ class AuthService {
         Future.error(StateError('No AuthNotifier instance'));
   }
 
+  /// Export the signed-in account's server-held metadata and short-lived source
+  /// download links. The backend, not the client, enforces account ownership.
+  static Future<Map<String, dynamic>> exportAccount() {
+    return _notifier?.exportAccount() ??
+        Future.error(StateError('No AuthNotifier instance'));
+  }
+
   static Future<void> prepareAnonymousWorkspaceClaim() async {
     await _notifier?.prepareAnonymousWorkspaceClaim();
   }
@@ -193,12 +208,14 @@ class AuthService {
 
 class AuthNotifier extends Notifier<AuthServiceState> {
   static AuthNotifier? _instance;
-  static AuthNotifier? get instance => _instance;
-
-@override
+  static AuthNotifier? get instance => _instance;  @override
   AuthServiceState build() {
     _instance = this;
-    ref.onDispose(() => _instance = null);
+    AuthService._instance = this;
+    ref.onDispose(() {
+      _instance = null;
+      AuthService._instance = null;
+    });
     return const AuthServiceState(
       accountClientReady: false,
       preserveAnonymousWorkspaceForClaim: false,
@@ -434,11 +451,35 @@ class AuthNotifier extends Notifier<AuthServiceState> {
     return DeletionStatus.fromJson(data);
   }
 
+  Future<Map<String, dynamic>> exportAccount() async {
+    if (!hasAccountSession) {
+      throw StateError('No account session to export');
+    }
+    final dio = Dio(BaseOptions(
+      baseUrl: AppConfig.baseUrl,
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+    ));
+    dio.interceptors.add(AuthInterceptor(dio));
+    final response = await dio.get('/user/account/export');
+    if (response.statusCode != 200 || response.data is! Map) {
+      throw Exception('Account export is temporarily unavailable');
+    }
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
   Future<void> clearToken() async {
     await AuthService._secureStorage.delete(key: AuthService._tokenKey);
     await AuthService._secureStorage.delete(key: AuthService._tokenExpiryKey);
     await AuthService._box.delete(AuthService._tokenKey);
     await AuthService._box.delete(AuthService._tokenExpiryKey);
+  }
+
+  /// Update the session-expired flag. Called by [AuthInterceptor] when a 401
+  /// refresh fails, or cleared when a new token is successfully acquired.
+  void updateSessionExpired(bool expired) {
+    if (state.sessionExpired == expired) return;
+    state = state.copyWith(sessionExpired: expired);
   }
 
   Future<String?> acquireToken(Dio dio) async {
@@ -481,11 +522,13 @@ extension AuthServiceStateCopy on AuthServiceState {
   AuthServiceState copyWith({
     bool? accountClientReady,
     bool? preserveAnonymousWorkspaceForClaim,
+    bool? sessionExpired,
   }) {
     return AuthServiceState(
       accountClientReady: accountClientReady ?? this.accountClientReady,
       preserveAnonymousWorkspaceForClaim:
           preserveAnonymousWorkspaceForClaim ?? this.preserveAnonymousWorkspaceForClaim,
+      sessionExpired: sessionExpired ?? this.sessionExpired,
     );
   }
 }
@@ -525,6 +568,8 @@ class AuthInterceptor extends Interceptor {
         newToken = await AuthService._instance?.acquireToken(_dio);
       }
       if (newToken != null) {
+        // Refresh succeeded — clear the expired state if it was set.
+        AuthService._notifier?.updateSessionExpired(false);
         final clonedRequest = err.requestOptions
           ..headers['Authorization'] = 'Bearer $newToken';
         try {
@@ -535,6 +580,11 @@ class AuthInterceptor extends Interceptor {
           handler.reject(err);
           return;
         }
+      } else {
+        // Refresh failed — signal session expired so the UI shows a
+        // non-blocking banner instead of a generic error. The user can
+        // continue viewing cached data while being prompted to re-auth.
+        AuthService._notifier?.updateSessionExpired(true);
       }
     }
     handler.next(err);

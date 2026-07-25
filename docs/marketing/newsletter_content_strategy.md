@@ -2,7 +2,7 @@
 
 > **Goal:** Drive engagement retention by delivering actionable insurance intelligence to users' inboxes.
 > **Strategy:** Personalise every edition using the user's own policy data. Educate, don't sell.
-> **CoverWise is an information broker — we help users understand their insurance, not buy new policies.**
+> **CoverWise is a policy information assistant — we help users understand their insurance, not buy new policies.**
 
 ---
 

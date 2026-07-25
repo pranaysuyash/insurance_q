@@ -42,7 +42,7 @@ def test_supabase_secret_key_is_accepted_by_direct_service_use(monkeypatch):
 
     monkeypatch.setattr(
         "supabase.create_client",
-        lambda url, key: fake_client,
+        lambda url, key, options=None: fake_client,
     )
     links.clear_cache()
     assert links._supabase_client() is fake_client

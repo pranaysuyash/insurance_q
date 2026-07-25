@@ -9,15 +9,13 @@ operator secret 'test-operator-secret' via a fixture.
 """
 import json
 import sqlite3
-import tempfile
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.api.analytics import router as analytics_router, DB_PATH, _init_analytics_table
+from src.api.analytics import router as analytics_router, _init_analytics_table
 from src.api.user import router as user_router
 
 

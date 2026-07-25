@@ -7,6 +7,7 @@ import '../services/local_storage_service.dart';
 import '../services/session_service.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../theme/coverwise_motion.dart';
+import 'documents_screen.dart';
 import 'policy_detail_screen.dart';
 
 /// Processing stages that map to the backend pipeline.
@@ -15,7 +16,7 @@ import 'policy_detail_screen.dart';
 /// This screen polls `documentsProvider` and maps `processingState` to visible stages.
 enum ProcessingStage {
   received(
-      0, 'Received', 'Document saved securely', Icons.upload_file, Colors.grey),
+      0, 'Received', 'Document received', Icons.upload_file, Colors.grey),
   processing(1, 'Reading text', 'Extracting text from your document',
       Icons.document_scanner, Colors.blue),
   extraction(
@@ -166,6 +167,11 @@ class _ProcessingStatusScreenState
 
   /// Whether a reprocess request is currently in flight.
   bool _isRetrying = false;
+
+  /// Whether the failure is terminal (file too corrupted, unrecoverable)
+  /// vs retryable (transient network/backend issue). Terminal failures
+  /// hide the retry button and show a "Replace file" action instead.
+  bool _isTerminalFailure = false;
 
   /// Reused across all polls to avoid leaking connections.
   /// Uses the authenticated Dio client so auth tokens are attached.
@@ -347,10 +353,16 @@ class _ProcessingStatusScreenState
       if (newStage == ProcessingStage.failed) {
         _pollTimer?.cancel();
         if (mounted) {
+          // Terminal failures (corrupted file, unsupported format) receive
+          // a different message and no retry button. The backend signals
+          // these via the "terminal_failed" stage string.
+          final isTerminal = stageString == 'terminal_failed';
           setState(() {
             _currentStage = newStage;
-            _errorMessage =
-                'Document processing did not complete. Please try re-uploading.';
+            _isTerminalFailure = isTerminal;
+            _errorMessage = isTerminal
+                ? 'This file cannot be processed. It may be corrupted or in an unsupported format.'
+                : 'Document processing did not complete. Please try re-uploading.';
           });
         }
         return;
@@ -608,7 +620,7 @@ class _ProcessingStatusScreenState
   }
 
   Widget _buildErrorState(ThemeData theme) {
-    final canRetry = _retryCount < _maxRetries && !_isRetrying;
+    final canRetry = !_isTerminalFailure && _retryCount < _maxRetries && !_isRetrying;
 
     return Center(
       child: SingleChildScrollView(
@@ -643,7 +655,28 @@ class _ProcessingStatusScreenState
               ),
             ],
             const SizedBox(height: 24),
-            // Retry button — shown only when retries remain
+            // Replace file button — shown only for terminal failures
+            if (_isTerminalFailure)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.note_add_outlined),
+                    label: const Text('Replace file'),
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => const DocumentsScreen(
+                            startWithFilePicker: true,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            // Retry button — shown only when retries remain and not terminal
             if (canRetry)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),

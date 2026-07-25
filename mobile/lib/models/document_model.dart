@@ -185,6 +185,7 @@ class InsuranceDocument {
   static const _copyWithSentinel = Object();
 
   InsuranceDocument copyWith({
+    int? schemaVersion,
     Object? remoteId = _copyWithSentinel,
     Object? documentType = _copyWithSentinel,
     Object? insurer = _copyWithSentinel,
@@ -221,7 +222,7 @@ class InsuranceDocument {
           identical(processingConsentVersion, _copyWithSentinel)
               ? this.processingConsentVersion
               : processingConsentVersion as String?,
-      schemaVersion: schemaVersion,
+      schemaVersion: schemaVersion ?? this.schemaVersion,
       processingCompletedAt:
           identical(processingCompletedAt, _copyWithSentinel)
               ? this.processingCompletedAt

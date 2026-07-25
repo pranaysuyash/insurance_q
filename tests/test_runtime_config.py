@@ -1,10 +1,16 @@
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from src.utils.runtime_config import (
     allowed_cors_origins,
+    allowed_hostnames,
     production_configuration_errors,
     supabase_server_key,
 )
@@ -27,6 +33,7 @@ def test_env_example_matches_the_canonical_embedding_and_launch_contract():
         "PROCESSING_PAYLOAD_ENCRYPTION_KEY",
         "PUBLIC_SITE_URL",
         "ALLOWED_ORIGINS",
+        "ALLOWED_HOSTS",
     ):
         assert f"{name}=" in example
 
@@ -37,6 +44,7 @@ def test_production_validator_loads_gcloud_yaml_env_files(tmp_path, monkeypatch)
         "ENVIRONMENT: production\n"
         "SUPABASE_URL: https://project.supabase.co\n"
         "ALLOWED_ORIGINS: https://app.example.com\n"
+        "ALLOWED_HOSTS: api.example.com\n"
         "PUBLIC_SITE_URL: https://app.example.com\n",
         encoding="utf-8",
     )
@@ -44,6 +52,7 @@ def test_production_validator_loads_gcloud_yaml_env_files(tmp_path, monkeypatch)
         "ENVIRONMENT",
         "SUPABASE_URL",
         "ALLOWED_ORIGINS",
+        "ALLOWED_HOSTS",
         "PUBLIC_SITE_URL",
     ):
         monkeypatch.delenv(name, raising=False)
@@ -91,6 +100,7 @@ def test_production_validator_prioritizes_explicit_runtime_file(
         "SUPABASE_URL: https://project.supabase.co\n"
         "PUBLIC_SITE_URL: https://app.coverwise.example\n"
         "ALLOWED_ORIGINS: https://app.coverwise.example\n"
+        "ALLOWED_HOSTS: api.coverwise.example\n"
         "DOCUMENT_REPOSITORY_BACKEND: supabase\n"
         "DOCUMENT_OBJECT_STORE_BACKEND: supabase\n"
         "RAG_VECTOR_BACKEND: supabase\n"
@@ -154,6 +164,81 @@ def test_production_rejects_wildcard_origin():
         allowed_cors_origins("production", "*")
 
 
+def test_production_requires_explicit_allowed_hosts():
+    with pytest.raises(RuntimeError, match="ALLOWED_HOSTS"):
+        allowed_hostnames("production", "")
+
+
+def test_production_rejects_wildcard_or_url_allowed_hosts():
+    with pytest.raises(RuntimeError, match="cannot contain"):
+        allowed_hostnames("production", "*")
+    with pytest.raises(RuntimeError, match="hostnames only"):
+        allowed_hostnames("production", "https://api.example.com")
+
+
+def test_production_parses_explicit_allowed_hosts():
+    assert allowed_hostnames("production", " api.example.com,*.coverwise.example ") == [
+        "api.example.com",
+        "*.coverwise.example",
+    ]
+
+
+def test_trusted_host_middleware_rejects_unconfigured_host():
+    app = FastAPI()
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["api.example.com"])
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
+    client = TestClient(app)
+
+    assert client.get("/health", headers={"Host": "api.example.com"}).status_code == 200
+    assert client.get("/health", headers={"Host": "api.example.com/forged"}).status_code == 400
+
+
+def test_canonical_api_enforces_the_production_host_allowlist():
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "ENVIRONMENT": "production",
+            "OPENAI_API_KEY": "sk-test",
+            "SUPABASE_URL": "https://project.supabase.co",
+            "SUPABASE_SERVICE_ROLE_KEY": "service-role-secret",
+            "ANONYMOUS_AUTH_SIGNING_KEY": "a" * 32,
+            "PROCESSING_PAYLOAD_ENCRYPTION_KEY": "p" * 32,
+            "PUBLIC_SITE_URL": "https://app.coverwise.example",
+            "ALLOWED_ORIGINS": "https://app.coverwise.example",
+            "ALLOWED_HOSTS": "api.coverwise.example",
+            "REVENUECAT_WEBHOOK_AUTHORIZATION": "Bearer rc-test",
+            "DOCUMENT_REPOSITORY_BACKEND": "supabase",
+            "DOCUMENT_OBJECT_STORE_BACKEND": "supabase",
+            "RAG_VECTOR_BACKEND": "supabase",
+            "BILLING_LEDGER_BACKEND": "supabase",
+            "LOG_LEVEL": "INFO",
+        }
+    )
+    script = """
+from fastapi.testclient import TestClient
+from src.app.main import app
+client = TestClient(app)
+print(client.get('/healthz', headers={'Host': 'api.coverwise.example'}).status_code)
+print(client.get('/healthz', headers={'Host': 'api.coverwise.example/forged'}).status_code)
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).parents[1],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["200", "400"]
+
+
 def test_production_parses_explicit_origins():
     assert allowed_cors_origins("production", " https://app.example.com,https://www.example.com ") == [
         "https://app.example.com",
@@ -167,6 +252,7 @@ def test_production_preflight_requires_the_canonical_contract():
     assert "OPENAI_API_KEY is required" in errors
     assert "REVENUECAT_WEBHOOK_AUTHORIZATION is required" in errors
     assert errors.count("ALLOWED_ORIGINS is required when ENVIRONMENT=production") == 1
+    assert errors.count("ALLOWED_HOSTS is required when ENVIRONMENT=production") == 1
     assert "DOCUMENT_REPOSITORY_BACKEND must be supabase" in errors
     assert "BILLING_LEDGER_BACKEND must be supabase" in errors
 
@@ -181,8 +267,33 @@ def test_production_preflight_accepts_complete_configuration():
             "ANONYMOUS_AUTH_SIGNING_KEY": "a" * 32,
             "PUBLIC_SITE_URL": "https://app.coverwise.example",
             "ALLOWED_ORIGINS": "https://app.coverwise.example",
+            "ALLOWED_HOSTS": "api.coverwise.example",
             "REVENUECAT_WEBHOOK_AUTHORIZATION": "Bearer rc-test",
             "PROCESSING_PAYLOAD_ENCRYPTION_KEY": "p" * 32,
+            "DOCUMENT_REPOSITORY_BACKEND": "supabase",
+            "DOCUMENT_OBJECT_STORE_BACKEND": "supabase",
+            "RAG_VECTOR_BACKEND": "supabase",
+            "BILLING_LEDGER_BACKEND": "supabase",
+            "LOG_LEVEL": "INFO",
+        }
+    )
+
+    assert errors == []
+
+
+def test_production_preflight_measures_encryption_keys_in_utf8_bytes():
+    errors = production_configuration_errors(
+        {
+            "ENVIRONMENT": "production",
+            "OPENAI_API_KEY": "sk-test",
+            "SUPABASE_URL": "https://project.supabase.co",
+            "SUPABASE_SERVICE_ROLE_KEY": "service-role-secret",
+            "ANONYMOUS_AUTH_SIGNING_KEY": "🔐" * 8,
+            "PUBLIC_SITE_URL": "https://app.coverwise.example",
+            "ALLOWED_ORIGINS": "https://app.coverwise.example",
+            "ALLOWED_HOSTS": "api.coverwise.example",
+            "REVENUECAT_WEBHOOK_AUTHORIZATION": "Bearer rc-test",
+            "PROCESSING_PAYLOAD_ENCRYPTION_KEY": "🔐" * 8,
             "DOCUMENT_REPOSITORY_BACKEND": "supabase",
             "DOCUMENT_OBJECT_STORE_BACKEND": "supabase",
             "RAG_VECTOR_BACKEND": "supabase",

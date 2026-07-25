@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import os
 import sys
 from pathlib import Path
@@ -17,7 +18,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.utils.runtime_config import production_configuration_errors
+production_configuration_errors = importlib.import_module(
+    "src.utils.runtime_config"
+).production_configuration_errors
 
 
 def _load_runtime_env_file(path: Path) -> dict[str, str]:
@@ -32,18 +35,20 @@ def _load_runtime_env_file(path: Path) -> dict[str, str]:
             if not isinstance(name, str) or not name.strip():
                 raise ValueError("runtime YAML env keys must be non-empty strings")
             if value is not None:
-                parsed[name] = str(value).lower() if isinstance(value, bool) else str(value)
+                parsed[name] = (
+                    str(value).lower() if isinstance(value, bool) else str(value)
+                )
         return parsed
     return {
-        name: value
-        for name, value in dotenv_values(path).items()
-        if value is not None
+        name: value for name, value in dotenv_values(path).items() if value is not None
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--env-file", type=Path, help="Optional local env file; never commit it.")
+    parser.add_argument(
+        "--env-file", type=Path, help="Optional local env file; never commit it."
+    )
     parser.add_argument(
         "--secret-bound",
         action="append",
@@ -64,12 +69,17 @@ def main() -> int:
     file_values: dict[str, str] = {}
     if args.env_file:
         if not args.env_file.is_file():
-            print("configuration error: supplied env file does not exist", file=sys.stderr)
+            print(
+                "configuration error: supplied env file does not exist", file=sys.stderr
+            )
             return 2
         try:
             file_values = _load_runtime_env_file(args.env_file)
         except (OSError, ValueError, yaml.YAMLError) as error:
-            print(f"configuration error: invalid runtime env file: {error}", file=sys.stderr)
+            print(
+                f"configuration error: invalid runtime env file: {error}",
+                file=sys.stderr,
+            )
             return 2
 
     supported_secret_names = {

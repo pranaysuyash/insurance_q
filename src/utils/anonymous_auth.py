@@ -14,17 +14,29 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
 
 ALGORITHM = "HS256"
 ISSUER = "coverwise-api"
 AUDIENCE = "coverwise-mobile"
 
 
+def _require_production_key_length(key: str) -> None:
+    if (
+        os.getenv("ENVIRONMENT", "development").lower() == "production"
+        and len(key.encode("utf-8")) < 32
+    ):
+        raise RuntimeError(
+            "ANONYMOUS_AUTH_SIGNING_KEY must be at least 32 bytes in production"
+        )
+
+
 def _signing_key() -> str:
     key = os.getenv("ANONYMOUS_AUTH_SIGNING_KEY", "")
     environment = os.getenv("ENVIRONMENT", "development").lower()
     if key:
+        _require_production_key_length(key)
         return key
     if environment == "production":
         raise RuntimeError(
@@ -43,6 +55,8 @@ def _verification_keys() -> tuple[str, ...]:
         for key in os.getenv("ANONYMOUS_AUTH_PREVIOUS_SIGNING_KEYS", "").split(",")
         if key.strip()
     )
+    for key in previous:
+        _require_production_key_length(key)
     # Never try a key twice; limit work on hostile tokens/configuration.
     return tuple(dict.fromkeys((active, *previous)))[:3]
 
@@ -56,8 +70,10 @@ def issue_anonymous_token(subject: str | None = None) -> tuple[str, dict[str, An
         "jti": str(uuid.uuid4()),
         "iss": ISSUER,
         "aud": AUDIENCE,
-        "iat": now,
-        "exp": expires_at,
+        # Keep returned claims aligned with their signed JWT representation;
+        # callers use ``exp`` to render the token expiry response.
+        "iat": int(now.timestamp()),
+        "exp": int(expires_at.timestamp()),
         "identity_type": "anonymous",
     }
     return jwt.encode(claims, _signing_key(), algorithm=ALGORITHM), claims
@@ -65,7 +81,7 @@ def issue_anonymous_token(subject: str | None = None) -> tuple[str, dict[str, An
 
 def verify_anonymous_token(token: str) -> dict[str, Any]:
     claims: dict[str, Any] | None = None
-    last_error: JWTError | None = None
+    last_error: InvalidTokenError | None = None
     for key in _verification_keys():
         try:
             claims = jwt.decode(
@@ -76,7 +92,7 @@ def verify_anonymous_token(token: str) -> dict[str, Any]:
                 audience=AUDIENCE,
             )
             break
-        except JWTError as error:
+        except InvalidTokenError as error:
             last_error = error
     if claims is None:
         raise HTTPException(

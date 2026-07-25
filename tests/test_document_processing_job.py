@@ -7,6 +7,7 @@ import pytest
 from src.models.document import Document
 from src.services.document_processing_job import _apply_classification, run_document_processing_job
 from src.services.document_repository import SQLiteDocumentRepository
+from src.services.document_processing_service import DocumentProcessingService
 
 
 class _Service:
@@ -33,6 +34,29 @@ class _FailOnceService:
             "status": "completed",
             "stages": {"file_storage": {"status": "completed"}},
         }
+
+
+def test_processing_status_exposes_metadata_not_document_content(tmp_path):
+    repository = SQLiteDocumentRepository(str(tmp_path / "documents.db"))
+    service = DocumentProcessingService(document_repository=repository)
+    service.processing_status["doc-1"] = {
+        "status": "processing",
+        "owner_id": "owner-1",
+        "stages": {
+            "ocr": {
+                "status": "completed",
+                "full_text": "private policy text",
+                "page_images": {1: b"\x89PNG"},
+                "native_text_pages": [1],
+            }
+        },
+    }
+
+    snapshot = service.get_processing_status("doc-1", "owner-1")
+
+    assert snapshot["stages"] == {
+        "ocr": {"status": "completed", "native_text_pages": [1]}
+    }
 
 
 @pytest.mark.asyncio

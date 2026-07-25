@@ -160,6 +160,36 @@ def derive_document_state(
     return "ready"
 
 
+_STATUS_CONTENT_KEYS = {
+    "full_text",
+    "text",
+    "page_texts",
+    "page_images",
+    "image_bytes",
+    "source_text",
+    "retrieval_text",
+    "content",
+    "cir",
+}
+
+
+def _status_stage_snapshot(value: Any) -> Any:
+    """Return JSON-safe operational metadata without exposing document content."""
+    if isinstance(value, dict):
+        return {
+            str(key): _status_stage_snapshot(item)
+            for key, item in value.items()
+            if key not in _STATUS_CONTENT_KEYS
+        }
+    if isinstance(value, (list, tuple)):
+        return [_status_stage_snapshot(item) for item in value]
+    if isinstance(value, bytes):
+        return {"present": True, "size_bytes": len(value)}
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
 class DocumentProcessingService:
     """
     Orchestrates the complete document processing pipeline:
@@ -1382,7 +1412,7 @@ class DocumentProcessingService:
             if document:
                 # Prefer in-memory stages (richer data) if available.
                 memory_status = self.processing_status.get(document_id, {})
-                stages = memory_status.get("stages", {}) or {}
+                stages = _status_stage_snapshot(memory_status.get("stages", {}) or {})
                 return {
                     "status": document.status,
                     "stage": "completed" if document.status == "completed" else document.status,
@@ -1393,7 +1423,7 @@ class DocumentProcessingService:
                     "stages": stages,
                 }
         # Fallback: return in-memory status (development / service restarted)
-        return self.processing_status.get(document_id)
+        return _status_stage_snapshot(self.processing_status.get(document_id))
     
     def get_all_processing_status(self) -> Dict[str, Dict[str, Any]]:
         """Get all processing statuses"""
@@ -1437,4 +1467,4 @@ class DocumentProcessingService:
                 yield token
         except Exception as e:
             logger.error("document_query_stream_failed error_type=%s", type(e).__name__)
-            yield f'{{"error": "The document query could not be completed."}}'
+            yield '{"error": "The document query could not be completed."}'

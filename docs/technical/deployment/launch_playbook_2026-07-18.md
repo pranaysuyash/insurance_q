@@ -301,6 +301,9 @@ RAG_VECTOR_BACKEND=supabase
 # browser client uses it directly. PUBLIC_SITE_URL must be one of these.
 ALLOWED_ORIGINS=https://coverwise.app,https://www.coverwise.app
 PUBLIC_SITE_URL=https://coverwise.app
+# API hostnames only, no URL scheme or path. Include a provider service host
+# if health checks reach it directly.
+ALLOWED_HOSTS=api.coverwise.app
 OPENAI_CHAT_MODEL=gpt-4o-mini
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 # Phase 0 additions:

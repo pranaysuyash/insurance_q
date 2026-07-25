@@ -67,7 +67,7 @@ Before sending operational data to a hosted model, record retention, provider-tr
 
 ## 0.1 Scope: Info Broker, Not Operations
 
-CoverWise is an **information broker** — we help users **understand, access, and manage** their insurance information. We do NOT:
+CoverWise is a **policy information assistant** — we help users **understand, access, and manage** their insurance information. We do NOT:
 - File claims or process payments
 - Sell or underwrite policies
 - Communicate with insurers on behalf of users

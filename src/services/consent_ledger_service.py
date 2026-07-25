@@ -70,7 +70,7 @@ class ConsentLedgerService:
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for the consent ledger"
             )
         try:
-            from supabase import create_client
+            from src.utils.supabase_client import create_client
         except ImportError as error:  # pragma: no cover
             raise ConsentLedgerUnavailable(
                 "supabase package is required for the consent ledger"

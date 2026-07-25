@@ -27,11 +27,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.models.job_outbox import (  # noqa: E402
     ClaimResult,
-    DeadLetterRecord,
     EnqueueRequest,
     JobStatus,
     JobType,
-    OutboxHealthSnapshot,
     OutboxJob,
 )
 from src.services.job_dispatcher import (  # noqa: E402
@@ -39,7 +37,6 @@ from src.services.job_dispatcher import (  # noqa: E402
     _exponential_backoff,
 )
 from src.services.job_outbox_service import (  # noqa: E402
-    JobNotClaimable,
     JobOutboxError,
     JobOutboxService,
     JobOutboxUnavailable,

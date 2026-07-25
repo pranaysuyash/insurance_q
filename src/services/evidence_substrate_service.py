@@ -21,7 +21,7 @@ import json
 import logging
 import os
 from typing import Iterable, Optional
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from src.models.evidence import (
     ExtractedFieldRecord,
@@ -32,10 +32,19 @@ from src.models.evidence import (
     ParserKind,
     SourceSpan,
     SourceSpanRecord,
-    SpanType,
     ValueType,
 )
 from src.utils.runtime_config import supabase_server_key
+
+# Substrate face constants (ADR-2026-07-19-09 Face 1)
+# The minimum evidence_strength for a field to be considered "evidence-backed"
+# at the substrate face. Values below this are excluded from evidence-backed answers.
+SUBSTRATE_EVIDENCE_THRESHOLD = 0.7
+
+# The current production parser version. Fields extracted by a deprecated
+# parser version are not considered evidence-backed — stale extractions
+# may refer to an older document format or extraction strategy.
+CURRENT_PARSER_VERSION = "coverwise.document-intelligence.v1"
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +107,7 @@ class EvidenceSubstrateService:
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for the evidence substrate"
             )
         try:
-            from supabase import create_client
+            from src.utils.supabase_client import create_client
         except ImportError as error:  # pragma: no cover - deployment dependency
             raise EvidenceSubstrateUnavailable(
                 "supabase package is required for the evidence substrate"
@@ -469,6 +478,82 @@ class EvidenceSubstrateService:
         ]
 
     # --- convenience helpers for the parser pipeline ---
+
+    # --- substrate face check (ADR-2026-07-19-09 Face 1) ---
+
+    async def is_substrate_backed(
+        self,
+        field_id: UUID,
+        principal_id: str,
+    ) -> bool:
+        """Check if an extracted field passes the 5-condition substrate face contract.
+
+        Returns True only when all 5 conditions are met:
+          1. Field exists in extracted_fields table.
+          2. At least one linked field_evidence row has evidence_strength >= 0.7.
+          3. Field's parser_version matches the current production parser.
+          4. Field's document is owned by the given principal_id.
+          5. Field has at least one linked field_evidence row (the citation pointer).
+
+        Conditions 2 and 5 share one query; condition 5 is implicitly satisfied
+        when condition 2's query returns at least one row.
+        """
+        # Condition 1: field exists in extracted_fields
+        field_response = (
+            self._client.table("extracted_fields")
+            .select("id, document_id, parser_version")
+            .eq("id", str(field_id))
+            .limit(1)
+            .execute()
+        )
+        field_rows = getattr(field_response, "data", None)
+        if not field_rows:
+            return False
+
+        field = field_rows[0]
+
+        # Condition 3: parser_version matches current production parser
+        if field.get("parser_version") != CURRENT_PARSER_VERSION:
+            return False
+
+        # Condition 4: document owner matches principal
+        document_id = field.get("document_id")
+        if not document_id:
+            return False
+
+        doc_response = (
+            self._client.table("documents")
+            .select("owner_id")
+            .eq("id", document_id)
+            .limit(1)
+            .execute()
+        )
+        doc_rows = getattr(doc_response, "data", None)
+        if not doc_rows:
+            return False
+        if doc_rows[0].get("owner_id") != principal_id:
+            return False
+
+        # Conditions 2 & 5: field has field_evidence with evidence_strength >= 0.7
+        evidence_response = (
+            self._client.table("field_evidence")
+            .select("evidence_strength")
+            .eq("extracted_field_id", str(field_id))
+            .execute()
+        )
+        evidence_rows = getattr(evidence_response, "data", None)
+        if not evidence_rows:
+            return False  # Condition 5: no field_evidence rows
+
+        # Condition 2: at least one evidence row with strength >= threshold
+        max_strength = max(
+            (row.get("evidence_strength", 0.0) for row in evidence_rows),
+            default=0.0,
+        )
+        if max_strength < SUBSTRATE_EVIDENCE_THRESHOLD:
+            return False
+
+        return True
 
     async def cite_field_at_page(
         self,

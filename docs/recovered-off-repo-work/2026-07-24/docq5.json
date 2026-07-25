@@ -1,0 +1,1 @@
+{"status":"success","result":{"answer":"No relevant information found in documents.","sources":[],"query":"What coverage?","embedding_model_used":"nomic-embed-text","llm_used":false,"confidence":0.0,"retrieval_confidence":0.0,"citations":[],"missing_information":["No relevant context was retrieved."],"follow_up_questions":[],"retrieval_strategy":"adaptive_rag_fusion_hyde"}}

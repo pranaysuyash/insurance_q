@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/claim_record.dart';
 
-/// A vertical timeline displaying a claim's complete status history.
+/// A vertical timeline displaying a user's recorded claim-status history.
 ///
 /// Shows each status transition as a decorated node with a date label
 /// and the status name. The most recent node is visually highlighted.
@@ -17,7 +17,8 @@ class ClaimStatusTimeline extends StatelessWidget {
   /// If the claim has been rejected, stop at "Rejected" (don't show "Paid"
   /// as a future state). Otherwise show the full lifecycle through "Paid".
   List<ClaimStatus> _lifecycle() {
-    final wasRejected = statusHistory.any((u) => u.status == ClaimStatus.rejected);
+    final wasRejected =
+        statusHistory.any((u) => u.status == ClaimStatus.rejected);
     if (wasRejected) {
       return [
         ClaimStatus.filed,
@@ -47,7 +48,7 @@ class ClaimStatusTimeline extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            'Status timeline',
+            'Your recorded status history',
             style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
@@ -111,7 +112,8 @@ class _TimelineNode extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: isReached ? color : Colors.transparent,
                     border: Border.all(
-                      color: isReached ? color : theme.colorScheme.outlineVariant,
+                      color:
+                          isReached ? color : theme.colorScheme.outlineVariant,
                       width: isCurrent ? 3.0 : 2.0,
                     ),
                   ),
@@ -125,7 +127,8 @@ class _TimelineNode extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isReached
                             ? color.withValues(alpha: 0.4)
-                            : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                            : theme.colorScheme.outlineVariant
+                                .withValues(alpha: 0.3),
                       ),
                     ),
                   ),
@@ -147,29 +150,33 @@ class _TimelineNode extends StatelessWidget {
                         size: 16,
                         color: isReached
                             ? color
-                            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                            : theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.5),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         status.label,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w500,
+                          fontWeight:
+                              isCurrent ? FontWeight.w800 : FontWeight.w500,
                           color: isReached
                               ? color
-                              : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                              : theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.5),
                         ),
                       ),
                       if (isCurrent)
                         Padding(
                           padding: const EdgeInsets.only(left: 6),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: color.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              'Current',
+                              'Current record',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
@@ -247,8 +254,18 @@ class _TimelineNode extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}, ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }

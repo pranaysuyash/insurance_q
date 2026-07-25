@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import re
+
+
+_ALLOWED_HOST_PATTERN = re.compile(r"^(?:\*\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$")
 
 
 def supabase_server_key() -> str:
@@ -49,6 +53,21 @@ def allowed_cors_origins(environment: str, configured_origins: str) -> list[str]
     return ["*"]
 
 
+def allowed_hostnames(environment: str, configured_hosts: str) -> list[str]:
+    """Return explicit Host-header values for the canonical API entrypoint."""
+    hosts = [host.strip().lower() for host in configured_hosts.split(",") if host.strip()]
+    if environment.lower() != "production":
+        return ["*"]
+    if not hosts:
+        raise RuntimeError("ALLOWED_HOSTS is required when ENVIRONMENT=production")
+    if "*" in hosts:
+        raise RuntimeError("ALLOWED_HOSTS cannot contain '*' in production")
+    invalid = [host for host in hosts if not _ALLOWED_HOST_PATTERN.fullmatch(host)]
+    if invalid:
+        raise RuntimeError("ALLOWED_HOSTS must contain hostnames only")
+    return list(dict.fromkeys(hosts))
+
+
 def production_configuration_errors(
     environment: Mapping[str, str],
     *,
@@ -92,8 +111,8 @@ def production_configuration_errors(
 
     if profile == "api":
         key = environment.get("ANONYMOUS_AUTH_SIGNING_KEY", "")
-        if key and len(key) < 32:
-            errors.append("ANONYMOUS_AUTH_SIGNING_KEY must be at least 32 characters")
+        if key and len(key.encode("utf-8")) < 32:
+            errors.append("ANONYMOUS_AUTH_SIGNING_KEY must be at least 32 bytes")
 
         public_site_url = environment.get("PUBLIC_SITE_URL", "").strip()
         if public_site_url and not public_site_url.startswith("https://"):
@@ -104,9 +123,13 @@ def production_configuration_errors(
                 errors.append("PUBLIC_SITE_URL must be included in ALLOWED_ORIGINS")
         except RuntimeError as error:
             errors.append(str(error))
+        try:
+            allowed_hostnames("production", environment.get("ALLOWED_HOSTS", ""))
+        except RuntimeError as error:
+            errors.append(str(error))
     processing_key = environment.get("PROCESSING_PAYLOAD_ENCRYPTION_KEY", "")
-    if processing_key and len(processing_key) < 32:
-        errors.append("PROCESSING_PAYLOAD_ENCRYPTION_KEY must be at least 32 characters")
+    if processing_key and len(processing_key.encode("utf-8")) < 32:
+        errors.append("PROCESSING_PAYLOAD_ENCRYPTION_KEY must be at least 32 bytes")
     if environment.get("LOG_LEVEL", "INFO").upper() == "DEBUG":
         errors.append("LOG_LEVEL cannot be DEBUG in production")
     return errors

@@ -45,6 +45,9 @@ class RAGCitation(BaseModel):
     )
 
 
+VerificationStatus = Literal["fully_backed", "partially_backed", "abstained", "unverified"]
+
+
 class RAGAnswer(BaseModel):
     answer: str = Field(..., description="Direct answer grounded in the retrieved context.")
     citations: List[RAGCitation] = Field(
@@ -64,4 +67,15 @@ class RAGAnswer(BaseModel):
     follow_up_questions: List[str] = Field(
         default_factory=list,
         description="Helpful follow-up questions when the answer is incomplete or ambiguous.",
+    )
+    verification_status: VerificationStatus = Field(
+        "unverified",
+        description=(
+            "Per ADR-2026-07-19-09 face 3 (answer face): 'fully_backed' if every "
+            "material claim has a verified citation; 'partially_backed' if some "
+            "claims are cited and verified but some are marked unsupported; "
+            "'abstained' if the system declines to answer because no claims can "
+            "be backed; 'unverified' is the initial state before the answer "
+            "verifier runs (reserved for the UI badge to render a warning)."
+        ),
     )

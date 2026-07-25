@@ -12,14 +12,21 @@ import hashlib
 from datetime import datetime
 from collections import Counter
 from types import SimpleNamespace
-from typing import Dict, List, Optional, Any
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from openai import AsyncOpenAI
 from qdrant_client import QdrantClient, models as qdrant_models
 
 from src.config.settings import settings
+from src.rag.cache_policy import private_cache_scope
 from src.llm.client import LLMClient
+from src.security.prompt_injection import (
+    SYSTEM_PROMPT_PREFIX,
+    assess_prompt_injection,
+    fence_untrusted_content,
+)
 from src.models.rag import RAGAnswer, RAGCitation
+from src.services.answer_verifier import verify_answer
 from src.services.supabase_vector_store import SupabaseVectorStore
 from src.utils.runtime_config import supabase_server_key
 
@@ -220,6 +227,11 @@ class RAGPipeline:
             self.cache = None
 
     def _query_cache_key(self, user_query: str, top_k: int, filters: Optional[Dict[str, Any]]) -> str:
+        filters = filters or {}
+        # Insurance answers contain private policy context. Unscoped internal
+        # or evaluation queries must not create a shared Redis response entry.
+        if not private_cache_scope(filters):
+            return ""
         payload = {
             "query": user_query.strip(),
             "top_k": top_k,
@@ -272,7 +284,7 @@ class RAGPipeline:
             logger.warning("Query cache version bump failed: %s", e)
 
     def _load_cached_query_result(self, cache_key: str) -> Optional[Dict[str, Any]]:
-        if not getattr(self, "cache", None):
+        if not cache_key or not getattr(self, "cache", None):
             return None
 
         try:
@@ -287,7 +299,7 @@ class RAGPipeline:
         return None
 
     def _store_cached_query_result(self, cache_key: str, response: Dict[str, Any]) -> None:
-        if not getattr(self, "cache", None):
+        if not cache_key or not getattr(self, "cache", None):
             return
 
         try:
@@ -1103,9 +1115,33 @@ class RAGPipeline:
             # accounting; never expose that implementation detail to callers.
             public_response = dict(resp)
             public_response.pop("_citation_counts", None)
+            public_response.pop("_verification", None)
             return public_response
 
-        logger.info("Query: '%s' top_k=%d", user_query, top_k)
+        query_hash = hashlib.sha256(user_query.encode("utf-8")).hexdigest()[:12]
+        logger.info("Query: hash=%s top_k=%d", query_hash, top_k)
+
+        injection = assess_prompt_injection(user_query)
+        if injection.detected:
+            logger.warning(
+                "Prompt injection blocked in RAG query: signals=%s",
+                ",".join(injection.signals),
+            )
+            return {
+                "status": "success",
+                "result": {
+                    "answer": "I can answer questions about your authorized policy documents, but I cannot follow requests to override system instructions, reveal hidden prompts, or execute commands.",
+                    "sources": [],
+                    "query": user_query,
+                    "llm_used": False,
+                    "confidence": 0.0,
+                    "retrieval_confidence": 0.0,
+                    "citations": [],
+                    "missing_information": ["The query contained an instruction-like request outside the document question."],
+                    "follow_up_questions": [],
+                    "security_status": "prompt_injection_blocked",
+                },
+            }
 
         cache_key = self._query_cache_key(user_query, top_k, filters)
         cached_response = self._load_cached_query_result(cache_key)
@@ -1151,12 +1187,8 @@ class RAGPipeline:
                     )
                 else:
                     qdrant_filter = self._build_qdrant_filter(filters)
-                    dense_results = self.qdrant_client.search(
-                        collection_name=self.collection_name,
-                        query_vector=query_vector,
-                        limit=max(top_k * 3, top_k),
-                        with_payload=True,
-                        query_filter=qdrant_filter,
+                    dense_results = self._search_qdrant(
+                        query_vector, max(top_k * 3, top_k), qdrant_filter
                     )
             except Exception as e:
                 dense_error = e
@@ -1179,12 +1211,8 @@ class RAGPipeline:
                             )
                         else:
                             qdrant_filter = self._build_qdrant_filter(filters)
-                            variant_dense = self.qdrant_client.search(
-                                collection_name=self.collection_name,
-                                query_vector=variant_vector,
-                                limit=max(top_k * 2, top_k),
-                                with_payload=True,
-                                query_filter=qdrant_filter,
+                            variant_dense = self._search_qdrant(
+                                variant_vector, max(top_k * 2, top_k), qdrant_filter
                             )
                         # Merge variant results with existing dense results via RRF
                         dense_results = self._merge_hybrid_results(dense_results, variant_dense)
@@ -1259,7 +1287,7 @@ class RAGPipeline:
         for i, hit in enumerate(ranked_results):
             payload = hit.payload or {}
             text = payload.get("text_content", "")
-            contexts.append(self._format_context_block(i + 1, hit, text))
+            contexts.append(self._format_context_block(i + 1, hit, fence_untrusted_content("policy_context", text)))
             sources.append(self._format_source(hit, i + 1, text))
 
         context_str = "\n\n".join(contexts)
@@ -1272,7 +1300,8 @@ class RAGPipeline:
                     {
                         "role": "system",
                         "content": (
-                            "You are a careful insurance-document assistant. Answer only from the "
+                            SYSTEM_PROMPT_PREFIX
+                            + "\n\nYou are a careful insurance-document assistant. Answer only from the "
                             "provided context. Cite the source indices that support each claim. "
                             "If the context does not contain the answer, say so explicitly instead "
                             "of guessing. Keep the answer concise and practical."
@@ -1328,6 +1357,20 @@ class RAGPipeline:
             )
         else:
             status_counts = {"verified": 0, "approximate": 0, "rejected": 0}
+
+        # Commit 2: Verify the answer face (ADR-2026-07-19-09 face 3).
+        # Classify the answer's verification_status based on which material
+        # claims have verified citations.
+        verification_status, material_claims_count, cited_claims_count = verify_answer(
+            answer_text=answer_payload.answer,
+            citations=answer_payload.citations,
+        )
+        answer_payload.verification_status = verification_status
+        logger.info(
+            "Answer verifier: status=%s material=%d cited=%d total_citations=%d",
+            verification_status, material_claims_count, cited_claims_count,
+            len(answer_payload.citations),
+        )
         audit_evidence = []
         for index, citation in enumerate(answer_payload.citations, 1):
             source_index = int(citation.source_index) - 1
@@ -1343,6 +1386,11 @@ class RAGPipeline:
         response = {
             "status": "success",
             "_citation_counts": status_counts,
+            "_verification": {
+                "status": verification_status,
+                "material_claims": material_claims_count,
+                "cited_claims": cited_claims_count,
+            },
             "result": {
                 "answer": answer_payload.answer,
                 "sources": sources,
@@ -1352,6 +1400,7 @@ class RAGPipeline:
                 "confidence": round(answer_payload.confidence, 3),
                 "retrieval_confidence": round(retrieval_confidence, 3),
                 "citations": [citation.model_dump() for citation in answer_payload.citations],
+                "verification_status": verification_status,
                 "missing_information": answer_payload.missing_information,
                 "follow_up_questions": answer_payload.follow_up_questions,
                 "retrieval_strategy": (
@@ -1371,11 +1420,19 @@ class RAGPipeline:
         filters: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[str, None]:
         """Query with streaming response - yields tokens as they arrive."""
-        import time
         import json
-        start_time = time.time()
-        
-        logger.info("Query stream: '%s' top_k=%d", user_query, top_k)
+
+        query_hash = hashlib.sha256(user_query.encode("utf-8")).hexdigest()[:12]
+        logger.info("Query stream: hash=%s top_k=%d", query_hash, top_k)
+
+        injection = assess_prompt_injection(user_query)
+        if injection.detected:
+            logger.warning(
+                "Prompt injection blocked in RAG stream: signals=%s",
+                ",".join(injection.signals),
+            )
+            yield '{"error": "The query contained an instruction-like request that cannot be followed."}'
+            return
 
         # Check cache first
         cache_key = self._query_cache_key(user_query, top_k, filters)
@@ -1429,12 +1486,8 @@ class RAGPipeline:
                     )
                 else:
                     qdrant_filter = self._build_qdrant_filter(filters)
-                    dense_results = self.qdrant_client.search(
-                        collection_name=self.collection_name,
-                        query_vector=query_vector,
-                        limit=max(top_k * 3, top_k),
-                        with_payload=True,
-                        query_filter=qdrant_filter,
+                    dense_results = self._search_qdrant(
+                        query_vector, max(top_k * 3, top_k), qdrant_filter
                     )
             except Exception as e:
                 dense_error = e
@@ -1457,12 +1510,8 @@ class RAGPipeline:
                             )
                         else:
                             qdrant_filter = self._build_qdrant_filter(filters)
-                            variant_dense = self.qdrant_client.search(
-                                collection_name=self.collection_name,
-                                query_vector=variant_vector,
-                                limit=max(top_k * 2, top_k),
-                                with_payload=True,
-                                query_filter=qdrant_filter,
+                            variant_dense = self._search_qdrant(
+                                variant_vector, max(top_k * 2, top_k), qdrant_filter
                             )
                         # Merge variant results with existing dense results via RRF
                         dense_results = self._merge_hybrid_results(dense_results, variant_dense)
@@ -1495,7 +1544,7 @@ class RAGPipeline:
         for i, hit in enumerate(ranked_results):
             payload = hit.payload or {}
             text = payload.get("text_content", "")
-            contexts.append(self._format_context_block(i + 1, hit, text))
+            contexts.append(self._format_context_block(i + 1, hit, fence_untrusted_content("policy_context", text)))
             sources.append(self._format_source(hit, i + 1, text))
 
         context_str = "\n\n".join(contexts)
@@ -1510,7 +1559,8 @@ class RAGPipeline:
                     {
                         "role": "system",
                         "content": (
-                            "You are a careful insurance-document assistant. Answer only from the "
+                            SYSTEM_PROMPT_PREFIX
+                            + "\n\nYou are a careful insurance-document assistant. Answer only from the "
                             "provided context. Cite the source indices that support each claim. "
                             "If the context does not contain the answer, say so explicitly instead "
                             "of guessing. Keep the answer concise and practical."
@@ -1603,14 +1653,20 @@ class RAGPipeline:
             return result
 
         inner = result["result"]
+        if inner.get("security_status") == "prompt_injection_blocked":
+            return result
         system_prompt = (
             "Extract structured information from the provided context. "
             "If a field cannot be found, use null. Be precise and accurate."
         )
         context_str = "\n\n".join(
-            f"Context [{i+1}]: {s['text']}" for i, s in enumerate(inner.get("sources", []))
+            f"Context [{i+1}]: {fence_untrusted_content('structured_context', s['text'])}"
+            for i, s in enumerate(inner.get("sources", []))
         )
-        user_prompt = f"{context_str}\n\nQuestion: {user_query}"
+        user_prompt = (
+            f"{context_str}\n\nQuestion:\n"
+            f"{fence_untrusted_content('user_question', user_query, max_chars=4000)}"
+        )
 
         try:
             structured = await self.llm.generate_structured(
@@ -1639,6 +1695,22 @@ class RAGPipeline:
             "hf_embedding_failures": self.hf_failure_count,
             "llm_cost": cost,
         }
+
+    def _search_qdrant(self, query_vector: list[float], limit: int, query_filter):
+        """Use the installed Qdrant client's current query API.
+
+        qdrant-client 1.18 removed ``search`` in favor of ``query_points``.
+        Keeping this compatibility boundary in one place prevents the normal
+        and streaming RAG paths from silently degrading to FTS-only retrieval.
+        """
+        response = self.qdrant_client.query_points(
+            collection_name=self.collection_name,
+            query=query_vector,
+            limit=limit,
+            with_payload=True,
+            query_filter=query_filter,
+        )
+        return response.points
 
     def _build_qdrant_filter(self, filters: Optional[Dict[str, Any]]):
         if not filters:

@@ -79,7 +79,7 @@ class JobOutboxService:
                 "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for the job outbox"
             )
         try:
-            from supabase import create_client
+            from src.utils.supabase_client import create_client
         except ImportError as error:  # pragma: no cover - deployment dependency
             raise JobOutboxUnavailable(
                 "supabase package is required for the job outbox"

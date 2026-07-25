@@ -1,9 +1,10 @@
 import 'dart:convert';
 
-/// A user-initiated insurance claim record, tracked locally.
+/// A user-maintained insurance claim-log record, tracked locally.
 ///
 /// This is not connected to any insurer system — it's a personal log the user
-/// keeps to track what claims they've filed, with whom, and what the status is.
+/// keeps to track what they report having filed, with whom, and the status they
+/// record. It is not an insurer feed or a claim decision.
 class ClaimRecord {
   final String id;
   final String documentId;
@@ -38,8 +39,7 @@ class ClaimRecord {
     final statusHistoryRaw = json['status_history'];
     final statusHistory = statusHistoryRaw is List
         ? statusHistoryRaw
-            .map((item) =>
-                StatusUpdate.fromJson(item as Map<String, dynamic>))
+            .map((item) => StatusUpdate.fromJson(item as Map<String, dynamic>))
             .toList()
         : <StatusUpdate>[];
 
@@ -61,10 +61,11 @@ class ClaimRecord {
           ? DateTime.parse(json['filed_date'])
           : DateTime.now(),
       referenceNumber: json['reference_number'],
-      status: latestEntry?.status ?? ClaimStatus.values.firstWhere(
-        (s) => s.name == json['status'],
-        orElse: () => ClaimStatus.filed,
-      ),
+      status: latestEntry?.status ??
+          ClaimStatus.values.firstWhere(
+            (s) => s.name == json['status'],
+            orElse: () => ClaimStatus.filed,
+          ),
       notes: json['notes'],
       photoPaths: json['photo_paths'] != null
           ? List<String>.from(json['photo_paths'] as List)
@@ -85,9 +86,8 @@ class ClaimRecord {
         'status': status.name,
         'notes': notes,
         if (photoPaths.isNotEmpty) 'photo_paths': photoPaths,
-        if (statusHistory.isNotEmpty) 'status_history': statusHistory
-            .map((u) => u.toJson())
-            .toList(),
+        if (statusHistory.isNotEmpty)
+          'status_history': statusHistory.map((u) => u.toJson()).toList(),
       };
 
   String toJsonString() => jsonEncode(toJson());
@@ -96,6 +96,13 @@ class ClaimRecord {
       ClaimRecord.fromJson(jsonDecode(s));
 
   ClaimRecord copyWith({
+    String? id,
+    String? documentId,
+    String? policyType,
+    String? insurer,
+    String? incidentType,
+    String? description,
+    DateTime? filedDate,
     String? referenceNumber,
     ClaimStatus? status,
     String? notes,
@@ -103,13 +110,13 @@ class ClaimRecord {
     List<StatusUpdate>? statusHistory,
   }) =>
       ClaimRecord(
-        id: id,
-        documentId: documentId,
-        policyType: policyType,
-        insurer: insurer,
-        incidentType: incidentType,
-        description: description,
-        filedDate: filedDate,
+        id: id ?? this.id,
+        documentId: documentId ?? this.documentId,
+        policyType: policyType ?? this.policyType,
+        insurer: insurer ?? this.insurer,
+        incidentType: incidentType ?? this.incidentType,
+        description: description ?? this.description,
+        filedDate: filedDate ?? this.filedDate,
         referenceNumber: referenceNumber ?? this.referenceNumber,
         status: status ?? this.status,
         notes: notes ?? this.notes,
@@ -117,7 +124,7 @@ class ClaimRecord {
         statusHistory: statusHistory ?? this.statusHistory,
       );
 
-  /// Appends a status update to the history and returns a new record.
+  /// Appends a user-reported status update and returns a new record.
   ClaimRecord withStatusUpdate(ClaimStatus newStatus) {
     final updatedHistory = [
       ...statusHistory,
@@ -175,15 +182,15 @@ extension ClaimStatusX on ClaimStatus {
   String get label {
     switch (this) {
       case ClaimStatus.filed:
-        return 'Filed';
+        return 'Self-recorded: filed';
       case ClaimStatus.inReview:
-        return 'In Review';
+        return 'Self-recorded: in review';
       case ClaimStatus.approved:
-        return 'Approved';
+        return 'Self-recorded: approved';
       case ClaimStatus.rejected:
-        return 'Rejected';
+        return 'Self-recorded: rejected';
       case ClaimStatus.paid:
-        return 'Paid';
+        return 'Self-recorded: paid';
     }
   }
 }

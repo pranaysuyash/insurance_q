@@ -16,10 +16,8 @@ Run with: pytest tests/test_analytics_benchmark.py -v -s
 import json
 import sqlite3
 import time
-import tempfile
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict
 
 import pytest
 

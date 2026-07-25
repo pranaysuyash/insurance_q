@@ -84,7 +84,7 @@ def _get_supabase_client():
         logger.warning("Supabase not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing); analytics dual-write disabled")
         return None
     try:
-        from supabase import create_client
+        from src.utils.supabase_client import create_client
         _supabase_client = create_client(url, key)
         logger.info("Supabase client initialized for analytics dual-write")
         return _supabase_client
@@ -127,7 +127,7 @@ def _init_analytics_table():
             session_id TEXT,
             is_reinstall INTEGER NOT NULL DEFAULT 0
         )
-    """);
+    """)
     # In-place upgrades for pre-R1.4 tables. Each ALTER wrapped to be idempotent.
     for alter in (
         "ALTER TABLE analytics_events ADD COLUMN install_id TEXT",
@@ -142,27 +142,27 @@ def _init_analytics_table():
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_analytics_event_name
         ON analytics_events(event_name)
-    """);
+    """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_analytics_user_uid
         ON analytics_events(user_uid)
-    """);
+    """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_analytics_error_window
         ON analytics_events(event_name, received_at)
-    """);
+    """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_analytics_summary
         ON analytics_events(received_at, event_name, user_uid)
-    """);
+    """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_analytics_install_id
         ON analytics_events(install_id) WHERE install_id IS NOT NULL
-    """);
+    """)
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_analytics_session_id
         ON analytics_events(session_id) WHERE session_id IS NOT NULL
-    """);
+    """)
     conn.commit()
     conn.close()
 

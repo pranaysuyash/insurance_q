@@ -87,10 +87,13 @@ class QuickActions extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _ActionButton(
-          icon: Icons.auto_awesome_outlined,
-          label: 'AI Health Check',
-          color: const Color(0xFF7557D3),
-          trailing: const CoverWiseSoonBadge(),
+          icon: Icons.fact_check_outlined,
+          label: 'My claims log',
+          color: const Color(0xFFC85B3A),
+          onTap: () {
+            AnalyticsService.track('dashboard_quick_action_tapped', {'action_type': 'claims'});
+            Navigator.pushNamed(context, '/claim-tracker');
+          },
         ),
         const SizedBox(height: 12),
         // Emergency shortcut — one tap from dashboard instead of More → Emergency
@@ -112,14 +115,11 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback? onTap;
-  final Widget? trailing;
-
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.color,
     this.onTap,
-    this.trailing,
   });
 
   @override
@@ -155,10 +155,6 @@ class _ActionButton extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              if (trailing != null) ...[
-                const SizedBox(height: 6),
-                trailing!,
-              ],
             ],
           ),
         ),

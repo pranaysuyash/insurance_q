@@ -20,6 +20,20 @@ for name in "${required[@]}"; do
   fi
 done
 
+# Optional mobile-local assistant configuration. The model is selected at
+# build time so the store artifact has an explicit, reviewable model source;
+# the app never guesses a model or contacts a model provider on its own.
+on_device_inference_enabled="${COVERWISE_ON_DEVICE_INFERENCE_ENABLED:-false}"
+on_device_model_url="${COVERWISE_ON_DEVICE_MODEL_URL:-}"
+if [[ "${on_device_inference_enabled}" != "true" && "${on_device_inference_enabled}" != "false" ]]; then
+  echo "COVERWISE_ON_DEVICE_INFERENCE_ENABLED must be true or false" >&2
+  exit 2
+fi
+if [[ "${on_device_inference_enabled}" == "true" && "${on_device_model_url}" != https://* ]]; then
+  echo "COVERWISE_ON_DEVICE_MODEL_URL must be an HTTPS URL when on-device inference is enabled" >&2
+  exit 2
+fi
+
 for url_name in COVERWISE_API_BASE_URL COVERWISE_PRIVACY_POLICY_URL COVERWISE_TERMS_OF_SERVICE_URL; do
   if [[ "${!url_name}" != https://* ]]; then
     echo "${url_name} must start with https://" >&2
@@ -50,6 +64,10 @@ fi
 
 repo_root=$(git -C "$(dirname "$0")/.." rev-parse --show-toplevel)
 mobile_root="$repo_root/mobile"
+python3 "$repo_root/tools/validate_legal_release_assets.py"
+python3 "$repo_root/tools/verify_hosted_legal_documents.py" \
+  --privacy-url "$COVERWISE_PRIVACY_POLICY_URL" \
+  --terms-url "$COVERWISE_TERMS_OF_SERVICE_URL"
 cd "$mobile_root"
 
 # A production artifact must never silently fall back to the debug keystore.
@@ -81,4 +99,6 @@ flutter build appbundle --release \
   --dart-define=PRIVACY_POLICY_VERSION="${COVERWISE_PRIVACY_POLICY_VERSION}" \
   --dart-define=SUPABASE_URL="${SUPABASE_URL}" \
   --dart-define=SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}" \
-  --dart-define=REVENUECAT_API_KEY="${REVENUECAT_API_KEY}"
+  --dart-define=REVENUECAT_API_KEY="${REVENUECAT_API_KEY}" \
+  --dart-define=ON_DEVICE_INFERENCE_ENABLED="${on_device_inference_enabled}" \
+  --dart-define=ON_DEVICE_MODEL_URL="${on_device_model_url}"

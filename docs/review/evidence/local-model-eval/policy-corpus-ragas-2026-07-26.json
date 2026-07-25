@@ -1,0 +1,285 @@
+INFO:sentence_transformers.SentenceTransformer:Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+/Users/pranay/Projects/medpiper/insurance_app/.venv/lib/python3.11/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+INFO:sentence_transformers.SentenceTransformer:Use pytorch device_name: mps
+INFO:src.rag.pipeline:Local embedding model loaded (sentence-transformers/all-MiniLM-L6-v2, 384d)
+INFO:src.rag.pipeline:Ollama embedding client ready (nomic-embed-text, 768d)
+INFO:src.rag.pipeline:Creating Qdrant collection 'insurance_documents_v2' (1536d)
+WARNING:src.rag.pipeline:Qdrant connection failed, using in-memory
+INFO:src.rag.pipeline:Creating Qdrant collection 'insurance_documents_v2' (1536d)
+/Users/pranay/Projects/medpiper/insurance_app/.venv/lib/python3.11/site-packages/qdrant_client/qdrant_remote.py:290: UserWarning: Failed to obtain server version. Unable to check client-server compatibility. Set check_compatibility=False to skip version check.
+  show_warning(
+INFO:src.rag.pipeline:Local FTS hybrid index ready at storage/rag_hybrid_index.db
+INFO:sentence_transformers.cross_encoder.CrossEncoder:Use pytorch device: mps
+INFO:src.rag.pipeline:Cross-encoder reranker loaded (ms-marco-MiniLM-L-6-v2)
+INFO:sentence_transformers.cross_encoder.CrossEncoder:Use pytorch device: mps
+INFO:src.rag.pipeline:Cross-encoder reranker loaded (cross-encoder/ms-marco-MiniLM-L-6-v2)
+INFO:src.rag.pipeline:Pipeline: chat=gpt-5-nano embed=text-embedding-3-small (1536d) vector_backend=qdrant redis=enabled
+INFO:src.rag.pipeline:Query: hash=7638456fe3ee top_k=5
+INFO:src.rag.pipeline:Query classified as: exact_lookup
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.70s/it]Batches: 100%|██████████| 1/1 [00:01<00:00,  1.70s/it]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=1
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "7638456fe3ee0894aad70565445ef3acfd3b6cf6b7135b0472eafdc58cfaf801", "query_length": 25, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 1, "latency_ms": 19353, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=1e8a7eb86062 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  5.84it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  5.83it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=1
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "1e8a7eb86062583013bd67f65ddaf83967d773e7a0ead222e7f518f6bbf43702", "query_length": 35, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 1, "latency_ms": 19606, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=e1356af03520 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  6.11it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  6.10it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=1
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "e1356af03520ea80d50e859da047fb2b95e9e9e523ec8d7e5644b19f849cafd1", "query_length": 35, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 1, "latency_ms": 23337, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=74f0f4662b89 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 75.93it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=2
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "74f0f4662b8978688b3d5970a1d8dcabba3572185be066c70a21779a364a33b9", "query_length": 40, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 2, "latency_ms": 20942, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=5f7442c9e4e8 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 11.26it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=1
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "5f7442c9e4e8c8e9d3990a08603809cfd122a929be70ca2c99ee532b7c92145c", "query_length": 43, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 1, "latency_ms": 20293, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=bdf399195092 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  3.41it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  3.41it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=2 cited=0 total_citations=2
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "bdf399195092dccf55cc42657dea2bb684802ac831ad9c82d9d2ee4c7d4277ae", "query_length": 42, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 2, "latency_ms": 32452, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=e0a44fdb8b1c top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 18.56it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=2 cited=0 total_citations=2
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "e0a44fdb8b1c70e61bfe503de986271c237265306f6d5b9d3973795f77b034f5", "query_length": 33, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 2, "latency_ms": 21523, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=98f9f177eb64 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 19.75it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=0
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "98f9f177eb64204d2aec9be20915af2da711438840dafa7e1608615e29545829", "query_length": 21, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 0, "latency_ms": 21036, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=fe59243253a7 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 52.55it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=4
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "fe59243253a75d7334cf55b752742adf2e3665ada03a1dfb807586cceb196a2d", "query_length": 49, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 4, "latency_ms": 35454, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=94fd87082213 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 16.25it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=2 cited=0 total_citations=4
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "94fd87082213533756fbe295d59c790dd21de48ff5cd787b16d51f47e2616894", "query_length": 37, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 4, "latency_ms": 24931, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=3e34a797b281 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  6.61it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  6.60it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=3
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "3e34a797b2811db829a23134b8bb42cde67627b33024e0514781dbd8524773d6", "query_length": 36, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 3, "latency_ms": 30849, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=92cf80391335 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 40.76it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Citation 3 approximate match (fuzzy); rendered with label
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=2 cited=0 total_citations=5
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "92cf80391335844c3b38331bba5f8eb028dbc1272230969c39f8f61c4cc765be", "query_length": 32, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 5, "latency_ms": 24454, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=82a8b3c57ea0 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 18.03it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=0
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "82a8b3c57ea06826a6118a08be40b3e8d34724500ea07d7c10cd141796572a23", "query_length": 35, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 0, "latency_ms": 15659, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=f2fe9c929469 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 16.22it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=1
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "f2fe9c9294692a036d2ae8c1227ae384f4bb9f0cd627d16b87b8e4ab00713bf1", "query_length": 38, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 1, "latency_ms": 29511, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=b62643a7d4b3 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 78.93it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=2
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "b62643a7d4b3e69bbaa259d475679cb1ffe095ef53d2f5670727d6b83f1a9d1b", "query_length": 34, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 2, "latency_ms": 27966, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=bdc24db6aa58 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 17.58it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=2 cited=0 total_citations=1
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "bdc24db6aa58f0115a81d4a7d9dfc66c14a848e20af3e9362f53429c4b248487", "query_length": 35, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 1, "latency_ms": 31874, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=b08828fdf80c top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 18.89it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=1
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "b08828fdf80c8c75fd4f6e60d6d3aeb9b86942e11b50631789fb5f0071adc2da", "query_length": 26, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 1, "latency_ms": 16488, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=2841889b984f top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 17.30it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=2
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "2841889b984f5a8cd71b20bc94ec3a09da977a7424f3f7c0201e17bcbb3a239e", "query_length": 27, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 2, "latency_ms": 30375, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=7b47f393e802 top_k=5
+INFO:src.rag.pipeline:Query classified as: broad
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 15.98it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=2 cited=0 total_citations=3
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "7b47f393e80268df23128aeb4a748547b166896421d9ae2606f731bb69610600", "query_length": 26, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 3, "latency_ms": 28294, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=ea052daaf069 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 17.20it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=0
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "ea052daaf069d79e5dece30a12442d79627d9be572a22172f47c3bf477460103", "query_length": 41, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 0, "latency_ms": 18122, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=bc8605531839 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 81.68it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=4 cited=0 total_citations=3
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "bc8605531839f7f126407b5772022e8715b8c1482b5ecad2e1662859a8eaf8fa", "query_length": 35, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 3, "latency_ms": 33689, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=ebfc7c2199f5 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 18.43it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=3 cited=0 total_citations=5
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "ebfc7c2199f584f5a6f05362c56670cd2ee6bd75e3243a086a4a7baf0925e697", "query_length": 34, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 5, "latency_ms": 34838, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=4a27e6053056 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 17.41it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.llm.client:LLM prompt cache hit: model=gpt-5-nano cached_input_tokens=1792
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=2 cited=0 total_citations=2
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "4a27e605305666a2770b4b6cbbc7e18d91920f6826d6c39a7dc6d294b3fa0ce5", "query_length": 28, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 2, "latency_ms": 21698, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=0895d33175e0 top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 16.61it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=3 cited=0 total_citations=6
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "0895d33175e07d3dc36205efd46cb55989e78e1e8678a14249506a8eba046d18", "query_length": 28, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 6, "latency_ms": 32685, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=01087658380c top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 79.99it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Citation 2 approximate match (fuzzy); rendered with label
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=1 cited=0 total_citations=1
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "01087658380cec471c43b3b68d7a35b39ccf544652fc29cd25c59aba1311a283", "query_length": 29, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 1, "latency_ms": 19812, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=92f4419d862f top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 77.90it/s]
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:Answer verifier: status=abstained material=2 cited=0 total_citations=2
+INFO:src.rag.pipeline:Query Trace: {"query_hash": "92f4419d862fb66371e8e674f9afafacc95f14d0de0fffb5dce986b6d27a6472", "query_length": 32, "owner_id": null, "retrieval_strategy": "dense_plus_local_fts", "top_k": 5, "hits_count": 5, "citations_count": 2, "latency_ms": 19390, "cache_hit": false, "embedding_model": "text-embedding-3-small", "embedding_version": "v1", "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"}
+INFO:src.rag.pipeline:Query: hash=8fee90d82d8e top_k=5
+INFO:src.rag.pipeline:Query classified as: single_step
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:src.rag.pipeline:RAG Fusion: 1 query variants
+/Users/pranay/.local/share/uv/python/cpython-3.11.9-macos-aarch64-none/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

@@ -13,14 +13,11 @@ import logging
 import os
 import time
 import uuid
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Body, Request
 from pydantic import BaseModel, Field
 
-import uvicorn
 from src.rag.pipeline import RAGPipeline
 
 logger = logging.getLogger(__name__)

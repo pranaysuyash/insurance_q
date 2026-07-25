@@ -10,7 +10,9 @@ from src.models.user import User
 from src.models.policy import Policy
 from typing import List, Optional
 from datetime import datetime
-import os, uuid, shutil
+import os
+import shutil
+import uuid
 
 router = APIRouter(prefix="/policy", tags=["policy"])
 

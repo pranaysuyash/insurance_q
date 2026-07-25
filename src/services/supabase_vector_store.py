@@ -14,7 +14,7 @@ class SupabaseVectorStore:
             self._client = client
             return
         try:
-            from supabase import create_client
+            from src.utils.supabase_client import create_client
         except ImportError as error:  # pragma: no cover - deployment dependency
             raise RuntimeError("supabase is required for pgvector retrieval") from error
         if not url or not service_role_key:

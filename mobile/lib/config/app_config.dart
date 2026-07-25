@@ -8,6 +8,14 @@ class AppConfig {
     'BOOTSTRAP_POLICY_DEMO',
     defaultValue: false,
   );
+  static const bool onDeviceInferenceEnabled = bool.fromEnvironment(
+    'ON_DEVICE_INFERENCE_ENABLED',
+    defaultValue: false,
+  );
+  static const String onDeviceModelUrl = String.fromEnvironment(
+    'ON_DEVICE_MODEL_URL',
+    defaultValue: '',
+  );
 
   // Release addresses are injected at build time. Never embed an old hosting
   // provider URL in a store binary—the deployed API is a release contract.
@@ -137,6 +145,9 @@ class AppConfig {
   static bool get isDevelopment => environment == 'development';
   static bool get isStaging => environment == 'staging';
 
+  static bool get hasOnDeviceInferenceConfig =>
+      onDeviceInferenceEnabled && onDeviceModelUrl.startsWith('https://');
+
   static bool get hasPrivacyPolicy => privacyPolicyUrl.startsWith('https://');
   static bool get hasTermsOfService => termsOfServiceUrl.startsWith('https://');
   static bool get hasSupportEmail => isValidEmail(supportEmail);
@@ -165,6 +176,11 @@ class AppConfig {
     }
     if (bootstrapPolicyDemo) {
       errors.add('BOOTSTRAP_POLICY_DEMO cannot be enabled in a release build');
+    }
+    if (onDeviceInferenceEnabled && !hasOnDeviceInferenceConfig) {
+      errors.add(
+        'ON_DEVICE_MODEL_URL must be an HTTPS URL when on-device inference is enabled',
+      );
     }
     if (errors.isNotEmpty) {
       throw StateError(

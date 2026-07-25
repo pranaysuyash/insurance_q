@@ -1,0 +1,41 @@
+{
+  "evaluation": "provider_smoke_v1",
+  "fixture_sha256": "2410c83389914516649818239f8688cc5d46caf74f97e979b8349be406858f49",
+  "results": [
+    {
+      "endpoint_family": "openai_compatible_chat_completions",
+      "median_latency_ms": 2231,
+      "passed_count": 0,
+      "provider": "openai",
+      "reported_model": null,
+      "requested_model": "gpt-5-nano",
+      "schema_and_grounding_pass_rate": 0.0,
+      "synthetic_only": true,
+      "task_count": 3,
+      "tasks": [
+        {
+          "error_kind": "invalid_json",
+          "latency_ms": 2288,
+          "name": "structured_extraction",
+          "passed": false,
+          "valid_json": false
+        },
+        {
+          "error_kind": "invalid_json",
+          "latency_ms": 2170,
+          "name": "unsupported_field",
+          "passed": false,
+          "valid_json": false
+        },
+        {
+          "error_kind": "invalid_json",
+          "latency_ms": 2231,
+          "name": "grounded_answer",
+          "passed": false,
+          "valid_json": false
+        }
+      ]
+    }
+  ],
+  "run_at_utc": "2026-07-24T09:41:57Z"
+}

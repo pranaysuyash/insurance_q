@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/policy_type.dart';
 
 class QuestionCategory {
   final String id;
@@ -18,11 +19,16 @@ class StandardQuestion {
   final String category;
   final IconData icon;
 
+  /// When non-null, this question is only suggested for policies of
+  /// this type. Null means the question is generic and shown for any policy.
+  final PolicyType? policyType;
+
   StandardQuestion({
     required this.id,
     required this.text,
     required this.category,
     required this.icon,
+    this.policyType,
   });
 }
 
@@ -41,6 +47,7 @@ class QaAnswer {
   final String? embeddingModelUsed;
   final String? error;
   final String? status;
+  final String? verificationStatus;
 
   QaAnswer({
     required this.text,
@@ -57,6 +64,7 @@ class QaAnswer {
     this.embeddingModelUsed,
     this.error,
     this.status,
+    this.verificationStatus,
   });
 
   String get query => question;
@@ -136,6 +144,7 @@ class QaAnswer {
       embeddingModelUsed: json['embedding_model_used']?.toString(),
       error: json['error']?.toString(),
       status: json['status']?.toString(),
+      verificationStatus: json['verification_status']?.toString(),
     );
   }
 }
@@ -227,6 +236,7 @@ class QaPair {
         'embedding_model_used': answer.embeddingModelUsed,
         'error': answer.error,
         'status': answer.status,
+        'verification_status': answer.verificationStatus,
       },
       'timestamp': timestamp.toIso8601String(),
     };

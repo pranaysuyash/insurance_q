@@ -23,7 +23,7 @@ def _auth_client():
             "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for account auth"
         )
     try:
-        from supabase import create_client
+        from src.utils.supabase_client import create_client
     except ImportError as error:  # pragma: no cover - deployment dependency
         raise RuntimeError("supabase is required for account auth") from error
     return create_client(url, service_role_key)

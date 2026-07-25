@@ -1,0 +1,452 @@
+[
+  {
+    "question_id": "Q1",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "4214i/CPHSR/407834350/00/000",
+    "latency_ms": 4847
+  },
+  {
+    "question_id": "Q2",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 0.0,
+    "answer_text": "\u20b92,500,000 (Floater Sum Insured)",
+    "latency_ms": 2714
+  },
+  {
+    "question_id": "Q3",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "\u20b931,705 (Total Premium for the policy year 2025-2026; Basic Premium \u20b926,868.64 + GST \u20b94,836.36).",
+    "latency_ms": 4456
+  },
+  {
+    "question_id": "Q4",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Pranay Suyash",
+    "latency_ms": 2711
+  },
+  {
+    "question_id": "Q5",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "From 00:00 hrs on 27-Aug-2025 to 23:59 hrs on 26-Aug-2026.",
+    "latency_ms": 3159
+  },
+  {
+    "question_id": "Q6",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "ICICI Lombard General Insurance Company Limited",
+    "latency_ms": 1787
+  },
+  {
+    "question_id": "Q7",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Health Shield 360 Retail \u2013 Classic Plus",
+    "latency_ms": 2450
+  },
+  {
+    "question_id": "Q8",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "",
+    "latency_ms": 4140
+  },
+  {
+    "question_id": "Q9",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "- Pranay Suyash (Self)\n- Diksha Sinha (Spouse)\n- Advay Sinha (Son)",
+    "latency_ms": 3395
+  },
+  {
+    "question_id": "Q10",
+    "strategy": "A_paragraph",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "1800 2666",
+    "latency_ms": 2638
+  },
+  {
+    "question_id": "Q1",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "4214i/CPHSR/407834350/00/000",
+    "latency_ms": 2818
+  },
+  {
+    "question_id": "Q2",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 0.0,
+    "answer_text": "",
+    "latency_ms": 4111
+  },
+  {
+    "question_id": "Q3",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "",
+    "latency_ms": 4069
+  },
+  {
+    "question_id": "Q4",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Pranay Suyash",
+    "latency_ms": 2019
+  },
+  {
+    "question_id": "Q5",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "From 00:00 hrs 27-Aug-2025 to 23:59 hrs 26-Aug-2026.",
+    "latency_ms": 3123
+  },
+  {
+    "question_id": "Q6",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "ICICI Lombard General Insurance Company Limited",
+    "latency_ms": 1750
+  },
+  {
+    "question_id": "Q7",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Health Shield 360 Retail",
+    "latency_ms": 2633
+  },
+  {
+    "question_id": "Q8",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "",
+    "latency_ms": 3542
+  },
+  {
+    "question_id": "Q9",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "",
+    "latency_ms": 3673
+  },
+  {
+    "question_id": "Q10",
+    "strategy": "B_table_aware",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "1800 2666",
+    "latency_ms": 2618
+  },
+  {
+    "question_id": "Q1",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "4214i/CPHSR/407834350/00/000",
+    "latency_ms": 2076
+  },
+  {
+    "question_id": "Q2",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "\u20b92,500,000",
+    "latency_ms": 2975
+  },
+  {
+    "question_id": "Q3",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "\u20b931705",
+    "latency_ms": 2496
+  },
+  {
+    "question_id": "Q4",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Pranay Suyash.",
+    "latency_ms": 2011
+  },
+  {
+    "question_id": "Q5",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Policy period: From 00:00 hrs 27-Aug-2025 to 23:59 hrs 26-Aug-2026.",
+    "latency_ms": 2794
+  },
+  {
+    "question_id": "Q6",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "ICICI Lombard General Insurance Company Limited",
+    "latency_ms": 1655
+  },
+  {
+    "question_id": "Q7",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Health Shield 360 Retail",
+    "latency_ms": 2202
+  },
+  {
+    "question_id": "Q8",
+    "strategy": "C_page_level",
+    "retrieval_score": 0.0,
+    "answer_score": 0.0,
+    "source_score": 0.5,
+    "answer_text": "",
+    "latency_ms": 3639
+  },
+  {
+    "question_id": "Q9",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Pranay Suyash (Self), Diksha Sinha (Spouse), and Advay Sinha (Son).",
+    "latency_ms": 3272
+  },
+  {
+    "question_id": "Q10",
+    "strategy": "C_page_level",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "1800 2666",
+    "latency_ms": 3771
+  },
+  {
+    "question_id": "Q1",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "4214i/CPHSR/407834350/00/000",
+    "latency_ms": 2720
+  },
+  {
+    "question_id": "Q2",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "\u20b92,500,000 (\u20b925 Lakh) as the floater sum insured.",
+    "latency_ms": 3665
+  },
+  {
+    "question_id": "Q3",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "\u20b931,705.",
+    "latency_ms": 3053
+  },
+  {
+    "question_id": "Q4",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "PRANAY SUYASH",
+    "latency_ms": 1953
+  },
+  {
+    "question_id": "Q5",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "From 00:00 hrs 27-Aug-2025 to 23:59 hrs 26-Aug-2026.",
+    "latency_ms": 2456
+  },
+  {
+    "question_id": "Q6",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "ICICI Lombard General Insurance Company Limited.",
+    "latency_ms": 1936
+  },
+  {
+    "question_id": "Q7",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Health Shield 360 Retail",
+    "latency_ms": 2271
+  },
+  {
+    "question_id": "Q8",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "",
+    "latency_ms": 3610
+  },
+  {
+    "question_id": "Q9",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "",
+    "latency_ms": 3377
+  },
+  {
+    "question_id": "Q10",
+    "strategy": "D_hybrid",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "1800 2666",
+    "latency_ms": 3783
+  },
+  {
+    "question_id": "Q1",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "4214i/CPHSR/407834350/00/000",
+    "latency_ms": 3155
+  },
+  {
+    "question_id": "Q2",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 0.0,
+    "answer_text": "Rs. 2,500,000 (Floater Sum Insured for Health Shield 360 Retail \u2013 Classic Plus).",
+    "latency_ms": 4663
+  },
+  {
+    "question_id": "Q3",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "",
+    "latency_ms": 3967
+  },
+  {
+    "question_id": "Q4",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Pranay Suyash.",
+    "latency_ms": 2541
+  },
+  {
+    "question_id": "Q5",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "From 00:00 hrs 27-Aug-2025 to 23:59 hrs 26-Aug-2026.",
+    "latency_ms": 3029
+  },
+  {
+    "question_id": "Q6",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "ICICI Lombard General Insurance Company Limited",
+    "latency_ms": 1919
+  },
+  {
+    "question_id": "Q7",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 1.0,
+    "answer_text": "Health Shield 360 Retail \u2013 Classic Plus",
+    "latency_ms": 2591
+  },
+  {
+    "question_id": "Q8",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 0.5,
+    "answer_text": "20% of the Annual Sum Insured for each completed and continuous policy year, up to a maximum of 100% of the Sum Insured. No reduction in the event of a claim.",
+    "latency_ms": 2883
+  },
+  {
+    "question_id": "Q9",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 0.0,
+    "source_score": 1.0,
+    "answer_text": "",
+    "latency_ms": 4809
+  },
+  {
+    "question_id": "Q10",
+    "strategy": "E_no_header",
+    "retrieval_score": 1.0,
+    "answer_score": 1.0,
+    "source_score": 0.0,
+    "answer_text": "1800 2666",
+    "latency_ms": 3542
+  }
+]

@@ -6,6 +6,13 @@ import '../../services/lead_generation_service.dart';
 /// (e.g., Q&A answers, policy details) to drive lead generation.
 ///
 /// Automatically tracks impression and click analytics.
+///
+/// Event contract:
+/// - `cta_clicked`: logged when primary CTA action is taken.
+/// - `cta_dismissed`: logged on explicit dismiss.
+///
+/// These events are used by the decision contract documented in
+/// `docs/analysis/analytics_tracking_event_registry.md`.
 class CtaCard extends StatefulWidget {
   final CtaDefinition cta;
   final bool dismissible;
@@ -41,14 +48,6 @@ class _CtaCardState extends State<CtaCard> with SingleTickerProviderStateMixin {
       curve: Curves.easeOutCubic,
     );
     _animController.forward();
-
-    // Track impression on first build.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      AnalyticsService.track('cta_impression', {
-        'cta_id': widget.cta.id,
-        'cta_title': widget.cta.title,
-      });
-    });
   }
 
   @override

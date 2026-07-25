@@ -1,7 +1,6 @@
 """
 Tests for the policy extraction service, RRF merge, and cross-encoder reranking.
 """
-import os
 import tempfile
 
 import pytest

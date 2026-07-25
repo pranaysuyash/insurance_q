@@ -46,7 +46,7 @@ class FirstUploadCta extends StatelessWidget {
             const SizedBox(height: 14),
             Semantics(
               label:
-                  'Your original policy is always available for you to review. We process it securely on our servers.',
+                  'Your original policy remains available in your workspace for review. We process it on our servers to generate summaries.',
               child: Column(
                 children: [
                   Row(
@@ -56,7 +56,7 @@ class FirstUploadCta extends StatelessWidget {
                       SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'Your original policy is always available. We process it securely to generate summaries.',
+                          'Your original policy remains available in your workspace for review. We process it to generate summaries.',
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -68,15 +68,16 @@ class FirstUploadCta extends StatelessWidget {
                     children: [
                       Icon(Icons.info_outline_rounded, size: 16),
                       SizedBox(width: 6),
-                      Flexible(                          child: Text(
-                            'CoverWise is an information broker, not an insurer or agent. '
-                            'All policy data is for reference only.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.35,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                      Flexible(
+                        child: Text(
+                          'CoverWise is a policy information assistant, not an insurer, agent, or broker. '
+                          'All policy data is for reference only.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.35,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],

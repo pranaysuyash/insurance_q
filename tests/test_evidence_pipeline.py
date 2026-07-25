@@ -28,11 +28,10 @@ import os
 import sys
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.models.evidence import ParserKind, SpanType, ValueType  # noqa: E402
+from src.models.evidence import ParserKind, ValueType  # noqa: E402
 from src.services.evidence_pipeline import (  # noqa: E402
     EvidencePipeline,
     InsurerNameExtractor,

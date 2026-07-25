@@ -1,5 +1,177 @@
 # System Exploration Map
 
+## Mobile local-model evaluation and runtime frontier (2026-07-26)
+
+### Active canonical status (2026-07-26)
+
+For this request, treat these files as your current canonical set:
+
+- [`mobile_model_gatebook_2026-07-26.md`](mobile_model_gatebook_2026-07-26.md) — one-file authority for evaluated vs catalog/scaffold by stage and execution lane.
+- [`mobile_model_shortlist_truth_and_gaps_2026-07-26.md`](mobile_model_shortlist_truth_and_gaps_2026-07-26.md) — concise list of what ran, what is scaffold-only, and what is catalog-only.
+- [`mobile_model_full_evaluation_compendium_2026-07-26.md`](mobile_model_full_evaluation_compendium_2026-07-26.md) — all 77 frontier entries with lane-by-lane status.
+- [`mobile_model_77_frontier_mobile_execution_matrix_2026-07-26.md`](mobile_model_77_frontier_mobile_execution_matrix_2026-07-26.md) — explicit 77-row mobile execution matrix (model-by-model) with status + why.
+- [`mobile_model_frontier_2026_plus_truth_matrix_2026-07-26.md`](mobile_model_frontier_2026_plus_truth_matrix_2026-07-26.md) — matrix by Android/iOS candidacy, transformers.js, and fine-tune status.
+- [`mobile_model_frontier_2026_plus_truth_matrix_2026-07-26.md`](mobile_model_frontier_2026_plus_truth_matrix_2026-07-26.md) includes a source integrity check (`77 / 77` source-to-matrix coverage) against `recent_models_2024_plus_inventory_2026-07-25.json`.
+- [`mobile_model_execution_readiness_matrix_2026-07-26.md`](mobile_model_execution_readiness_matrix_2026-07-26.md) — ready/scaffold/no-path by execution lane.
+- [`mobile_model_execution_decision_sheet_2026-07-26.md`](mobile_model_execution_decision_sheet_2026-07-26.md) — canonical single-page decision sheet for this request (evaluated vs not, stage/lane boundaries, shortlist, and next gates).
+- [`mobile_model_execution_ledger_2026-07-25.md`](mobile_model_execution_ledger_2026-07-25.md) — execution ledger by model and stage.
+- [`mobile_model_key_surface_inventory_2026-07-25.md`](mobile_model_key_surface_inventory_2026-07-25.md) — cross-project paid-key inventory.
+- [`docs/technical/mobile_local_model_evaluation_2026-07-24.md`](../technical/mobile_local_model_evaluation_2026-07-24.md) — legacy technical context.
+
+### Update (2026-07-26 continuation)
+
+The latest truth pass is now captured in:
+[`mobile_model_truth_addendum_2026-07-25.md`](mobile_model_truth_addendum_2026-07-25.md).
+Freshly added in this continuation:
+- Hosted smoke continuation: `docs/review/evidence/provider-smoke/continuation-combined-2026-07-26c.json` (OpenAI 3/3, OpenRouter 2/3, HF 2/3)
+- OpenRouter `gemma-3-4b-it` continuation: `docs/review/evidence/provider-smoke/continuation-combined-gemma3-2026-07-26c.json` (1/3)
+- Device harness run: `docs/review/evidence/local-model-eval/mobile-ondevice-harness-2026-07-26b.json` (3/3 control-path)
+It explicitly separates:
+
+- what is actually run in repo evidence,
+- what is scaffold/candidate-only,
+- and what is hosted or desktop-only.
+
+Latest correction from this pass:
+`flutter devices` is showing attached runtimes (`iPhone 17` simulator, `macOS`, `Chrome`), and
+the on-device test harness can reach install path logic when `ON_DEVICE_TEST_INSTALL_ATTEMPT`
+flags are set. That is not the same as a production-like run: no real `.task` download,
+install, load, or ask-on-device proof was completed.
+
+Additional 2026-07-25 continuation checkpoint:
+we re-ran the same seam checks in this turn and confirmed the state is unchanged:
+the mobile on-device runtime path is scaffolded and key-gated, but no Android/iOS
+`install -> load -> ask` artifact proof has been produced in-repo.
+
+Disk has been tight across passes; we now track it as a recurring constraint and a
+pre-run check item before large mobile artifacts are attempted.
+
+For the concrete "what is evaluated vs not-evaluated" inventory (including pipeline
+stage tags and mobile-runtime lane tags), use:
+[`mobile_model_evaluation_inventory_2026-07-25.md`](mobile_model_evaluation_inventory_2026-07-25.md).
+For the full model/lane compendium with execution metrics + cross-project key
+inventory + fallback chain reasoning, use:
+[`mobile_model_full_evaluation_compendium_2026-07-25.md`](mobile_model_full_evaluation_compendium_2026-07-25.md).
+For the 2026-07-26 frontier truth table with all 77 model entries and explicit
+pipeline-stage/Android+iOS/transformers.js/fine-tune statuses, use:
+[`mobile_model_frontier_2026_plus_truth_matrix_2026-07-26.md`](mobile_model_frontier_2026_plus_truth_matrix_2026-07-26.md).
+For a concrete provider key-surface inventory (names only, values omitted), use:
+[`mobile_model_key_surface_inventory_2026-07-25.md`](mobile_model_key_surface_inventory_2026-07-25.md).
+That file now includes a dedicated section "Mobile-ready model/options matrix requested
+in this pass" with stage-tagged local/offline, hosted, and catalog-only status.
+For a tighter one-page "evaluated vs not / catalog-only vs scaffold" decision sheet
+for this exact pass, use:
+[`mobile_model_runtime_execution_inventory_2026-07-25.md`](mobile_model_runtime_execution_inventory_2026-07-25.md).
+For the compact checklist that also includes the transformed shortlist with transform.js/managed-runtime/fine-tune visibility, use:
+[`mobile_model_shortlist_truth_and_gaps_2026-07-26.md`](mobile_model_shortlist_truth_and_gaps_2026-07-26.md).
+For the direct shortlist matching your requested criteria (`Android/iOS`, `transformers.js`, HF/OpenRouter/Modal, `fine-tune`, and stage mapping), use:
+[`mobile_model_decision_shortlist_2026-07-25.md`](mobile_model_decision_shortlist_2026-07-25.md).
+For a consolidated authority sheet tied directly to this same request with fresh test run context and frontier-listing anchors, use:
+[`mobile_model_authority_sheet_2026-07-25.md`](mobile_model_authority_sheet_2026-07-25.md).
+
+**Canonical decision register:**
+[`mobile_model_exploration_map_2026-07-24.md`](mobile_model_exploration_map_2026-07-24.md).
+It is the model-by-model candidate, evidence, device-architecture, and closure
+map; this top-level file carries only the strategic pointer and delta.
+For the active canonical on-device execution ledger (status as of 2026-07-25), use:
+[`mobile_model_execution_ledger_2026-07-25.md`](mobile_model_execution_ledger_2026-07-25.md).
+
+The consolidated strict evidence+evaluation ledger is:
+[`mobile_model_evidence_appendix_2026-07-24.md`](mobile_model_evidence_appendix_2026-07-24.md)
+for historical strict status.
+For the active strict status ledger (evaluated-vs-catalog-only), use:
+[`mobile_model_execution_ledger_2026-07-25.md`](mobile_model_execution_ledger_2026-07-25.md).
+For the consolidated stage-wise truth map that directly answers:
+evaluated vs scaffold vs catalog-only, Android/iOS candidacy, on-device vs hosted
+vs Transformers.js/web split, and fine-tune/adapter status in one place, use:
+[`mobile_model_evaluation_truth_map_2026-07-25.md`](mobile_model_evaluation_truth_map_2026-07-25.md).
+
+The canonical mobile research record is [`docs/technical/mobile_local_model_evaluation_2026-07-24.md`](../technical/mobile_local_model_evaluation_2026-07-24.md).
+A short, first-read map that ties stage-by-stage status and fallback choices is
+[`mobile_model_decision_onepager_2026-07-24.md`](mobile_model_decision_onepager_2026-07-24.md).
+For the explicit pass/fail by model and execution lane, and what is still missing,
+see [`mobile_model_full_truth_register_2026-07-24.md`](mobile_model_full_truth_register_2026-07-24.md).
+The short truth is: **no Android/iOS local LLM runtime or real-device model evaluation exists in the current Flutter app yet**. Existing Ollama, MLX, Gemma, Qwen2.5-VL, Surya, and desktop OCR evidence must not be represented as mobile proof.
+
+For the current consolidated stage-by-stage status and reasoned shortlist, use:
+[`mobile_model_truth_matrix_2026-07-25.md`](mobile_model_truth_matrix_2026-07-25.md).
+For the 2026-07-26 full frontier compendium (all 77 entries, including catalog-only
+pipeline-stage mapping), use:
+[`mobile_model_full_evaluation_compendium_2026-07-26.md`](mobile_model_full_evaluation_compendium_2026-07-26.md).
+For a single-file audited matrix that answers requested "evaluated vs not", "pipeline stage", "transformers.js/on-device", "HF Pro / OpenRouter / Modal", "Android vs iOS", and "fine-tune status", use the canonical:
+[`mobile_model_gatebook_2026-07-26.md`](mobile_model_gatebook_2026-07-26.md).
+This is the most recent single-source list of:
+- evaluated vs scaffold vs catalog-only vs hosted-only
+- Android/iOS candidacy
+- current blockers and next contract-completion gates
+
+The 2026-07-24 entries below remain valid for historical context; this matrix
+is now the active truth reference for decisions and execution planning.
+
+For the full 2025-2026 frontier candidate list (including OCR/parsing specialists
+such as Baidu Unlimited-OCR variants and other newer entrants), use:
+[`mobile_model_catalog_2025_2026_2026-07-24.md`](mobile_model_catalog_2025_2026_2026-07-24.md) (catalog snapshot).
+For the extracted, status-annotated 2024+ frontier register generated from
+`document_parsers_extractors_catalog_2026_v2.xlsx`, use:
+[`mobile_model_frontier_2024_plus_inventory_2026-07-25.md`](mobile_model_frontier_2024_plus_inventory_2026-07-25.md).
+
+Active status addendum (2026-07-26):
+- Device-path evidence is now reproducible for attached runtimes and harness reachability on `iPhone 16e`/`iPhone 17` simulators, `macOS`, and `Chrome`.
+- No real production-style `.task` install/load/ask trace has been added yet; current result is still guard-path + harness control coverage only.
+- `flutter devices --machine` reports **0 Android targets** in this pass, so Android parity for the on-device milestone remains pending until an Android device is attached.
+
+### Current closure map
+
+| Lane | Current status | Evidence | Next gate |
+|---|---|---|---|
+| Android Gemini Nano/AICore | Candidate; not integrated | Official Android platform documentation only | Capability detection and real Pixel/AICore device run |
+| iOS Foundation Models | Candidate; not integrated | Official Apple framework documentation only | Supported/unsupported device run and OS-model prompt regression |
+| Shared custom runtime | Candidate; not integrated | MediaPipe/LiteRT, ExecuTorch, ONNX Mobile, MLC, and llama.cpp docs | Flutter native bridge plus Android/iOS device matrix |
+| Transformers.js | Candidate for WebView/mobile-web only | HF WebGPU/WASM docs | Small-model WebView experiment; do not treat as Flutter-native |
+| Gemma 3n E2B/E4B | Leading newer shared-model candidate | Google mobile model docs | Export/runtime compatibility and corpus/device benchmark |
+| Qwen3 1.7B/4B, Phi-4-mini, SmolLM3 3B, Ministral 3 3B | Newer model candidates | Model cards / runtime availability | Quantization/export, license, corpus, latency, thermal evaluation |
+| Hugging Face Pro / Inference Providers | Cloud execution | HF provider/pricing docs | Data-handling approval and hosted benchmark only |
+| Modal Labs | Cloud GPU execution | Modal docs | Private hosted benchmark only; never label as on-device |
+
+The required evaluation contract is now recorded: model, pipeline, and data/config layers; held-out policy corpus; source/page grounding; schema validity; latency/memory/thermal/battery; failure/retry/cancellation; network/privacy traces; and real Android/iOS device evidence. “Candidate” is not “evaluated,” and “desktop local” is not “mobile local.” Android/iOS users are not expected to install Ollama; Ollama/MLX/llama-server remain server or developer benchmark lanes only.
+
+The 2026-07-24 cross-project credential recheck added an important correction:
+CoverWise has an OpenAI key-name surface; OrbitCover has an OpenRouter
+key-name surface; Comfy and the speech model-lab have Hugging Face and Modal
+credential names; other projects contain Gemini, Groq, Anthropic, and Together
+credential names. These are inventory signals only, not permission to reuse
+credentials or send CoverWise policy data. The earlier local Gemma/Qwen timings
+are server/desktop comparison evidence only and do not belong in the mobile
+execution decision.
+
+### Scope correction — mobile user architecture
+
+The actual question is which models and execution paths an Android/iOS user can
+benefit from: platform-managed on-device models, bundled/downloaded native
+models, WebView/Transformers.js models, or hosted APIs/private GPU services.
+Workstation-installed runtimes are not mobile product options and are tracked
+only as benchmark infrastructure.
+
+### Live provider and Modal evidence (2026-07-24)
+
+The reusable synthetic-only provider smoke at
+[`tools/evaluate_provider_smoke.py`](../../tools/evaluate_provider_smoke.py)
+now separates a discovered credential from a compatible provider response; it
+never reads the CoverWise policy corpus. OpenAI `gpt-5-nano` passed 3/3
+JSON/refusal/source-ID checks (median 1,237 ms; API reported
+`gpt-5-nano-2025-08-07`). OpenRouter Gemini Flash Lite and HF Inference
+Providers Qwen3 4B each passed 2/3, while OpenRouter Gemma 3 4B passed 1/3;
+each non-passing route failed at least one grounding check and is comparison
+only, not an automatic factual fallback. The existing Comfy Modal remote smoke
+completed, proving a private-GPU execution account but not a CoverWise model or
+mobile evaluation. Exact sanitized artifacts, selected fallback posture, and
+fine-tuning gates are in
+[`mobile_local_model_evaluation_2026-07-24.md`](../technical/mobile_local_model_evaluation_2026-07-24.md).
+
+### Anything else?
+
+The mobile direction must preserve the existing evidence-backed policy boundary. Local models can assist with bounded extraction, classification, and offline explanation, but cannot become an ungrounded insurance-fact source or silently replace the canonical PyMuPDF/evidence pipeline.
+
 ## Monetization and onboarding claim hardening (2026-07-21)
 
 Paywall and Upgrade now have one UI owner, but local RevenueCat-derived state is
@@ -3760,6 +3932,33 @@ Evidence sources used:
 
 Decision note: keep all image semantic interpretation, chart meaning, formula semantics, handwriting, and multilingual production claims on `candidate/review` until the gates above are closed with evidence-backed fixtures and operator-visible uncertainty.
 
+## Addendum (2026-07-23) — Preserve the workflow; strengthen the evidence contract
+
+The dashboard overview, coverage follow-up flow, and renewal reminders remain
+part of the product wedge. They are being migrated rather than removed:
+
+- the dashboard score measures policy-workspace readiness (current dates,
+  extracted details, review questions, and expiry timing), not household
+  adequacy or insurance health;
+- coverage insights distinguish `present`, `not_found_in_workspace`,
+  `not_verified`, `conflicting`, `expiring`, and `expired` states;
+- neutral review steps replace purchase, rider, adequacy, or insurer-action
+  claims; and
+- reminders remain user-controlled organization/review tools, not renewal
+  procurement or insurer notices.
+
+This is the chosen long-term path because it preserves user orientation and
+operator follow-through while aligning the surfaces with the permanent product
+boundary and the evidence-backed release contract. See
+`docs/decisions/ADR-2026-07-23-01-evidence-backed-policy-readiness.md`.
+
+### Anything else?
+
+The implementation must still close Tier 3 authenticated-flow evidence and
+Tier 4 device/manual evidence separately. Focused mobile tests establish the
+contract but do not prove deployed extraction, provider, or notification
+behavior.
+
 ## 2026-07-22 — Chunking, parsing, embedding strategy exploration
 
 Full exploration at
@@ -3792,3 +3991,30 @@ Full exploration at
 - Should contextual retrieval be re-enabled now that source_text/retrieval_text separation exists?
 - Should we add agentic query reformulation (retry with HyDE when retrieval score is low)?
 - What's the right priority order: table serialization → spatial KV → contextual retrieval → Docling?
+
+## 2026-07-22 — Chunking benchmark results (empirical evidence)
+
+Benchmarked 5 chunking strategies × 10 questions against the real ICICI Lombard
+policy. Full results at
+`docs/technical/rag/exploration/benchmark_findings_2026-07-22.md`.
+
+**Headline:**
+
+| Strategy | Chunks | Answer accuracy |
+|---|---|---|
+| A_paragraph (current) | 43 | 80% |
+| B_table_aware alone | 66 | 60% (worse — fragments context) |
+| C_page_level | 16 | 80% (fewer chunks, lower latency) |
+| **D_hybrid (table + page)** | 39 | **80%** (only strategy that solves Q2 sum insured) |
+| E_no_header (control) | 43 | 60% (proves context header adds +20%) |
+
+**Key evidence-based findings:**
+1. Context header adds +20% answer accuracy at zero cost (A vs E)
+2. Table serialization ALONE hurts (B) — fragments rather than enriches
+3. Hybrid chunking (D) is the only strategy that correctly retrieves sum insured
+4. Page-level chunking (C) matches paragraph accuracy with 63% fewer chunks
+5. Q8 (loyalty bonus) fails on all strategies — context header doesn't include it
+
+**Recommended next step:** implement Strategy D (hybrid) in the production
+pipeline, add loyalty_bonus to the context header, fix insured-members table
+serialization.

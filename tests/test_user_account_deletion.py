@@ -14,7 +14,6 @@ file enforces the new contract:
   `status == 'deletion_partial'`
 """
 
-import sys
 from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient

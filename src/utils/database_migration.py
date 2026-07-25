@@ -6,7 +6,6 @@ Creates tables for usage tracking, blocked domains, and insurance companies.
 import sqlite3
 import logging
 from datetime import datetime
-import os
 
 logger = logging.getLogger(__name__)
 

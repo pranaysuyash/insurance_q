@@ -155,7 +155,7 @@ class SupabaseDocumentObjectStore(DocumentObjectStore):
                 "SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_STORAGE_BUCKET are required"
             )
         try:
-            from supabase import create_client
+            from src.utils.supabase_client import create_client
         except ImportError as error:  # pragma: no cover - deployment dependency
             raise RuntimeError("supabase is required for Supabase document storage") from error
         self._client = create_client(url, service_role_key)

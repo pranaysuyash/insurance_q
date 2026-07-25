@@ -72,7 +72,7 @@ abstract final class CoverWiseTheme {
         elevation: 0,
         color: scheme.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.08)
@@ -117,7 +117,7 @@ abstract final class CoverWiseTheme {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }

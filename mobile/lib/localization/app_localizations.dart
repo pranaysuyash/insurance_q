@@ -111,6 +111,8 @@ class S {
   // QA — Snackbar / Errors
   static String qaCouldNotGetAnswer(String error) =>
       'Could not get an answer. ${error.isEmpty ? 'Please try again.' : error}';
+  static const String qaOfflineMessage =
+      'You are offline. Please check your connection and try again.';
   static const String qaFallbackAnswer =
       "Sorry, that didn't work. Please try again.";
   static const String qaPolicySource = 'Policy source';
@@ -153,7 +155,7 @@ class S {
   static String qaPacksFromMonthlyAndPacks(int monthly, int packs) =>
       '$monthly from monthly plan · $packs from packs';
   static String qaPacksQuestionsInPacks(int count) => '$count from packs';
-  static String qaPacksBestValue = 'Best value';
+  static String qaPacksBestValue = 'More monthly questions';
   static String qaPacksQuestionsEach(int count, String price) =>
       '$count questions · $price each';
   static String qaPacksPackPurchased(String name, int count) =>
@@ -221,9 +223,9 @@ class S {
   static const String insuranceCardsEmptySubtitle =
       'Choose a policy file to keep its key details ready on your phone.';
   static const String insuranceCardsChooseFile = 'Choose policy file';
-  static const String insuranceCardsHeaderTitle = 'Your cover, ready to carry';
+  static const String insuranceCardsHeaderTitle = 'Your policy details, ready to carry';
   static const String insuranceCardsHeaderSubtitle =
-      'A quick reference for policy and insurer details. Verify proof requirements with your insurer.';
+      'A quick reference for policy and insurer details. Verify current details with your insurer.';
   static const String insuranceCardsPolicyNumber = 'Policy Number';
   static const String insuranceCardsCoverage = 'Coverage';
   static const String insuranceCardsPremium = 'Premium';
@@ -232,7 +234,7 @@ class S {
   static const String insuranceCardsCallInsurer = 'Call insurer';
   static const String insuranceCardsShareCard = 'Share card';
   static const String insuranceCardsExpired = 'Expired';
-  static const String insuranceCardsShareTitle = 'CoverWise policy card';
+  static const String insuranceCardsShareTitle = 'CoverWise policy reference';
   static const String insuranceCardsInsurerPrefix = 'Insurer: ';
   static const String insuranceCardsPolicyNumberPrefix = 'Policy number: ';
   static const String insuranceCardsCoveragePrefix = 'Coverage: ';
@@ -250,11 +252,11 @@ class S {
   static const String renewalEmptyTitle = 'No policies tracked';
   static const String renewalEmptySubtitle =
       'Choose a policy file to track renewal dates.';
-  static const String renewalHeaderTitle = 'Never miss a renewal';
+  static const String renewalHeaderTitle = 'Keep renewals in view';
   static const String renewalHeaderSubtitle =
       'See what needs attention first and keep insurer contact details close.';
   static const String renewalReminderText =
-      'Get reminders 30, 15, 7 and 1 day before a policy expires.';
+      'Set reminders for 30, 15, 7 and 1 day before a policy expires.';
   static const String renewalRemindersOn = 'Renewal reminders are on.';
   static const String renewalNotificationsOff =
       'Notifications are off. You can enable them in Settings.';
@@ -316,9 +318,9 @@ class S {
   static const String settingsNotifications = 'Notifications';
   static const String settingsNotificationsSubtitle =
       'Renewal reminders and quiet hours';
-  static const String settingsSmartSuggestions = 'Smart Suggestions';
+  static const String settingsSmartSuggestions = 'Coverage insights';
   static const String settingsSmartSuggestionsSubtitle =
-      'AI-powered coverage recommendations';
+      'Coming soon: coverage guidance based on your policy details';
   static const String settingsServiceEndpoint = 'Service endpoint';
   static const String settingsClearDataTitle = 'Clear all local data?';
   static const String settingsClearDataAction = 'Clear local data';
@@ -364,6 +366,7 @@ class S {
   static const String profileAnonymousSessionActive =
       'Anonymous session active on this device';
   static const String profileAppSection = 'App';
+  static const String profileFamilySection = 'Family';
   static const String profilePrivacySection = 'Privacy';
   static const String profileDeviceFirstStorage = 'Device-first storage';
   static const String profileDeviceFirstSubtitle =
@@ -625,8 +628,9 @@ class S {
 
   // ─── Coverage Gap Screen ──────────────────────────────────────────
 
-  static const String coverageGapTitle = 'Coverage Gaps';
-  static const String coverageGapEmpty = 'No coverage gaps identified yet';
+  static const String coverageGapTitle = 'Coverage Review';
+  static const String coverageGapEmpty =
+      'No potential coverage questions flagged from the available policy text yet';
 
   // ─── Insurance Literacy Screen ────────────────────────────────────
 
@@ -685,6 +689,11 @@ class S {
   static const String docsRenameSuccess = 'Policy renamed';
   static const String docsRenameEmpty = 'Name cannot be empty';
 
+  // ─── Coverage Details Summary ────────────────────────────────────
+  static const String coverageShareSummary = 'Share summary';
+  static const String coverageShareSubject = 'CoverWise policy coverage summary';
+  static const String coverageShareError = 'Could not open sharing options';
+
   // ─── What-If Calculator ───────────────────────────────────────────
 
   static const String whatIfTitle = 'What-If Calculator';
@@ -720,14 +729,15 @@ class S {
 
   // ─── Family Visualization (P3-10) ──────────────────────────────────
   static const String familyVisTitle = 'Coverage map';
-  static const String familyVisHeader = 'Who is covered?';
-  static const String familyVisSubtitle = 'See which family members are covered by which policies.';
+  static const String familyVisHeader = 'Policy-listed family members';
+  static const String familyVisSubtitle =
+      'Compare family members listed in each policy; verify coverage with your insurer.';
   static const String familyVisMembers = 'Family members';
   static const String familyVisPolicies = 'Policies';
   static const String familyVisEmptyTitle = 'No coverage data yet';
-  static const String familyVisEmptySubtitle = 'Upload policies and add family members to see your coverage map.';
+  static const String familyVisEmptySubtitle =
+      'Upload policies and add family members to compare names listed in your policy documents.';
   static String familyVisNoPolicies(String name) =>
       'No policies listing $name yet.';
-  static const String familyVisSeeMap = 'View coverage map';
+  static const String familyVisSeeMap = 'View policy member map';
 }
-

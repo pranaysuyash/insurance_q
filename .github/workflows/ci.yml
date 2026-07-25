@@ -29,21 +29,10 @@ jobs:
       with:
         version: "0.7.8"
         
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '16'
-        
     - name: Install Python dependencies
       run: |
         uv venv --python ${{ matrix.python-version }} .venv
         uv pip install --python .venv/bin/python -r requirements-local.txt
-        
-    - name: Install Node.js dependencies
-      run: npm install
-        
-    - name: Build frontend assets
-      run: npm run build
         
     - name: Run tests
       run: tools/run_backend_tests.sh tests/ --cov=src --cov-report=xml
@@ -80,6 +69,42 @@ jobs:
     - name: Run critical static-safety checks
       run: |
         ruff check --select E9,F821 src tests
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        version: "0.7.8"
+
+    - name: Install local audit tooling
+      run: |
+        uv venv --python 3.11 .venv
+        uv pip install --python .venv/bin/python -r requirements-local.txt
+
+    - name: Audit declared production dependencies
+      run: |
+        .venv/bin/pip-audit -r requirements.txt --disable-pip --no-deps
+
+    - name: Verify Linux OCR lock is current
+      run: |
+        lock_check=$(mktemp)
+        uv pip compile requirements-production-ocr.txt \
+          --generate-hashes \
+          --python-platform x86_64-manylinux_2_17 \
+          --torch-backend cpu \
+          --output-file "$lock_check"
+        sed '1,2d' requirements-production-ocr-linux-x86_64.lock > "$lock_check.expected"
+        sed '1,2d' "$lock_check" > "$lock_check.actual"
+        cmp --silent "$lock_check.expected" "$lock_check.actual"
 
   mobile:
     runs-on: ubuntu-latest
@@ -128,7 +153,7 @@ jobs:
         if-no-files-found: ignore
 
   docker:
-    needs: [test, lint, mobile]
+    needs: [test, lint, supply-chain, mobile]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     

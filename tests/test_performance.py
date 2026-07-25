@@ -4,10 +4,10 @@ Measures query latency and validates performance targets.
 
 Run with: pytest tests/test_performance.py -v
 """
-import pytest
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
-from types import SimpleNamespace
+import asyncio
+
+import pytest
 
 
 class TestQueryLatency:
@@ -54,6 +54,3 @@ class TestRAGFusionPerformance:
         
         elapsed = time.time() - start
         assert elapsed < 1.0
-
-
-import asyncio

@@ -5,6 +5,14 @@
 - [ADR-2026-07-22-02 — Riverpod for all service dependency injection](ADR-2026-07-22-02-service-dependency-injection-riverpod.md)
 - [ADR-2026-07-22-08 — Identity + RAG platform strategy (managed Supabase first, OSS paths next)](ADR-2026-07-22-08-auth-and-provider-platform-strategy.md)
 - [ADR-2026-07-22-10 — Parser capability closure policy for launch claims](ADR-2026-07-22-10-parser-capability-closure-policy.md)
+- [ADR-2026-07-23-01 — Evidence-backed policy readiness and coverage overview](ADR-2026-07-23-01-evidence-backed-policy-readiness.md)
+- [ADR-2026-07-24-01 — Deprecation debt closure at the supported boundaries](ADR-2026-07-24-01-deprecation-debt-closure.md)
+- [ADR-2026-07-24-02 — Claims are a personal log, not insurer workflow](ADR-2026-07-24-02-personal-claim-log-boundary.md)
+- [ADR-2026-07-24-03 — PyJWT for anonymous HS256 identity tokens](ADR-2026-07-24-03-anonymous-jwt-library.md)
+- [ADR-2026-07-24-04 — Production Host-header allow-list](ADR-2026-07-24-04-production-host-allowlist.md)
+- [ADR-2026-07-24-05 — Intentional API entrypoint import order](ADR-2026-07-24-05-entrypoint-bootstrap-import-order.md)
+- [ADR-2026-07-24-06 — FastAPI and Starlette security baseline](ADR-2026-07-24-06-fastapi-starlette-security-baseline.md)
+- [ADR-2026-07-24-07 — RevenueCat refund-reversal entitlement semantics](ADR-2026-07-24-07-revenuecat-refund-reversal-semantics.md)
 
 This file lists every architectural, product, integration, data-pipeline, payment, customer-facing, or operational decision made in CoverWise, with a link to the full decision record. Records follow the `motto_v4.md` decision-record schema (decision, date, context, options, chosen path, why, tradeoffs, assumptions, risks, validation, rollback, revisit triggers, links).
 
@@ -39,6 +47,8 @@ A decision that is not recorded will be rediscovered and debated again.
 | ADR-2026-07-22-02 | 2026-07-22 | Riverpod for all service dependency injection | Proposed | [link](./ADR-2026-07-22-02-service-dependency-injection-riverpod.md) |
 | ADR-2026-07-22-08 | 2026-07-22 | Identity + RAG platform strategy (managed Supabase first, OSS paths next) | Proposed | [link](./ADR-2026-07-22-08-auth-and-provider-platform-strategy.md) |
 | ADR-2026-07-22-10 | 2026-07-22 | Parser capability closure policy for launch claims | Proposed | [link](./ADR-2026-07-22-10-parser-capability-closure-policy.md) |
+| ADR-2026-07-23-01 | 2026-07-23 | Preserve dashboard/coverage workflows while migrating semantics to evidence-backed policy readiness and neutral coverage facts | Accepted for implementation in stages | [link](./ADR-2026-07-23-01-evidence-backed-policy-readiness.md) |
+| ADR-2026-07-24-07 | 2026-07-24 | A RevenueCat refund reversal restores only a provider-current entitlement | Accepted for implementation | [link](./ADR-2026-07-24-07-revenuecat-refund-reversal-semantics.md) |
 
 ### Notes on the 5 Accepted ADRs (2026-07-19)
 

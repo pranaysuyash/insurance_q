@@ -33,3 +33,13 @@ final currentUserProvider = Provider<User?>((ref) {
     data: (state) => state.session?.user,
   );
 });
+
+/// Provider that signals when the auth session has expired and token refresh
+/// has failed. The UI shows a non-blocking banner instead of a generic error.
+/// The user can continue viewing cached data while being prompted to re-auth.
+/// Clears automatically when a new token is acquired.
+final authSessionExpiredProvider = Provider<bool>((ref) {
+  // Watch the auth service's sessionExpired flag via the auth service state.
+  final authService = ref.watch(authServiceProvider);
+  return authService.sessionExpired;
+});

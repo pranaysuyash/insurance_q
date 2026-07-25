@@ -4,10 +4,9 @@ Document Classification Utility
 Intelligently determines document type from content using RAG queries.
 """
 
-import json
 import re
 import logging
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -47,6 +46,15 @@ class DocumentClassifier:
                 'death benefit', 'cash value', 'premium', 'policy loan',
                 'surrender value', 'rider', 'accidental death', 'disability',
                 'waiver of premium', 'estate planning', 'inheritance'
+            ],
+            'travel_insurance': [
+                'travel', 'overseas', 'trip', 'itinerary', 'journey', 'tour',
+                'flight', 'baggage', 'luggage', 'cancellation', 'trip cancellation',
+                'medical evacuation', 'repatriation', 'personal accident',
+                'destination', 'passport', 'visa', 'travel delay',
+                'baggage loss', 'baggage delay', 'emergency assistance',
+                'travel medical', 'travel insurance', 'travel protection',
+                'foreign travel', 'international travel', 'abroad'
             ]
         }
         
@@ -88,7 +96,7 @@ class DocumentClassifier:
     _LLM_CLASSIFY_PROMPT = (
         "You are an insurance document classifier. Based on the document text below, "
         "determine the document type (one of: Health Insurance, Auto Insurance, "
-        "Home Insurance, Life Insurance, or Unknown), the insurance company name, "
+        "Home Insurance, Life Insurance, Travel Insurance, or Unknown), the insurance company name, "
         "and the policy number if present. Respond in JSON."
     )
 
@@ -144,6 +152,7 @@ class DocumentClassifier:
         """Use LLM to classify document when keyword confidence is low."""
         try:
             from pydantic import BaseModel, Field
+            from src.security.prompt_injection import fence_untrusted_content
 
             class LLMClassification(BaseModel):
                 document_type: str = Field(description="One of: Health Insurance, Auto Insurance, Home Insurance, Life Insurance")
@@ -154,7 +163,7 @@ class DocumentClassifier:
             result = await self.rag_pipeline.llm.generate_structured(
                 messages=[
                     {"role": "system", "content": self._LLM_CLASSIFY_PROMPT},
-                    {"role": "user", "content": f"Document text:\n{text_sample}\n\nClassify this document."},
+                    {"role": "user", "content": f"Document text:\n{fence_untrusted_content('classification_document', text_sample, max_chars=3000)}\n\nClassify this document."},
                 ],
                 response_model=LLMClassification,
                 temperature=0.1,
@@ -327,4 +336,4 @@ def get_document_classifier(rag_pipeline=None) -> DocumentClassifier:
         _classifier_instance = DocumentClassifier(rag_pipeline)
     elif rag_pipeline and not _classifier_instance.rag_pipeline:
         _classifier_instance.rag_pipeline = rag_pipeline
-    return _classifier_instance 
+    return _classifier_instance

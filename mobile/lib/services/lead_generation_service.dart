@@ -38,7 +38,7 @@ enum CtaTopic {
   general,
 }
 
-/// Engine that determines which CTAs to show based on Q&A context and policy state.
+/// Engine that determines which document-review CTAs to show from Q&A context.
 ///
 /// Rules are evaluated in priority order. The first match wins to avoid
 /// overwhelming the user with multiple CTAs per surface.
@@ -96,93 +96,61 @@ class LeadGenerationService {
     return CtaTopic.general;
   }
 
-  /// Build CTAs relevant to the given topic and optional policy summary.
+  /// Build document-review CTAs relevant to the given topic and policy.
   ///
+  /// CoverWise does not compare insurance products, quote prices, recommend
+  /// cover, or broker an adviser relationship. Every active CTA therefore
+  /// returns the user to an evidence-backed question about their own policy.
   /// Returns an empty list when no CTA is applicable.
   static List<CtaDefinition> ctasForTopic({
     required CtaTopic topic,
     required PolicySummary? policy,
-    required BuildContext context,
     required VoidCallback onUpgrade,
-    required VoidCallback onCompare,
-    required VoidCallback onNewsletter,
-    required VoidCallback onContactAgent,
   }) {
     final list = <CtaDefinition>[];
 
     switch (topic) {
       case CtaTopic.coverageGap:
         list.add(CtaDefinition(
-          id: 'gap_compare',
-          icon: Icons.compare_arrows_rounded,
+          id: 'coverage_review',
+          icon: Icons.find_in_page_outlined,
           iconColor: const Color(0xFFD97706),
-          title: 'Compare coverage options',
+          title: 'Review your policy wording',
           body: policy != null
-              ? 'Your ${policy.documentType} may have gaps you can fill. See what other plans offer.'
-              : 'See how different plans compare on coverage and exclusions.',
-          actionLabel: 'Compare plans',
-          actionIcon: Icons.open_in_new_rounded,
-          onAction: onCompare,
-        ));
-        list.add(CtaDefinition(
-          id: 'gap_agent',
-          icon: Icons.support_agent_rounded,
-          iconColor: const Color(0xFF087F75),
-          title: 'Talk to an insurance advisor',
-          body: 'A professional can help you understand coverage gaps and find suitable protection.',
-          actionLabel: 'Connect with advisor',
-          actionIcon: Icons.arrow_forward_rounded,
-          onAction: onContactAgent,
+              ? 'Ask what ${policy.documentType} records or does not verify in your uploaded policy.'
+              : 'Ask what your uploaded policy records or does not verify.',
+          actionLabel: 'Ask about this policy',
+          actionIcon: Icons.question_answer_outlined,
+          onAction: onUpgrade,
         ));
         break;
 
       case CtaTopic.renewal:
         list.add(CtaDefinition(
-          id: 'renew_reminder',
+          id: 'renewal_review',
           icon: Icons.notifications_active_outlined,
           iconColor: const Color(0xFF7C5AC7),
-          title: 'Get renewal reminders',
-          body: 'Never miss a renewal. We can notify you 30, 15, 7 and 1 day before expiry.',
-          actionLabel: 'Set reminders',
-          actionIcon: Icons.toggle_on_outlined,
+          title: 'Review the recorded policy date',
+          body:
+              'Confirm the expiry date in your source policy, then choose reminders on this device if useful.',
+          actionLabel: 'Ask about this policy',
+          actionIcon: Icons.question_answer_outlined,
           onAction: onUpgrade,
         ));
-        if (policy?.insurer != null) {
-          list.add(CtaDefinition(
-            id: 'renew_compare',
-            icon: Icons.shopping_cart_outlined,
-            iconColor: const Color(0xFFD14A61),
-            title: 'Compare renewal offers',
-            body: 'See if better rates are available before renewing with ${policy!.insurer}.',
-            actionLabel: 'View offers',
-            actionIcon: Icons.arrow_forward_rounded,
-            onAction: onCompare,
-          ));
-        }
         break;
 
       case CtaTopic.premium:
         list.add(CtaDefinition(
-          id: 'premium_tips',
-          icon: Icons.lightbulb_outline_rounded,
+          id: 'premium_review',
+          icon: Icons.receipt_long_outlined,
           iconColor: const Color(0xFFD97706),
-          title: 'Ways to save on premiums',
-          body: 'Higher deductibles, bundling policies, or health improvements can reduce your premium.',
-          actionLabel: 'Get saving tips',
-          actionIcon: Icons.arrow_forward_rounded,
-          onAction: onNewsletter,
-        ));
-        list.add(CtaDefinition(
-          id: 'premium_compare',
-          icon: Icons.trending_down_rounded,
-          iconColor: const Color(0xFF087F75),
-          title: 'Compare premium rates',
           body: policy != null
-              ? 'See how your current premium compares to similar plans from other insurers.'
-              : 'Discover plans that fit your budget.',
-          actionLabel: 'Compare rates',
-          actionIcon: Icons.open_in_new_rounded,
-          onAction: onCompare,
+              ? 'Ask what premium information was extracted from this ${policy.documentType}.'
+              : 'Ask what premium information was extracted from your policy.',
+          title: 'Review premium details',
+          actionLabel: 'Ask about this policy',
+          actionIcon: Icons.question_answer_outlined,
+          onAction: onUpgrade,
         ));
         break;
 
@@ -191,11 +159,12 @@ class LeadGenerationService {
           id: 'exclusion_understand',
           icon: Icons.psychology_outlined,
           iconColor: const Color(0xFF7C5AC7),
-          title: 'Understanding exclusions',
-          body: 'Exclusions vary widely between plans. Know what to watch for when choosing coverage.',
-          actionLabel: 'Learn more',
-          actionIcon: Icons.arrow_forward_rounded,
-          onAction: onNewsletter,
+          title: 'Review exclusions in your policy',
+          body:
+              'Ask which exclusions were found in your uploaded policy wording and verify important details with the insurer.',
+          actionLabel: 'Ask about this policy',
+          actionIcon: Icons.question_answer_outlined,
+          onAction: onUpgrade,
         ));
         break;
 
@@ -204,10 +173,11 @@ class LeadGenerationService {
           id: 'claim_guide',
           icon: Icons.fact_check_outlined,
           iconColor: const Color(0xFF087F75),
-          title: 'Prepare for a claim',
-          body: 'Keep documents ready. Our claim guide walks through what insurers typically require.',
-          actionLabel: 'View claim guide',
-          actionIcon: Icons.arrow_forward_rounded,
+          title: 'Review claim-related policy wording',
+          body:
+              'Ask what your uploaded policy says. Claim decisions and requirements remain with the insurer.',
+          actionLabel: 'Ask about this policy',
+          actionIcon: Icons.question_answer_outlined,
           onAction: onUpgrade,
         ));
         break;
@@ -217,11 +187,12 @@ class LeadGenerationService {
           id: 'waiting_explain',
           icon: Icons.schedule_outlined,
           iconColor: const Color(0xFFD14A61),
-          title: 'How waiting periods work',
-          body: 'Most health policies have waiting periods for pre-existing conditions. Some waive them for higher premiums.',
-          actionLabel: 'Learn about waiting periods',
-          actionIcon: Icons.arrow_forward_rounded,
-          onAction: onNewsletter,
+          title: 'Review waiting periods in your policy',
+          body:
+              'Ask what waiting-period wording was found in your uploaded policy and confirm important details with the insurer.',
+          actionLabel: 'Ask about this policy',
+          actionIcon: Icons.question_answer_outlined,
+          onAction: onUpgrade,
         ));
         break;
 

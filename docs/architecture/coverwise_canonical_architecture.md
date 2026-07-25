@@ -1,7 +1,7 @@
 # CoverWise Canonical Architecture
 
 **Status:** Living document. Updated when the system changes.
-**Last updated:** 2026-07-19 (added §5.1 substrate is a primary deliverable, per ADR-2026-07-19-11 Layers 1-3)
+**Last updated:** 2026-07-24 (added §6 four-face evidence-backed contract, all 4 faces implemented + tested)
 **Maintainer:** Pranay (operator) + every agent/engineer who changes the system
 **Decision record:** [ADR-2026-07-19-05](../decisions/ADR-2026-07-19-05-canonical-architecture-doc-location.md)
 
@@ -9,13 +9,14 @@ This is the canonical architecture for CoverWise. It is the **map of the system*
 
 For the end-to-end person and operator journeys that this architecture supports, use the canonical [CoverWise User Journey Map](../user_experience/coverwise_user_journey_map.md), governed by [ADR-2026-07-21-01](../decisions/ADR-2026-07-21-01-canonical-user-journey-map.md).
 
-The doc answers 5 questions a new engineer needs to understand the system in 30 minutes:
+The doc answers 6 questions a new engineer needs to understand the system in 30 minutes:
 
 1. What are the 5 main components?
 2. What are the 5 async paths?
 3. What happens when a user uploads a PDF? (the data flow)
 4. What is the trust + security boundary?
 5. What is the substrate and how is it populated?
+6. What is the 'evidence-backed' contract (the four faces)?
 
 ---
 
@@ -247,6 +248,50 @@ Per ADR-2026-07-19-11 (substrate as primary deliverable), the user sees the sour
 
 ---
 
+## 6. What is the 'evidence-backed' contract (the four faces)?
+
+Per [ADR-2026-07-19-09](../decisions/ADR-2026-07-19-09-evidence-backed-release-grade-definition.md),
+an answer is **"evidence-backed"** if and only if all four faces pass.
+All four faces are now fully implemented with **67 tests** (8 substrate + 16 citation + 24 answer + 12 UI + 7 composite).
+
+| Face | Contract | Verifier | Implementation | Tests |
+|------|----------|----------|---------------|-------|
+| 1. **Substrate** | Field exists in `extracted_fields`, `evidence_strength ≥ 0.7`, `parser_version` = current, owner matches principal, has linked `field_evidence` | `is_substrate_backed(field_id, principal_id)` | `src/services/evidence_substrate_service.py` | 8 ✅ |
+| 2. **Citation** | `source_index` in bounds, `document_id` matches, quote is substring of `source_text`, quote NOT from `retrieval_text`, `page_number` valid | `verify_citation(citation, source_text, ...)` | `src/services/citation_verifier.py` | 16 ✅ |
+| 3. **Answer** | Every material claim has a verified citation marker. Status is `fully_backed`, `partially_backed`, or `abstained` (never `unverified`) | `verify_answer(answer_text, citations)` | `src/services/answer_verifier.py` | 24 ✅ |
+| 4. **UI** | Badge shows verification state, citations render with source/page/status, unsupported claims greyed out, no verified claim without badge | Widget tests | `mobile/lib/widgets/answer_verification_badge.dart` | 12 ✅ |
+| **Composite** | Upload → extract → verify citation → verify answer → render badge flow | Composite integration test | `tests/test_composite_evidence_face.py` | 7 ✅ |
+
+### Composite gate
+
+An answer is "evidence-backed" only when `verification_status == fully_backed`
+(all four faces pass). `partially_backed` and `abstained` answers are NOT
+evidence-backed — the UI renders them honestly via `AnswerVerificationBadge`.
+
+The composite test (`tests/test_composite_evidence_face.py`) validates the full
+flow with a mocked substrate (Face 1), real citation verifier (Face 2), and real
+answer verifier (Face 3). Face 4 (UI) is covered by widget tests in
+`mobile/test/answer_verification_badge_test.dart`.
+
+### How the four faces connect to the data flow (Step 6)
+
+When a user asks a question (Step 6 of §3), the answer generation pipeline now
+includes three verification steps between retrieval and rendering:
+
+```
+User asks question
+  → RAG pipeline retrieves chunks
+  → LLM generates answer with citation markers [1], [2], ...
+  → Citation verifier checks every citation against source_text (Face 2)
+  → Answer verifier classifies backed / partially / abstained (Face 3)
+  → UI badge renders verification state next to answer (Face 4)
+  → Every cited field already passed the substrate face at extraction time (Face 1)
+```
+
+The launch-claim registry is at [`docs/launch_claims/evidence-backed.md`](../launch_claims/evidence-backed.md).
+
+---
+
 ## Appendix A: Directory map (what's where)
 
 ```
@@ -300,6 +345,7 @@ medpiper/insurance_app/
 | ADR-2026-07-19-05 | Canonical architecture doc = `docs/architecture/coverwise_canonical_architecture.md` (this file) | [link](../decisions/ADR-2026-07-19-05-canonical-architecture-doc-location.md) |
 | ADR-2026-07-19-06 | Security Phase 1 = principal-scoped encrypted local storage (JWT-derived key) | [link](../decisions/ADR-2026-07-19-06-security-phase-1-principal-scoped-encrypted-local-storage.md) |
 | ADR-2026-07-19-07 | Security Phase 2 = server-side append-only consent ledger (Postgres table with trigger-enforced append-only) | [link](../decisions/ADR-2026-07-19-07-security-phase-2-server-side-consent-ledger.md) |
+| ADR-2026-07-19-09 | "Evidence-backed" release-grade definition = four-face contract (substrate, citation, answer, UI) | [link](../decisions/ADR-2026-07-19-09-evidence-backed-release-grade-definition.md) |
 
 Plus 9 retroactive decision records (for Phase 0, RevOps R1, payment provider, operator auth, scaffold, substrate design, LLM honesty, contextual retrieval, LLM client fix) listed in [`docs/decisions/README.md`](../decisions/README.md).
 

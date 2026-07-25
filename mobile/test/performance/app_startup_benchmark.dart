@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Cold-start benchmark for CoverWise.
@@ -25,11 +24,6 @@ void main() {
     final elapsed = stopwatch.elapsedMilliseconds;
     const budget = 3000; // 3 seconds
 
-    print('Cold start benchmark: ${elapsed}ms (budget: ${budget}ms)');
     expect(elapsed, lessThan(budget));
-
-    if (elapsed > budget) {
-      stderr.writeln('WARNING: cold start ${elapsed}ms exceeds ${budget}ms budget');
-    }
   });
 }

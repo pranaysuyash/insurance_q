@@ -1,0 +1,1 @@
+{"status":"success","active_processing_jobs":1,"jobs":{"96134f00-1414-497a-b31d-10f90c444f72":{"status":"processing","stage":"completed_summary_partial","filename":"sample_insurance.pdf","owner_id":"anon:902d6835-ee90-4703-808d-886fc5cf5332","started_at":"2026-07-22T10:15:45.897620","progress":100,"updated_at":"2026-07-22T10:15:49.005143"}}}

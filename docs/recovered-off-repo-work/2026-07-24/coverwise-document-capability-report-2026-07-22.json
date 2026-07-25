@@ -1,0 +1,456 @@
+{
+  "manifest_id": "coverwise-document-intelligence-v1",
+  "schema_version": "document-intelligence-benchmark.v1",
+  "manifest_sha256": "a0b4ef41cd835219f231c8dcfd7edb707315c3de5a16111347bb6aa408149355",
+  "case_results": [
+    {
+      "id": "digital_pdf_native",
+      "fixture": "tests/test_data/sample_insurance.pdf",
+      "fixture_sha256": "04ce43931d0d8af97b6c81499d17ed192f1191463297be016452bca612082af2",
+      "status": "passed",
+      "elapsed_seconds": 0.0051,
+      "page_count": 1,
+      "observed_capabilities": [
+        "layout",
+        "native_text"
+      ],
+      "required_capabilities": [
+        "layout",
+        "native_text"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "Insurance Policy": true,
+        "#12345": true
+      },
+      "node_counts": {
+        "layout_block": 1,
+        "page": 1,
+        "sentence": 1,
+        "text_block": 1
+      }
+    },
+    {
+      "id": "synthetic_mixed_native",
+      "fixture": "generated:synthetic_mixed_native",
+      "fixture_sha256": "c366f6ffc861af1eab46024d1698c8d58b96fdabcaf86189538842d3f3b7c146",
+      "status": "passed",
+      "elapsed_seconds": 0.0067,
+      "page_count": 1,
+      "observed_capabilities": [
+        "figure",
+        "layout",
+        "native_text",
+        "table"
+      ],
+      "required_capabilities": [
+        "figure",
+        "layout",
+        "native_text",
+        "table"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "Health policy schedule": true,
+        "500000": true
+      },
+      "node_counts": {
+        "figure": 1,
+        "layout_block": 4,
+        "page": 1,
+        "sentence": 1,
+        "table": 1,
+        "table_cell": 4,
+        "text_block": 1
+      }
+    },
+    {
+      "id": "synthetic_scan_doctr",
+      "fixture": "generated:synthetic_scan",
+      "fixture_sha256": "59bcf9124cd220ba4db564ac4c4f7c24a350d37bf6d748d68f2ec4aa8222701e",
+      "status": "passed",
+      "elapsed_seconds": 1.4357,
+      "page_count": 1,
+      "observed_capabilities": [
+        "image_artifact",
+        "scanned_ocr"
+      ],
+      "required_capabilities": [
+        "image_artifact",
+        "scanned_ocr"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "Health Policy": true,
+        "500000": true,
+        "POLICY-TEST-001": true
+      },
+      "node_counts": {
+        "page": 1,
+        "sentence": 1,
+        "text_block": 1
+      }
+    },
+    {
+      "id": "synthetic_mixed_scan_pdf_doctr",
+      "fixture": "generated:synthetic_mixed_scan_pdf",
+      "fixture_sha256": "f2ba2349b03858cbd4d0e189eb9a336911a0d493b135a2a72a058a0db4e9a169",
+      "status": "passed",
+      "elapsed_seconds": 0.8019,
+      "page_count": 2,
+      "observed_capabilities": [
+        "figure",
+        "layout",
+        "native_text",
+        "scanned_ocr"
+      ],
+      "required_capabilities": [
+        "layout",
+        "native_text",
+        "scanned_ocr"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "NATIVE-001": true,
+        "Health Policy": true,
+        "POLICY-TEST-001": true
+      },
+      "native_text_pages": [
+        1
+      ],
+      "ocr_pages": [
+        2
+      ],
+      "unresolved_pages": [],
+      "node_counts": {
+        "figure": 1,
+        "layout_block": 2,
+        "page": 2,
+        "sentence": 2,
+        "text_block": 2
+      }
+    },
+    {
+      "id": "synthetic_form_native",
+      "fixture": "generated:synthetic_form_pdf",
+      "fixture_sha256": "1991105de9a9c3960ebf2b47993dd01991fcf347f583fd3792868ffeab2747b7",
+      "status": "passed",
+      "elapsed_seconds": 0.0039,
+      "page_count": 1,
+      "observed_capabilities": [
+        "form",
+        "layout",
+        "native_text"
+      ],
+      "required_capabilities": [
+        "form",
+        "layout",
+        "native_text"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "Policy number": true,
+        "POL-123": true
+      },
+      "node_counts": {
+        "form_field": 1,
+        "layout_block": 1,
+        "page": 1,
+        "sentence": 1,
+        "text_block": 1
+      }
+    },
+    {
+      "id": "synthetic_docx_native",
+      "fixture": "generated:synthetic_docx_native",
+      "fixture_sha256": "6688b1285de45b7253aa35a6be748ee273a1b49e479eeebf5593528e48dd0548",
+      "status": "passed",
+      "elapsed_seconds": 0.0252,
+      "page_count": 1,
+      "observed_capabilities": [
+        "figure",
+        "native_text",
+        "table"
+      ],
+      "required_capabilities": [
+        "native_text",
+        "table"
+      ],
+      "missing_capabilities": [],
+      "observed_node_types": [
+        "figure",
+        "heading",
+        "page",
+        "sentence",
+        "table",
+        "table_cell",
+        "text_block"
+      ],
+      "missing_node_types": [],
+      "expected_token_matches": {
+        "Health Policy": true,
+        "Hospitalization": true,
+        "500000": true
+      },
+      "node_counts": {
+        "figure": 1,
+        "heading": 1,
+        "page": 2,
+        "sentence": 2,
+        "table": 1,
+        "table_cell": 4,
+        "text_block": 2
+      }
+    },
+    {
+      "id": "synthetic_html_native",
+      "fixture": "generated:synthetic_html_native",
+      "fixture_sha256": "aef0009e7442d1430a3c001163e3ac6b30c51ff7b0462d7840f2e40a5a3bc27f",
+      "status": "passed",
+      "elapsed_seconds": 0.0003,
+      "page_count": 1,
+      "observed_capabilities": [
+        "figure",
+        "native_text",
+        "table"
+      ],
+      "required_capabilities": [
+        "figure",
+        "native_text",
+        "table"
+      ],
+      "missing_capabilities": [],
+      "observed_node_types": [
+        "figure",
+        "heading",
+        "page",
+        "sentence",
+        "table",
+        "table_cell",
+        "text_block"
+      ],
+      "missing_node_types": [],
+      "expected_token_matches": {
+        "Health Policy": true,
+        "Hospitalization": true,
+        "500000": true
+      },
+      "node_counts": {
+        "figure": 1,
+        "heading": 1,
+        "page": 2,
+        "sentence": 2,
+        "table": 1,
+        "table_cell": 4,
+        "text_block": 2
+      }
+    },
+    {
+      "id": "synthetic_eml_native",
+      "fixture": "generated:synthetic_eml_native",
+      "fixture_sha256": "7c80742475f3797d6a3f0d2d208aae3301f9e2ced8299de31c537f5b885987d8",
+      "status": "passed",
+      "elapsed_seconds": 0.0017,
+      "page_count": 1,
+      "observed_capabilities": [
+        "figure",
+        "native_text"
+      ],
+      "required_capabilities": [
+        "figure",
+        "native_text"
+      ],
+      "missing_capabilities": [],
+      "observed_node_types": [
+        "figure",
+        "heading",
+        "page",
+        "sentence",
+        "text_block"
+      ],
+      "missing_node_types": [],
+      "expected_token_matches": {
+        "POL-123": true
+      },
+      "node_counts": {
+        "figure": 1,
+        "heading": 1,
+        "page": 2,
+        "sentence": 1,
+        "text_block": 2
+      }
+    },
+    {
+      "id": "synthetic_xlsx_native",
+      "fixture": "generated:synthetic_xlsx_native",
+      "fixture_sha256": "edae0afc6d29be60e1a891eceac32f11303bb1022623e821966b6342d7a44977",
+      "status": "passed",
+      "elapsed_seconds": 0.0116,
+      "page_count": 1,
+      "observed_capabilities": [
+        "native_text",
+        "table"
+      ],
+      "required_capabilities": [
+        "native_text",
+        "table"
+      ],
+      "missing_capabilities": [],
+      "observed_node_types": [
+        "page",
+        "sentence",
+        "table",
+        "table_cell",
+        "text_block"
+      ],
+      "missing_node_types": [],
+      "expected_token_matches": {
+        "Hospitalization": true,
+        "500000": true,
+        "=B2*2": true
+      },
+      "node_counts": {
+        "page": 2,
+        "sentence": 1,
+        "table": 1,
+        "table_cell": 6,
+        "text_block": 1
+      }
+    },
+    {
+      "id": "synthetic_pptx_native",
+      "fixture": "generated:synthetic_pptx_native",
+      "fixture_sha256": "7b4e39a9959a36daffba1d24db040281c32bf42a86a1ce61808bfedd6a675b88",
+      "status": "passed",
+      "elapsed_seconds": 0.0123,
+      "page_count": 1,
+      "observed_capabilities": [
+        "native_text",
+        "table"
+      ],
+      "required_capabilities": [
+        "native_text",
+        "table"
+      ],
+      "missing_capabilities": [],
+      "observed_node_types": [
+        "heading",
+        "page",
+        "sentence",
+        "table",
+        "table_cell",
+        "text_block"
+      ],
+      "missing_node_types": [],
+      "expected_token_matches": {
+        "Health Policy": true,
+        "Hospitalization": true,
+        "500000": true
+      },
+      "node_counts": {
+        "heading": 1,
+        "page": 2,
+        "sentence": 2,
+        "table": 1,
+        "table_cell": 4,
+        "text_block": 2
+      }
+    }
+  ],
+  "capability_gates": [
+    {
+      "capability": "scanned_ocr",
+      "status": "synthetic_tier2_measured_corpus_pending",
+      "profiles": [
+        "doctr",
+        "Surya",
+        "PaddleOCR/PP-Structure"
+      ],
+      "evidence_required": [
+        "word accuracy",
+        "page provenance",
+        "p95 latency",
+        "timeout and partial-success behavior"
+      ]
+    },
+    {
+      "capability": "forms",
+      "status": "native_form_structure_ready_specialist_scan_pending",
+      "profiles": [
+        "Azure Document Intelligence",
+        "Google Document AI",
+        "AWS Textract",
+        "Paddle KIE"
+      ],
+      "evidence_required": [
+        "key/value geometry",
+        "selection-mark accuracy",
+        "privacy and cost approval"
+      ]
+    },
+    {
+      "capability": "formulas",
+      "status": "benchmark_pending",
+      "profiles": [
+        "MinerU",
+        "Paddle formula recognition",
+        "Nougat",
+        "Mathpix/Pix2Text"
+      ],
+      "evidence_required": [
+        "LaTeX/MathML fidelity",
+        "source crop linkage",
+        "model and weight license review"
+      ]
+    },
+    {
+      "capability": "figures_and_charts",
+      "status": "native_artifact_ready_vlm_annotation_pending",
+      "profiles": [
+        "native image preservation",
+        "Mistral annotations",
+        "Gemini image understanding"
+      ],
+      "evidence_required": [
+        "original artifact hash",
+        "bounded derived annotation",
+        "no generated description used as policy evidence"
+      ]
+    },
+    {
+      "capability": "multilingual_and_handwriting",
+      "status": "benchmark_pending",
+      "profiles": [
+        "Surya",
+        "PaddleOCR",
+        "managed document intelligence"
+      ],
+      "evidence_required": [
+        "script-level accuracy",
+        "uncertainty labeling",
+        "manual-review recovery"
+      ]
+    },
+    {
+      "capability": "office_and_email_structure",
+      "status": "docx_html_eml_xlsx_pptx_tier2_measured_formula_pending",
+      "profiles": [
+        "python-docx-native",
+        "html-native",
+        "email-native",
+        "Docling",
+        "Unstructured"
+      ],
+      "evidence_required": [
+        "paragraph and heading structure",
+        "table and cell relationships",
+        "embedded artifact lineage",
+        "format-specific relationship preservation"
+      ]
+    }
+  ],
+  "all_executed_cases_passed": true,
+  "not_run_cases": 0,
+  "ocr_profile": "doctr",
+  "source_text_included": false
+}

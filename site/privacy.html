@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — CoverWise</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:#071B33;background:#F5F8FC;line-height:1.7}
+.container{max-width:720px;margin:0 auto;padding:48px 24px}
+h1{font-size:2rem;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px}
+h2{font-size:1.25rem;font-weight:700;margin:32px 0 12px;color:#12304F}
+p{margin-bottom:12px;font-size:.95rem;color:#12304F}
+.updated{font-size:.85rem;color:#64748b;margin-bottom:32px}
+a{color:#145BC7}
+.back{display:inline-flex;align-items:center;gap:8px;margin-bottom:24px;font-size:.9rem;color:#12304F;text-decoration:none;font-weight:500}
+.back:hover{color:#2F80ED}
+ul{margin:12px 0 12px 20px;font-size:.95rem;color:#12304F}
+li{margin-bottom:8px}
+.disclaimer{background:#fff;border-radius:12px;padding:20px;margin-top:32px;font-size:.85rem;color:#64748b;border:1px solid #DCE6F1}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back">← Back to CoverWise</a>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: July 2026 · Version 1.0</p>
+
+  <p>CoverWise helps you understand your insurance policies. This policy explains what data we collect, how we process it, and your rights.</p>
+
+  <h2>Data We Collect</h2>
+  <p><strong>Policy documents:</strong> When you upload an insurance policy (PDF or image), the text is extracted and stored on your device. The text is also sent to the CoverWise backend to generate answers and summaries.</p>
+  <p><strong>Your questions:</strong> Questions you ask about your policies are sent to the backend to retrieve relevant answers. Questions and answers are stored locally on your device for your history.</p>
+  <p><strong>Device data:</strong> A random session ID is generated on your device to enforce usage limits. No account, email, or personal information is required to use the app.</p>
+
+  <h2>How Your Data Is Processed</h2>
+  <p><strong>Backend processing:</strong> Your policy text and questions are processed on CoverWise servers. Text is sent to OpenAI for AI-powered analysis and answer generation.</p>
+  <p><strong>Vector database:</strong> Policy text is converted to vector embeddings and stored in a vector database to enable semantic search. This allows the app to find relevant policy sections when you ask a question.</p>
+  <p><strong>No data selling:</strong> CoverWise does not sell, share, or rent your data to third parties. Your policy documents are used solely to provide the app's features to you.</p>
+
+  <h2>Data Retention & Deletion</h2>
+  <p><strong>Local storage:</strong> Documents, summaries, and Q&A history are stored on your device and remain there until you delete them. Use Settings → Clear local data to remove everything at any time.</p>
+  <p><strong>Server storage:</strong> Documents uploaded to the backend may be retained for future queries. Contact support@coverwise.app to request deletion of server-side data.</p>
+
+  <h2>Security</h2>
+  <p>All communication between the app and the backend is encrypted using HTTPS/TLS. API keys and credentials are stored as environment variables, not in the app code.</p>
+
+  <h2>Your Rights</h2>
+  <p>You can delete all local data at any time via Settings. To request deletion of server-side data, contact support@coverwise.app.</p>
+
+  <h2>Children's Privacy</h2>
+  <p>CoverWise is not directed at children under 18. We do not knowingly collect data from children.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>We may update this policy as the app evolves. We will notify users of material changes through the app.</p>
+
+  <div class="disclaimer">
+    CoverWise helps you understand your insurance policies. It does not provide insurance, financial, or legal advice. Answers are AI-generated and may contain errors or miss context. Always verify coverage details with your insurer. Coverage decisions are determined by your policy and insurer, not by this app.
+  </div>
+</div>
+</body>
+</html>

@@ -39,7 +39,7 @@ class _PreventiveTipsSectionState extends State<PreventiveTipsSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const CoverWiseSectionLabel('Health Tips'),
+            const CoverWiseSectionLabel('Policy review notes'),
             TextButton(
               onPressed: () async {
                 AnalyticsService.track('dashboard_preventive_tips_dismiss_all');
@@ -67,7 +67,8 @@ class _PreventiveTipsSectionState extends State<PreventiveTipsSection> {
                   icon: const Icon(Icons.close, size: 18),
                   tooltip: 'Dismiss ${tip.title}',
                   onPressed: () async {
-                    AnalyticsService.track('dashboard_preventive_tip_dismissed', {'tip_id': tip.id});
+                    AnalyticsService.track('dashboard_preventive_tip_dismissed',
+                        {'tip_id': tip.id});
                     await PreventiveHealthService.markTipShown(tip.id);
                     setState(() => _tips.remove(tip));
                   },

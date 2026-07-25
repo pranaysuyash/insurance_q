@@ -132,6 +132,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements-production-ocr.txt
 
 COPY src/ src/
+COPY docs/legal/ docs/legal/
 COPY storage/ storage/
 
 RUN mkdir -p /app/storage/documents /app/storage/summaries /app/temp /app/uploads

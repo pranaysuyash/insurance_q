@@ -20,9 +20,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Received'), findsReceived);
-      // "Document saved securely" appears in both the page header subtitle
-      // and the stage tile, so use findsWidgets.
-      expect(find.text('Document saved securely'), findsWidgets);
+      expect(find.text('Document received'), findsWidgets);
       expect(find.text('Preparing your policy'), findsOneWidget);
       expect(find.text('policy.pdf'), findsOneWidget);
       expect(find.byIcon(Icons.picture_as_pdf_outlined), findsOneWidget);

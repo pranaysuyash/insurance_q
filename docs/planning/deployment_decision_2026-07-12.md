@@ -67,6 +67,13 @@ Potentially cheapest, but it transfers patching, backups, firewalling, monitorin
 - Add error and usage monitoring before inviting real users.
 - Verify deletion/retention behavior before accepting sensitive documents.
 
+## Addendum (2026-07-24)
+
+The canonical API now rejects unconfigured Host headers in production. Set
+`ALLOWED_HOSTS` to the comma-separated public API and direct health-check DNS
+hostnames, without a scheme or path. This is separate from browser
+`ALLOWED_ORIGINS` and the public frontend `PUBLIC_SITE_URL`.
+
 ## Deployment shape
 
 ```text

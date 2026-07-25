@@ -94,6 +94,41 @@ class ServerConsentService {
       return null;
     }
   }
+
+  /// Read the append-only consent activity for the authenticated user.
+  ///
+  /// A null result means the authoritative ledger could not be reached;
+  /// callers must not present the local cache as the complete account history.
+  Future<List<ServerConsentRecord>?> getConsentHistory({
+    int limit = 100,
+  }) async {
+    assert(limit > 0);
+    try {
+      final response = await _dio.get(
+        '/consent/history',
+        queryParameters: {'limit': limit},
+      );
+      if (response.statusCode == 200 && response.data is List) {
+        return (response.data as List)
+            .map((item) => ServerConsentRecord.fromJson(
+                  (item as Map).cast<String, dynamic>(),
+                ))
+            .toList();
+      }
+      return const [];
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 503 || status == 401 || status == 404) {
+        debugPrint('consent history read failed: $status');
+        return null;
+      }
+      debugPrint('consent history read unexpected error: $e');
+      return null;
+    } catch (e) {
+      debugPrint('consent history read unexpected error: $e');
+      return null;
+    }
+  }
 }
 
 /// The typed shape of one row from v_current_consent.
@@ -133,7 +168,7 @@ class ServerConsentRecord {
     );
   }
 
-  /// The 5 known consent types in v1. Mirrors the server
+  /// The 7 known consent types in v1. Mirrors the server
   /// enum; a drift here means the Flutter UI is showing a
   /// type the server does not recognize.
   static const Set<String> knownConsentTypes = {

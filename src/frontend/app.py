@@ -3,6 +3,8 @@ Frontend service for the Insurance Policy Parser & QA App.
 """
 from contextlib import asynccontextmanager
 from datetime import date
+from hashlib import sha256
+from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,13 +12,13 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response, FileResponse
 import os
 import httpx
-from typing import Optional, Dict, Any, List
+from typing import Optional
 from pydantic import BaseModel
 import structlog
 import time
-import json
 from src.utils.runtime_access import require_nonproduction
 from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
+from tools.validate_legal_release_assets import validation_errors as legal_release_errors
 
 # Configure structured logging
 logger = structlog.get_logger()
@@ -36,10 +38,15 @@ class Query(BaseModel):
 SITE_NAME = "CoverWise"
 DEFAULT_LAUNCH_WINDOW = os.getenv("LAUNCH_WINDOW", "late July 2026")
 INTERACTIVE_DEMO_ENABLED = os.getenv("ENVIRONMENT", "development").lower() != "production"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+LEGAL_DOCUMENTS = {
+    "privacy": ("Privacy Policy", REPOSITORY_ROOT / "docs/legal/privacy_policy.md"),
+    "terms": ("Terms of Service", REPOSITORY_ROOT / "docs/legal/terms_of_service.md"),
+}
 
 app = FastAPI(
     title="CoverWise | Insurance Policy Frontend",
-    description="CoverWise turns insurance policy PDFs into plain-language summaries, grounded answers, and launch-ready marketing pages.",
+    description="CoverWise turns insurance policy PDFs into plain-language summaries and grounded answers.",
     version="2.0.0"
 )
 
@@ -76,9 +83,25 @@ RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", INTERNAL_SERVICE_URL)
 # HTTP client (managed by lifespan events)
 http_client: Optional[httpx.AsyncClient] = None
 
+
+def _require_complete_legal_assets_for_production() -> None:
+    """Block a public production process when its legal source is incomplete."""
+    if os.getenv("ENVIRONMENT", "development").lower() != "production":
+        return
+
+    errors = legal_release_errors()
+    if errors:
+        logger.error("production_legal_release_blocked", error_count=len(errors))
+        raise RuntimeError(
+            "Refusing to start the public frontend with incomplete legal assets: "
+            + "; ".join(errors)
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global http_client
+    _require_complete_legal_assets_for_production()
     http_client = httpx.AsyncClient(timeout=None)
     logger.info("Frontend service started up, httpx.AsyncClient initialized.")
     try:
@@ -104,8 +127,9 @@ async def home(request: Request):
     """Render the home page."""
     site_url = _resolve_public_site_url(request)
     return templates.TemplateResponse(
-        "index.html",
-        {
+        request=request,
+        name="index.html",
+        context={
             "request": request,
             "site_url": site_url,
             "site_name": SITE_NAME,
@@ -118,6 +142,57 @@ async def home(request: Request):
             "interactive_demo_enabled": INTERACTIVE_DEMO_ENABLED,
         }
     )
+
+
+def _render_legal_document(request: Request, document_key: str) -> HTMLResponse:
+    """Render the approved-source candidate verbatim without duplicating copy.
+
+    The production startup guard validates these same files before serving the
+    public frontend. Rendering the Markdown as escaped, pre-wrapped text keeps
+    every legal character intact and avoids a second, lossy document format.
+    """
+    page_title, document_path = LEGAL_DOCUMENTS[document_key]
+    try:
+        document_text = document_path.read_text(encoding="utf-8")
+    except OSError as error:
+        logger.error("legal_document_unavailable", document=document_key)
+        raise HTTPException(
+            status_code=503,
+            detail="The requested legal document is temporarily unavailable.",
+        ) from error
+
+    document_hash = sha256(document_text.encode("utf-8")).hexdigest()
+    return templates.TemplateResponse(
+        request=request,
+        name="legal_document.html",
+        context={
+            "request": request,
+            "site_name": SITE_NAME,
+            "page_title": page_title,
+            "legal_document": document_text,
+            "legal_document_sha256": document_hash,
+        },
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Security-Policy": (
+                "default-src 'self'; base-uri 'none'; form-action 'none'; "
+                "frame-ancestors 'none'; style-src 'unsafe-inline'"
+            ),
+            "Referrer-Policy": "no-referrer",
+            "X-Content-Type-Options": "nosniff",
+            "X-CoverWise-Legal-SHA256": document_hash,
+        },
+    )
+
+
+@app.get("/privacy", response_class=HTMLResponse, include_in_schema=False)
+async def privacy_policy(request: Request):
+    return _render_legal_document(request, "privacy")
+
+
+@app.get("/terms", response_class=HTMLResponse, include_in_schema=False)
+async def terms_of_service(request: Request):
+    return _render_legal_document(request, "terms")
 
 
 @app.get("/robots.txt")
@@ -146,12 +221,24 @@ async def sitemap_xml(request: Request):
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+  <url>
+    <loc>{site_url}/privacy</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>{site_url}/terms</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
 </urlset>
 """
     return Response(content=xml, media_type="application/xml")
 
 
-@app.api_route("/favicon.ico", methods=["GET", "HEAD"])
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
 async def favicon():
     return FileResponse(os.path.join("src/frontend/static", "favicon.ico"))
 

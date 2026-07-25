@@ -9,6 +9,16 @@ This guide provides instructions for developers working on CoverWise, including 
 > FastAPI service backed by Supabase Postgres/pgvector and Supabase Storage. Do not add new
 > production dependencies on Redis or Qdrant without updating that decision.
 
+> **Current build-surface correction (2026-07-24):** The repository no longer
+> contains a `package.json`, lockfile, Tailwind source input, or Tailwind
+> configuration. The checked-in web CSS under `src/frontend/static/css/` is
+> served as an asset by the Python application, and the customer mobile client
+> is built by Flutter. Do not run `npm install`, `npm run build`, or add Node as
+> a prerequisite unless a future, reviewed frontend build system is introduced.
+> The Docker Compose and multi-service instructions below are historical
+> compatibility material; use the current application, deployment, and release
+> runbooks for active work.
+
 ## Table of Contents
 
 1. [Development Environment Setup](#development-environment-setup)
@@ -31,7 +41,6 @@ Before you begin, ensure you have the following installed:
 - Docker and Docker Compose
 - Git
 - Flutter SDK (if working on the mobile app, see `mobile/README.md` for specific version and setup)
-- Node.js and npm (for Tailwind CSS compilation, see `package.json`)
 
 ### Initial Setup
 
@@ -99,13 +108,12 @@ LOG_LEVEL=INFO
 ```
 Refer to `set_env_vars.py` for how these are used and potentially other variables that might be introduced.
 
-4. **Build Frontend Static Assets (Tailwind CSS)**
-If you modify `src/frontend/static/css/input.css` or `tailwind.config.js`, you need to rebuild the `main.css`:
-```bash
-npm install
-npm run build:css
-```
-This is also handled during the Docker build.
+4. **Web static assets**
+
+The checked-in files in `src/frontend/static/css/` are served directly by the
+Python web surface. There is no Node/Tailwind build step in the current
+repository. Treat a proposed frontend build tool as an architecture decision,
+with a manifest, lockfile, reproducible CI step, and documented ownership.
 
 ### Using Docker for Development
 

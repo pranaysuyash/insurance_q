@@ -4,7 +4,7 @@ Populates retrieval_text for document chunks where retrieval_text == source_text
 """
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from src.rag.pipeline import RAGPipeline
 
 logger = logging.getLogger(__name__)

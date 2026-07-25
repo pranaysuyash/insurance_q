@@ -101,7 +101,7 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
       }
       final box = Hive.box(AppStateStore.boxName);
       await box.put(AppStateStore.phoneNumberKey, phone);
-      AnalyticsService.track('phone_otp_requested', {'phone': phone});
+      AnalyticsService.track('phone_otp_requested', {'otp_channel': 'sms'});
 
       if (!mounted) return;
       setState(() {
@@ -125,7 +125,7 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
       if (AuthService.isClientReady) {
         await AuthService.verifyPhoneOtp(phone, code);
       }
-      AnalyticsService.track('phone_otp_verified', {'phone': phone});
+      AnalyticsService.track('phone_otp_verified', {'otp_channel': 'sms'});
 
       if (!mounted) return;
       Navigator.pop(context);

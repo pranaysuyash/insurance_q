@@ -1,0 +1,220 @@
+{
+  "total_questions": 12,
+  "correct_answers": 2,
+  "accuracy": 0.16666666666666666,
+  "source_coverage": 1.0,
+  "context_coverage": 1.0,
+  "citation_rate": 0.9166666666666666,
+  "hallucination_rate": 0,
+  "per_question": [
+    {
+      "question": "What is my policy number?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "Policy number: 4214i/CPHSR/407834350/00/000.",
+      "expected": "4214i/CPHSR/407834350/00/000",
+      "contexts": [
+        "Policy Servicing \n\u2022 You may contact us on our Toll Free no: 1800 2666, or email to \n  customersupport@icicilombard.com or use our IL TakeCare App or send a Hi to RIA, \n  our Responsive Intelligent Assistant on WhatsApp (7738282666) for policy services.",
+        "1453\nno\nHealth Shield 360 Retail \u2013 Classic Plus\nCustomer Information Sheet/ Know Your Policy\nThis document provides key information about your policy. You are advised to\ngo through your policy document.\nSr. No\n                                                       Description \n(Please refer to applicable Policy Clause Number in next column)\n\nPolicy Clause Number\n 1.\nName of Insurance Product/Policy  \nHealth Shield 360 Retail \u2013 Classic Plus\n 2.\n\nPolicy Number  \n4214i/CPHSR/407834350/00/000\n 3.\nType of Insurance Product/Policy  \nBoth Indemnity and Benefit\n 4.\nSum Insured (Basis) \nFloater Sum Insured- Rs. 2500000 \u2013 where all members under the policy have a single \nsum insured limit which maybe utilized by any or all members \n  5.\n\nPolicy Coverage (What the policy covers?) \nExpenses in respect of:",
+        "It is \ncounted from the beginning of the policy coverage \n1.",
+        "Policy Coverage (What the policy covers?) \nExpenses in respect of:",
+        "Exclusions (What does the policy not cover) \nStandard Exclusion \ni."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Who is the insurer for this policy?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The insurer for this policy is ICICI Lombard.",
+      "expected": "ICICI Lombard General Insurance",
+      "contexts": [
+        "Multiple Policy: \nln case of multiple policies taken by an insured person during a period from one or \nmore insurers to indemnify treatment costs, the insured person shall have the right to \nrequire a settlement of his/her claim in terms of any of his/her policies. ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy.",
+        "ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy.",
+        "Migration and Portability: \na. The insured has the choice to port his / her policies from one Insurer to another. \nb. The insured is entitled to transfer the credits gained to the extent of the sum insured \nand the benefits available in the previous policy, subject to the underwriting policy of \nthe Company \nc. The company shall decide and communicate on the proposal upon receipt of \ninformation from Existing insurer within prescribed timelines . \nd. This benefit is not applicable for enhanced sum insured. \nThe insured person will have the option to migrate the policy to other health insurance \nproducts/plans offered by the company. The Company may underwrite the proposal in \ncase of migration, if the insured is not continuously covered for 36 months. \nIn case You are keen on migrating or outward porting Your Policy, kindly contact us at \ncustomersupport@icicilombard.com.",
+        "Dear PRANAY  SUYASH,\nThis is to certify that the Company has received the premium dated Aug 27, 2025 for Health\ninsurance coverage under \"Health Insurance Policy\" with the following details.",
+        "Warm Regards,\nFor Team ICICI Lombard\nAuthorised Signatory\nNote: This certificate must be surrendered to the Insurance Company in case of Cancellation \nof the Policy."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the claims helpline number?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The provided policy context does not include the actual claims helpline number; it only states 'For claims, please call us at our toll free no.'",
+      "expected": "1800 2666",
+      "contexts": [
+        "For claims, please call us at our toll free no.",
+        "Claims/Claims Procedure",
+        "Step 3 \u2013 The claim will be processed within 15 days of receipt of claim along with claim \nform and documents \nStep 4 \u2013 The approved amount in the claim would be reimbursed to you \nStep 5 \u2013 You can check and track your claim status live on IL TakeCare app or \nWhatsApp",
+        "1. Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%. \n   d.B.Optional \n2. Road Emergency Ambulance \u2013 Up to \u20b9 35,000/- \n   Cover.11\n3. Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above. \nDependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days. \n   d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.\n\nDeductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9.\nClaims/Claims Procedure",
+        "It is \ncounted from the beginning of the policy coverage \n1."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the customer care email address?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The customer care email address is customersupport@icicilombard.com.",
+      "expected": "ihealthcare@icicilombard.com",
+      "contexts": [
+        "Policy Servicing \n\u2022 You may contact us on our Toll Free no: 1800 2666, or email to \n  customersupport@icicilombard.com or use our IL TakeCare App or send a Hi to RIA, \n  our Responsive Intelligent Assistant on WhatsApp (7738282666) for policy services.",
+        "Policy Servicing \n\u2022 You may contact us on our Toll Free no: 1800 2666, or email to \n  customersupport@icicilombard.com or use our IL TakeCare App or send a Hi to RIA, \n  our Responsive Intelligent Assistant on WhatsApp (7738282666) for policy services. \n\u2022 For details of Company officials kindly visit our \n  websitehttps://www.icicilombard.com/customer-support . \n  f. General   \n  terms and \n  conditions \n  11.\nGrievances/Complaints \n\u2022 In case of any grievance the insured person may contact the Company through: - \n  Website: www.icicilombard.com \n  Toll free number: 1800 2666 \n  Email: customersupport@icicilombard.com \n  f. General terms and \n  conditions .15 \n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg. No. 115\nCIN: L67200MH2000PLC129408\nHealth Shield 360 Retail\nUIN - ICIHLIP25037V022425\nMailing Address:\nRegistered address:\nToll free no.: 1800 2666\nICICI Lombard General Insurance Company\nLimited, Interface Building No.: 16, 601 / 602,\n6th Floor, New Link Road, Malad (West),\nMumbai - 400 064.\nICICI Lombard House, 414 Veer\nSavarkar Marg, Near Siddhi\nVinayak Temple, Prabhadevi,\nMumbai - 400 025.\nAlternate No.: +918655 222 666 (chargeable)\nEmail: customersupport@icicilombard.com\nWebsite: www.icicilombard.com\n13 / 16",
+        "email: customersupport@icicilombard.com",
+        "email: customersupport@icicilombard.com",
+        "email: customersupport@icicilombard.com"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the premium amount for this policy?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The premium amount (Total Premium) for this policy is \u20b931,705 for the financial year 2025-2026.",
+      "expected": "31705",
+      "contexts": [
+        "Premium Details (\u20b9)\nBasic Premium\nIGST\nTotal Tax Payable\nTotal Premium\n%\n`\n26868.64\n18\n4836.36\n4836.36\n31705\nFinancial Year\nAmount (\u20b9)\n2025-2026\n31705.00\nThe product is eligible for deduction u/s 80D of the Income Tax, 1961 and any amendments made\nthere to.\nWarm Regards,\nFor Team ICICI Lombard\nAuthorised Signatory\nNote: This certificate must be surrendered to the Insurance Company in case of Cancellation \nof the Policy. In the event of incorrect representation of this declaration, the liability shall be \nupon the policyholder. \nIn case You find any variations against Your proposal or any discrepancy in the Policy, please \ncontact Us immediately on the numbers available on our website www.icicilombard.com Or call \non our toll free no. 1800 2666\n 109/20150914/284\nICICI Lombard General Insurance Company Limited\nIRDA Reg. No. 115\nCIN: L67200MH2000PLC129408\nHealth Shield 360 Retail\nUIN - ICIHLIP25037V022425\nMailing Address:\nRegistered address:\nToll free no.: 1800 2666\nICICI Lombard General Insurance Company\nLimited, Interface Building No.: 16, 601 / 602,\n6th Floor, New Link Road, Malad (West),\nMumbai - 400 064.\nICICI Lombard House, 414 Veer\nSavarkar Marg, Near Siddhi\nVinayak Temple, Prabhadevi,\nMumbai - 400 025.\nAlternate No.: +918655 222 666 (chargeable)\nEmail: customersupport@icicilombard.com\nWebsite: www.icicilombard.com\n4 / 16",
+        "Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period.",
+        "Premium Details (\u20b9)\nBasic Premium\nIGST\nTotal Tax Payable\nTotal Premium\n%\n`\n26868.64\n18\n4836.36\n4836.36\n31705\nFinancial Year\nAmount (\u20b9)\n2025-2026\n31705.00\nThe product is eligible for deduction u/s 80D of the Income Tax, 1961 and any amendments made\nthere to.",
+        "Dear PRANAY  SUYASH,\nThis is to certify that the Company has received the premium dated Aug 27, 2025 for Health\ninsurance coverage under \"Health Insurance Policy\" with the following details.",
+        "Cancellation: \n\u2022 The insured may cancel the policy at any time during the term, by giving 7 days \nnotice in writing. The Company shall \na. Refund proportionate premium for unexpired policy period, if the term of policy upto \none year and there is no claim (s) made during the policy period. \nb. Refund premium for the unexpired policy period, in respect of policies with term \nmore than 1 year and risk coverage for such policy years has not commenced. \n\u2022 Notwithstanding anything contained herein or otherwise, no refunds of premium shall\n\nf. i.14\n\nf. i.6\n\nf. i.9\n\nf. i.7 & 8\n\nf. ii.10"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Who is the policyholder or insured person?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "The provided policy context does not identify a specific policyholder. It uses the generic term \"the insured person\" without naming an individual.",
+      "expected": "Pranay Suyyala",
+      "contexts": [
+        "The insured person will have the option to migrate the policy to other health insurance \nproducts/plans offered by the company.",
+        "Multiple Policy: \nln case of multiple policies taken by an insured person during a period from one or \nmore insurers to indemnify treatment costs, the insured person shall have the right to \nrequire a settlement of his/her claim in terms of any of his/her policies.",
+        "Multiple Policy: \nln case of multiple policies taken by an insured person during a period from one or \nmore insurers to indemnify treatment costs, the insured person shall have the right to \nrequire a settlement of his/her claim in terms of any of his/her policies. ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy.",
+        "d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.",
+        "ln all such \ncases the insurer chosen by the insured person shall be treated as the primary Insurer \nand shall be obliged to settle the claim as long as the claim is within the limits of and \naccording to the terms of the chosen policy."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the plan or product name?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "Health Shield 360 Retail \u2013 Classic Plus",
+      "expected": "iHealth Plus",
+      "contexts": [
+        "(a)  Policy Schedule (Policy Certificate)\nPOLICYALL\n4\n4\n3\n3\nICIHLIP25037V022425\nhttps://www.icicilombard.com/docs/default-source/d\nT2\nProposer Name\nPRANAY  SUYASH\nProduct name\nHealth Shield 360 Retail\nAddress\nA-27, KUDREMUKH COLONY,   BANGALORE,\nKARNATAKA - 560034\nPlan Name\nClassic_Plus_HS360_Retail\n\nPolicy No.",
+        "(a)  Policy Schedule (Policy Certificate)\nPOLICYALL\n4\n4\n3\n3\nICIHLIP25037V022425\nhttps://www.icicilombard.com/docs/default-source/d\nT2\nProposer Name\nPRANAY  SUYASH\nProduct name\nHealth Shield 360 Retail\nAddress\nA-27, KUDREMUKH COLONY,   BANGALORE,\nKARNATAKA - 560034\nPlan Name\nClassic_Plus_HS360_Retail\n\nPolicy No.\n4214i/CPHSR/407834350/00/000\nContact No.\n99******02\nPeriod of Insurance\nFrom 00:00 hrs 27-Aug-2025 To 23:59\nhrs 26-Aug-2026\nEmail Address\nPR***********@GMAIL.COM\n\nPolicy Tenure\n1\nNominee Name\n\nAlternate Policy No.\n\nLAN No.\nNA\nRelationship With\nPolicyholder\n\nPolicy Issuing Office\nPrabhadevi\nAppointee Name\n\nPolicy Issued On\n14-Sep-2025\nNominee Age\nNA \nPrevious Policy No.\n4128i/HERN/176804574/04/000\nGSTIN No. (Customer)",
+        "Name of Insurance Product/Policy  \nHealth Shield 360 Retail \u2013 Classic Plus\n 2.",
+        "The insured person will have the option to migrate the policy to other health insurance \nproducts/plans offered by the company.",
+        "1453\nno\nHealth Shield 360 Retail \u2013 Classic Plus\nCustomer Information Sheet/ Know Your Policy\nThis document provides key information about your policy. You are advised to\ngo through your policy document.\nSr. No\n                                                       Description \n(Please refer to applicable Policy Clause Number in next column)\n\nPolicy Clause Number\n 1.\nName of Insurance Product/Policy  \nHealth Shield 360 Retail \u2013 Classic Plus\n 2.\n\nPolicy Number  \n4214i/CPHSR/407834350/00/000\n 3.\nType of Insurance Product/Policy  \nBoth Indemnity and Benefit\n 4.\nSum Insured (Basis) \nFloater Sum Insured- Rs. 2500000 \u2013 where all members under the policy have a single \nsum insured limit which maybe utilized by any or all members \n  5.\n\nPolicy Coverage (What the policy covers?) \nExpenses in respect of:"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the TPA name?",
+      "category": "exact_field",
+      "negative": false,
+      "answer": "TPA name is not present in the provided context.",
+      "expected": "ICICI Lombard",
+      "contexts": [
+        "(a)  Policy Schedule (Policy Certificate)\nPOLICYALL\n4\n4\n3\n3\nICIHLIP25037V022425\nhttps://www.icicilombard.com/docs/default-source/d\nT2\nProposer Name\nPRANAY  SUYASH\nProduct name\nHealth Shield 360 Retail\nAddress\nA-27, KUDREMUKH COLONY,   BANGALORE,\nKARNATAKA - 560034\nPlan Name\nClassic_Plus_HS360_Retail\n\nPolicy No.",
+        "Name\n: Pranay  Suyash\nPolicy No.",
+        "Name\n: ADVAY SINHA\nPolicy No.",
+        "Tax Certificate\n4\nTo\nPRANAY  SUYASH\nA-27, KUDREMUKH COLONY\nBANGALORE\nKARNATAKA - 560034\nANNUAL\nSubject: Premium certificate for the purpose of deduction under section 80D of Income Tax\nAct, 1961 and any amendments made thereafter.\nDear PRANAY  SUYASH,\nThis is to certify that the Company has received the premium dated Aug 27, 2025 for Health\ninsurance coverage under \"Health Insurance Policy\" with the following details.\nPolicyholder's\nName\nPRANAY  SUYASH\n\nPolicy Number\n4214i/CPHSR/407834350/\n00/000\n\nPolicy Start Date\nAug 27, 2025\n\nPolicy End Date\nAug 26, 2026\nPlan Name\nClassic_Plus_HS360_R_2A\ndult_1Child_1Year\nTotal Premium Paid \n(`)\n31705\nGSTIN Number\n(Customer)\n\nGSTIN Reg.No (ICICI\nLombard)\n09AAACI7904G1ZL\nServicing Branch\nName\nLucknow\nServicing Branch\nAddress\nSummit Building B-503 To\nB- 508, Fifth Floor, Plot No\nTcg 3/3, Vibhutikhand\nGomti Nagar, Lucknow\nUttar Pradesh-226010",
+        "It is \ncounted from the beginning of the policy coverage \n1."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": false
+    },
+    {
+      "question": "What is the total coverage amount or sum insured?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "Sum insured for this cover starts at 50 Lacs and goes up to 300 Lacs; it is not available for 3 Lacs.",
+      "expected": "2500000",
+      "contexts": [
+        "This cover is available for Sum Insured 50 Lacs and above.",
+        "1. Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%. \n   d.B.Optional \n2. Road Emergency Ambulance \u2013 Up to \u20b9 35,000/- \n   Cover.11\n3. Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above. \nDependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days. \n   d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.\n\nDeductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9.\nClaims/Claims Procedure",
+        "Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above.",
+        "This cover is not available for Sum Insured 3 Lacs.",
+        "Wherever, the sum insured is enhanced, completion of sixty continuous \nmonths would be applicable from the date of enhancement of sums insured only on \nthe enhanced limits\n  13."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the maternity coverage limit?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "The maternity coverage limit depends on your Sum Insured (SI):\n- SI up to 7L: Rs 25,000\n- SI of 10L, 15L, 20L, 25L, 30L, or 50L: Rs 40,000\n- SI of 75L, 100L, 200L, or 300L: Rs 50,000\nThese limits appl",
+      "expected": "40000",
+      "contexts": [
+        "3000 per day\nThese limits are payable  max up to 10days & minimum 3 days\nhospitalization is mandatory  \nMaternity Cover & New Born Baby Cover\nNot Applicable for Annual Sum Insured 3 Lacs\nMaternity Limit:\nFor SI 5L/7L=  Rs 25,000 \nFor SI 10L/15L/ 20L/ 25L/ 30L/ 50L= Rs 40,000\nFor SI  75L/ 100L/200L/300L =  Rs 50,000\nThe above limits are for both normal and C section, maximum upto 2 events\nNew Born Baby Cover: \nFor >3L SI options = 10,000 \nWorld Wide Cover (Cover Outside India)\nAvailable only",
+        "Maternity Cover and New Born Baby Cover \u2013 Covers medical expenses up to the",
+        "d.B.Optional \n    Cover.7 \n  d.B.Optional \n    Cover.3\n8\nFinancial limits of coverage \nSub-limit (It is a pre- defined limit and the insurance \ncompany will not pay any amount in excess of this limit) \nThe policy will pay only up to the limits specified hereunder for \nthe following diseases/procedures:\nBasic Covers: - \nDomestic Road Ambulance Cover \nDomestic Road Ambulance Cover \n  \u2022 For Cashless claims: same will be at Actuals\n   d.",
+        "This cover is available for Sum Insured 50 Lacs and above. \nDependent Accommodation: \u2013 If You are Hospitalized for a minimum period of 3 \nconsecutive days, due to any Injury or Illness as covered under the Policy, we will \npay up to the limits mentioned in table under \u2018Sr. no.8\u2019 below maximum up to 10 days \nfor the accommodation of the dependent in the hospital. This benefit is payable only \nfor one immediate family member.\n\nd.B.Optional Cover 12\n  6.",
+        "e. ii. i\n\ne. ii. j\n\ne. ii. k\n\ne. ii. l\n  7.\nWaiting period\n\nTime period during which specified diseases/treatments are not covered. It is \ncounted from the beginning of the policy coverage \n1. Initial waiting period: 30 days for all illnesses (except Hospitalization due to \n    injury). \n2. Specific waiting period (Not applicable for claims arising due to an accident): \n    First 24 months, for specific Illness and treatment. (Please refer to the policy \n    clauses for the full listing) \n3. Pre-Existing Diseases: Declared & accepted Pre-existing diseases are covered \n    after 24 months of continuous coverage. \n4. In case of hypertension, diabetes and cardiac conditions, the waiting period is \n    90 days unless disclosed as pre-existing diseases. \n5. Maternity waiting period: 36 months\n\n6. BeFit: 30 days\n\ne. i. 4.\n\ne. i. 2\n\ne. i. 1\n\ne. i. 3"
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "What is the room rent limit per day?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "Room rent limit per day is not single-valued and depends on the sum insured (SI):  - 1000 per day for SI 7L & 10L.  - 2000 per day for SI 15L, 20L, 25L, 30L, 50L, 75L, and 100L/200L/300L.  - 3000 per ",
+      "expected": "1% of sum insured",
+      "contexts": [
+        "Dependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days.",
+        "1000 per day\nSI 7L & 10L: Rs.",
+        "2000 per day\nSI 15L, 20L, 25L, 30L, 50L, 75L & 100L/200L/300L: Rs.",
+        "3000 per day\nThese limits are payable  max up to 10days & minimum 3 days\nhospitalization is mandatory  \nMaternity Cover & New Born Baby Cover\nNot Applicable for Annual Sum Insured 3 Lacs\nMaternity Limit:\nFor SI 5L/7L=  Rs 25,000 \nFor SI 10L/15L/ 20L/ 25L/ 30L/ 50L= Rs 40,000\nFor SI  75L/ 100L/200L/300L =  Rs 50,000\nThe above limits are for both normal and C section, maximum upto 2 events\nNew Born Baby Cover: \nFor >3L SI options = 10,000 \nWorld Wide Cover (Cover Outside India)\nAvailable only",
+        "Basic Covers: - \nIn-patient Treatment - Covers Hospitalization expenses for admission longer than 24 \nconsecutive hours with no room rent capping \nDay Care Procedures/Treatment \u2013 All Day Care procedures covered."
+      ],
+      "answer_contains_expected": false,
+      "has_sources": true,
+      "has_citations": true
+    },
+    {
+      "question": "Is there a deductible or co-pay?",
+      "category": "numeric",
+      "negative": false,
+      "answer": "There is a 10% co-pay on hospitalization up to the Annual Sum Insured, and a 10% co-pay applies for treatment outside India. The policy text also shows conflicting deductible notes: one line says 'Ded",
+      "expected": "not applicable",
+      "contexts": [
+        "Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%.",
+        "Hospitalization expenses incurred anywhere in the world outside India will \nbe covered up to Annual Sum Insured subject to a co-pay of 10%.",
+        "d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.",
+        "1. Hospitalization - up to Annual Sum Insured subject to a \n    co-pay of 10%. \n   d.B.Optional \n2. Road Emergency Ambulance \u2013 Up to \u20b9 35,000/- \n   Cover.11\n3. Air Ambulance \u2013 Up to Annual Sum Insured \nThis cover is available for Sum Insured 50Lacs and above. \nDependent Accommodation: \u2013 Per day will be provided \nmaximum up to 10 days. \n   d.B.Optional \n   Cover.12\nCo-payment (It is a specified amount /percentage of the admissible claim \namount to be paid by policyholder/insured) - \nadmissible claim amount to be paid by (Outside India) - \npolicyholder/insured) (Outside India) - \nCo-payment of 10% shall be applicable for every claim if \ntreatment is taken outside India.\n\nDeductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9.\nClaims/Claims Procedure",
+        "Deductible \nNot Applicable \nSum Insured \nAmount\n3L to 30L\n\u20b93,000\n50L to 300L\n\u20b95,000\n  9."
+      ],
+      "answer_contains_expected": true,
+      "has_sources": true,
+      "has_citations": true
+    }
+  ],
+  "ragas_metrics": {
+    "faithfulness": 1.0,
+    "context_precision": 0.31921296294082946,
+    "answer_relevancy": 0.6126365579228544
+  }
+}

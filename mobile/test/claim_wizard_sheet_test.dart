@@ -108,19 +108,26 @@ void main() {
       expect(find.text('Details'), findsOneWidget);
       expect(find.text('Continue'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Private claim note'), findsOneWidget);
+      expect(
+        find.text(
+          'This records information on this device only. It does not file, submit, or update a claim with an insurer.',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows all 6 incident types', (tester) async {
       await tester.pumpWidget(_buildTestApp());
       await openWizard(tester);
 
-      // First 4 items are visible without scrolling.
+      // The first row is visible immediately. The privacy boundary above the
+      // incident choices is intentional, so the rest must remain reachable by
+      // scrolling rather than being assumed to fit a fixed test viewport.
       expect(find.text('Hospitalization'), findsOneWidget);
       expect(find.text('Auto Accident'), findsOneWidget);
-      expect(find.text('Life Claim'), findsOneWidget);
-      expect(find.text('Property Damage'), findsOneWidget);
 
-      // Theft and Other are below the fold — scroll to reveal them.
+      // Later options are below the fold — scroll to reveal them.
       // Uses find.descendant to locate the internal Scrollable within the
       // keyed ListView, avoiding the fragile find.byType(Scrollable).last.
       final incidentList = find.byKey(const ValueKey('incident_type_list'));
@@ -129,6 +136,18 @@ void main() {
         matching: find.byType(Scrollable),
       );
 
+      await tester.scrollUntilVisible(
+        find.text('Life Claim'),
+        180,
+        scrollable: incidentScrollable,
+      );
+      expect(find.text('Life Claim'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Property Damage'),
+        180,
+        scrollable: incidentScrollable,
+      );
+      expect(find.text('Property Damage'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('Theft'),
         200,
@@ -333,8 +352,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            policySummariesProvider.overrideWith(
-                () => _FakeSummariesNotifier()),
+            policySummariesProvider
+                .overrideWith(() => _FakeSummariesNotifier()),
           ],
           child: MaterialApp(
             scaffoldMessengerKey: CoverWiseSnackBar.scaffoldMessengerKey,

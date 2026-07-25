@@ -262,7 +262,8 @@ flutter test
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+License terms have not yet been published. Do not reuse, redistribute, or
+transfer the project as open-source software without written owner approval.
 
 ## 📞 Support
 

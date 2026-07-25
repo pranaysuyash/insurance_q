@@ -16,7 +16,6 @@ import 'screens/documents_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/family_screen.dart';
 import 'screens/family_visualization_screen.dart';
-import 'screens/more_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/claims_assistant_screen.dart';
 import 'screens/renewal_calendar_screen.dart';
@@ -35,11 +34,10 @@ import 'screens/search_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/insurance_card_screen.dart';
 import 'screens/insurance_literacy_screen.dart';
-import 'screens/what_if_calculator_screen.dart';
-import 'screens/agent_requests_screen.dart';
 import 'screens/account_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/notification_preferences_screen.dart';
+import 'screens/insights_screen.dart';
 import 'config/app_config.dart';
 import 'providers/entitlement_provider.dart';
 import 'providers/policy_providers.dart';
@@ -51,15 +49,18 @@ import 'services/app_state_repository.dart';
 import 'services/notification_service.dart';
 import 'services/auth_service.dart';
 import 'services/analytics_service.dart';
+import 'services/claims_sync_service.dart';
 import 'services/consent_sync_service.dart';
 import 'services/install_service.dart';
 import 'services/principal_key_service.dart';
 import 'services/hive_workspace_service.dart';
+import 'services/on_device_inference_service.dart';
 import 'providers/auth_provider.dart';
 import 'widgets/shared/global_error_boundary.dart';
 import 'widgets/shared/screen_error_boundary.dart';
 import 'widgets/shared/coverwise_snackbar.dart';
 import 'widgets/shared/offline_banner.dart';
+import 'widgets/shared/auth_expired_banner.dart';
 import 'theme/coverwise_theme.dart';
 import 'theme/coverwise_motion.dart';
 
@@ -107,6 +108,12 @@ Future<void> _startup() async {
   // when the widget tree mounts. No need to duplicate them here.
 
   AppConfig.validateReleaseConfiguration();
+  // The local model lane is opt-in and stays unloaded for normal builds.
+  // Model installation is user/operator initiated after a model URL has
+  // passed the mobile model and data-handling approval gates.
+  if (AppConfig.hasOnDeviceInferenceConfig) {
+    await OnDeviceInferenceService().initialize();
+  }
   if (AppConfig.isProduction) {
     debugPrint = (String? message, {int? wrapWidth}) {};
   }
@@ -160,6 +167,10 @@ Future<void> _startup() async {
 
   // Now open encrypted Hive boxes
   await HiveWorkspaceService.openForActivePrincipal();
+
+  // Initialize local notifications and the device timezone before any
+  // policy summaries can trigger renewal reminder scheduling.
+  await NotificationService.init();
 
   // Analytics is initialized eagerly in _InsuranceAppState.initState()
   // via ref.read(analyticsServiceProvider.notifier), which runs during
@@ -267,12 +278,18 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       (_, next) {
         final principalId = next.asData?.value.session?.user.id;
         if (principalId != null) {
+          // Clear session-expired banner when a new valid session arrives.
+          // This handles normal sign-in (email/password/OAuth) which goes
+          // through Supabase auth state changes, not the Dio interceptor.
+          ref.read(authServiceProvider.notifier).updateSessionExpired(false);
+
           final preserveWorkspace =
               AuthService.consumeAnonymousWorkspaceClaim();
           unawaited(_handleAuthenticatedSessionTransition(
             principalId,
             preserveCurrentWorkspace: preserveWorkspace,
           ).then((_) => _retryPendingUploads()));
+          unawaited(_syncClaims());
           if (AppConfig.hasRevenueCatConfig) {
             unawaited(
                 ref.read(billingAdapterProvider).identifyAccount(principalId));
@@ -285,9 +302,11 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         Connectivity().onConnectivityChanged.listen((results) {
       if (results.any((result) => result != ConnectivityResult.none)) {
         unawaited(_retryPendingUploads());
+        unawaited(_syncClaims());
       }
     });
     unawaited(_retryPendingUploads());
+    unawaited(_syncClaims());
   }
 
   @override
@@ -307,6 +326,21 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       }
     } catch (error) {
       debugPrint('Pending upload reconciliation failed: $error');
+    }
+  }
+
+  /// Sync local claims with the backend (best-effort, fire-and-forget).
+  /// Called on startup, connectivity restore, and auth session transitions.
+  Future<void> _syncClaims() async {
+    try {
+      final syncService =
+          ClaimsSyncService(ClaimsSyncService.authenticatedDio);
+      final result = await syncService.fullSync();
+      if (result.errorMessage != null) {
+        debugPrint('Claims sync failed: ${result.errorMessage}');
+      }
+    } catch (error) {
+      debugPrint('Claims sync error: $error');
     }
   }
 
@@ -509,7 +543,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
             return const ScreenErrorBoundary(
               screenName: 'coverage-gaps',
               child: _MissingArgsScreen(
-                title: 'Coverage gaps',
+                title: 'Coverage overview',
                 message: 'No document was specified. '
                     'Choose a policy in Documents, then open its coverage details.',
                 recoveryRoute: '/documents',
@@ -594,10 +628,6 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
               screenName: 'literacy',
               child: InsuranceLiteracyScreen(),
             ),
-        '/what-if': (context) => const ScreenErrorBoundary(
-              screenName: 'what-if',
-              child: WhatIfCalculatorScreen(),
-            ),
         '/account': (context) => const ScreenErrorBoundary(
               screenName: 'account',
               child: AccountScreen(),
@@ -617,10 +647,6 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/family/visualization': (context) => const ScreenErrorBoundary(
               screenName: 'family-visualization',
               child: FamilyVisualizationScreen(),
-            ),
-        '/agent-requests': (context) => const ScreenErrorBoundary(
-              screenName: 'agent-requests',
-              child: AgentRequestsScreen(),
             ),
         '/notifications': (context) => const ScreenErrorBoundary(
               screenName: 'notifications',
@@ -737,6 +763,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       body: Column(
         children: [
           const OfflineBanner(),
+          const AuthExpiredBanner(),
           Expanded(
             child: IndexedStack(
               index: _selectedIndex,
@@ -747,29 +774,20 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                 ),
                 _visitedTabs.contains(1)
                     ? const ScreenErrorBoundary(
-                        screenName: 'documents',
+                        screenName: 'policies',
                         child: DocumentsScreen(),
                       )
                     : const SizedBox.shrink(),
                 _visitedTabs.contains(2)
                     ? ScreenErrorBoundary(
-                        screenName: 'qa',
-                        child: QaScreen(
-                          key: ValueKey('qa-tab'),
-                          isActive: _selectedIndex == 2,
-                        ),
+                        screenName: 'insights',
+                        child: const InsightsScreen(),
                       )
                     : const SizedBox.shrink(),
                 _visitedTabs.contains(3)
                     ? const ScreenErrorBoundary(
-                        screenName: 'family',
-                        child: FamilyScreen(),
-                      )
-                    : const SizedBox.shrink(),
-                _visitedTabs.contains(4)
-                    ? const ScreenErrorBoundary(
-                        screenName: 'more',
-                        child: MoreScreen(),
+                        screenName: 'profile',
+                        child: ProfileScreen(),
                       )
                     : const SizedBox.shrink(),
               ],
@@ -777,6 +795,12 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.pushNamed(context, '/qa'),
+        icon: const Icon(Icons.chat_bubble_outline_rounded),
+        label: const Text('Ask'),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
@@ -789,22 +813,17 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
           NavigationDestination(
             icon: Icon(Icons.description_outlined),
             selectedIcon: Icon(Icons.description_rounded),
-            label: 'Documents',
+            label: 'Policies',
           ),
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline_rounded),
-            selectedIcon: Icon(Icons.chat_bubble_rounded),
-            label: 'Ask',
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights_rounded),
+            label: 'Insights',
           ),
           NavigationDestination(
-            icon: Icon(Icons.group_outlined),
-            selectedIcon: Icon(Icons.group_rounded),
-            label: 'Family',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded),
-            label: 'More',
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Profile',
           ),
         ],
       ),
@@ -817,8 +836,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     Future.delayed(const Duration(seconds: 4), () {
       if (!mounted) return;
       setState(() {
-        _selectedIndex = 2;
-        _visitedTabs.add(2);
+        _selectedIndex = 1;
+        _visitedTabs.add(1);
       });
     });
   }

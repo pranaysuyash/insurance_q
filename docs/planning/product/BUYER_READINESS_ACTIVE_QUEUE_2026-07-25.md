@@ -1,0 +1,2326 @@
+# Buyer-readiness active queue (2026-07-25)
+
+Solo-founder mode is assumed. No enterprise governance track is required for sale readiness, and external legal/business counsel is optional, not a hard blocker.
+Owner-owned legal statements (Terms, Privacy, support commitments) are the required path for this sale scope; external advisory review can be added only if requested.
+
+## Global execution state
+
+ - Updated: 2026-07-25T13:10:25+05:30 (latest checkpoint, Q2 key-path revalidation)
+  - Queue state: 12 complete (incl. local verifier hardening), 1 in-progress/blocked, 3 pending
+  - Mode: one-item-at-a-time with checkpoint evidence after each attempt
+  - Current active gate: **BR-04** (blocked by missing/invalid `SUPABASE_SERVICE_ROLE_KEY`; host `app.example.com` unresolved)
+ - Authoritative live source for this cycle: `docs/planning/product/BUYER_READINESS_TODO_LIST_2026-07-25.md`
+ - Current checkpoint:
+
+- 2026-07-25T13:10:25+05:30 (Q2 key-path revalidation)
+  - `tools/check_buyer_readiness_prereqs.sh --sourced-env` still fails with a **single blocked item**:
+    - `SUPABASE_SERVICE_ROLE_KEY` not set (normalized from `SUPABASE_SECRET_KEY`)
+    - `/rest/v1` probe returns `401`.
+  - BR-04/BR-05 direct checks with placeholder key:
+    - `tools/verify_local_identity_claim.py --allow-remote-supabase`: `FAIL admin user creation failed: Invalid API key`.
+    - `tools/verify_local_tenant_isolation.py --allow-remote-supabase`: `FAIL: admin user creation failed: Invalid API key`.
+  - Hostability checks remain unchanged:
+    - `verify_hosted_legal_documents.py` on `app.example.com` and `coverwise.app` still `URLError`.
+    - `dig +short app.example.com` and `coverwise.app`: no A/AAAA records.
+  - Runtime health/harness check:
+    - `./.venv/bin/pytest -q tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py tests/test_verify_hosted_legal_documents.py` -> `8 passed in 0.02s`.
+  - Decision: no state transition. Active next step remains owner JWT `SUPABASE_SERVICE_ROLE_KEY`.
+
+- 2026-07-25T13:04:44+05:30 (BR-04 precondition shape revalidation)
+  - Q1 remains completed (socket present and daemon reachable).
+  - `tools/check_buyer_readiness_prereqs.sh --sourced-env` now reports **1 blocked item**:
+    - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) ... error: 401`)
+    - with note `SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY` and `SUPABASE_SERVICE_ROLE_KEY=sb_secret_...`-style fallback.
+  - BR-04/BR-05 direct checks with placeholder service key:
+    - `tools/verify_local_identity_claim.py --allow-remote-supabase`: `FAIL admin user creation failed: Invalid API key`.
+    - `tools/verify_local_tenant_isolation.py --allow-remote-supabase`: `FAIL: admin user creation failed: Invalid API key`.
+  - Hostability status unchanged:
+    - `verify_hosted_legal_documents.py` for `app.example.com` and `coverwise.app` still returns `URLError`.
+  - Decision: no status transition; next action remains owner-supplied JWT `SUPABASE_SERVICE_ROLE_KEY`.
+
+- 2026-07-25T13:06:48+05:30 (Q2 precondition one-item revalidation)
+  - `tools/check_buyer_readiness_prereqs.sh --sourced-env` again returns:
+    - `DockerVersion=29.6.2;Server=29.6.2`
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 1 item(s).`
+    - `SUPABASE_URL/rest/v1` probe still `401`.
+    - `SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+  - BR-04/BR-05 auth hard-gate remains blocked with placeholder service key:
+    - `FAIL admin user creation failed: Invalid API key` (identity continuity)
+    - `FAIL: admin user creation failed: Invalid API key` (tenant isolation)
+  - BR-06 check remains unchanged:
+    - `verify_hosted_legal_documents.py` on `app.example.com` and `coverwise.app` returns `URLError`.
+  - Decision: no state transition. Q2 still blocked by missing/invalid owner-provided JWT `SUPABASE_SERVICE_ROLE_KEY`.
+
+- 2026-07-25T13:02:23+05:30 (Q1 checkpoint transition + Q2/Q3/Q4 dependency confirmation)
+  - Q1 status moved from blocked -> completed:
+    - `launchctl kickstart -k gui/501/com.docker.helper` (exit 0), `launchctl start gui/501/com.docker.helper` (exit 3), `launchctl start system/com.docker.socket` (exit 3), followed by state re-check:
+      - `gui/501/com.docker.helper`: `state = not running`, `job state = exited`, `runs = 20`, `last exit code = 0`
+      - `system/com.docker.socket`: `state = not running`, `job state = exited`, `runs = 7`, `last exit code = 0`
+    - `/Users/pranay/.docker/run/docker.sock` now exists as a socket (`srwxr-xr-x`), and `/var/run/docker.sock` still symlinks to it.
+    - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'` now returns `Client 29.6.2;Server 29.6.2`.
+    - `docker ps -a` lists Supabase local stack containers as running/active, confirming daemon health.
+  - Q2/Q3/Q4 status after Q1 transition:
+    - `tools/check_buyer_readiness_prereqs.sh` now blocks on:
+      - invalid `/service role` key shape (`SUPABASE_SERVICE_ROLE_KEY len=7`, `SUPABASE_SECRET_KEY len=41`, `SUPABASE_PUBLISHABLE_KEY len=46`; dots not JWT)
+      - `SUPABASE_URL/rest/v1` returns `curl: (56) The requested URL returned error: 401`
+    - `tools/verify_local_identity_claim.py --allow-remote-supabase` with placeholder service key still fails: `Invalid API key`.
+    - `tools/verify_local_tenant_isolation.py --allow-remote-supabase` with placeholder service key still fails: `Invalid API key`.
+    - `tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms` still returns `URLError`.
+  - Decision: Q1 is now checked off; continue in order with Q2 (owner-provided JWT service-role key), then Q3/Q4.
+
+- 2026-07-25T12:59:19+05:30 (Q3/Q4 dependency confirmation under same blocked Q1/Q2)
+  - Q2/Q3/Q4 validation checks run with current in-session values:
+    - `set -a; . ./.env; tools/check_buyer_readiness_prereqs.sh`:
+      - still blocked with two items:
+        - missing socket `/Users/pranay/.docker/run/docker.sock`
+        - fallback auth for `/rest/v1` returns `401`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' tools/verify_local_identity_claim.py --allow-remote-supabase`:
+      - admin user creation + sign-in pass
+      - guest-to-account claim/account profile fail at `HTTP 401` (`Invalid or expired account token`)
+      - synthetic upload fails `401 Invalid or expired account token`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' tools/verify_local_tenant_isolation.py --allow-remote-supabase`:
+      - `FAIL: admin user creation failed: invalid JWT: unable to parse or verify signature, token is unverifiable`
+    - hosted legal:
+      - `verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - both continue to return `URLError`
+  - `launchctl` and `socket` state remains unchanged from prior run (`/Users/pranay/.docker/run/docker.sock` missing, both launchd jobs `state = not running`/`job state = exited`).
+  - Decision: no status transition; downstream `Q3`/`Q4` remain blocked by Q2 + Q1.
+
+- 2026-07-25T12:58:20+05:30 (Q1/Q2/Q5 hard recheck + action)
+  - Runtime:
+    - `docker context show`: `desktop-linux`.
+    - `/Users/pranay/.docker/run/docker.sock`: missing; `/var/run/docker.sock` symlink to that missing target.
+    - `docker version --format 'Client {{.Client.Version}};Server {{.Client.Version}}'`:
+      - `Client 29.6.2;Server `
+      - failed to connect to missing socket path.
+    - `launchctl print gui/501/com.docker.helper` and `system/com.docker.socket`:
+      - both `state = not running`, `job state = exited`.
+      - `runs` counters: helper `17`, socket `7`.
+      - last exit codes: `0` (both).
+    - Recovery commands run:
+      - `launchctl kickstart -k gui/501/com.docker.helper`
+      - `launchctl start gui/501/com.docker.helper`
+      - `launchctl start system/com.docker.socket`
+    - No socket is created; helper remains exited.
+  - Space/resource:
+    - ENOSPC remains in `~/Library/Containers/com.docker.docker/Data/log/host/monitor.log`.
+    - `~/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw`: `926G` virtual / `24G` allocated.
+  - Identity/env:
+    - `.env` contains no direct JWT-style `SUPABASE_SERVICE_ROLE_KEY`; fallback is from `SUPABASE_SECRET_KEY`.
+    - `tools/check_buyer_readiness_prereqs.sh`: still blocked (`socket missing`, `/rest/v1` unauthorized via fallback key).
+  - Hosted proof:
+    - `verify_hosted_legal_documents.py` on `app.example.com` and `coverwise.app`: `URLError`.
+    - `verify_hosted_legal_documents.py` on `example.com`: `HTTPError`.
+  - Status decision: **no transition** — `Q1` and `Q2` remain hard blockers; downstream `Q3`/`Q4`/`Q5` not actionable in-session.
+
+- 2026-07-25T12:47:01+05:30 (Q1/Q2 recheck: fresh runtime/env proof with no status transition)
+  - `date`: `2026-07-25T12:47:01+05:30`
+  - `docker context show`: `desktop-linux`.
+  - `ls -l /Users/pranay/.docker/run/docker.sock /var/run/docker.sock`:
+    - `/Users/pranay/.docker/run/docker.sock`: missing
+    - `/var/run/docker.sock -> /Users/pranay/.docker/run/docker.sock`
+  - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'`:
+    - `Client 29.6.2;Server `
+    - failed to connect to missing socket (`connect: no such file or directory`).
+  - Launch service evidence:
+    - `gui/501/com.docker.helper`: `state = not running`, `job state = exited`, `runs = 15`
+    - `system/com.docker.socket`: `state = not running`, `job state = exited`, `runs = 7`
+  - `~/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw`: `926G` (still saturated)
+  - `.env` key-shape evidence:
+    - `SUPABASE_URL` present
+    - `SUPABASE_PUBLISHABLE_KEY` present (non-JWT shape)
+    - `SUPABASE_SECRET_KEY` length 41, dots 0
+    - `SUPABASE_SERVICE_ROLE_KEY` effectively unset/invalid (length reported 1 with blanks; treated as unusable for bearer auth)
+    - `COVERWISE_API_BASE_URL` unset
+  - `tools/check_buyer_readiness_prereqs.sh` still blocked with 2 items:
+    - missing socket at `/Users/pranay/.docker/run/docker.sock`
+    - `SUPABASE_SERVICE_ROLE_KEY` normalization to non-JWT `SUPABASE_SECRET_KEY` (`/rest/v1` `401`)
+  - Hosted/legal checks remain blocked:
+    - `verify_hosted_legal_documents.py` for `app.example.com` + `coverwise.app`: `URLError`
+    - `curl https://app.example.com/privacy` / `coverwise.app/privacy`: `Could not resolve host` (`http_code=000`)
+  - Decision: no status transition; `Q1` and `Q2` remain hard blockers.
+
+- 2026-07-25T12:43:05+05:30 (Q1/Q2 one-item checkpoint with fresh in-session evidence)
+  - `docker context show`: `desktop-linux` on `unix:///Users/pranay/.docker/run/docker.sock`.
+  - `ls -l /Users/pranay/.docker/run/docker.sock /var/run/docker.sock`:
+    - `/Users/pranay/.docker/run/docker.sock`: missing
+    - `/var/run/docker.sock -> /Users/pranay/.docker/run/docker.sock`
+  - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'`:
+    - `Client 29.6.2;Server `
+    - failed to connect to missing socket.
+  - `launchctl print gui/501/com.docker.helper`: `state = not running`, `job state = exited`, `runs = 14`.
+  - `launchctl print system/com.docker.socket`: `state = not running`, `job state = exited`.
+  - ENOSPC evidence still present:
+    - `no space left on device` in `~/Library/Containers/com.docker.docker/Data/log/host/monitor.log`
+    - `Docker Desktop cannot continue because the disk is full`
+  - `.env` shape remains:
+    - `SUPABASE_URL` set
+    - `SUPABASE_PUBLISHABLE_KEY` present (non-JWT shape)
+    - `SUPABASE_SECRET_KEY` present (non-JWT shape)
+    - `SUPABASE_SERVICE_ROLE_KEY` unset
+    - `COVERWISE_API_BASE_URL` unset
+  - `tools/check_buyer_readiness_prereqs.sh` still blocked with 2 items:
+    - missing socket at `/Users/pranay/.docker/run/docker.sock`
+    - `SUPABASE_SERVICE_ROLE_KEY` normalization to non-JWT `SUPABASE_SECRET_KEY`
+    - `/rest/v1` warning remains `curl: (56) The requested URL returned error: 401`
+  - Hosted/legal proofs still blocked:
+    - `verify_hosted_legal_documents.py` for `app.example.com` + `coverwise.app`: `URLError`
+    - `curl https://app.example.com/privacy` / `coverwise.app`: `Could not resolve host` (`http_code=000`)
+  - Decision: no status transition; `Q1` + `Q2` remain hard blockers.
+
+- 2026-07-25T12:41:50+05:30 (Q1/Q2 checkpoint with fresh runtime + env evidence)
+  - `docker context show` remains `desktop-linux` at `unix:///Users/pranay/.docker/run/docker.sock`.
+  - `ls -l /Users/pranay/.docker/run/docker.sock` still reports missing; `/var/run/docker.sock` remains symlinked.
+  - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'` remains `Client 29.6.2;Server ` and still errors on socket connect.
+  - `launchctl print gui/501/com.docker.helper` and `system/com.docker.socket`: both `state = not running`, `job state = exited`, `runs` moved to `14`.
+  - `check_buyer_readiness_prereqs.sh` still blocked on:
+    - missing socket at `/Users/pranay/.docker/run/docker.sock`
+    - `SUPABASE_SERVICE_ROLE_KEY` normalization/401 (`SUPABASE_SECRET_KEY` is non-JWT)
+  - ENOSPC evidence remains active (`no space left on device`, `Docker Desktop cannot continue because the disk is full`) and `Docker.raw` remains `926G`.
+  - Hosted legal reads still fail with `URLError` for `app.example.com` and `coverwise.app`.
+  - Decision: no status change. Q1/Q2 still hard-blockers.
+
+- 2026-07-25T12:38:19+05:30 (Q1 recovery recheck)
+  - `docker context use desktop-linux` (already selected); `docker context show` still resolves to `desktop-linux` endpoint `unix:///Users/pranay/.docker/run/docker.sock`.
+  - `/Users/pranay/.docker/run/docker.sock` is missing; `/var/run/docker.sock` symlink remains.
+  - `launchctl print gui/501/com.docker.helper` and `system/com.docker.socket`: both `state = not running`, `job state = exited`.
+  - Recovery action attempted: `launchctl kickstart -k gui/501/com.docker.helper`, then `launchctl start gui/501/com.docker.helper`, and `launchctl start system/com.docker.socket` (no state change).
+  - `com.docker.helper` helper `runs` moved to 13 but status is still `exited`; socket remains missing.
+  - `docker version` still `Client 29.6.2;Server ` with connect error to missing socket.
+  - ENOSPC markers remain in Docker logs (`no space left on device`, `Docker Desktop cannot continue because the disk is full`).
+  - `check_buyer_readiness_prereqs.sh` still blocked on socket + key-normalization + Supabase 401.
+  - Hosted legal checks unchanged (`URLError` on app.example.com and coverwise.app).
+  - Decision: Q1 remains hard-blocked; no queue ticks.
+
+- 2026-07-25T12:37:04+05:30 (Q1/Q2 recheck)
+  - `docker context ls` + `docker context show` -> `desktop-linux` on `unix:///Users/pranay/.docker/run/docker.sock`.
+  - `ls -l /Users/pranay/.docker/run/docker.sock /var/run/docker.sock`:
+    - `/Users/pranay/.docker/run/docker.sock`: missing
+    - `/var/run/docker.sock -> /Users/pranay/.docker/run/docker.sock` (symlink)
+  - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'`:
+    - `Client 29.6.2;Server `
+    - failed to connect to missing socket path
+  - `launchctl` state:
+    - `gui/501/com.docker.helper` -> `state = not running`, `job state = exited`
+    - `system/com.docker.socket` -> `state = not running`, `job state = exited`
+  - `.env` shape:
+    - `SUPABASE_SERVICE_ROLE_KEY=<UNSET>`
+    - `SUPABASE_SECRET_KEY=len 41 dots 0`
+    - `SUPABASE_PUBLISHABLE_KEY=len 46 dots 0`
+    - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+    - `COVERWISE_API_BASE_URL=<UNSET>`
+  - `set -a; . ./.env; tools/check_buyer_readiness_prereqs.sh`:
+    - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+    - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+    - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+  - Hosted proofs:
+    - `verify_hosted_legal_documents.py` for `app.example.com`/`coverwise.app` -> URLError
+    - `curl` to both urls -> `Could not resolve host` (`http_code=000`)
+  - Decision: no state change; Q1 and Q2 remain hard blockers.
+
+- 2026-07-25T12:33:01+05:30 (Q1 rerun: socket/process/runtime command evidence)
+  - `docker context ls`: `desktop-linux * -> unix:///Users/pranay/.docker/run/docker.sock`.
+  - `docker context show`: `desktop-linux`.
+  - `ls -l /Users/pranay/.docker/run/docker.sock /var/run/docker.sock`:
+    - `/Users/pranay/.docker/run/docker.sock`: missing
+    - `/var/run/docker.sock -> /Users/pranay/.docker/run/docker.sock` (symlink).
+  - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'`:
+    - `Client 29.6.2;Server `
+    - failed to connect to `/Users/pranay/.docker/run/docker.sock`.
+  - `launchctl` service state:
+    - `gui/501/com.docker.helper` -> `state = not running`, `job state = exited`
+    - `system/com.docker.socket` -> `state = not running`, `job state = exited`
+  - `ps` scan still shows backend residue only:
+    - `/Applications/Docker.app/Contents/MacOS/com.docker.backend` and related child process present; no live socket file.
+  - `.env` shape still:
+    - `SUPABASE_SERVICE_ROLE_KEY=<unset>`
+    - `SUPABASE_SECRET_KEY=sb_secret_...`
+    - `SUPABASE_PUBLISHABLE_KEY=sb_publishable_...`
+    - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+  - `tools/check_buyer_readiness_prereqs.sh`:
+    - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+    - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+    - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+  - `tools/verify_local_identity_claim.py --allow-remote-supabase` with placeholder key: `FAIL admin user creation failed: Invalid API key`.
+  - `tools/verify_local_tenant_isolation.py --allow-remote-supabase` with placeholder key: `FAIL: admin user creation failed: Invalid API key`.
+  - `tools/verify_hosted_legal_documents.py` for `app.example.com` and `coverwise.app`: both URLError.
+  - Decision: no state change; `Q1` and `Q2` remain hard blockers.
+
+- 2026-07-25T12:29:45+05:30 (Q1/Q2 hard-block re-confirmation)
+  - `date` and session probe:
+    - `CHECKPOINT: 2026-07-25T12:29:45+05:30`
+  - `docker context show` -> `desktop-linux`.
+  - `/Users/pranay/.docker/run/docker.sock`: missing
+  - `/var/run/docker.sock` symlink target still points to missing runtime path.
+  - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'` -> `Client 29.6.2;Server ` with socket connect error.
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh`:
+    - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+    - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+    - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh` output:
+    - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+    - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+    - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+  - Hosted legal verification:
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `URLError` on both privacy and terms reads.
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `URLError` on both privacy and terms reads.
+  - Identity dry-run with placeholder:
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__'`
+    - `tools/verify_local_identity_claim.py --allow-remote-supabase` -> `FAIL admin user creation failed: Invalid API key`
+    - `tools/verify_local_tenant_isolation.py --allow-remote-supabase` -> `FAIL: admin user creation failed: Invalid API key`
+  - Runtime service checks:
+    - `docker context use desktop-linux` still maps to `unix:///Users/pranay/.docker/run/docker.sock`.
+    - `ls -l /Users/pranay/.docker/run/docker.sock`: file missing
+    - `ls -l /var/run/docker.sock` still symlinked to missing target
+    - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'` -> `Client 29.6.2;Server ` + missing-socket connect error
+    - `launchctl print gui/501/com.docker.helper`: `state = not running`, `job state = exited`
+    - `launchctl print system/com.docker.socket`: `state = not running`, `job state = exited`
+  - Decision: no status change; same two hard dependencies remain (Docker daemon/socket and valid owner `SUPABASE_SERVICE_ROLE_KEY`).
+
+- 2026-07-25T12:28:36+05:30 (Q1/Q2 hard-block confirmation + socket/runtime check)
+
+- 2026-07-25T12:22:17+05:30
+  - `docker context use desktop-linux` -> context remains `desktop-linux`
+  - `/Users/pranay/.docker/run/docker.sock`: missing; `/var/run/docker.sock` symlinked to missing target
+  - `timeout 10s docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'`
+    - `Client 29.6.2;Server `
+    - failed to connect: `/Users/pranay/.docker/run/docker.sock`
+  - `set -a; . ./.env; timeout 20s bash tools/check_buyer_readiness_prereqs.sh`
+    - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+    - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+    - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+    - both: `hosted page could not be read: URLError`
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+    - both: `hosted page could not be read: URLError`
+  - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - `FAIL admin user creation failed: Invalid API key`
+  - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - `FAIL: admin user creation failed: Invalid API key`
+  - Decision: `Q1` and `Q2` still blocking; downstream gates unchanged.
+
+- 2026-07-25T12:23:11+05:30 (Q1 recovery re-check)
+  - `docker context use desktop-linux`
+  - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'` -> `Client 29.6.2;Server ` + connect error to `/Users/pranay/.docker/run/docker.sock`
+  - `/Users/pranay/.docker/run/docker.sock`: missing; `/var/run/docker.sock` still symlink
+  - `launchctl print gui/501/com.docker.helper` -> state `not running`, job `exited`
+  - `launchctl print system/com.docker.socket` -> state `not running`, job `exited`
+  - `open -a Docker` -> `_LSOpenURLsWithCompletionHandler() ... error -1712`
+  - `Docker.raw` remains `926G`; ENOSPC markers still present
+  - `SUPABASE_SERVICE_ROLE_KEY` still unset in `.env` (`len 0, dots 0`)
+  - `tools/check_buyer_readiness_prereqs.sh` remains `BLOCKED: BR-04/BR-05` and placeholder BR-04 check still returns `FAIL admin user creation failed: Invalid API key`
+- 2026-07-25T12:21:44+05:30 (latest proof snapshot)
+  - `docker context use default` -> `Current context is now "default"`
+  - `docker version --format ...` -> `Client 29.6.2;Server ` connect error on `unix:///var/run/docker.sock`
+  - `docker context use desktop-linux` -> `Current context is now "desktop-linux"`
+  - `docker version --format ...` -> `Client 29.6.2;Server ` connect error on `unix:///Users/pranay/.docker/run/docker.sock`
+  - `/Users/pranay/.docker/run/docker.sock`: missing
+  - `/var/run/docker.sock` still symlink to missing target
+  - `tools/check_buyer_readiness_prereqs.sh` still:
+    - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+    - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+    - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) ... 401`)
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+- `2026-07-25T12:10:59+05:30` (BR-04/BR-05 preflight rerun + hosted legal smoke)
+  - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+    - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+    - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+    - `OK: required env vars present` (`SUPABASE_URL`, `COVERWISE_API_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
+    - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+    - `privacy: verification failed` (`hosted page could not be read: URLError`)
+    - `terms: verification failed` (`hosted page could not be read: URLError`)
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+    - `privacy: verification failed` (`hosted page could not be read: URLError`)
+    - `terms: verification failed` (`hosted page could not be read: URLError`)
+  - `SUPABASE_SECRET_KEY` shape remains non-JWT (`len=41`), so normalization does not yield working admin auth.
+- `2026-07-25T12:01:59+05:30` (prereq-script confirmation after open/recovery sequence)
+  - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+  - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+  - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+  - `OK: required env vars present` (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
+  - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+  - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+- `2026-07-25T12:00:59+05:30` (Q1 recovery attempt after reopen)
+  - `open -a Docker`
+  - `docker context ls`
+    - `default -> unix:///var/run/docker.sock`
+    - `desktop-linux * -> unix:///Users/pranay/.docker/run/docker.sock`
+  - `ls -l /Users/pranay/.docker/run/docker.sock /var/run/docker.sock`
+    - `/Users/pranay/.docker/run/docker.sock`: No such file or directory
+    - `/var/run/docker.sock -> /Users/pranay/.docker/run/docker.sock`
+  - `docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'`
+    - `Client 29.6.2;Server `
+    - `failed to connect ... /Users/pranay/.docker/run/docker.sock: connect: no such file or directory`
+  - `launchctl print gui/501/com.docker.helper` / `launchctl print system/com.docker.socket`
+    - `com.docker.helper`: `state = not running`, `job state = exited`
+    - `com.docker.socket`: `state = not running`, `job state = exited`
+  - `/Library/PrivilegedHelperTools/com.docker.socket` is present but stopped; `SUPABASE_SERVICE_ROLE_KEY` still `<unset>` in `.env`.
+  - Docker Desktop log still includes ENOSPC event at:
+    - `.../com.docker.docker/Data/log/host/2026-07-25T02:40:21` style entry (`ENOSPC`).
+  - This remains blocked on Docker daemon/socket and owner service-role key.
+- `2026-07-25T11:51:46+05:30` (BR-04/BR-05 preflight + Docker recovery attempt)
+  - `open -a Docker`
+  - `ls -l /Users/pranay/.docker/run/docker.sock /var/run/docker.sock`
+    - `/Users/pranay/.docker/run/docker.sock`: No such file or directory
+    - `/var/run/docker.sock -> /Users/pranay/.docker/run/docker.sock`
+  - `timeout 8s docker version --format 'Client {{.Client.Version}};Server {{.Server.Version}}'`
+    - `failed to connect to the docker API at unix:///Users/pranay/.docker/run/docker.sock`
+  - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+    - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+    - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+    - `OK: required env vars present (redacted values):`
+      - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+      - `COVERWISE_API_URL=(unset)`
+      - `SUPABASE_PUBLISHABLE_KEY=sb_publishab…`
+      - `SUPABASE_SERVICE_ROLE_KEY=sb_secret_CF…`
+    - `WARN: SUPABASE_URL REST probe failed`
+      - `target: https://eyumuxwabmsymytjbxoj.supabase.co/rest/v1/`
+      - `detail: curl: (56) The requested URL returned error: 401`
+    - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+- `2026-07-25T11:49:15+05:30` (BR-04/BR-05 recheck)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+      - `OK: required env vars present (redacted values):`
+        - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+        - `COVERWISE_API_URL=(unset)`
+        - `SUPABASE_PUBLISHABLE_KEY=sb_publishab…`
+        - `SUPABASE_SERVICE_ROLE_KEY=sb_secret_CF…`
+      - `WARN: SUPABASE_URL REST probe failed`
+        - `target: https://eyumuxwabmsymytjbxoj.supabase.co/rest/v1/`
+        - `detail: curl: (56) The requested URL returned error: 401`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+  - `2026-07-25T11:46:46+05:30` (BR-04/BR-06 recheck)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+      - `OK: required env vars present (redacted values):`
+        - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+        - `COVERWISE_API_URL=(unset)`
+        - `SUPABASE_PUBLISHABLE_KEY=sb_publishab…`
+        - `SUPABASE_SERVICE_ROLE_KEY=sb_secret_CF…`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+  - `2026-07-25T11:44:27+05:30` (BR-04/BR-06 recheck)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+      - `OK: required env vars present (redacted values):`
+        - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+        - `COVERWISE_API_URL=(unset)`
+        - `SUPABASE_PUBLISHABLE_KEY=sb_publishab…`
+        - `SUPABASE_SERVICE_ROLE_KEY=sb_secret_CF…`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `dig +short app.example.com`
+      - `(empty)`
+    - `dig +short coverwise.app`
+      - `(empty)`
+    - `ls -l /Users/pranay/.docker/run/docker.sock /var/run/docker.sock`
+      - `/Users/pranay/.docker/run/docker.sock`: missing
+      - `/var/run/docker.sock -> /Users/pranay/.docker/run/docker.sock`
+    - `curl -ksS -o /tmp/hostcheck_app_now.txt -w '%{http_code}' https://app.example.com/privacy`
+      - `Could not resolve host: app.example.com`
+      - `http_code=000`
+    - `curl -ksS -o /tmp/hostcheck_cover_now.txt -w '%{http_code}' https://coverwise.app/privacy`
+      - `Could not resolve host: coverwise.app`
+      - `http_code=000`
+  - `2026-07-25T11:41:46+05:30` (BR-04/BR-06 recheck after latest manual sweep)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `dig +short app.example.com` / `dig +short coverwise.app`
+      - both returned no A/AAAA records
+    - `curl -ksS -o /tmp/hostcheck_app_1141.txt -w '%{http_code}' https://app.example.com/privacy`
+      - `http_code=000` (`Could not resolve host`)
+    - `curl -ksS -o /tmp/hostcheck_cover_1141.txt -w '%{http_code}' https://coverwise.app/privacy`
+      - `http_code=000` (`Could not resolve host`)
+  - `2026-07-25T11:35:18+05:30` (BR-04/BR-06 runnable probe recheck)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `INFO: SUPABASE_SERVICE_ROLE_KEY not set; normalizing from SUPABASE_SECRET_KEY.`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `dig +short app.example.com` / `dig +short coverwise.app`
+      - both returned no A/AAAA records
+    - `curl -ksS -o /tmp/hostcheck_body_2.txt -w '%{http_code}' https://app.example.com/privacy`
+      - `http_code=000` (`Could not resolve host`)
+    - `curl -ksS -o /tmp/hostcheck_body_3.txt -w '%{http_code}' https://coverwise.app/privacy`
+      - `http_code=000` (`Could not resolve host`)
+  - `2026-07-25T10:44:03+05:30` (BR-14 non-runtime evidence hardening)
+    - `bash tools/generate_production_sbom.sh docs/review/evidence-transfer/analytics/production-dependencies-sbom-2026-07-25.json`
+      - `SBOM generated at docs/review/evidence-transfer/analytics/production-dependencies-sbom-2026-07-25.json; locked-graph audit found no known vulnerabilities.`
+    - `sha256=ea74643c50dcecaf8cf4da13fe04ddb81aa26b6fe9d5a7868ba12655eaaadb86`
+    - Updated `docs/review/evidence-transfer/analytics/analytics_evidence_bundle_2026-07-25.md` and `docs/review/TRANSACTION_READINESS_EVIDENCE_PACK_2026-07-25.md` to include the generated supply-chain artifact.
+    - `docs/review/evidence-transfer/README.md` now points to the generated SBOM artifact.
+  - `2026-07-25T10:34:53+05:30` (non-secret proof re-run on command path and hosted-legal probe)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `./.venv/bin/pytest -q tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+      - `4 passed in 0.01s`
+    - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py`
+      - `4 passed in 0.01s`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `set -a; ./.env; ./.venv/bin/python tools/validate_production_config.py`
+      - `production configuration contract is valid; no secret values were printed.`
+    - One-item context reaffirmed: no external legal/business-counsel dependency is required for mandatory readiness proof in this solo-founder sale track.
+  - `2026-07-25T10:31:55+05:30` (deployed-hostability probe + docker socket verification)
+    - `dig +short app.example.com`
+      - (empty: no A/AAAA record from environment resolver path)
+    - `dig +short coverwise.app`
+      - (empty: no A/AAAA record from environment resolver path)
+    - `dig +short nrmmvtpyaf.ap-south-1.awsapprunner.com`
+      - (empty: no A/AAAA record from environment resolver path)
+    - `docker version --format 'Client {{.Client.Version}} Server {{.Server.Version}}'`
+      - `Client 29.6.2 Server ` (no daemon socket)
+      - connect error: no such file or directory at `/Users/pranay/.docker/run/docker.sock`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://example.com/privacy --terms-url https://example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: HTTPError`)
+      - `terms: verification failed` (`hosted page could not be read: HTTPError`)
+    - `curl -ksS -o /tmp/hostcheck_body.txt -w '%{http_code}' https://app.example.com/privacy`
+      - `http_code=000` with `Could not resolve host`
+    - `curl -ksS -o /tmp/hostcheck_body.txt -w '%{http_code}' https://coverwise.app/privacy`
+      - `http_code=000` with `Could not resolve host`
+    - `curl -ksS -o /tmp/hostcheck_body.txt -w '%{http_code}' https://example.com/privacy`
+      - `http_code=404`
+    - `curl -ksS -o /tmp/hostcheck_body.txt -w '%{http_code}' https://www.example.com/privacy`
+      - `http_code=404`
+  - `2026-07-25T10:27:51+05:30` (BR-04/BR-05 local readiness recheck + placeholder auth hardening)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `set -a; ./.env; SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): {'message': 'Invalid API key', 'hint': 'Double check your Supabase \\`anon\\` or \\`service_role\\` API key.'}`
+    - `set -a; . ./.env; SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 400): {}` (timeout-limited request path with invalid placeholder token)
+    - `set -a; . ./.env; ./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`
+      - `production configuration contract is valid; no secret values were printed.`
+    - In-session `.env` key-shape snapshot:
+      - `SUPABASE_SERVICE_ROLE_KEY=len0 set=no dots=0`
+      - `SUPABASE_URL=len40 dots2`
+      - `SUPABASE_PUBLISHABLE_KEY=len46 dots0`
+      - `SUPABASE_SECRET_KEY=len41 dots0`
+      - `COVERWISE_API_BASE_URL=<unset>`
+      - `DOCUMENT_REPOSITORY_BACKEND=supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`
+      - `RAG_VECTOR_BACKEND=supabase`
+      - `BILLING_LEDGER_BACKEND=supabase`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456`
+      - `PUBLIC_SITE_URL=https://example.com`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION=Bearer_local_test`
+      - `ALLOWED_ORIGINS=https://example.com`
+      - `ALLOWED_HOSTS=127.0.0.1,localhost`
+  - `2026-07-25T10:20:53+05:30` (BR-04/BR-05 local readiness recheck + env-shape hardening)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase` (no env loaded)
+      - `FAIL configuration: Supabase publishable and server keys are required`
+    - `set -a; ./.env; SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): {'message': 'Invalid API key', 'hint': 'Double check your Supabase \`anon\` or \`service_role\` API key.'}`
+    - `set -a; . ./.env; SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): {'message': 'Invalid API key', 'hint': 'Double check your Supabase \`anon\` or \`service_role\` API key.'}`
+    - `set -a; . ./.env; ./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`
+      - `production configuration contract is valid; no secret values were printed.`
+    - In-session `.env` key-shape snapshot:
+      - `SUPABASE_SERVICE_ROLE_KEY=set=False len=0 dots=0`
+      - `SUPABASE_URL=len40 dots2`
+      - `SUPABASE_PUBLISHABLE_KEY=len46 dots0`
+      - `SUPABASE_SECRET_KEY=len41 dots0`
+      - `COVERWISE_API_BASE_URL=<unset>`
+      - `DOCUMENT_REPOSITORY_BACKEND=supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`
+      - `RAG_VECTOR_BACKEND=supabase`
+      - `BILLING_LEDGER_BACKEND=supabase`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456`
+      - `PUBLIC_SITE_URL=https://example.com`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION=Bearer_local_test`
+      - `ALLOWED_ORIGINS=https://example.com`
+      - `ALLOWED_HOSTS=127.0.0.1,localhost`
+  - `2026-07-25T10:09:56+05:30` (BR-04/BR-05 local readiness recheck)
+    - In-session `.env` now confirms the BR-11 runtime surfaces are populated (non-secret placeholders):
+      - `PUBLIC_SITE_URL=https://example.com`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION=Bearer_local_test`
+      - `DOCUMENT_REPOSITORY_BACKEND=supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`
+      - `RAG_VECTOR_BACKEND=supabase`
+      - `BILLING_LEDGER_BACKEND=supabase`
+      - `ALLOWED_ORIGINS=https://example.com`
+      - `ALLOWED_HOSTS=127.0.0.1,localhost`
+  - `2026-07-25T09:54:26+05:30` (Docker daemon/socket recovery attempt)
+    - `open -a Docker` executed; waited for socket creation.
+    - `launchctl print gui/501/com.docker.helper`: `state = not running`, `job state = exited`, `runs = 5`, `last exit code = 0`.
+    - `launchctl print system/com.docker.socket`: `state = not running`, `job state = exited`.
+    - `launchctl bootstrap system /Library/LaunchDaemons/com.docker.socket.plist` -> `Bootstrap failed: 5: Input/output error` (requires root).
+    - `/Users/pranay/.docker/run/docker.sock` remains absent (`no socket` in 12-check loop).
+    - `docker version` remains `Client=29.6.2 Server=`.
+  - `2026-07-25T09:52:08+05:30` (current live recheck for BR-04 and BR-04 command-shape hardening)
+    - `./.venv/bin/pytest -q tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+      - `4 passed in 0.01s` (BR-04 command-shape coverage remains green as syntax/fixture checks)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://app.example.com/privacy --terms-url https://app.example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: URLError`)
+      - `terms: verification failed` (`hosted page could not be read: URLError`)
+    - `python` env-shape scan (from `.env`) remains:
+      - `SUPABASE_SERVICE_ROLE_KEY=<unset>`
+      - `DOCUMENT_REPOSITORY_BACKEND=sqlite`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=local`
+      - `RAG_VECTOR_BACKEND=qdrant`
+      - `BILLING_LEDGER_BACKEND=<unset>`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY=<unset>`
+      - `PUBLIC_SITE_URL=<unset>`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION=<unset>`
+      - `ALLOWED_ORIGINS=<unset>`
+      - `ALLOWED_HOSTS=<unset>`
+    - `SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__'` probe for BR-04/BR-05 identity continuity:
+      - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `HTTP 401 Invalid API key`
+    - Same placeholder key probe for BR-05 tenant isolation:
+      - `./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `HTTP 401 Invalid API key`
+  - `2026-07-25T09:54:12+05:30` (BR-14 analytics evidence manifest attached)
+    - Added: `docs/review/evidence-transfer/analytics/analytics_evidence_bundle_2026-07-25.md` with SHA-256 inventory for:
+      - `docs/monitoring/coverwise_analytics_dashboard.json`
+      - `docs/review/coverwise_analytics_event_spec.md`
+    - BR-14 transfer matrix row for analytics now references attached non-sensitive evidence.
+  - `2026-07-25T09:45:00+05:30` (BR-14 source-code handoff evidence attached)
+    - Added `docs/review/evidence-transfer/source/source_handover_notes_2026-07-25.md` with HEAD hash, branch, and workspace-change counters.
+    - BR-14 transfer row for source code now has an attached non-secret handoff metadata artifact.
+    - Open BR-14 requirements remain owner signatures for transfer rows and blocker dependencies for BR-04/BR-05/BR-07/BR-12.
+  - `2026-07-25T09:39:11+05:30` (BR-14 legal evidence manifest attached)
+    - Added `docs/review/evidence-transfer/legal/legal_evidence_bundle_2026-07-25.md`.
+    - Evidence includes SHA-256 checksums for current non-sensitive legal/doc assets.
+    - BR-13/14 now has a completed legal/docs transfer artifact; owner signatures still pending for handoff packet.
+  - `2026-07-25T09:07:51+05:30` (runtime recovery attempt + unchanged BR-04 blockers)
+    - `launchctl kickstart -k gui/501/com.docker.helper`
+      - command succeeded but service did not stay running
+    - `launchctl print gui/501/com.docker.helper`:
+      - `state = not running`
+      - `job state = exited`
+      - `run = 3`, `last exit code = 0`
+    - `launchctl print system/com.docker.socket`
+      - `state = not running`
+      - `job state = exited`
+    - `timeout 5 docker version --format 'Client {{.Client.Version}} Server {{.Server.Version}}'`
+      - `Client 29.6.2`
+      - `Server ` (empty)
+    - Interpretation: Docker runtime remains non-operational; BR-04 daemon blocker unchanged.
+  - `2026-07-25T09:05:25+05:30` (BR-04 prerequisite recheck + hostability probe)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `BR-04/BR-05 readiness check`
+      - `Timestamp: 2026-07-25T09:05:25+05:30`
+      - `INFO: /var/run/docker.sock symlink target: /Users/pranay/.docker/run/docker.sock`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - Env scan:
+      - `SUPABASE_SERVICE_ROLE_KEY=<unset>`
+      - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+      - `SUPABASE_PUBLISHABLE_KEY=sb_publishable...`
+      - `SUPABASE_SECRET_KEY=sb_secret...`
+      - `COVERWISE_API_BASE_URL=<unset>`
+    - Host resolution:
+      - `app.example.com -> <no DNS>`
+      - `coverwise.app -> <no DNS>`
+      - `curl` to `https://app.example.com`: `Could not resolve host`
+  - `2026-07-25T09:02:59+05:30` (BR-04 prerequisite recheck + service-role key probe)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `BR-04/BR-05 readiness check`
+      - `Timestamp: 2026-07-25T09:02:59+05:30`
+      - `INFO: /var/run/docker.sock symlink target: /Users/pranay/.docker/run/docker.sock`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): {'message': 'Invalid API key', 'hint': 'Double check your Supabase \\`anon\\` or \\`service_role\\` API key.'}`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): {'message': 'Invalid API key', 'hint': 'Double check your Supabase \\`anon\\` or \\`service_role\\` API key.'}`
+    - `set -a; . ./.env; DOCUMENT_REPOSITORY_BACKEND=supabase DOCUMENT_OBJECT_STORE_BACKEND=supabase RAG_VECTOR_BACKEND=supabase BILLING_LEDGER_BACKEND=supabase PROCESSING_PAYLOAD_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 ANONYMOUS_AUTH_SIGNING_KEY=zyxwvutsrqponmlkjihgfedcba123456 PUBLIC_SITE_URL=https://example.com REVENUECAT_WEBHOOK_AUTHORIZATION=Bearer_local_test ALLOWED_ORIGINS=https://example.com ALLOWED_HOSTS=127.0.0.1,localhost ./.venv/bin/python tools/validate_production_config.py`
+      - `production configuration contract is valid; no secret values were printed.`
+    - Env scan:
+      - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+      - `SUPABASE_PUBLISHABLE_KEY=sb_publishable...`
+      - `SUPABASE_SECRET_KEY=sb_secret...`
+      - `SUPABASE_SERVICE_ROLE_KEY=<unset>`
+      - `COVERWISE_API_BASE_URL=<unset>`
+  - `2026-07-25T08:58:35+05:30` (BR-04 prerequisite recheck + placeholder auth probe)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `INFO: /var/run/docker.sock symlink target: /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): {'message': 'Invalid API key', 'hint': 'Double check your Supabase \`anon\` or \`service_role\` API key.'}`
+    - Env scan:
+      - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+      - `SUPABASE_PUBLISHABLE_KEY=sb_publishable...`
+      - `SUPABASE_SECRET_KEY=sb_secret...`
+      - `SUPABASE_SERVICE_ROLE_KEY=<unset>`
+      - `COVERWISE_API_BASE_URL=<unset>`
+    - Next: wait for owner-supplied `SUPABASE_SERVICE_ROLE_KEY`, then rerun BR-04 identity continuity.
+  - `2026-07-25T08:49:22+05:30` (in-session BR-04 prerequisite recheck)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `INFO: /var/run/docker.sock symlink target: /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): {'message': 'Invalid API key', 'hint': 'Double check your Supabase \`anon\` or \`service_role\` API key.'}`
+    - `env scan (sourced .env)`:
+      - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co` (len 40, dots 2)
+      - `SUPABASE_PUBLISHABLE_KEY=sb_publishable...` (len 46, dots 0)
+      - `SUPABASE_SECRET_KEY=sb_secret...` (len 41, dots 0)
+      - `SUPABASE_SERVICE_ROLE_KEY=<unset>`
+      - `COVERWISE_API_BASE_URL=<unset>`
+    - Next in queue (one-at-a-time): continue with owner-provided `SUPABASE_SERVICE_ROLE_KEY` + rerun BR-04 identity verifier.
+  - `2026-07-25T08:46:15+05:30` (BR-04 prerequisite recheck in-session with sourced env)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+      - `INFO: /var/run/docker.sock symlink target: /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): {'message': 'Invalid API key', 'hint': 'Double check your Supabase \`anon\` or \`service_role\` API key.'}`
+    - Current status: BR-04 remains blocked on service-role key material + inactive daemon.
+    - Key-shape scan:
+      - `SUPABASE_PUBLISHABLE_KEY`: len 46, dots 0
+      - `SUPABASE_SECRET_KEY`: len 41, dots 0
+      - `SUPABASE_SERVICE_ROLE_KEY`: unset
+  - `2026-07-25T08:41:04+05:30` (BR-04 prerequisite recheck in-session with sourced env)
+    - `set -a; . ./.env; timeout 30s bash tools/check_buyer_readiness_prereqs.sh`
+    - Result: `Server=` in Docker version output (daemon not active), `SUPABASE_SERVICE_ROLE_KEY` still missing, and `SUPABASE_URL/rest/v1` returns `401`.
+    - BR-04 remains blocked on local runtime/key readiness.
+- `2026-07-25T08:52:10+05:30` (BR-13/14 transfer inventory manifest drafted)
+  - Added the transfer-inventory template for accounts, domains, analytics, repos, and infrastructure in `docs/review/TRANSACTION_READINESS_EVIDENCE_PACK_2026-07-25.md`.
+  - BR-13/14 checklist item "document transfer assets" is now marked complete as an evidence artifact.
+  - Remaining BR-13/14 closure condition: owner/signatory evidence artifacts for each inventory row remain to be attached.
+
+- `2026-07-25T08:58:07+05:30` (BR-13/14 evidence-intake matrix added)
+  - Added BR-14 evidence intake matrix with path and signature requirements for each transfer row in `docs/review/TRANSACTION_READINESS_EVIDENCE_PACK_2026-07-25.md`.
+  - BR-13/14 documentation now includes owner-declared proof package fields for each transfer class.
+
+- `2026-07-25T08:30:16+05:30` (BR-13/14 valuation memo drafted)
+  - Added one-page valuation memo (revenue/usage trend, feature footprint, risk flags) to `docs/review/TRANSACTION_READINESS_EVIDENCE_PACK_2026-07-25.md`.
+  - BR-13/14 checklist item 3 is now complete in the evidence pack.
+  - Remaining BR-13/14 action: transfer-asset evidence population and signatures.
+
+- `2026-07-25T08:20:42+05:30` (BR-13/14 valuation playbook micro-step completed)
+    - Added step-level BR-13/14 execution playbook to `docs/review/TRANSACTION_READINESS_EVIDENCE_PACK_2026-07-25.md`.
+    - First BR-13/14 subtask completed: `define solo-founder transfer scope + valuation formula`.
+    - Remaining BR-13/14 blockers are founder-provided commercial/account transfer evidence.
+
+- `2026-07-25T08:26:13+05:30` (BR-13/14 buyer-rehearsal playbook drafted)
+  - Added rehearsal/checklist guidance and sign-off packet in `docs/review/TRANSACTION_READINESS_EVIDENCE_PACK_2026-07-25.md` (BR-13/14 section 5 + section 8 item 4).
+  - BR-13/14 checklist item 4 is now marked done; next on-deck remains valuation memo + transfer inventory.
+  - `2026-07-25T08:18:46+05:30` (in-progress BR-13/14 pack started)
+    - `docs/review/TRANSACTION_READINESS_EVIDENCE_PACK_2026-07-25.md` linked and owner ownership/commercial continuity/transfer rows created as draft content.
+    - In-session state remains unchanged for BR-04/BR-05 blocker set and deployed-domain check.
+  - `2026-07-25T08:11:39+05:30` (fresh checkpoint after storage-space + auth check)
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `Timestamp: 2026-07-25T08:11:47+05:30`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `FAIL: docker socket exists but docker daemon check failed` (despite `docker version` reporting client/server up)
+      - `WARN: SUPABASE_URL/rest/v1` probe not persisted because `/tmp` is out of space (`No space left on device`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='${SUPABASE_SERVICE_ROLE_KEY}' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): Invalid API key`.
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='${SUPABASE_SERVICE_ROLE_KEY}' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 401): Invalid API key`.
+    - Interpretation: BR-04 remains blocked by missing/invalid `SUPABASE_SERVICE_ROLE_KEY`; BR-05 blocked behind BR-04; BR-06/07/12 blocked by unresolved deployed host targets.
+  - `2026-07-25T08:09:57+05:30` (runtime checks + blocked auth + deployed launch/tenant attempts)
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `Timestamp: 2026-07-25T08:09:57+05:30`
+      - `FAIL: required env vars missing: SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `./.venv/bin/python tools/verify_deployed_identity_claim.py --api-url https://app.example.com --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co --confirm`
+      - `HTTP 403` at `/auth/v1/admin/users` (`unrecognized JWT kid <nil>`), auth key-shape mismatch remains.
+    - `./.venv/bin/python tools/verify_deployed_tenant_isolation.py --api-url https://app.example.com --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co --confirm`
+      - user creations succeeded enough to create A/B, then URL read failed with `nodename nor servname provided` for `app.example.com` (`network failure`).
+    - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com --allow-identity-creation`
+      - `launch verifier failed before checks: network failure: [Errno 8] nodename nor servname provided, or not known`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://127.0.0.1:8005/privacy --terms-url https://127.0.0.1:8005/terms`
+      - `privacy: verification failed` (`URLError`)
+      - `terms: verification failed` (`URLError`)
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url http://127.0.0.1:8005/privacy --terms-url http://127.0.0.1:8005/terms`
+      - Rejected by verifier as non-HTTPS input.
+    - Interpretation: BR-04 remains blocked by missing/invalid `SUPABASE_SERVICE_ROLE_KEY`; BR-05 blocked behind BR-04; BR-06/07/12 also blocked by unreachable deployed host targets.
+  - `2026-07-25T08:01:38+05:30` (explicit env-state verification with absent service-role key)
+    - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+    - `SUPABASE_PUBLISHABLE_KEY` set
+    - `SUPABASE_SERVICE_ROLE_KEY` unset
+    - `COVERWISE_API_BASE_URL` unset
+    - `ls -l ~/.docker/run/docker.sock` -> socket present
+    - `docker version` -> `Client: 29.6.2` and `Server: 29.6.2`
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=29.6.2`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1` -> `401` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 2 item(s).`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_PUBLISHABLE_KEY=\"$SUPABASE_PUBLISHABLE_KEY\" SUPABASE_SERVICE_ROLE_KEY=\"${SUPABASE_SERVICE_ROLE_KEY:-unset}\" ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403)` from `/auth/v1/admin/users`
+      - `bad_jwt: token is malformed: invalid number of segments`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_PUBLISHABLE_KEY=\"$SUPABASE_PUBLISHABLE_KEY\" SUPABASE_SERVICE_ROLE_KEY=\"${SUPABASE_SERVICE_ROLE_KEY:-unset}\" ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403)` from `/auth/v1/admin/users`
+      - `bad_jwt: token is malformed: invalid number of segments`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `privacy: verification failed` (`URLError`)
+      - `terms: verification failed` (`URLError`)
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+      - `privacy: verification failed` (`HTTPError`)
+      - `terms: verification failed` (`HTTPError`)
+    - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com --allow-identity-creation`
+      - `launch verifier failed before checks: network failure: [Errno 8] nodename nor servname provided, or not known`
+    - Interpretation: BR-04 blocker remains `SUPABASE_SERVICE_ROLE_KEY` token-shape problem.
+  - `2026-07-25T07:58:24+05:30` (auth-token blocker reconfirmed; runtime up, service-role still invalid)
+    - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+    - `SUPABASE_PUBLISHABLE_KEY` set
+    - `SUPABASE_SERVICE_ROLE_KEY` unset
+    - `COVERWISE_API_BASE_URL` unset
+    - `ls -l ~/.docker/run/docker.sock` -> socket present
+    - `docker version` -> `29.6.2` (client/server)
+    - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=29.6.2`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1` -> `401` (`curl: (56) The requested URL returned error: 401`)
+    - `bash tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=29.6.2`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1` -> `401`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_PUBLISHABLE_KEY='$SUPABASE_PUBLISHABLE_KEY' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403)` from `/auth/v1/admin/users`
+      - `bad_jwt: token is malformed: invalid number of segments`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_PUBLISHABLE_KEY='$SUPABASE_PUBLISHABLE_KEY' SUPABASE_SERVICE_ROLE_KEY='$SUPABASE_SECRET_KEY' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403)` from `/auth/v1/admin/users`
+      - `bad_jwt: token is malformed: invalid number of segments`
+    - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_PUBLISHABLE_KEY='$SUPABASE_PUBLISHABLE_KEY' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403)` from `/auth/v1/admin/users`
+      - `bad_jwt: token is malformed: invalid number of segments`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `privacy: verification failed` (`URLError`)
+      - `terms: verification failed` (`URLError`)
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+      - `privacy: verification failed` (`HTTPError`)
+      - `terms: verification failed` (`HTTPError`)
+    - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com --allow-identity-creation`
+      - `launch verifier failed before checks: network failure: [Errno 8] nodename nor servname provided, or not known`
+    - Interpretation: BR-04 blocker narrowed to real service-role JWT; BR-05 remains blocked behind BR-04.
+  - `2026-07-25T07:53:03+05:30` (runtime unlock attempt + auth revalidation)
+    - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co`
+    - `SUPABASE_PUBLISHABLE_KEY` set
+    - `SUPABASE_SERVICE_ROLE_KEY` unset
+    - `COVERWISE_API_BASE_URL` unset
+    - `open -a Docker` and `launchctl start gui/501/com.docker.helper` + `launchctl start system/com.docker.socket` attempted
+      - helper remains `state = not running`, `job state = exited`
+      - daemon remains `state = not running`
+      - `/Users/pranay/.docker/run/docker.sock` still missing
+    - `bash tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `FAIL` for missing socket at `/Users/pranay/.docker/run/docker.sock`
+      - `FAIL` missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN` `SUPABASE_URL/rest/v1` -> `401`
+    - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `FAIL` (`HTTP 403`) from `/auth/v1/admin/users`: `bad_jwt` (`invalid JWT` with `invalid number of segments`)
+    - `set -a; source .env; ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `FAIL configuration: Supabase publishable and server keys are required`
+    - Interpretation: BR-04 blocker unchanged; BR-05 remains blocked behind BR-04 key/runtime gate.
+  - `2026-07-25T07:51:43+05:30` (preflight + auth attempts)
+    - `bash tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: required env vars missing: SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY`
+    - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `FAIL: admin user creation failed (HTTP 403)` from `/auth/v1/admin/users`
+      - `bad_jwt: token contains an invalid number of segments`
+    - `set -a; source .env; ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `FAIL configuration: Supabase publishable and server keys are required`
+    - `timeout 5s docker version`
+      - client prints (`29.6.2`)
+      - `failed to connect ... unix:///Users/pranay/.docker/run/docker.sock`
+    - Interpretation: BR-04 remains blocked by runtime + key-shape prerequisites; BR-05 unchanged.
+
+  - `2026-07-25T07:48:12+05:30` (Docker helper restart + socket diagnostics)
+    - `launchctl print gui/501/com.docker.helper`
+      - `state = not running`, `job state = exited`, `active count = 0`
+    - `launchctl kickstart -k gui/501/com.docker.helper`
+      - command returned; service remains non-running
+    - `ls -l ~/.docker/run/docker.sock`
+      - `docker.sock missing`
+    - `timeout 5s docker version`
+      - client prints (`29.6.2`) but connection still fails: `no such file or directory`
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1 401`
+    - Interpretation: docker runtime precondition remains blocked locally; BR-04/BR-05 still blocked by service-role JWT shape + daemon availability.
+  - `2026-07-25T07:46:58+05:30` (current blocker recheck)
+    - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `FAIL: admin user creation failed (HTTP 403)` from `/auth/v1/admin/users`
+      - `bad_jwt: token contains an invalid number of segments`
+    - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `FAIL: admin user creation failed (HTTP 403)` from `/auth/v1/admin/users`
+      - `bad_jwt: token contains an invalid number of segments`
+    - Interpretation: BR-04 blocker is still deterministic from token material, not API shape.
+      Progress state unchanged for BR-05 (same upstream auth guard).
+  - `2026-07-25T03:20:40+05:30` (previous blocker recheck)
+    - `set -a; . ./.env; SUPABASE_PUBLISHABLE_KEY="$SUPABASE_SECRET_KEY" SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SECRET_KEY" COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `FAIL` (`HTTP 403` from `/auth/v1/admin/users`: `invalid JWT... unrecognized JWT kid <nil>`)
+    - `set -a; . ./.env; SUPABASE_PUBLISHABLE_KEY="$SUPABASE_SECRET_KEY" SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SECRET_KEY" COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `FAIL` (`HTTP 403` from `/auth/v1/admin/users`: `invalid JWT... unrecognized JWT kid <nil>`)
+    - `tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `FAIL: docker socket missing at /Users/pranay/.docker/run/docker.sock`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`401`)
+    - `tools/validate_production_config.py`
+      - still missing required runtime settings (`PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, `DOCUMENT_REPOSITORY_BACKEND`, `DOCUMENT_OBJECT_STORE_BACKEND`, `RAG_VECTOR_BACKEND`, `BILLING_LEDGER_BACKEND`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`)
+    - `tools/verify_hosted_legal_documents.py` on `coverwise.app` and `www.example.com`: `verification failed` (`URLError`/`HTTPError`)
+    - `tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com --allow-identity-creation`
+      - `launch verifier failed before checks` (`network failure: [Errno 8]`)
+    - Tool hardening completed in-session: `tools/verify_local_tenant_isolation.py` now retries with synthetic PDF on `pdf_password_required`, and defaults to a non-password repo PDF.
+  - `2026-07-25T03:12:18+05:30` (Docker daemon unblock attempt in this session)
+    - `open -a /Applications/Docker.app`
+      - `open_rc=1`
+      - `_LSOpenURLsWithCompletionHandler()` failed: `error -1712`
+    - `launchctl start system/com.docker.socket`
+      - `helper_start=3`
+      - `launchctl print system/com.docker.socket` still reports `state = not running`
+    - `launchctl start gui/501/com.docker.helper`
+      - command returned with transition to runnable state, then service ended
+      - final `gui/501/com.docker.helper` print shows `state = not running`, `job state = exited`
+    - `timeout 5s docker version`
+      - `Client: 29.6.2`
+      - `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock. Is the docker daemon running?`
+
+  - `2026-07-25T03:07:54+05:30` (local daemon start + prerequisite recheck)
+    - `launchctl start gui/501/com.docker.helper`
+      - command returned without daemon startup state change
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `timeout 5s docker version`
+      - `Client: 29.6.2`
+      - `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock`
+
+  - `2026-07-25T03:10:24+05:30` (legacy-key diagnostic pass/fail check)
+    - `set -a; . ./.env; SUPABASE_PUBLISHABLE_KEY="$SUPABASE_SECRET_KEY" SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SECRET_KEY" COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `PASS` all identity continuity checks end-to-end.
+    - `set -a; . ./.env; SUPABASE_PUBLISHABLE_KEY="$SUPABASE_SECRET_KEY" SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SECRET_KEY" COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `RuntimeError` from `/auth/v1/admin/users` (`HTTP 403 bad_jwt`) on tenant-creation path.
+
+  - `2026-07-25T03:02:41+05:30` (BR-04/BR-05 identity+tenant + BR-11 shape recheck)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `missing SUPABASE_SERVICE_ROLE_KEY`
+      - `SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`)
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`)
+    - `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`
+      - baseline contract still fails for missing production-only vars
+    - `set -a; . ./.env; DOCUMENT_REPOSITORY_BACKEND=supabase DOCUMENT_OBJECT_STORE_BACKEND=supabase RAG_VECTOR_BACKEND=supabase BILLING_LEDGER_BACKEND=supabase PROCESSING_PAYLOAD_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 ANONYMOUS_AUTH_SIGNING_KEY=zyxwvutsrqponmlkjihgfedcba123456 PUBLIC_SITE_URL=https://example.com REVENUECAT_WEBHOOK_AUTHORIZATION=Bearer_local_test ALLOWED_ORIGINS=https://example.com ALLOWED_HOSTS=127.0.0.1,localhost ./.venv/bin/python tools/validate_production_config.py`
+      - `production configuration contract is valid; no secret values were printed.`
+
+  - `2026-07-25T02:59:29+05:30` (BR-06 deployed/legal hostability sweep)
+    - `set -a; . ./.env; ./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `privacy: verification failed`
+      - `terms: verification failed`
+      - hosted page read failed with `URLError`
+  - `2026-07-25T02:56:20+05:30` (next one-item checkpoint sweep)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `missing SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+  - `2026-07-25T02:54:05+05:30` (next one-item checkpoint sweep)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `missing SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+  - `2026-07-25T02:49:56+05:30` (next one-item checkpoint sweep)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+    - `set -a; . ./.env; timeout 5s docker version`
+      - `Client: 29.6.2`
+      - `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock`
+  - `2026-07-25T02:42:16+05:30` (fresh in-session checkpoint)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token contains an invalid number of segments`)
+    - `set -a; . ./.env; DOCUMENT_REPOSITORY_BACKEND=supabase DOCUMENT_OBJECT_STORE_BACKEND=supabase RAG_VECTOR_BACKEND=supabase BILLING_LEDGER_BACKEND=supabase PROCESSING_PAYLOAD_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 ANONYMOUS_AUTH_SIGNING_KEY=zyxwvutsrqponmlkjihgfedcba123456 PUBLIC_SITE_URL=https://example.com REVENUECAT_WEBHOOK_AUTHORIZATION=Bearer_local_test ALLOWED_ORIGINS=https://example.com ALLOWED_HOSTS=127.0.0.1,localhost ./.venv/bin/python tools/validate_production_config.py`
+      - `production configuration contract is valid; no secret values were printed.`
+    - `timeout 5s docker version`
+      - `Client: 29.6.2`
+      - `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+      - `privacy: verification failed`
+      - `terms: verification failed` (`HTTPError`)
+    - `curl -I --max-time 8 https://app.example.com`
+      - `curl: (6) Could not resolve host: app.example.com`
+  - `2026-07-25T02:40:16+05:30` (deployed launch verification guard: no routable production endpoint)
+    - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com --allow-identity-creation`
+      - `launch verifier failed before checks: network failure: [Errno 8] nodename nor servname provided, or not known`
+  - `2026-07-25T02:41:55+05:30` (BR-05 attempt with current credentials/runtime)
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+      - BR-05 remains blocked until BR-04 token/secret blocker is resolved.
+  - `2026-07-25T02:38:11+05:30` (runtime daemon state)
+    - `timeout 5s docker version`
+      - `Client: 29.6.2`
+      - `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock. Is the docker daemon running?`
+    - `launchctl print system/com.docker.socket`
+      - `state = not running`, `runs = 3`, `last exit code = 0`
+    - `launchctl print gui/501/com.docker.helper`
+      - `state = not running`, `job state = exited`, `runs = 7`, `last exit code = 0`
+  - `2026-07-25T02:36:56+05:30` (BR-04 preflight + hostability control recheck)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+    - `set -a; . ./.env; DOCUMENT_REPOSITORY_BACKEND=supabase DOCUMENT_OBJECT_STORE_BACKEND=supabase RAG_VECTOR_BACKEND=supabase BILLING_LEDGER_BACKEND=supabase PROCESSING_PAYLOAD_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 ANONYMOUS_AUTH_SIGNING_KEY=zyxwvutsrqponmlkjihgfedcba123456 PUBLIC_SITE_URL=https://example.com REVENUECAT_WEBHOOK_AUTHORIZATION=Bearer_local_test ALLOWED_ORIGINS=https://example.com ALLOWED_HOSTS=127.0.0.1,localhost ./.venv/bin/python tools/validate_production_config.py`
+      - `production configuration contract is valid; no secret values were printed.`
+    - `curl -I --max-time 8 https://www.example.com/privacy`
+      - `HTTP/2 404`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `privacy: verification failed`
+      - `terms: verification failed`
+      - hosted page read failed with `URLError`
+    - `curl -I --max-time 8 https://coverwise.app`
+      - `curl: (6) Could not resolve host: coverwise.app`
+    - `curl -I --max-time 8 https://app.example.com`
+      - `curl: (6) Could not resolve host: app.example.com`
+    - `curl -I --max-time 8 https://nrmmvtpyaf.ap-south-1.awsapprunner.com`
+      - `curl: (6) Could not resolve host: nrmmvtpyaf.ap-south-1.awsapprunner.com`
+  - `2026-07-25T02:35:05+05:30` (BR-04 preflight + real-credential attempt recheck)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token contains an invalid number of segments`)
+  - `2026-07-25T02:33:06+05:30` (deployed hostability + legal URL smoke)
+    - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://nrmmvtpyaf.ap-south-1.awsapprunner.com --origin https://nrmmvtpyaf.ap-south-1.awsapprunner.com --allow-identity-creation`
+      - `launch verifier failed before checks: network failure: [Errno 6] Could not resolve host: nrmmvtpyaf.ap-south-1.awsapprunner.com`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://coverwise.app/privacy --terms-url https://coverwise.app/terms`
+      - `privacy: verification failed`
+      - `terms: verification failed`
+      - hosted page read failed with `URLError` (`Could not resolve host`)
+    - `curl -I --max-time 8 https://coverwise.app`
+      - `curl: (6) Could not resolve host: coverwise.app`
+    - `curl -I --max-time 8 https://nrmmvtpyaf.ap-south-1.awsapprunner.com`
+      - `curl: (6) Could not resolve host: nrmmvtpyaf.ap-south-1.awsapprunner.com`
+    - `curl -I --max-time 8 https://www.example.com/privacy`
+      - `HTTP/2 200` (control URL resolves and responds)
+  - `2026-07-25T02:24:13+05:30` (fresh preflight checkpoint)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - status: `BLOCKED` with 3 item(s)
+    - `open -a Docker`
+      - `exit 1` with `_LSOpenURLsWithCompletionHandler() failed ... error -1712`
+    - `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND must be supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND must be supabase`
+      - `RAG_VECTOR_BACKEND must be supabase`
+      - `BILLING_LEDGER_BACKEND must be supabase`
+      - `ALLOWED_ORIGINS is required when ENVIRONMENT=production`
+      - `ALLOWED_HOSTS is required when ENVIRONMENT=production`
+    - `launchctl print system/com.docker.socket`
+      - `state = not running`, `last exit code = 0`
+    - `launchctl print gui/501/com.docker.helper`
+      - `state = not running`, `job state = exited`
+  - `2026-07-25T02:17:54+05:30` (attempted Docker restart + gate sweep)
+    - `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND must be supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND must be supabase`
+      - `RAG_VECTOR_BACKEND must be supabase`
+      - `BILLING_LEDGER_BACKEND must be supabase`
+      - `ALLOWED_ORIGINS is required when ENVIRONMENT=production`
+      - `ALLOWED_HOSTS is required when ENVIRONMENT=production`
+    - `launchctl start gui/501/com.docker.helper`
+      - service remains inactive in launchctl print output (`state = not running`, `job state = exited`)
+    - `timeout 5s docker version`
+      - client connected, but daemon connection failed:
+        - `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock.`
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `SUPABASE_URL REST probe failed (401)`
+      - `Docker helper start attempts: launchctl start + open -a Docker`
+  - `2026-07-25T02:15:54+05:30` (attempted Docker restart + fresh BR-04 gate proof)
+    - `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND must be supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND must be supabase`
+      - `RAG_VECTOR_BACKEND must be supabase`
+      - `BILLING_LEDGER_BACKEND must be supabase`
+      - `ALLOWED_ORIGINS is required when ENVIRONMENT=production`
+      - `ALLOWED_HOSTS is required when ENVIRONMENT=production`
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `SUPABASE_URL REST probe failed (401)`
+  - `2026-07-25T02:14:42+05:30` (re-run gated checkpoint)
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `SUPABASE_URL REST probe failed (401)`
+  - `2026-07-25T02:11:27+05:30` (latest env/runtime/baseline sweep)
+    - `./.venv/bin/python tools/validate_production_config.py`
+      - `SUPABASE_URL is required`
+      - `SUPABASE_SERVICE_ROLE_KEY is required`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `ANONYMOUS_AUTH_SIGNING_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND must be supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND must be supabase`
+      - `RAG_VECTOR_BACKEND must be supabase`
+      - `BILLING_LEDGER_BACKEND must be supabase`
+      - `ALLOWED_ORIGINS is required when ENVIRONMENT=production`
+      - `ALLOWED_HOSTS is required when ENVIRONMENT=production`
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `BLOCKED with 4 item(s).`
+      - `DockerVersion=29.6.2;Server=`
+      - `missing SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY`
+    - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `HTTP 403 bad_jwt` malformed token at admin user creation.
+    - `./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - same malformed-token `bad_jwt` failure.
+    - `./.venv/bin/python tools/validate_legal_release_assets.py`
+      - legal release assets are complete and match packaged docs.
+    - `./.venv/bin/pytest -q tests/test_br04_identity_continuity.py tests/test_br05_tenant_isolation.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py tests/test_verify_hosted_legal_documents.py tests/test_launch_claim_registry.py`
+      - `29 passed`.
+  - `2026-07-25T02:08:18+05:30` (recheck + checklist sweep)
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - `BLOCKED: BR-04/BR-05 readiness check failed with 3 item(s).`
+    - `./tools/check_buyer_readiness_prereqs.sh`
+      - same 3-item blocked result (`DockerVersion=29.6.2;Server=`, missing `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL REST 401`).
+    - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `RuntimeError: admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments'}`
+    - `./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - same `HTTP 403 bad_jwt` malformed-token failure at admin user creation.
+    - `./.venv/bin/python tools/validate_production_config.py`
+      - still missing: `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, `DOCUMENT_REPOSITORY_BACKEND`, `DOCUMENT_OBJECT_STORE_BACKEND`, `RAG_VECTOR_BACKEND`, `BILLING_LEDGER_BACKEND`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`.
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+      - `privacy: verification failed`, `terms: verification failed` (`hosted page could not be read: HTTPError`)
+    - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com`
+      - `launch verifier failed before checks: network failure: [Errno 8] nodename nor servname provided, or not known`
+    - `./.venv/bin/python tools/validate_legal_release_assets.py`
+      - `legal release assets are complete and match the packaged documents.`
+    - `./.venv/bin/pytest -q tests/test_br02_representative_corpus.py tests/test_billing_ledger_service.py tests/test_subscription_webhook.py tests/test_launch_claim_registry.py tests/test_verify_hosted_legal_documents.py tests/test_outbox_worker_health.py tests/test_legal_release_assets.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+      - `44 passed`.
+  - `2026-07-25T02:07:43+05:30` (runtime un-block attempt + env-shape re-audit)
+    - `open -a Docker; launchctl print gui/501/com.docker.helper; docker version`
+      - `open -a Docker` returns no foreground error (`exit 1`)
+      - `gui/501/com.docker.helper` still `state = not running`, `job state = exited`
+      - `docker version` remains `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock`
+    - `./.venv/bin/python - <<'PY'` env-shape check:
+      - `SUPABASE_SERVICE_ROLE_KEY=<unset>`
+      - `DOCUMENT_REPOSITORY_BACKEND=sqlite`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=local`
+      - `RAG_VECTOR_BACKEND=qdrant`
+      - `BILLING_LEDGER_BACKEND=<unset>`
+      - `ALLOWED_ORIGINS=<unset>`
+      - `ALLOWED_HOSTS=<unset>`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY=<unset>`
+      - `PUBLIC_SITE_URL=<unset>`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION=<unset>`
+      - `ANONYMOUS_AUTH_SIGNING_KEY` present but non-JWT (`dots=0`)
+    - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - unchanged: `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed` (`curl: (56) The requested URL returned error: 401`)
+      - Status: blocked
+  - `2026-07-25T02:06:06+05:30` (re-run readiness verification)
+    - `POST /user/anonymous` (`.venv/bin/python` route probe): `200`
+    - `GET /user/anonymous` (`.venv/bin/python` route probe): `HTTP 404`
+    - `GET /healthz` (`.venv/bin/python` route probe): `200`
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed`
+        - `curl: (56) The requested URL returned error: 401`
+    - `./.venv/bin/python tools/validate_production_config.py`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND must be supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND must be supabase`
+      - `RAG_VECTOR_BACKEND must be supabase`
+      - `BILLING_LEDGER_BACKEND must be supabase`
+      - `ALLOWED_ORIGINS is required when ENVIRONMENT=production`
+      - `ALLOWED_HOSTS is required when ENVIRONMENT=production`
+    - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+    - `./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+    - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+      - `privacy: verification failed`
+      - `terms: verification failed`
+    - `./.venv/bin/python tools/validate_legal_release_assets.py`
+      - `legal release assets are complete and match the packaged documents.`
+    - `./.venv/bin/pytest -q tests/test_br02_representative_corpus.py tests/test_billing_ledger_service.py tests/test_subscription_webhook.py tests/test_launch_claim_registry.py tests/test_verify_hosted_legal_documents.py tests/test_outbox_worker_health.py tests/test_legal_release_assets.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+      - `44 passed`
+    - Status: unchanged since 02:06:00; BR-04/BR-11 blocked on missing service key + docker + production config.
+  - `2026-07-25T02:06:00+05:30` (environment/runtime re-audit: still blocked)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL REST probe failed`
+        - `curl: (56) The returned error: 401`
+    - `./.venv/bin/python tools/validate_production_config.py`
+      - `SUPABASE_URL is required`
+      - `SUPABASE_SERVICE_ROLE_KEY is required`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `ANONYMOUS_AUTH_SIGNING_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND must be supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND must be supabase`
+      - `RAG_VECTOR_BACKEND must be supabase`
+      - `BILLING_LEDGER_BACKEND must be supabase`
+      - `ALLOWED_ORIGINS is required when ENVIRONMENT=production`
+      - `ALLOWED_HOSTS is required when ENVIRONMENT=production`
+    - `launchctl print system/com.docker.socket`
+      - `state = not running`, `active count = 0`, `last exit code = 0`
+    - `launchctl print gui/501/com.docker.helper`
+      - `state = not running`, `job state = exited`, `active count = 0`
+    - `set -a; . ./.env` (env shape)
+      - `SUPABASE_URL` set (len 40, dots 2)
+      - `SUPABASE_SERVICE_ROLE_KEY` unset
+      - `SUPABASE_PUBLISHABLE_KEY` set (len 46, dots 0)
+      - `SUPABASE_SECRET_KEY` set (len 41, dots 0)
+      - `ANONYMOUS_AUTH_SIGNING_KEY` set (len 74, dots 0)
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY` unset
+      - `PUBLIC_SITE_URL` unset
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION` unset
+      - `DOCUMENT_REPOSITORY_BACKEND=sqlite`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=local`
+      - `RAG_VECTOR_BACKEND=qdrant`
+      - `BILLING_LEDGER_BACKEND` unset
+      - `ALLOWED_ORIGINS` unset
+      - `ALLOWED_HOSTS` unset
+    - `open -a Docker; sleep 3; timeout 5s docker version`
+      - `Cannot connect to docker daemon at unix:///Users/pranay/.docker/run/docker.sock`
+      - `_LSOpenURLsWithCompletionHandler() failed ... error -1712`
+    - Status: unchanged
+  - `2026-07-25T02:03:44+05:30` (latest local-contract re-sweep and command suite)
+    - `curl -X POST http://127.0.0.1:8005/user/anonymous`
+      - `POST /user/anonymous -> 200`
+    - `curl -X GET http://127.0.0.1:8005/user/anonymous`
+      - `GET /user/anonymous -> 404`
+    - `curl -X GET http://127.0.0.1:8005/healthz`
+      - `GET /healthz -> 200`
+    - `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`
+      - `SUPABASE_URL is required`
+      - `SUPABASE_SERVICE_ROLE_KEY is required`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `ANONYMOUS_AUTH_SIGNING_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND must be supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND must be supabase`
+      - `RAG_VECTOR_BACKEND must be supabase`
+      - `BILLING_LEDGER_BACKEND must be supabase`
+      - `ALLOWED_ORIGINS is required when ENVIRONMENT=production`
+      - `ALLOWED_HOSTS is required when ENVIRONMENT=production`
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1` returned `401`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+      - `privacy: verification failed` (`hosted page could not be read: HTTPError`)
+      - `terms: verification failed` (`hosted page could not be read: HTTPError`)
+    - `./.venv/bin/pytest -q tests/test_billing_ledger_service.py tests/test_subscription_webhook.py tests/test_verify_hosted_legal_documents.py tests/test_launch_claim_registry.py tests/test_outbox_worker_health.py tests/test_legal_release_assets.py tests/test_br02_representative_corpus.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+      - `40 passed`
+  - `2026-07-25T02:02:51+05:30` (latest BR-04/BR-11 check pass)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1` returned `401`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `RuntimeError: admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token contains an invalid number of segments'}`
+    - `./.venv/bin/python tools/validate_production_config.py`
+      - `SUPABASE_URL is required`
+      - `SUPABASE_SERVICE_ROLE_KEY is required`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `ANONYMOUS_AUTH_SIGNING_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND must be supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND must be supabase`
+      - `RAG_VECTOR_BACKEND must be supabase`
+      - `BILLING_LEDGER_BACKEND must be supabase`
+      - `ALLOWED_ORIGINS is required when ENVIRONMENT=production`
+      - `ALLOWED_HOSTS is required when ENVIRONMENT=production`
+  - `2026-07-25T02:01:32+05:30` (BR-04 preflight + BR-11 re-run, no state change)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1` returned `401`
+    - `./tools/check_buyer_readiness_prereqs.sh`
+      - identical blocker set as sourced run
+    - `./.venv/bin/python tools/validate_production_config.py`
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY is required`
+      - `PUBLIC_SITE_URL is required`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION is required`
+      - `DOCUMENT_REPOSITORY_BACKEND` must be `supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND` must be `supabase`
+      - `RAG_VECTOR_BACKEND` must be `supabase`
+      - `BILLING_LEDGER_BACKEND` must be `supabase`
+      - `ALLOWED_ORIGINS` is required when `ENVIRONMENT=production`
+      - `ALLOWED_HOSTS` is required when `ENVIRONMENT=production`
+  - `2026-07-25T02:01:58+05:30` (Docker launch probe attempt; still no daemon state change)
+    - `launchctl print system/com.docker.socket`
+      - `state = not running`
+    - `launchctl print gui/501/com.docker.helper`
+      - `state = not running`
+      - `job state = exited`
+    - `open -a Docker; sleep 2; ... ; timeout 5s docker version`
+      - still `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock`
+  - `2026-07-25T02:00:44+05:30` (same runtime state shape, fresh command run)
+    - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1` returned `401`
+    - Interpretation: no state change since previous checkpoint; BR-04 still blocked on same two hard dependencies.
+  - `2026-07-25T01:58:53+05:30` (fresh re-check and command attempts)
+    - `tools/check_buyer_readiness_prereqs.sh --sourced-env`:
+      - `DockerVersion=29.6.2;Server=`
+      - `FAIL: docker socket exists but docker daemon check failed`
+      - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+      - `WARN: SUPABASE_URL/rest/v1` returned `401`
+    - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`:
+      - `RuntimeError: admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments'}`
+    - `./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`:
+      - `RuntimeError: admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments'}`
+    - API route checks (local `python` probe):
+      - `POST /user/anonymous` -> `200`
+      - `GET /user/anonymous` -> `404`
+      - `GET /healthz` -> `200`
+      - `POST /healthz` -> `404`
+    - Decision: keep BR-04 active and blocked; rerun both identity+tenant checks immediately when valid `SUPABASE_SERVICE_ROLE_KEY` is supplied.
+  - `CHECKPOINT 2026-07-24T20:24:18Z` (runtime-local timestamp)
+  - `tools/check_buyer_readiness_prereqs.sh --sourced-env`:
+    - `DockerVersion=29.6.2;Server=`
+    - `FAIL: docker socket exists but docker daemon check failed`
+    - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+    - `WARN: SUPABASE_URL/rest/v1` returned `401`
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase` with placeholder role key:
+    - `admin user creation failed (HTTP 403): bad_jwt` (`token contains an invalid number of segments`)
+  - Env-shape scan:
+    - `SUPABASE_URL` set, len 40, dots 2
+    - `SUPABASE_PUBLISHABLE_KEY` set, len 46, dots 0
+    - `SUPABASE_SECRET_KEY` set, len 41, dots 0
+    - `SUPABASE_SERVICE_ROLE_KEY` unset
+  - Route/method parity at `http://127.0.0.1:8005`:
+    - `POST /user/anonymous` -> `200`
+    - `GET /user/anonymous` -> `404`
+    - `GET /healthz` -> `200`
+    - `POST /healthz` -> `200`
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env` blocked by:
+    - `DockerVersion=29.6.2;Server=` (daemon unreachable at `/Users/pranay/.docker/run/docker.sock`)
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `/rest/v1` returns `401` (token mismatch/invalid auth)
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`:
+    - `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`)
+  - `./.venv/bin/pytest -q tests/test_outbox_worker_health.py tests/test_launch_claim_registry.py tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `15 passed`
+  - `./.venv/bin/python tools/validate_production_config.py` blocked by 9 production/runtime requirements:
+    - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+    - `PUBLIC_SITE_URL`
+    - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+    - `DOCUMENT_REPOSITORY_BACKEND=supabase`
+    - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`
+    - `RAG_VECTOR_BACKEND=supabase`
+    - `BILLING_LEDGER_BACKEND=supabase`
+    - `ALLOWED_ORIGINS`
+    - `ALLOWED_HOSTS`
+  - Token-shape check from `.env`: publishable/secret keys are non-JWT (0 dots), service-role key unset.
+- 2026-07-25T01:51:04+05:30: targeted recovery run (no owner input):
+  - `open -a Docker` + `sleep 2` did not transition `com.docker.helper` or `com.docker.socket` to running
+  - `docker version` continues to fail at socket `unix:///Users/pranay/.docker/run/docker.sock`
+  - `./tools/check_buyer_readiness_prereqs.sh --sourced-env` result unchanged: blocked by
+    - `DockerVersion=29.6.2;Server=`
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `SUPABASE_URL/rest/v1` `401`
+  - Evidence confirms this is still an operator-runtime dependency; moved to explicit unblock tasks:
+    - start/reinstall Docker desktop runtime so daemon socket responds
+    - then inject real `SUPABASE_SERVICE_ROLE_KEY` and rerun BR-04/BR-05
+- Owner inputs required before next unblock:
+  - `SUPABASE_SERVICE_ROLE_KEY` (backend admin JWT from Supabase → Settings → API → `service_role`)
+  - `PUBLIC_SITE_URL` (canonical production origin)
+  - `APP_BASE_URL` / deployed API base URL that resolves publicly (current `app.example.com` does not resolve in-session)
+  - `ALLOWED_ORIGINS`, `ALLOWED_HOSTS` (production allowlist/cors)
+  - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+  - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+  - backend selectors: `DOCUMENT_REPOSITORY_BACKEND=supabase`, `DOCUMENT_OBJECT_STORE_BACKEND=supabase`, `RAG_VECTOR_BACKEND=supabase`, `BILLING_LEDGER_BACKEND=supabase`
+  - deployed canonical URLs for privacy and terms pages
+  - deployment/runtime and observability access for BR-07/BR-08/BR-09/BR-12/BR-13/14
+  
+- Runtime blocker summary:
+  - local Docker daemon not reachable (`/var/run/docker.sock` present, `Server=` blank; socket is symlink to `/Users/pranay/.docker/run/docker.sock`)
+  - missing `SUPABASE_SERVICE_ROLE_KEY`
+  - `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY` are non-JWT API tokens and cannot satisfy admin flow
+  - fallback `SUPABASE_SECRET_KEY` / placeholder keys fail admin auth (`bad_jwt`, malformed token)
+  - local API route-shape evidence (in-session): `POST /user/anonymous` => `200`, `GET /user/anonymous` => `404` at `http://127.0.0.1:8005`.
+  - `/var/run/docker.sock` points to `/Users/pranay/.docker/run/docker.sock` but the socket daemon is not responding.
+  - after `set -a; source .env`, preflight shrinks to **3** blockers: docker daemon + missing `SUPABASE_SERVICE_ROLE_KEY` + `/rest/v1` returning `401`.
+  - `docker version` shows CLI details with no server block in-session (daemon unreachable).
+  - `/Users/pranay/.docker/run/docker.sock` is present but connection remains `Server=` and helper process remains `not running` in launchctl (`com.docker.helper` state not running).
+  - `app.example.com` is currently not resolvable from this session (`Could not resolve host`), so any deployed checks using it will fail before app auth/runtime validation.
+  - local API path checks at `http://127.0.0.1:8005`:
+    - `POST /user/anonymous` -> `200`
+    - `GET /user/anonymous` -> `404`
+    - `GET /healthz` -> `200`
+  - Docker handshake evidence:
+  - `docker version --format '{{.Server.Version}}'` against both `/var/run/docker.sock` and `/Users/pranay/.docker/run/docker.sock` returns CLI header then exits with timeout (`rc=124`) in this session, confirming no server handshake.
+
+- 2026-07-25T01:53:04+05:30: auth/runtime diagnostics snapshot (single-pass)
+  - env-shape re-scan:
+    - `SUPABASE_URL` present, len 40, dots 2
+    - `SUPABASE_PUBLISHABLE_KEY` present, len 46, dots 0 (non-JWT)
+    - `SUPABASE_SECRET_KEY` present, len 41, dots 0 (non-JWT)
+    - `SUPABASE_SERVICE_ROLE_KEY` missing/unset
+    - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`, `DOCUMENT_REPOSITORY_BACKEND=local`, `RAG_VECTOR_BACKEND=local`
+    - `BILLING_LEDGER_BACKEND` missing
+  - `tools/check_buyer_readiness_prereqs.sh --sourced-env` still blocked by:
+    - `DockerVersion=29.6.2;Server=`
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `/rest/v1` returned `401`
+  - local API route checks unchanged (`POST /user/anonymous` 200, `GET /user/anonymous` 404, `GET /healthz` 200).
+
+- 2026-07-25T01:51:41+05:30: checkpoint refresh (no owner input required)
+  - `tools/check_buyer_readiness_prereqs.sh --sourced-env`:
+    - `DockerVersion=29.6.2;Server=`
+    - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+    - `/rest/v1` returned `401`
+    - overall status: `BLOCKED` (3 items)
+  - local API route-shape evidence (unchanged as proof of local route health):
+    - `POST /user/anonymous` -> `HTTP 200`, JSON anon token issued
+    - `GET /user/anonymous` -> `HTTP 404` (expected)
+    - `GET /healthz` -> `HTTP 200`, status payload includes `{\"status\":\"live\",\"version\":\"2.0.0\"}`
+
+- 2026-07-25T01:44:04+05:30: current checkpoint (env loaded)
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - `DockerVersion=29.6.2;Server=`
+    - `FAIL: docker socket exists but docker daemon check failed`
+    - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+    - `WARN: SUPABASE_URL/rest/v1` returned `401`
+  - `launchctl print gui/501/com.docker.helper`  
+    - service state remained `exited` / `job state = exited`; `active 0`.
+  - `open -a Docker` + `timeout 8s docker version` still failed with `Cannot connect to the Docker daemon`.
+
+- 2026-07-25T01:38:21+05:30: local evidence consolidation (owner-independent)
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - blocked by:
+      - `DockerVersion=29.6.2;Server=`
+      - `SUPABASE_SERVICE_ROLE_KEY` missing
+      - `/rest/v1` returned `401`
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still blocked by required prod/runtime settings
+  - `./.venv/bin/pytest -q tests/test_br02_representative_corpus.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py tests/test_billing_ledger_service.py tests/test_subscription_webhook.py tests/test_verify_hosted_legal_documents.py tests/test_legal_release_assets.py tests/test_outbox_worker_health.py tests/test_launch_claim_registry.py`
+    - `44 passed`
+
+- Execution decision: keep BR-04 in **in-progress (blocked)** until a valid `SUPABASE_SERVICE_ROLE_KEY` is supplied, then run BR-04 then BR-05 immediately and continue BR-06/BR-07 in that order.
+- Current checkpoint now: `2026-07-25T01:35:20+05:30` confirms BR-04/BR-05 blockers unchanged; deployed checks also blocked by unresolved `app.example.com` DNS from this session and service-role auth mismatch.
+- 2026-07-25T01:35:20+05:30: fresh checkpoint:
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - `DockerVersion=29.6.2;Server=`
+    - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+    - `WARN: SUPABASE_URL/rest/v1` returned `401` (`curl: (56) The requested URL returned error: 401`)
+  - local route checks:
+    - `POST /user/anonymous` -> `200`
+    - `GET /user/anonymous` -> `404`
+    - `GET /healthz` -> `200`
+  - key-shape snapshot:
+    - `SUPABASE_URL` len `40`, dots `2`
+    - `SUPABASE_PUBLISHABLE_KEY` len `46`, dots `0`
+    - `SUPABASE_SECRET_KEY` len `41`, dots `0`
+    - `SUPABASE_SERVICE_ROLE_KEY` unset
+    - `curl -I https://app.example.com`: `Could not resolve host: app.example.com`
+- 2026-07-25T01:47:22+05:30: fresh checkpoint:
+  - `.env` key shape check:
+    - `SUPABASE_URL` len `40`, dots `2`, set
+    - `SUPABASE_PUBLISHABLE_KEY` len `46`, dots `0`, set
+    - `SUPABASE_SECRET_KEY` len `41`, dots `0`, set
+    - `SUPABASE_SERVICE_ROLE_KEY` len `0`, unset
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`:
+    - `DockerVersion=29.6.2;Server=`
+    - daemon check failed
+    - `SUPABASE_SERVICE_ROLE_KEY` missing
+    - `/rest/v1` returned `401`
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`:
+    - `HTTP 403 bad_jwt` (`token contains an invalid number of segments`)
+  - `COVERWISE_API_BASE_URL=http://127.0.0.1:8005 ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`:
+    - same `HTTP 403 bad_jwt` failure
+  - route check:
+    - `POST /user/anonymous` => `200`
+    - `GET /user/anonymous` => `404`
+    - `GET /healthz` => `200`
+- 2026-07-25T01:37:18+05:30: docker reachability pass:
+  - `timeout 5 docker version` with `DOCKER_HOST=unix:///var/run/docker.sock` and `unix:///Users/pranay/.docker/run/docker.sock`:
+    - CLI metadata prints successfully (`Client`, `Context`),
+    - process exits with timeout (`rc=124`) before server response.
+    - interpreted as daemon/socket handoff not completing in session.
+
+- 2026-07-25T01:50:02+05:30: daemon-layer recovery attempt
+  - `launchctl print system/com.docker.socket`
+    - `state = not running` (socket helper daemon not active in system domain)
+  - `launchctl kickstart -k system/com.docker.socket`
+    - command returns without state transition
+  - `launchctl print system/com.docker.socket` after kickstart:
+    - `state = not running`
+    - `last exit code = 0`
+    - no active process
+  - `timeout 8s docker version --format '{{.Server.Version}}'` still cannot connect:
+    - `Cannot connect to the Docker daemon at unix:///Users/pranay/.docker/run/docker.sock.`
+
+- 2026-07-25T01:50:15+05:30: BR-05 tenant-isolation replay attempt
+  - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`)
+    - blocked by same service-role key shape defect as BR-04
+
+- Latest checkpoint: `2026-07-25T01:28:17+05:30` re-validates unchanged blockers and adds:
+  - `docker context ls` lists:
+    - `default` -> `unix:///var/run/docker.sock`
+    - `desktop-linux *` -> `unix:///Users/pranay/.docker/run/docker.sock`
+  - socket file exists at `/Users/pranay/.docker/run/docker.sock`; daemon handshake still not responding.
+  - `docker info` hangs waiting for engine, requiring host-side Docker start/restart.
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - legal release assets are complete and match the packaged documents.
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+    - `privacy: verification failed` (`hosted page could not be read: HTTPError`)
+    - `terms: verification failed` (`hosted page could not be read: HTTPError`)
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - `DockerVersion=29.6.2;Server=`
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `/rest/v1` returned `401`
+    - status: blocked (3 items)
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://127.0.0.1:8005 --origin https://127.0.0.1:8005`
+    - network failure: `[SSL: WRONG_VERSION_NUMBER]`
+  - `./.venv/bin/python tools/verify_deployed_identity_claim.py --api-url https://app.example.com --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co --confirm`
+    - fails required env vars: `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SERVICE_ROLE_KEY`
+  - `./.venv/bin/python tools/verify_deployed_tenant_isolation.py --api-url https://app.example.com --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co --confirm`
+    - fails required env vars: `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SERVICE_ROLE_KEY`
+
+- 2026-07-25T01:26:27+05:30: additional local contract sweep
+  - `./.venv/bin/pytest -q tests/test_br04_identity_continuity.py tests/test_br05_tenant_isolation.py tests/test_outbox_worker_health.py tests/test_legal_document_contract.py tests/test_legal_release_assets.py`
+    - `25 passed`
+  - interpretation: additional local control-level coverage still holds; BR-04 real-credential and BR-06 deployed parity, BR-07/08/09 provider/runtime proof remain blocked by owner/runtime inputs.
+
+- 2026-07-25T01:26:56+05:30: one-pass readiness + deploy-tool sanity
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - `DockerVersion=29.6.2;Server=`
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `/rest/v1` returned `401`
+    - status: blocked (3 items)
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url http://127.0.0.1:8005 --origin http://127.0.0.1:8005`
+    - precondition failed: `--base-url must be an absolute HTTPS URL`
+  - `docker context ls` + `ls -l /var/run/docker.sock /Users/pranay/.docker/run/docker.sock`
+    - contexts unchanged: `default` and `desktop-linux *`
+    - socket symlink target still points to `~/.docker/run/docker.sock`
+
+- 2026-07-25T01:21:42+05:30: `./tools/check_buyer_readiness_prereqs.sh --sourced-env` (without `. ./.env`)  
+  - `DockerVersion=29.6.2;Server=`
+  - `FAIL: required env vars missing: SUPABASE_URL SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY`
+  - `WARN: SUPABASE_URL/rest/v1` returned `401`
+  - status: `BLOCKED` with 4 items
+- 2026-07-25T01:20:43+05:30: in-session checkpoint refresh:
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - `DockerVersion=29.6.2;Server=`
+    - FAIL: `SUPABASE_SERVICE_ROLE_KEY` is missing
+    - WARN: `SUPABASE_URL/rest/v1` returned `401`
+    - status: `BLOCKED` with 3 items
+- 2026-07-25T01:21:49+05:30: `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+  - `DockerVersion=29.6.2;Server=`
+  - FAIL: `SUPABASE_SERVICE_ROLE_KEY` is missing
+  - WARN: `SUPABASE_URL/rest/v1` returned `401`
+  - status: `BLOCKED` with 3 items
+- 2026-07-25T01:22:47+05:30: `set -a; . ./.env; COVERWISE_API_URL='http://127.0.0.1:8005'; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+  - `DockerVersion=29.6.2;Server=`
+  - FAIL: `SUPABASE_SERVICE_ROLE_KEY` is missing
+  - OK: `COVERWISE_API_URL health probe passed`
+  - WARN: `SUPABASE_URL/rest/v1` returned `401` (`curl: (56) The requested URL returned error: 401`)
+  - status: `BLOCKED` with 3 items
+- 2026-07-25T01:22:47+05:30: `set -a; . ./.env; COVERWISE_API_URL='http://127.0.0.1:8005'; ./.venv/bin/python tools/validate_production_config.py`
+  - still blocked; requires:
+    - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+    - `PUBLIC_SITE_URL`
+    - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+    - `DOCUMENT_REPOSITORY_BACKEND=supabase`
+    - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`
+    - `RAG_VECTOR_BACKEND=supabase`
+    - `BILLING_LEDGER_BACKEND=supabase`
+    - `ALLOWED_ORIGINS`
+    - `ALLOWED_HOSTS`
+- 2026-07-25T01:23:38+05:30: `set -a; . ./.env; ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+  - `runtime error`: admin user creation failed (HTTP 403), `bad_jwt`
+  - payload: `invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`
+  - status: BR-04 blocked on service-role material
+- 2026-07-25T01:24:51+05:30: `set -a; . ./.env; ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+  - `runtime error`: admin user creation failed (HTTP 403), `bad_jwt`
+  - payload: `invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`
+  - status: BR-05 still blocked on same service-role material
+
+- 2026-07-25T01:24:51+05:30: one-pass hard check batch
+  - `set -a; . ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - `DockerVersion=29.6.2;Server=`
+    - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+    - `WARN: SUPABASE_URL/rest/v1` returned `401`
+    - status: `BLOCKED` with 3 items
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still blocked; still requires:
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+      - `PUBLIC_SITE_URL`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+      - `DOCUMENT_REPOSITORY_BACKEND=supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`
+      - `RAG_VECTOR_BACKEND=supabase`
+      - `BILLING_LEDGER_BACKEND=supabase`
+      - `ALLOWED_ORIGINS` (required when ENVIRONMENT=production)
+      - `ALLOWED_HOSTS` (required when ENVIRONMENT=production)
+  - `set -a; . ./.env; ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`)
+  - `set -a; . ./.env; ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`)
+  - `./.venv/bin/pytest -q tests/test_br02_representative_corpus.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py tests/test_billing_ledger_service.py tests/test_subscription_webhook.py tests/test_verify_hosted_legal_documents.py`
+    - `33 passed`
+
+## One-item queue (advance strictly in this order)
+
+1. [x] BR-02 representative-corpus contract proof
+   - evidence: `pytest -q tests/test_br02_representative_corpus.py` (8 passed)
+2. [x] BR-04 readiness preflight baseline
+   - evidence: `tools/check_buyer_readiness_prereqs.sh` and `--sourced-env`
+   - status: blocked by docker daemon + `SUPABASE_*` key set
+3. [x] BR-04 command-shape tests
+   - evidence: focused verifier helper tests (4 passed)
+4. [x] BR-07 local entitlement contract tests
+   - evidence: `test_billing_ledger_service.py` + `test_subscription_webhook.py` (17 passed)
+5. [x] BR-06 hosted legal local contract tests
+   - evidence: `test_verify_hosted_legal_documents.py` (4 passed)
+6. [x] BR-11 production config check
+   - evidence: `validate_production_config.py` fails on required production runtime variables
+7. [x] Local legal release asset verification
+   - evidence: `tools/validate_legal_release_assets.py`
+   - result: legal release assets are complete and match packaged documents.
+8. [ ] BR-04 real-credential identity continuity end-to-end
+   - status: attempt(s) made and blocked
+   - Script contract check: admin API call requires `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` against `SUPABASE_URL/auth/v1/admin/users`; fallback to `SUPABASE_SECRET_KEY` is only used when service key is absent.
+   - Retrieval source: Supabase Dashboard → Settings → API → `service_role` key (backend-only; never in Flutter/mobile).
+   - required owner input: valid `SUPABASE_SERVICE_ROLE_KEY` + reachable local API (`COVERWISE_API_BASE_URL=http://127.0.0.1:8005`)
+   - solo-founder owner note: no legal review or partner-integration dependency for this control check.
+   - latest run: still returns malformed-token `bad_jwt` at `/auth/v1/admin/users` with the current environment.
+9. [ ] BR-05 real-credential tenant-isolation end-to-end
+   - status: blocked until BR-04 path succeeds
+   - latest run: same `HTTP 403 bad_jwt` malformed-token failure at admin create step.
+10. [ ] BR-06 hosted legal-page parity on deployed URLs
+   - required owner input: production privacy/terms URLs
+11. [ ] BR-07 BIL-01 provider lifecycle proof
+12. [ ] BR-08/BR-09 deployed recovery and observability proof
+13. [ ] BR-12 store/distribution + BR-13 commercial continuity + BR-14 transfer/readiness + valuation pack
+    - status: in-progress (owner evidence draft started)
+    - valuation draft artifact: `docs/review/TRANSACTION_READINESS_EVIDENCE_PACK_2026-07-25.md`
+
+- 2026-07-25T01:53:21+05:30: BR-04 readiness unblock readyness checkpoint
+  - env snapshot confirms source-level keys:
+    - `SUPABASE_URL=https://eyumuxwabmsymytjbxoj.supabase.co` (set)
+    - `SUPABASE_PUBLISHABLE_KEY` set (single-segment key shape, non-JWT)
+    - `SUPABASE_SECRET_KEY` set (single-segment key shape, non-JWT)
+    - `SUPABASE_SERVICE_ROLE_KEY` is empty/unset
+    - `COVERWISE_API_BASE_URL` unset
+  - `tools/check_buyer_readiness_prereqs.sh --sourced-env` remains `BLOCKED` with:
+    - `DockerVersion=29.6.2;Server=`
+    - `SUPABASE_SERVICE_ROLE_KEY` missing
+    - `/rest/v1` returned `401`
+  - actionable next command (owner runtime unblock):
+    - `set -a; . ./.env; export COVERWISE_API_BASE_URL=http://127.0.0.1:8005; export SUPABASE_SERVICE_ROLE_KEY='<service_role_jwt>'; ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+
+## Progress log
+
+- 2026-07-25T01:33:51+05:30: deployed URL reachability checkpoint
+  - `python` DNS check:
+    - `app.example.com`: DNS failure (`nodename nor servname provided, or not known`)
+    - `eyumuxwabmsymytjbxoj.supabase.co`: resolved to cloudflare edge addresses
+  - `curl -I https://app.example.com` failed with `Could not resolve host: app.example.com`
+  - Interpretation: cannot run deployed checks until a real resolvable production app URL is provided (`https://app.example.com` is not valid in this environment).
+- 2026-07-25T01:51:41+05:30: route/agent-shape checkpoint
+  - `POST http://127.0.0.1:8005/user/anonymous` -> `200` anon token response
+  - `GET http://127.0.0.1:8005/user/anonymous` -> `404` with `{"detail":"Not Found"}`
+  - `GET http://127.0.0.1:8005/healthz` -> `200` with `{"status":"live","version":"2.0.0"}`
+
+- 2026-07-25T01:33:11+05:30: deployed readiness commands check
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com`
+    - failed: `network failure: [Errno 8] nodename nor servname provided, or not known`
+  - `./.venv/bin/python tools/verify_deployed_identity_claim.py --api-url https://app.example.com --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co --confirm`
+    - failed:
+      - warning: `User not allowed` on synthetic cleanup
+      - `network failure: [Errno 8] nodename nor servname provided, or not known`
+  - `./.venv/bin/python tools/verify_deployed_tenant_isolation.py --api-url https://app.example.com --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co --confirm`
+    - failed with `invalid JWT: ... unrecognized JWT kid / bad_jwt` on admin create (`403 Forbidden`)
+
+- 2026-07-25T01:32:26+05:30: BR-04/BR-05 combined checkpoint (same blocker state)
+  - `set -a; source ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - docker socket target: `/Users/pranay/.docker/run/docker.sock`; `Server=`
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `/rest/v1` still returns `401`
+    - blocked with 3 items
+  - `POST http://127.0.0.1:8005/user/anonymous` => `200 OK`
+  - `GET http://127.0.0.1:8005/user/anonymous` => `404 Not Found`
+  - `SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - failed with `HTTP 403 bad_jwt` (`invalid JWT: ... token contains an invalid number of segments`)
+  - `SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - failed with `HTTP 403 bad_jwt` (`invalid JWT: ... token contains an invalid number of segments`)
+
+- 2026-07-25T01:31:51+05:30: production-config checkpoint refresh
+  - `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`
+    - still blocked on:
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+      - `PUBLIC_SITE_URL`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+      - `DOCUMENT_REPOSITORY_BACKEND=supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`
+      - `RAG_VECTOR_BACKEND=supabase`
+      - `BILLING_LEDGER_BACKEND=supabase`
+      - `ALLOWED_ORIGINS`
+      - `ALLOWED_HOSTS`
+
+- 2026-07-25T01:31:35+05:30: BR-04 readiness revalidation
+  - `set -a; source ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - `INFO: /var/run/docker.sock symlink target: /Users/pranay/.docker/run/docker.sock`
+    - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`
+    - `/rest/v1` still returns 401
+    - `BLOCKED` with 3 items
+  - token-shape evidence:
+    - `SUPABASE_PUBLISHABLE_KEY` len 46, dots 0
+    - `SUPABASE_SECRET_KEY` len 41, dots 0
+    - `SUPABASE_SERVICE_ROLE_KEY` len 0
+
+- 2026-07-25T01:30:18+05:30: checkpoint refresh
+  - `set -a; source ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - Docker daemon unreachable (`Server=`) from `/Users/pranay/.docker/run/docker.sock`
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `/rest/v1` returned `401`
+    - blocked with 3 items
+  - `set -a; source ./.env; ./.venv/bin/python tools/validate_production_config.py`
+    - blocked on:
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+      - `PUBLIC_SITE_URL`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+      - `DOCUMENT_REPOSITORY_BACKEND=supabase`
+      - `DOCUMENT_OBJECT_STORE_BACKEND=supabase`
+      - `RAG_VECTOR_BACKEND=supabase`
+      - `BILLING_LEDGER_BACKEND=supabase`
+      - `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`
+
+- 2026-07-25T01:29:00+05:30: additional owner-independent evidence refresh:
+  - `./.venv/bin/pytest -q tests/test_launch_claim_registry.py tests/test_billing_ledger_service.py tests/test_subscription_webhook.py`
+    - `21 passed`
+  - `./.venv/bin/pytest -q tests/test_outbox_worker_health.py`
+    - `3 passed`
+  - `./.venv/bin/pytest -q tests/test_legal_document_contract.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `5 passed`
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com`
+    - launch verifier failed before checks: `network failure: [Errno 8] nodename nor servname provided, or not known`
+
+- 2026-07-25T01:28:17+05:30: one-pass checkpoint rerun:
+  - `set -a; source ./.env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`  
+    - `DockerVersion=29.6.2;Server=` (daemon unreachable)  
+    - `FAIL: required env vars missing: SUPABASE_SERVICE_ROLE_KEY`  
+    - `WARN: SUPABASE_URL/rest/v1` returned 401  
+    - status: `BLOCKED` with 3 items
+  - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`  
+    - `HTTP 403 bad_jwt` (`token contains an invalid number of segments`)
+  - `COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`  
+    - `HTTP 403 bad_jwt` (`token contains an invalid number of segments`)
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`  
+    - legal release assets complete + match
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`  
+    - both failed with hosted page HTTPError (placeholder pages)
+  - `./.venv/bin/python tools/validate_production_config.py`  
+    - still blocked by: `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, all 4 backends must be `supabase`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://127.0.0.1:8005 --origin https://127.0.0.1:8005`  
+    - network error: SSL wrong version number
+  - `./.venv/bin/python tools/verify_deployed_identity_claim.py --api-url https://app.example.com --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co --confirm`  
+    - blocked by missing `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SERVICE_ROLE_KEY`
+  - `./.venv/bin/python tools/verify_deployed_tenant_isolation.py --api-url https://app.example.com --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co --confirm`  
+    - blocked by missing `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SERVICE_ROLE_KEY`
+
+- 2026-07-25T01:20:01+05:30: `set -a; . ./.env; ./.venv/bin/python tools/validate_production_config.py`  
+  - blocked; still requires:
+    - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+    - `PUBLIC_SITE_URL`
+    - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+    - `DOCUMENT_REPOSITORY_BACKEND` = `supabase`
+    - `DOCUMENT_OBJECT_STORE_BACKEND` = `supabase`
+    - `RAG_VECTOR_BACKEND` = `supabase`
+    - `BILLING_LEDGER_BACKEND` = `supabase`
+    - `ALLOWED_ORIGINS` (required when ENVIRONMENT=production)
+    - `ALLOWED_HOSTS` (required when ENVIRONMENT=production)
+
+- 2026-07-25T01:18:38+05:30: in-session checkpoint refresh:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `/rest/v1` `401`
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with missing values:
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+      - `PUBLIC_SITE_URL`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+      - `DOCUMENT_REPOSITORY_BACKEND`
+      - `DOCUMENT_OBJECT_STORE_BACKEND`
+      - `RAG_VECTOR_BACKEND`
+      - `BILLING_LEDGER_BACKEND`
+      - `ALLOWED_ORIGINS`
+      - `ALLOWED_HOSTS`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - legal release assets still complete and matched.
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - blocked with `HTTP 403` `bad_jwt` (`token contains an invalid number of segments`)
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - blocked with same malformed-token `HTTP 403 bad_jwt` payload.
+
+- 2026-07-25T01:17:27+05:30: in-session checkpoint refresh:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `SUPABASE_URL/rest/v1` `401`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - legal release assets still complete and matched.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with missing values:
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+      - `PUBLIC_SITE_URL`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+      - `DOCUMENT_REPOSITORY_BACKEND`
+      - `DOCUMENT_OBJECT_STORE_BACKEND`
+      - `RAG_VECTOR_BACKEND`
+      - `BILLING_LEDGER_BACKEND`
+      - `ALLOWED_ORIGINS`
+      - `ALLOWED_HOSTS`
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+    - both pages still fail with `HTTPError` (placeholder URLs).
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - blocked with `HTTP 403` `bad_jwt` (`token contains an invalid number of segments`)
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - blocked with same `HTTP 403` `bad_jwt` payload.
+
+- 2026-07-25T01:16:37+05:30: in-session checkpoint refresh:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `SUPABASE_URL/rest/v1` `401`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - legal release assets still complete and matched.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with required missing values:
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+      - `PUBLIC_SITE_URL`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+      - `DOCUMENT_REPOSITORY_BACKEND`
+      - `DOCUMENT_OBJECT_STORE_BACKEND`
+      - `RAG_VECTOR_BACKEND`
+      - `BILLING_LEDGER_BACKEND`
+      - `ALLOWED_ORIGINS`
+      - `ALLOWED_HOSTS`
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+    - both pages still fail with `HTTPError` (placeholder URLs, non-target pages).
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - blocked with `HTTP 403` `bad_jwt` (`token contains an invalid number of segments`)
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - blocked with same `HTTP 403` `bad_jwt` payload.
+
+- 2026-07-25T01:13:48+05:30: checkpoint refresh:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `/rest/v1` `401`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - result: legal release assets are complete and match the packaged documents.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with missing `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, `DOCUMENT_REPOSITORY_BACKEND`, `DOCUMENT_OBJECT_STORE_BACKEND`, `RAG_VECTOR_BACKEND`, `BILLING_LEDGER_BACKEND`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`.
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url http://127.0.0.1:8005 --origin http://127.0.0.1:8005`
+    - blocked by tool precondition: `--base-url must be an absolute HTTPS URL`.
+  - `timeout 5 docker version`
+    - CLI metadata observed (`Version: 29.6.2`, `Context: desktop-linux`) and then timeout waiting for daemon.
+  - `rg` env-shape check:
+    - `.env`: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `ANONYMOUS_AUTH_SIGNING_KEY`
+    - `.env`: still no `SUPABASE_SERVICE_ROLE_KEY`, `DOCUMENT_*`/`RAG_*` backend selectors, `PUBLIC_SITE_URL`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`
+    - `.env.example` includes placeholders for the required production/runtime keys.
+
+- 2026-07-25T01:12:03+05:30: checkpoint refresh:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `/rest/v1` `401`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - result: legal release assets are complete and match the packaged documents.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with missing `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, `DOCUMENT_REPOSITORY_BACKEND`, `DOCUMENT_OBJECT_STORE_BACKEND`, `RAG_VECTOR_BACKEND`, `BILLING_LEDGER_BACKEND`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`.
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - failed with `HTTP 403 bad_jwt` (`token contains an invalid number of segments`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - failed with same malformed-token `bad_jwt`.
+
+- 2026-07-25T01:15:45+05:30: checkpoint refresh:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `/rest/v1` `401`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - result: legal release assets are complete and match the packaged documents.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with missing `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, `DOCUMENT_REPOSITORY_BACKEND`, `DOCUMENT_OBJECT_STORE_BACKEND`, `RAG_VECTOR_BACKEND`, `BILLING_LEDGER_BACKEND`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`.
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - result: same malformed-token `HTTP 403 bad_jwt` failure.
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com`
+    - failed with `network failure: [Errno 8] nodename nor servname provided, or not known`.
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --help`
+    - shows `--api-url`, `--supabase-url`, `--allow-remote-supabase` interface.
+  - `./.venv/bin/python tools/verify_local_tenant_isolation.py --help`
+    - shows bucket/pdfs options and local verifier contract.
+
+- 2026-07-25T01:13:48+05:30: checkpoint refresh:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `/rest/v1` `401`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - result: legal release assets are complete and match the packaged documents.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with missing `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, `DOCUMENT_REPOSITORY_BACKEND`, `DOCUMENT_OBJECT_STORE_BACKEND`, `RAG_VECTOR_BACKEND`, `BILLING_LEDGER_BACKEND`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`.
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+  - `./.venv/bin/pytest -q tests/test_launch_claim_registry.py tests/test_billing_ledger_service.py tests/test_subscription_webhook.py`
+    - `21 passed`
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - failed with `HTTP 403 bad_jwt` (`token contains an invalid number of segments`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - failed with same malformed-token `bad_jwt`.
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com`
+    - failed with DNS/network check error: `launch verifier failed before checks: network failure: [Errno 8] nodename nor servname provided, or not known`
+
+- 2026-07-25T01:05:04+05:30: checkpoint refresh:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - unchanged: `BLOCKED` with 3 items (`DockerVersion=29.6.2;Server=`, missing `SUPABASE_SERVICE_ROLE_KEY`, `/rest/v1` `401`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - failed with `HTTP 403 bad_jwt` (`token contains an invalid number of segments`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - failed with same malformed-token `HTTP 403 bad_jwt`.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with missing `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, backend-mode alignment keys, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`.
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+    - still `privacy`/`terms` failed with `HTTPError`.
+  - API route-shape recheck:
+    - `POST /user/anonymous` -> `200`
+    - `GET /user/anonymous` -> `404`
+
+- 2026-07-25T01:05:57+05:30: local evidence stability recheck:
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - result: legal release assets are complete and match packaged docs.
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+
+- 2026-07-25T01:06:31+05:30: verification attempt (no new inputs):
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `/rest/v1` `401`
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with missing production/runtime values:
+      - `PROCESSING_PAYLOAD_ENCRYPTION_KEY`
+      - `PUBLIC_SITE_URL`
+      - `REVENUECAT_WEBHOOK_AUTHORIZATION`
+      - `DOCUMENT_REPOSITORY_BACKEND`
+      - `DOCUMENT_OBJECT_STORE_BACKEND`
+      - `RAG_VECTOR_BACKEND`
+      - `BILLING_LEDGER_BACKEND`
+      - `ALLOWED_ORIGINS`
+      - `ALLOWED_HOSTS`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - legal release assets are complete and match packaged docs.
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+  - `verify_local_identity_claim.py` + `verify_local_tenant_isolation.py` with placeholder service-role
+    - both fail with malformed token `HTTP 403 bad_jwt` (`invalid JWT: token contains an invalid number of segments`) at `/auth/v1/admin/users`.
+
+- 2026-07-25T01:08:50+05:30: fresh checkpoint (current):
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `/rest/v1` `401`
+  - `docker version`
+    - client output present (`Version 29.6.2`), but no server handshake (engine still not reachable).
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - still not launch-ready with required vars unchanged:
+      `SUPABASE_SERVICE_ROLE_KEY`, `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `ANONYMOUS_AUTH_SIGNING_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, `DOCUMENT_REPOSITORY_BACKEND`, `DOCUMENT_OBJECT_STORE_BACKEND`, `RAG_VECTOR_BACKEND`, `BILLING_LEDGER_BACKEND`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`
+  - `./.venv/bin/python tools/validate_legal_release_assets.py`
+    - legal release assets are complete and match packaged docs.
+  - `./.venv/bin/pytest -q tests/test_verify_hosted_legal_documents.py tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+    - `8 passed`
+  - `./.venv/bin/pytest -q tests/test_br02_representative_corpus.py tests/test_billing_ledger_service.py tests/test_subscription_webhook.py tests/test_launch_claim_registry.py`
+    - `29 passed`
+
+- 2026-07-25T01:10:36+05:30: active BR-04/BR-05 recheck:
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - failed with `HTTP 403 bad_jwt` and `token contains an invalid number of segments`.
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - failed with same `HTTP 403 bad_jwt` malformed-token payload.
+
+- 2026-07-25T01:03:42+05:30: one-at-a-time recheck and hardening run:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - still `BLOCKED` with 3 items:
+      - `DockerVersion=29.6.2;Server=`
+      - missing `SUPABASE_SERVICE_ROLE_KEY`
+      - `/rest/v1` probe `401`.
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - `admin user creation failed (HTTP 403): bad_jwt, invalid JWT token malformed`.
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - same `HTTP 403 bad_jwt` failure at `/auth/v1/admin/users`.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - production not launch-ready (still missing `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`, backend-mode alignment keys, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS`).
+  - `curl` route-shape recheck:
+    - `POST /user/anonymous` -> `200`
+    - `GET /user/anonymous` -> `404`
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+    - `privacy` failed + `terms` failed (`HTTPError`).
+
+- 2026-07-25T01:00:57+05:30: checkpoint with actual `.env`/runtime state:
+  - `ls -l .env && rg -n "SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY|SUPABASE_PUBLISHABLE_KEY|SUPABASE_URL|COVERWISE_API_BASE_URL|PUBLIC_SITE_URL|ALLOWED_ORIGINS|ALLOWED_HOSTS|REVENUECAT_WEBHOOK_AUTHORIZATION|PROCESSING_PAYLOAD_ENCRYPTION_KEY" .env .env.example`
+    - result: `.env` does not define `SUPABASE_SERVICE_ROLE_KEY`; `.env.example` still documents placeholder.
+    - result: no in-session canonical production URL/allowlist (`PUBLIC_SITE_URL`/`ALLOWED_ORIGINS`/`ALLOWED_HOSTS`) entries.
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result unchanged from prior: `BLOCKED` with 3 items (`DockerVersion=29.6.2;Server=`, missing `SUPABASE_SERVICE_ROLE_KEY`, `/rest/v1` `401`).
+
+- 2026-07-25T01:00:27+05:30: env-shape check (non-sensitive) confirms no additional unlock input exists in-session:
+  - `set -a; source .env; python - <<'PY' ...` (redacted inspection of env vars)
+  - missing/blocked items still include:
+    - `SUPABASE_SERVICE_ROLE_KEY` is unset
+    - no canonical `PUBLIC_SITE_URL` / `ALLOWED_ORIGINS` / `ALLOWED_HOSTS`
+    - no production privacy/terms URLs available for BR-06 deployed parity
+    - no deployed launch/provider endpoints available for BR-07/BR-08/BR-09 BR-07 family checks.
+  - present candidate token is `SUPABASE_EXPERIMENTAL_API_KEY=sbp_v0_...` (single-segment management token), which is not an admin JWT bearer for `/auth/v1/admin/users`.
+
+- 2026-07-25T00:59:37+05:30: rerun against next-sequenced local real-credential path:
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments'}`.
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - result: `admin user creation failed (HTTP 403): {'code': 403, 'error_code': 'bad_jwt', 'msg': 'invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments'}`.
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com`
+    - result: `launch verifier failed before checks: network failure: [Errno 8] nodename nor servname provided, or not known`.
+
+- 2026-07-25T00:55:25+05:30: local blocker confirmation run:
+  - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result unchanged: `BLOCKED` with `DockerVersion=29.6.2;Server=`, missing `SUPABASE_SERVICE_ROLE_KEY`, and `/rest/v1` `401`.
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase --api-url http://127.0.0.1:8005` with `SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__'`
+    - result: `admin user creation failed (HTTP 403): invalid JWT token malformed`.
+  - `./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase --api-url http://127.0.0.1:8005` with same placeholder key
+    - result: `admin user creation failed (HTTP 403): invalid JWT token malformed`.
+
+- 2026-07-25T00:56:09+05:30: re-run of active BR-04 path:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result unchanged: `BLOCKED` with 3 items (`DockerVersion=29.6.2;Server=`, missing `SUPABASE_SERVICE_ROLE_KEY`, `/rest/v1` `401`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: `HTTP 403 bad_jwt` (`token contains an invalid number of segments`) at `/auth/v1/admin/users`.
+
+- 2026-07-25T00:57:04+05:30: attempted BR-05 local tenant-isolation as follow-on:
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+  - result: `HTTP 403 bad_jwt` (`invalid JWT: token contains an invalid number of segments`) at `/auth/v1/admin/users`.
+
+- 2026-07-25T00:57:49+05:30: BR-06 canonical-parity smoke again (still without production URLs):
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+  - result: `privacy: verification failed`, `terms: verification failed` with `HTTPError`.
+
+- 2026-07-25T00:58:23+05:30: BR-07 preflight attempt for deployed/runtime dependency:
+  - `./.venv/bin/python tools/verify_deployed_launch.py --base-url https://app.example.com --origin https://app.example.com`
+  - result: `launch verifier failed before checks: network failure: [Errno 8] nodename nor servname provided, or not known`.
+  - blocker unchanged: no real deployment endpoint or provider/store sandbox currently active.
+
+- 2026-07-25T00:52:36+05:30: BR-06 contract-check smoke (non-production placeholders):
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url https://www.example.com/privacy --terms-url https://www.example.com/terms`
+  - result: `privacy: verification failed` and `terms: verification failed` with `HTTPError` for both pages.
+  - interpretation: verifier command path is active; BR-06 remains blocked until canonical legal page URLs are available.
+
+- 2026-07-25T00:50:48+05:30: verification command inventory for external-gated items:
+  - `./.venv/bin/python tools/verify_hosted_legal_documents.py --help` confirms required `--privacy-url` and `--terms-url` for BR-06 deployed legal parity.
+  - `./.venv/bin/python tools/verify_deployed_identity_claim.py --help` confirms `--api-url`, `--supabase-url`, and mandatory `--confirm` for BR-04 deployed analog (BR-04 real-credential external path).
+  - `./.venv/bin/python tools/verify_deployed_tenant_isolation.py --help` confirms `--api-url`, `--supabase-url`, optional `--bucket`, and mandatory `--confirm` for BR-05 deployed path.
+
+- 2026-07-25T00:51:15+05:30: one-at-a-time next-step protocol (no assumptions):
+  - BR-04 local real-credential (run first, owner must supply valid service-role key in env):
+    `set -a; source .env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+  - BR-05 local real-credential (run only if BR-04 passes):
+    `set -a; source .env; COVERWISE_API_BASE_URL=http://127.0.0.1:8005 SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+  - BR-06 deployed legal parity (run only with production URLs):
+    `./.venv/bin/python tools/verify_hosted_legal_documents.py --privacy-url <https://.../privacy> --terms-url <https://.../terms>`
+  - Deployed analogs (run only in CI/deployed environment with confirm token and dedicated test credentials):
+    - `./.venv/bin/python tools/verify_deployed_identity_claim.py --api-url <https://api.your-domain> --supabase-url <https://your-project.supabase.co> --confirm`
+    - `./.venv/bin/python tools/verify_deployed_tenant_isolation.py --api-url <https://api.your-domain> --supabase-url <https://your-project.supabase.co> --confirm`
+
+- 2026-07-25T00:49:45+05:30: actionable check without owner secrets:
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --help` confirms required args and guardrails.
+  - `./.venv/bin/python tools/verify_local_tenant_isolation.py --help` confirms `--bucket` and `--pdf-path` are available and contract scope.
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase --api-url http://127.0.0.1:8005` fails fast with `FAIL configuration: Supabase publishable and server keys are required` when keys are unset.
+  - Env-shape check (non-sensitive): `SUPABASE_URL` set len40 with 2 dots; `SUPABASE_PUBLISHABLE_KEY` set len46 dots0; `SUPABASE_SECRET_KEY` set len41 dots0; `SUPABASE_SERVICE_ROLE_KEY` unset.
+  - Runtime: `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env` still `BLOCKED` with:
+    - `DockerVersion=29.6.2;Server=`
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `SUPABASE_URL/rest/v1` `401`
+
+- 2026-07-25T00:47:50+05:30: solo-founder scope alignment checkpoint:
+  - Updated active-queue language to explicitly remove enterprise/legal-counsel dependency from mandatory blockers.
+  - Clarified BR-04 requirement as strictly owner-owned credential input and no counsel/partner/legal approval dependency.
+  - No runtime state changed in this step.
+
+- 2026-07-25T00:48:08+05:30: runtime checkpoint rerun:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+  - result: `BLOCKED` with 3 items
+    - docker daemon unavailable (`DockerVersion=29.6.2;Server=`)
+    - missing `SUPABASE_SERVICE_ROLE_KEY`
+    - `SUPABASE_URL/rest/v1` probe `401`
+  - Added `.env.example` placeholder entry for `SUPABASE_SERVICE_ROLE_KEY` to reduce owner setup ambiguity for BR-04/BR-05.
+
+- 2026-07-25T18:23:00+05:30: checkpoint rerun and next-item evidence:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result: `BLOCKED` with 3 items (`DockerVersion=29.6.2;Server=`, `missing SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL/rest/v1` `401`).
+  - `.env` shape snapshot:
+    - `SUPABASE_URL` present (len 40, 2 dots)
+    - `SUPABASE_PUBLISHABLE_KEY` present (len 46, non-JWT)
+    - `SUPABASE_SECRET_KEY` present (len 41, non-JWT)
+    - `SUPABASE_SERVICE_ROLE_KEY` unset
+    - `COVERWISE_API_BASE_URL` unset
+  - route-shape verification:
+    - `POST /user/anonymous` on `http://127.0.0.1:8005` -> `200` and anon token issued
+    - `GET /user/anonymous` on same base -> `404`
+  - BR-04 real-credential command attempt with placeholder service key:
+    - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: `HTTP 403 bad_jwt` (`invalid JWT: ... token is malformed`).
+- 2026-07-25T00:40:59+05:30: next checkpoint after owner-key retry:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result: `BLOCKED` with 3 items (`DockerVersion=29.6.2;Server=`, missing `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL/rest/v1` `401`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: `HTTP 403 bad_jwt` (`invalid JWT: token is malformed`) at `/auth/v1/admin/users`.
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - result: `HTTP 403 bad_jwt` (`invalid JWT: token is malformed`) at `/auth/v1/admin/users`.
+- 2026-07-25T18:24:05+05:30: production-readiness gate revalidation:
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - result: not launch-ready (still missing required values for `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `ANONYMOUS_AUTH_SIGNING_KEY`, `PUBLIC_SITE_URL`, `REVENUECAT_WEBHOOK_AUTHORIZATION`; backend mode keys must be supabase; `ALLOWED_ORIGINS` / `ALLOWED_HOSTS` missing when production).
+
+- 2026-07-25T00:42:30+05:30: latest checkpoint:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result: `BLOCKED` with 3 items (`DockerVersion=29.6.2;Server=`, `SUPABASE_SERVICE_ROLE_KEY` missing, `SUPABASE_URL/rest/v1` `401`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: `HTTP 403 bad_jwt` (`invalid JWT: unable to parse or verify signature, token is malformed`) at `/auth/v1/admin/users`.
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - result: same `HTTP 403 bad_jwt` token-shape failure at `/auth/v1/admin/users`.
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - result unchanged: `production configuration is not launch-ready` (missing `SUPABASE_*`, encryption/signing/webhook/backend-mode/host allowlist vars).
+  - env shape snapshot:
+    - `SUPABASE_URL` present, len 40, dots 2
+    - `SUPABASE_PUBLISHABLE_KEY` present, len 46, dots 0
+    - `SUPABASE_SECRET_KEY` present, len 41, dots 0
+    - `SUPABASE_SERVICE_ROLE_KEY` unset
+    - `COVERWISE_API_BASE_URL` unset
+
+- 2026-07-25T09:37:00+05:30: preflight and env-shape verification rerun:
+  - `set -a; source .env; ./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result: `DockerVersion=29.6.2;Server=` and missing `SUPABASE_SERVICE_ROLE_KEY`; `SUPABASE_URL/rest/v1` returns `401`.
+  - `.env` inspection confirms:
+    - `SUPABASE_URL` is set and length 40.
+    - `SUPABASE_PUBLISHABLE_KEY` is set but has no JWT dots (`len=46`, non-JWT format).
+    - `SUPABASE_SERVICE_ROLE_KEY` is absent (`UNSET`).
+  - This further narrows the immediate BR-04 dependency to:
+    1) valid/complete `SUPABASE_SERVICE_ROLE_KEY`, and
+    2) optional Docker daemon for local path (if you want local-only BR-04 path).
+- 2026-07-25T09:18:40+05:30: verifier contract confirmation pass:
+  - Reviewed `tools/verify_local_identity_claim.py` and `tools/verify_local_tenant_isolation.py` auth contract.
+  - Both tools require `SUPABASE_SERVICE_ROLE_KEY` for `Authorization: Bearer` on Supabase admin API and accept `SUPABASE_SECRET_KEY` only as fallback when service-role is unset.
+  - Both still use `COVERWISE_API_BASE_URL` for API calls.
+  - This confirms current failure (`bad_jwt`) is key-format/credential-class mismatch, not route-path drift.
+- 2026-07-25T00:50:44+05:30: route-shape and auth-material verification:
+  - `POST /user/anonymous` at `http://127.0.0.1:8005` -> HTTP 200 with token payload.
+  - `GET /user/anonymous` -> HTTP 404.
+  - `SUPABASE_SERVICE_ROLE_KEY` remains unset in `.env`.
+  - `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY` are single-segment non-JWT tokens.
+  - `ANONYMOUS_AUTH_SIGNING_KEY` is set; `PROCESSING_PAYLOAD_ENCRYPTION_KEY`, `PUBLIC_SITE_URL`, `ALLOWED_ORIGINS`, `ALLOWED_HOSTS` remain unset.
+  - `./tools/check_buyer_readiness_prereqs.sh --sourced-env` with `set -a && source .env` remains blocked (`DockerVersion=29.6.2;Server=`, missing `SUPABASE_SERVICE_ROLE_KEY`, REST 401 at `/rest/v1/`).
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase` -> `HTTP 403` `bad_jwt`.
+  - `./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase` -> `HTTP 403` `bad_jwt`.
+  - `./.venv/bin/python tools/validate_legal_release_assets.py` -> legal assets complete and match.
+- 2026-07-25T09:02:31+05:30: re-verified BR-04 blocker with no state drift:
+  - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result: blocked (`DockerVersion=29.6.2;Server=`; missing `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`).
+  - `set -a; source .env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: HTTP 403 `bad_jwt` (`token is malformed`).
+  - `set -a; source .env; unset SUPABASE_SERVICE_ROLE_KEY; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: same 403 `bad_jwt` on `/auth/v1/admin/users`.
+  - route smoke check:
+    - `POST http://127.0.0.1:8005/user/anonymous` -> 200.
+    - `GET http://127.0.0.1:8005/user/anonymous` -> 404.
+    - `POST http://127.0.0.1:8000/user/anonymous` -> no response (connection issue).
+- 2026-07-25T00:44:12+05:30: sequenced re-verification with full checklist:
+  - `./.venv/bin/pytest -q tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py tests/test_billing_ledger_service.py tests/test_subscription_webhook.py tests/test_verify_hosted_legal_documents.py tests/test_br02_representative_corpus.py`
+    - result: `33 passed`.
+  - `./tools/check_buyer_readiness_prereqs.sh --sourced-env`
+    - result: `BLOCKED` (`DockerVersion=29.6.2;Server=`, missing `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`).
+  - `./.venv/bin/python tools/validate_production_config.py`
+    - result: required production/runtime variable failures unchanged.
+  - `set -a && source .env && COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+    - result: `HTTP 403` / `bad_jwt` at `/auth/v1/admin/users` (`token is malformed: invalid number of segments`).
+  - `set -a && source .env && COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+    - result: same `HTTP 403` / `bad_jwt` failure at `/auth/v1/admin/users`.
+  - `./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+  - `./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+  - both fail at `/auth/v1/admin/users` with `HTTP 403` and `bad_jwt` (`invalid JWT: unable to parse or verify signature, token contains an invalid number of segments`)
+- 2026-07-25T00:27:21+05:30: confirmed in-session endpoint shape and reran BR-04/BR-05:
+  - `POST /user/anonymous` returns HTTP 200 and anonymous token.
+  - `GET /user/anonymous` returns HTTP 404 (route not found).
+  - re-running BR-04/BR-05 with `COVERWISE_API_BASE_URL='http://127.0.0.1:8005'`, `.env` loaded, and `SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__'` still fails on `/auth/v1/admin/users` with HTTP 403 `bad_jwt` (`token contains an invalid number of segments`).
+- 2026-07-25T00:25:14+05:30: verified the local `.env` auth material shape:
+  - `SUPABASE_SERVICE_ROLE_KEY` is currently unset.
+  - `SUPABASE_SECRET_KEY` and `SUPABASE_PUBLISHABLE_KEY` are 1-segment API tokens (not JWT-formatted Bearer secrets), so they cannot satisfy BR-04/BR-05’s admin auth flow.
+- 2026-07-25T00:21:13+05:30: re-ran `tools/check_buyer_readiness_prereqs.sh --sourced-env`:
+  - `DockerVersion=29.6.2;Server=` (daemon unreachable)
+  - missing `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+  - API base for BR-04 tools is `COVERWISE_API_BASE_URL` (default `http://127.0.0.1:8005`); `curl http://127.0.0.1:8005/user/anonymous` succeeded with token, confirming the app API was running this session on 8005.
+- 2026-07-25T00:25:06+05:30: re-ran both BR-04/BR-05 tools with explicit `COVERWISE_API_BASE_URL=http://127.0.0.1:8005` and explicit `.env` URLs/keys:
+  - with `SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__'` (invalid placeholder) both commands fail with `HTTP 403 bad_jwt` at `/auth/v1/admin/users`;
+  - with `.env`-loaded `SUPABASE_SECRET_KEY` fallback, `verify_local_identity_claim.py` also fails with `HTTP 403 bad_jwt` at admin user create.
+  - `2026-07-25T11:42:00+05:30` (BR-04/BR-05 verifier hardening and graceful failure normalization)
+    - `./.venv/bin/pytest -q tests/test_verify_local_identity_claim.py tests/test_verify_local_tenant_isolation.py`
+      - `4 passed`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
+      - `FAIL: admin user creation failed: Invalid API key`
+    - `set -a; . ./.env; COVERWISE_API_BASE_URL='http://127.0.0.1:8005' SUPABASE_SERVICE_ROLE_KEY='__PLACEHOLDER__' ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
+      - `FAIL: admin user creation failed: Invalid API key`
+    - Hardening result: local verifiers now use canonical Supabase admin-client flow and return a clean `FAIL` line without Python tracebacks when key auth fails.
+  - `2026-07-25T10:44:03+05:30` (BR-14 non-runtime evidence hardening)

@@ -59,8 +59,7 @@ class _ClaimTrackingScreenState extends ConsumerState<ClaimTrackingScreen> {
   }
 
   Future<void> _editReferenceNumber(ClaimRecord claim) async {
-    final controller =
-        TextEditingController(text: claim.referenceNumber ?? '');
+    final controller = TextEditingController(text: claim.referenceNumber ?? '');
 
     final result = await showDialog<String>(
       context: context,
@@ -296,7 +295,7 @@ class _ClaimCard extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton<ClaimStatus>(
-                  tooltip: 'Update claim status',
+                  tooltip: 'Update your recorded status',
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

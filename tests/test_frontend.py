@@ -1,9 +1,14 @@
+from html import unescape
+from hashlib import sha256
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
+import src.frontend.app as frontend_app
 from src.frontend.app import app
-import json
-from unittest.mock import patch
 
+
+ROOT = Path(__file__).resolve().parents[1]
 client = TestClient(app)
 
 def test_home_page():
@@ -11,6 +16,68 @@ def test_home_page():
     response = client.get("/")
     assert response.status_code == 200
     assert "CoverWise" in response.text
+    assert 'href="/privacy"' in response.text
+    assert 'href="/terms"' in response.text
+
+
+def test_openapi_description_uses_the_product_boundary():
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    schema = response.json()
+    description = schema["info"]["description"].lower()
+    assert "plain-language summaries" in description
+    assert "launch-ready marketing" not in description
+    assert "/favicon.ico" not in schema["paths"]
+
+
+@pytest.mark.parametrize(
+    ("path", "filename", "title"),
+    [
+        ("/privacy", "privacy_policy.md", "Privacy Policy"),
+        ("/terms", "terms_of_service.md", "Terms of Service"),
+    ],
+)
+def test_public_legal_pages_render_the_canonical_source(path, filename, title):
+    document = (ROOT / "docs/legal" / filename).read_text(encoding="utf-8")
+
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert f"<title>{title} | CoverWise</title>" in response.text
+    assert document in unescape(response.text)
+    assert response.headers["cache-control"] == "no-store"
+    assert "default-src 'self'" in response.headers["content-security-policy"]
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-coverwise-legal-sha256"] == sha256(
+        document.encode("utf-8")
+    ).hexdigest()
+
+
+def test_public_legal_page_escapes_source_markup(monkeypatch, tmp_path):
+    hostile_document = "# Privacy Policy\n\n<script>window.evil = true</script>\n"
+    source_path = tmp_path / "privacy_policy.md"
+    source_path.write_text(hostile_document, encoding="utf-8")
+    monkeypatch.setitem(
+        frontend_app.LEGAL_DOCUMENTS,
+        "privacy",
+        ("Privacy Policy", source_path),
+    )
+
+    response = client.get("/privacy")
+
+    assert response.status_code == 200
+    assert hostile_document not in response.text
+    assert "&lt;script&gt;window.evil = true&lt;/script&gt;" in response.text
+
+
+def test_sitemap_includes_the_public_legal_pages():
+    response = client.get("/sitemap.xml")
+
+    assert response.status_code == 200
+    assert "http://testserver/privacy" in response.text
+    assert "http://testserver/terms" in response.text
 
 @pytest.mark.asyncio
 async def test_upload_document(mocker):

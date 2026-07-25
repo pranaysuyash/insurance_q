@@ -9,13 +9,12 @@ principal's documents after a restart or scale-out event.
 
 from __future__ import annotations
 
-import json
 import os
 import sqlite3
 import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 from src.models.document import Document
 from src.utils.runtime_config import supabase_server_key
@@ -308,7 +307,7 @@ class SupabaseDocumentRepository(DocumentRepository):
         if not url or not service_role_key:
             raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
         try:
-            from supabase import create_client
+            from src.utils.supabase_client import create_client
         except ImportError as error:  # pragma: no cover - deployment dependency
             raise RuntimeError("supabase is required for Supabase document storage") from error
         self._client = create_client(url, service_role_key)

@@ -18,6 +18,20 @@ void main() {
     return dio;
   }
 
+  Dio responseDio(Object? data, {int statusCode = 200}) {
+    final dio = Dio();
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) => handler.resolve(
+        Response<dynamic>(
+          requestOptions: options,
+          statusCode: statusCode,
+          data: data,
+        ),
+      ),
+    ));
+    return dio;
+  }
+
   group('ServerConsentRecord', () {
     test('parses a known consent_type from JSON', () {
       final r = ServerConsentRecord.fromJson({
@@ -144,6 +158,47 @@ void main() {
       final future = svc.getCurrentConsentAll();
       expect(future, isA<Future<List<ServerConsentRecord>?>>());
       expect(await future, isNull);
+    });
+
+    test('getConsentHistory reads typed newest-first ledger entries', () async {
+      final svc = ServerConsentService(
+        dio: responseDio([
+          {
+            'id': '00000000-0000-0000-0000-000000000004',
+            'user_id': 'user-1',
+            'consent_type': 'analytics',
+            'granted': false,
+            'policy_version': 'analytics-v1',
+            'ip_address': null,
+            'user_agent': null,
+            'created_at': '2026-07-25T08:30:00+00:00',
+          },
+          {
+            'id': '00000000-0000-0000-0000-000000000005',
+            'user_id': 'user-1',
+            'consent_type': 'privacy_policy',
+            'granted': true,
+            'policy_version': '1.2',
+            'ip_address': null,
+            'user_agent': null,
+            'created_at': '2026-07-24T08:30:00+00:00',
+          },
+        ]),
+      );
+
+      final history = await svc.getConsentHistory(limit: 20);
+
+      expect(history, hasLength(2));
+      expect(history!.first.consentType, 'analytics');
+      expect(history.first.granted, isFalse);
+      expect(history.last.policyVersion, '1.2');
+    });
+
+    test('getConsentHistory returns null when the ledger is unavailable',
+        () async {
+      final svc = ServerConsentService(dio: testDio());
+
+      expect(await svc.getConsentHistory(), isNull);
     });
   });
 }

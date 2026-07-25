@@ -76,11 +76,11 @@ class CoverWiseSectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final labelWidget = Text(
-      label.toUpperCase(),
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.35,
+      label,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0,
           ),
     );
     return LayoutBuilder(
@@ -156,7 +156,7 @@ class CoverWiseActionRow extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -214,7 +214,7 @@ class CoverWiseSurface extends StatelessWidget {
       margin: margin,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: theme.brightness == Brightness.dark
               ? Colors.white.withValues(alpha: 0.08)
@@ -379,7 +379,7 @@ class CoverWiseInfoPanel extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: foreground.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: foreground.withValues(alpha: 0.20)),
       ),
       child: Row(
@@ -479,7 +479,7 @@ class CoverWiseSelectableRow extends StatelessWidget {
             ? foreground.withValues(alpha: 0.09)
             : theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(
             color: selected
                 ? foreground.withValues(alpha: 0.65)

@@ -157,3 +157,42 @@ def test_deployed_verifier_default_does_not_create_identities(monkeypatch):
 
     assert verifier.main() == 0
     assert ("/user/anonymous", "POST") not in calls
+
+
+def test_deployed_verifier_rejects_non_https_urls_without_requests(monkeypatch):
+    monkeypatch.setattr(
+        verifier,
+        "request",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("non-HTTPS URL must not be requested")
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["verify_deployed_launch.py", "--base-url", "http://api.example"],
+    )
+
+    assert verifier.main() == 2
+
+
+def test_deployed_verifier_requires_worker_url_when_requested(monkeypatch):
+    monkeypatch.setattr(
+        verifier,
+        "request",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("missing worker URL must fail before requests")
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "verify_deployed_launch.py",
+            "--base-url",
+            "https://api.example",
+            "--require-worker",
+        ],
+    )
+
+    assert verifier.main() == 2

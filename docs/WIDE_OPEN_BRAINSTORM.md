@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-16
 **Skill:** wide-open-brainstorm (v1.0.0)
-**Scope:** CoverWise as an **information broker** — NOT an operational insurance platform
+**Scope:** CoverWise as a **policy information assistant** — NOT an operational insurance platform
 **Evidence Tier:** Tier 1 (static inspection + web research)
 **Author:** Buffy (AI Agent)
 

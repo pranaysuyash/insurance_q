@@ -36,9 +36,9 @@ from src.models.evidence import (
     ExtractedValue,
     ExtractionCostRecord,
     ParserKind,
-    SpanType,
     ValueType,
 )
+from src.security.prompt_injection import fence_untrusted_content
 from src.models.extraction import RoomRentCapExtraction
 from src.services.evidence_substrate_service import (
     EvidenceSubstrateService,
@@ -355,7 +355,7 @@ class RoomRentCapExtractor:
             payload = await self._llm.generate_structured(
                 messages=[
                     {"role": "system", "content": "You extract structured data from insurance policy text. Respond only with JSON."},
-                    {"role": "user", "content": _ROOM_RENT_CAP_PROMPT + full_text},
+                    {"role": "user", "content": _ROOM_RENT_CAP_PROMPT + fence_untrusted_content("evidence_document", full_text, max_chars=30000)},
                 ],
                 response_model=RoomRentCapExtraction,
                 temperature=0.0,

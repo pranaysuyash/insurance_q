@@ -23,7 +23,7 @@ class AnalyticsRetentionService:
         key = supabase_server_key()
         if not url or not key:
             raise AnalyticsRetentionError("Supabase analytics retention requires server credentials")
-        from supabase import create_client
+        from src.utils.supabase_client import create_client
         return cls(create_client(url, key))
 
     def purge_before(self, cutoff: datetime) -> int:

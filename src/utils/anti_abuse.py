@@ -7,7 +7,7 @@ import hashlib
 import re
 import redis
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Tuple
 import logging
 from functools import wraps
 import os
@@ -37,8 +37,10 @@ try:
     # Test connection
     redis_client.ping()
     logger.info("Redis connection established for rate limiting")
-except Exception as e:
-    logger.warning(f"Redis not available, using in-memory fallback: {e}")
+except Exception:
+    # CSO F5: never log the redis_url (which contains the password) or the
+    # exception message (which may include the URL). Use a generic message.
+    logger.warning("Redis not available, using in-memory fallback")
     redis_client = None
 
 # In-memory fallback for rate limiting when Redis is not available
@@ -172,9 +174,9 @@ def _check_redis_rate_limit(
         
         return True, f"OK ({current_count + 1}/{limit})"
         
-    except Exception as e:
-        logger.error(f"Redis rate limiting error: {e}")
-        # Fallback to allowing request if Redis fails
+    except Exception:
+        # CSO F5: never log Redis error details (may contain password/URL).
+        logger.warning("Redis rate limiting unavailable, allowing request")
         return True, "Rate limiting unavailable"
 
 def _check_memory_rate_limit(
@@ -277,7 +279,7 @@ def check_supabase_rate_limits(
     Run instances would each see a different counter. Identifiers are hashed
     before they cross the database boundary.
     """
-    from supabase import create_client
+    from src.utils.supabase_client import create_client
 
     url = os.getenv("SUPABASE_URL", "").strip()
     key = supabase_server_key()
@@ -306,7 +308,7 @@ def check_supabase_rate_limits(
 
 def get_supabase_rate_limit_stats(ip_address: str, session_id: str) -> Dict[str, int]:
     """Read the current shared counters for the usage transparency endpoint."""
-    from supabase import create_client
+    from src.utils.supabase_client import create_client
 
     url = os.getenv("SUPABASE_URL", "").strip()
     key = supabase_server_key()
@@ -442,9 +444,9 @@ def get_current_usage_stats(ip_address: str, session_id: str) -> Dict:
             session_key = _get_redis_key('session', session_id)
             _cleanup_old_entries(session_key, 24)
             stats['session_usage'] = redis_client.zcard(session_key)
-            
-        except Exception as e:
-            logger.error(f"Error getting usage stats: {e}")
+        except Exception:
+            # CSO F5: generic error, never leak Redis connection details.
+            logger.warning("Usage stats unavailable via Redis, falling back to in-memory")
     else:
         # Memory store fallback
         _cleanup_memory_store()

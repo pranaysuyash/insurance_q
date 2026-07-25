@@ -1,0 +1,243 @@
+{
+  "manifest_id": "coverwise-document-intelligence-v1",
+  "schema_version": "document-intelligence-benchmark.v1",
+  "manifest_sha256": "d411cabdd02f6f2863e00d550a81cf037c6bc8de16dff9c7d17959b040bffff6",
+  "case_results": [
+    {
+      "id": "digital_pdf_native",
+      "fixture": "tests/test_data/sample_insurance.pdf",
+      "fixture_sha256": "04ce43931d0d8af97b6c81499d17ed192f1191463297be016452bca612082af2",
+      "status": "passed",
+      "elapsed_seconds": 0.0044,
+      "page_count": 1,
+      "observed_capabilities": [
+        "layout",
+        "native_text"
+      ],
+      "required_capabilities": [
+        "layout",
+        "native_text"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "Insurance Policy": true,
+        "#12345": true
+      },
+      "node_counts": {
+        "layout_block": 1,
+        "page": 1,
+        "sentence": 1,
+        "text_block": 1
+      }
+    },
+    {
+      "id": "synthetic_mixed_native",
+      "fixture": "generated:synthetic_mixed_native",
+      "fixture_sha256": "501d5512a685ac49fa453c2fdf89a0d3c3c861f6dcec3f9c4471106dcd791388",
+      "status": "passed",
+      "elapsed_seconds": 0.0046,
+      "page_count": 1,
+      "observed_capabilities": [
+        "figure",
+        "layout",
+        "native_text",
+        "table"
+      ],
+      "required_capabilities": [
+        "figure",
+        "layout",
+        "native_text",
+        "table"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "Health policy schedule": true,
+        "500000": true
+      },
+      "node_counts": {
+        "figure": 1,
+        "layout_block": 4,
+        "page": 1,
+        "sentence": 1,
+        "table": 1,
+        "table_cell": 4,
+        "text_block": 1
+      }
+    },
+    {
+      "id": "synthetic_scan_doctr",
+      "fixture": "generated:synthetic_scan",
+      "fixture_sha256": "d9d26bf1d1db928eb4f2c2256819f5523a9b385e7cb70fca7f6742fcbe1a8ce0",
+      "status": "failed",
+      "elapsed_seconds": 0.62,
+      "page_count": 1,
+      "observed_capabilities": [
+        "image_artifact",
+        "scanned_ocr"
+      ],
+      "required_capabilities": [
+        "image_artifact",
+        "scanned_ocr"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "Health Policy": false,
+        "500000": false,
+        "POLICY-TEST-001": false
+      },
+      "node_counts": {
+        "page": 1,
+        "sentence": 1,
+        "text_block": 1
+      }
+    },
+    {
+      "id": "synthetic_mixed_scan_pdf_doctr",
+      "fixture": "generated:synthetic_mixed_scan_pdf",
+      "fixture_sha256": "cafbf0b79ffe6deb14a806befc7de7361dc8ac1ab456fef014667ee391f46631",
+      "status": "failed",
+      "elapsed_seconds": 0.6234,
+      "page_count": 2,
+      "observed_capabilities": [
+        "figure",
+        "layout",
+        "native_text",
+        "scanned_ocr"
+      ],
+      "required_capabilities": [
+        "layout",
+        "native_text",
+        "scanned_ocr"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "NATIVE-001": true,
+        "Health Policy": false,
+        "POLICY-TEST-001": false
+      },
+      "native_text_pages": [
+        1
+      ],
+      "ocr_pages": [
+        2
+      ],
+      "unresolved_pages": [],
+      "node_counts": {
+        "figure": 1,
+        "layout_block": 2,
+        "page": 2,
+        "sentence": 2,
+        "text_block": 2
+      }
+    },
+    {
+      "id": "synthetic_form_native",
+      "fixture": "generated:synthetic_form_pdf",
+      "fixture_sha256": "7e1dc9201041dca69d2e470f65f64f08a6086b87e1bdf80b33d80c7000c080d8",
+      "status": "passed",
+      "elapsed_seconds": 0.0022,
+      "page_count": 1,
+      "observed_capabilities": [
+        "form",
+        "layout",
+        "native_text"
+      ],
+      "required_capabilities": [
+        "form",
+        "layout",
+        "native_text"
+      ],
+      "missing_capabilities": [],
+      "expected_token_matches": {
+        "Policy number": true,
+        "POL-123": true
+      },
+      "node_counts": {
+        "form_field": 1,
+        "layout_block": 1,
+        "page": 1,
+        "sentence": 1,
+        "text_block": 1
+      }
+    }
+  ],
+  "capability_gates": [
+    {
+      "capability": "scanned_ocr",
+      "status": "synthetic_tier2_measured_corpus_pending",
+      "profiles": [
+        "doctr",
+        "Surya",
+        "PaddleOCR/PP-Structure"
+      ],
+      "evidence_required": [
+        "word accuracy",
+        "page provenance",
+        "p95 latency",
+        "timeout and partial-success behavior"
+      ]
+    },
+    {
+      "capability": "forms",
+      "status": "native_form_structure_ready_specialist_scan_pending",
+      "profiles": [
+        "Azure Document Intelligence",
+        "Google Document AI",
+        "AWS Textract",
+        "Paddle KIE"
+      ],
+      "evidence_required": [
+        "key/value geometry",
+        "selection-mark accuracy",
+        "privacy and cost approval"
+      ]
+    },
+    {
+      "capability": "formulas",
+      "status": "benchmark_pending",
+      "profiles": [
+        "MinerU",
+        "Paddle formula recognition",
+        "Nougat",
+        "Mathpix/Pix2Text"
+      ],
+      "evidence_required": [
+        "LaTeX/MathML fidelity",
+        "source crop linkage",
+        "model and weight license review"
+      ]
+    },
+    {
+      "capability": "figures_and_charts",
+      "status": "native_artifact_ready_vlm_annotation_pending",
+      "profiles": [
+        "native image preservation",
+        "Mistral annotations",
+        "Gemini image understanding"
+      ],
+      "evidence_required": [
+        "original artifact hash",
+        "bounded derived annotation",
+        "no generated description used as policy evidence"
+      ]
+    },
+    {
+      "capability": "multilingual_and_handwriting",
+      "status": "benchmark_pending",
+      "profiles": [
+        "Surya",
+        "PaddleOCR",
+        "managed document intelligence"
+      ],
+      "evidence_required": [
+        "script-level accuracy",
+        "uncertainty labeling",
+        "manual-review recovery"
+      ]
+    }
+  ],
+  "all_executed_cases_passed": false,
+  "not_run_cases": 0,
+  "ocr_profile": "doctr",
+  "source_text_included": false
+}

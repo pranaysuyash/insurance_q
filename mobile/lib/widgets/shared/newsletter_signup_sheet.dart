@@ -238,7 +238,7 @@ class _NewsletterSignupSheetState extends State<NewsletterSignupSheet> {
           ],
           const SizedBox(height: 8),
           Text(
-            'No spam. Unsubscribe anytime. Your email stays on this device and is never shared.',
+            'Unsubscribe anytime. Your email is used for this newsletter and handled as described in the Privacy Policy.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
               fontSize: 11,

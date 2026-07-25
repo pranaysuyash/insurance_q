@@ -1,0 +1,41 @@
+{
+  "evaluation": "provider_smoke_v1",
+  "fixture_sha256": "2410c83389914516649818239f8688cc5d46caf74f97e979b8349be406858f49",
+  "results": [
+    {
+      "endpoint_family": "openai_compatible_chat_completions",
+      "median_latency_ms": 1026,
+      "passed_count": 2,
+      "provider": "hf",
+      "reported_model": "Qwen/Qwen3-4B-Instruct-2507",
+      "requested_model": "Qwen/Qwen3-4B-Instruct-2507",
+      "schema_and_grounding_pass_rate": 0.667,
+      "synthetic_only": true,
+      "task_count": 3,
+      "tasks": [
+        {
+          "error_kind": null,
+          "latency_ms": 1103,
+          "name": "structured_extraction",
+          "passed": true,
+          "valid_json": true
+        },
+        {
+          "error_kind": null,
+          "latency_ms": 744,
+          "name": "unsupported_field",
+          "passed": true,
+          "valid_json": true
+        },
+        {
+          "error_kind": null,
+          "latency_ms": 1026,
+          "name": "grounded_answer",
+          "passed": false,
+          "valid_json": true
+        }
+      ]
+    }
+  ],
+  "run_at_utc": "2026-07-24T19:56:31Z"
+}

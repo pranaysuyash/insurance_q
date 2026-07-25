@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from src.services.supabase_vector_store import SupabaseVectorStore
 from types import SimpleNamespace
 

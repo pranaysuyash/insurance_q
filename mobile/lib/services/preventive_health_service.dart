@@ -3,14 +3,12 @@ import 'package:hive/hive.dart';
 import '../models/policy_summary.dart';
 import 'app_state_store.dart';
 
-/// Preventive Health Reminders — smart tips based on policy types.
+/// Policy-review notes derived from the minimum available policy metadata.
 ///
-/// Generates actionable reminders like:
-/// - "Your health policy covers free annual checkups — use it before Dec 31"
-/// - "Time to review your life insurance beneficiaries"
-/// - "Your motor policy includes roadside assistance — save the helpline"
-///
-/// Tips are generated from policy summaries and stored to avoid repeats.
+/// A policy type alone cannot establish benefits, claim requirements, adequacy,
+/// or a recommended action. Notes therefore direct people to review the source
+/// document or an explicitly extracted field; they never infer coverage.
+/// Notes are stored locally to avoid repeated display.
 class PreventiveHealthService {
   static Box get _box => Hive.box(AppStateStore.boxName);
 
@@ -56,15 +54,15 @@ class PreventiveHealthService {
     for (final summary in summaries) {
       final type = summary.documentType.toLowerCase();
 
-      // Health insurance tips (once per type, not per policy)
+      // Health policy review notes (once per type, not per policy).
       if (type.contains('health') || type.contains('mediclaim')) {
         if (!seenTypes.add('health')) continue;
         tips.add(HealthTip(
           id: 'health_annual_checkup_${summary.documentId}',
           icon: Icons.medical_services,
-          title: 'Free Annual Checkup',
-          body: 'Your health policy likely covers a free annual health checkup. '
-              'Contact ${summary.insurer ?? "your insurer"} to book before year end.',
+          title: 'Review health-check wording',
+          body:
+              'A health policy type alone does not verify a health-check benefit. Review the source policy wording${summary.insurer != null ? " or confirm with ${summary.insurer}" : ""}.',
           category: 'health',
           priority: 2,
         ));
@@ -72,9 +70,9 @@ class PreventiveHealthService {
         tips.add(HealthTip(
           id: 'health_wellness_${summary.documentId}',
           icon: Icons.fitness_center,
-          title: 'Wellness Benefits',
-          body: 'Many health policies cover gym memberships, yoga classes, or '
-              'wellness programs. Check your policy benefits for wellness perks.',
+          title: 'Review listed benefits',
+          body:
+              'Review the extracted benefits and source policy wording for any wellness-related terms. They are not inferred from policy type.',
           category: 'health',
           priority: 1,
         ));
@@ -83,24 +81,26 @@ class PreventiveHealthService {
           tips.add(HealthTip(
             id: 'health_deductible_${summary.documentId}',
             icon: Icons.receipt_long,
-            title: 'Deductible Reminder',
-            body: 'Your ₹${summary.deductible!.toStringAsFixed(0)} deductible '
-                'may reset annually. Plan major treatments accordingly.',
+            title: 'Review recorded deductible',
+            body:
+                'The extracted deductible is ₹${summary.deductible!.toStringAsFixed(0)}. Confirm how it applies and whether it resets using your policy wording or insurer.',
             category: 'health',
             priority: 1,
           ));
         }
       }
 
-      // Motor insurance tips (once per type)
-      if (type.contains('motor') || type.contains('auto') || type.contains('vehicle')) {
+      // Motor policy review notes (once per type).
+      if (type.contains('motor') ||
+          type.contains('auto') ||
+          type.contains('vehicle')) {
         if (!seenTypes.add('motor')) continue;
         tips.add(HealthTip(
           id: 'motor_puc_${summary.documentId}',
           icon: Icons.car_repair,
-          title: 'PUC Certificate',
-          body: 'Ensure your vehicle has a valid Pollution Under Control (PUC) '
-              "certificate. It's required for insurance claims.",
+          title: 'Review vehicle-document requirements',
+          body:
+              'Check your policy wording and local rules for any vehicle-document requirements. CoverWise does not determine claim requirements.',
           category: 'motor',
           priority: 2,
         ));
@@ -108,23 +108,24 @@ class PreventiveHealthService {
         tips.add(HealthTip(
           id: 'motor_roadside_${summary.documentId}',
           icon: Icons.directions_car,
-          title: 'Roadside Assistance',
-          body: 'Save your insurer\'s roadside assistance helpline: '
-              '${summary.insurerHelpline ?? "Check your policy document"}.',
+          title: 'Record a support contact',
+          body: summary.insurerHelpline != null
+              ? 'The extracted insurer contact is ${summary.insurerHelpline}. Confirm the current support route in your policy or with the insurer.'
+              : 'No insurer support contact was extracted. Review your policy document if you need one.',
           category: 'motor',
           priority: 1,
         ));
       }
 
-      // Life insurance tips (once per type)
+      // Life policy review notes (once per type).
       if (type.contains('life') || type.contains('term')) {
         if (!seenTypes.add('life')) continue;
         tips.add(HealthTip(
           id: 'life_beneficiary_${summary.documentId}',
           icon: Icons.people,
-          title: 'Review Beneficiaries',
-          body: 'Life events like marriage, children, or property purchase '
-              'may require updating your policy beneficiaries.',
+          title: 'Review nominee details',
+          body:
+              'Review the policy record for nominee or beneficiary information. CoverWise cannot determine whether those details are current or sufficient.',
           category: 'life',
           priority: 2,
         ));
@@ -132,9 +133,9 @@ class PreventiveHealthService {
         tips.add(HealthTip(
           id: 'life_nominee_${summary.documentId}',
           icon: Icons.how_to_reg,
-          title: 'Verify Nominee Details',
-          body: 'Ensure your nominee details are current and correct. '
-              'Outdated nominees can complicate claims.',
+          title: 'Confirm policy-holder details',
+          body:
+              'Compare any extracted names with the source policy document and contact the insurer for changes or claim-process questions.',
           category: 'life',
           priority: 1,
         ));
@@ -146,23 +147,22 @@ class PreventiveHealthService {
         tips.add(HealthTip(
           id: 'renewal_reminder_${summary.documentId}',
           icon: Icons.event,
-          title: 'Renewal Due in $daysLeft Days',
+          title: 'Expiry date recorded: $daysLeft days',
           body: 'Your ${summary.documentType} policy expires on '
-              '${summary.formattedExpiryDate}. Start the renewal process early '
-              'to avoid coverage gaps.',
+              '${summary.formattedExpiryDate}. Confirm the date in the source policy and choose a device reminder if useful.',
           category: 'general',
           priority: 3,
         ));
       }
 
-      // Family coverage tip
+      // Policy-holder review note.
       if (summary.documentType.toLowerCase().contains('health')) {
         tips.add(HealthTip(
           id: 'family_coverage_${summary.documentId}',
           icon: Icons.family_restroom,
-          title: 'Family Coverage Check',
-          body: 'Verify all family members are covered under your health policy. '
-              'Missing dependents could mean unexpected out-of-pocket costs.',
+          title: 'Review listed policy holders',
+          body:
+              'Compare the people listed in the extracted policy record with the source document. A missing name in this workspace is not proof of missing coverage.',
           category: 'family',
           priority: 2,
         ));
@@ -180,9 +180,9 @@ class PreventiveHealthService {
     try {
       if (raw is Map) {
         return raw.map((k, v) => MapEntry(
-          k.toString(),
-          DateTime.parse(v.toString()),
-        ));
+              k.toString(),
+              DateTime.parse(v.toString()),
+            ));
       }
     } catch (_) {}
     return {};

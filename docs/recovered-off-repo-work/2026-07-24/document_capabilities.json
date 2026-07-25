@@ -1,0 +1,132 @@
+{
+  "capabilities": {
+    "figures": {
+      "profiles": {
+        "page_artifact_preservation": {
+          "status": "available"
+        }
+      },
+      "scope": "derived_caption_or_chart_annotation_not_source_evidence",
+      "status": "available"
+    },
+    "forms": {
+      "profiles": {
+        "pymupdf_acroform": {
+          "scope": "native_widgets",
+          "status": "available"
+        }
+      },
+      "scope": "scanned_key_value_and_selection_marks_pending",
+      "status": "available"
+    },
+    "formulas": {
+      "profiles": {
+        "mineru": {
+          "package": "magic_pdf",
+          "status": "disabled"
+        },
+        "specialist_vlm": {
+          "status": "candidate"
+        }
+      },
+      "quality_gate": "benchmark_and_license_review_required",
+      "status": "candidate"
+    },
+    "handwriting": {
+      "profiles": {
+        "managed_specialist": {
+          "status": "candidate"
+        }
+      },
+      "quality_gate": "manual_review_and_corpus_benchmark_required",
+      "status": "unavailable"
+    },
+    "layout": {
+      "profiles": {
+        "docling": {
+          "package": "docling",
+          "status": "disabled"
+        },
+        "paddleocr": {
+          "package": "paddleocr",
+          "status": "disabled"
+        },
+        "pymupdf_native": {
+          "status": "available"
+        },
+        "surya": {
+          "package": "surya",
+          "status": "disabled"
+        }
+      },
+      "scope": "native_pdf_observation_only_by_default",
+      "status": "available"
+    },
+    "multilingual": {
+      "profiles": {
+        "unicode_script_observation": {
+          "status": "available"
+        }
+      },
+      "quality_gate": "script_level_ocr_accuracy_pending",
+      "status": "routing_only"
+    },
+    "native_text": {
+      "evidence_tier": 2,
+      "profiles": [
+        "pymupdf_native"
+      ],
+      "status": "available"
+    },
+    "scanned_ocr": {
+      "evidence_tier": 2,
+      "profiles": {
+        "doctr": {
+          "package": "doctr",
+          "status": "available"
+        }
+      },
+      "quality_gate": "synthetic_only_until_consented_corpus_benchmark",
+      "status": "available"
+    },
+    "tables": {
+      "profiles": {
+        "mineru": {
+          "package": "magic_pdf",
+          "status": "disabled"
+        },
+        "paddleocr_pp_structure": {
+          "package": "paddleocr",
+          "status": "disabled"
+        },
+        "pymupdf_native": {
+          "scope": "born_digital",
+          "status": "available"
+        }
+      },
+      "scope": "scanned_table_accuracy_requires_benchmark",
+      "status": "available"
+    },
+    "vlm_annotation": {
+      "profiles": {
+        "gemini_document_understanding": {
+          "status": "candidate"
+        },
+        "local_ollama": {
+          "scope": "current_chat_route_is_not_proof_of_image_support",
+          "status": "configured_unverified"
+        },
+        "mistral_ocr_annotations": {
+          "status": "candidate"
+        },
+        "openai_vision": {
+          "scope": "provider_and_image_contract_unverified",
+          "status": "configured_unverified"
+        }
+      },
+      "quality_gate": "image_fixture_benchmark_and_provider_privacy_review_required",
+      "status": "candidate"
+    }
+  },
+  "registry_version": "document-capabilities.v1"
+}

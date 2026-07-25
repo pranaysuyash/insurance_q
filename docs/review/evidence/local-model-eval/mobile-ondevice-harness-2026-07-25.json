@@ -1,0 +1,32 @@
+{
+  "generated_at_utc": "2026-07-24T21:02:52.262703+00:00",
+  "environment_cwd": "/Users/pranay/Projects/medpiper/insurance_app",
+  "mobile_dir": "/Users/pranay/Projects/medpiper/insurance_app/mobile",
+  "summary": {
+    "pass_count": 3,
+    "total": 3
+  },
+  "results": [
+    {
+      "command": "flutter devices --machine",
+      "returncode": 0,
+      "stdout": "[\n  {\n    \"name\": \"iPhone 17\",\n    \"id\": \"F5AC13E5-FDAF-4877-B7FF-4265A3180931\",\n    \"isSupported\": true,\n    \"targetPlatform\": \"ios\",\n    \"emulator\": true,\n    \"sdk\": \"com.apple.CoreSimulator.SimRuntime.iOS-26-2\",\n    \"capabilities\": {\n      \"hotReload\": true,\n      \"hotRestart\": true,\n      \"screenshot\": true,\n      \"flutterExit\": true,\n      \"hardwareRendering\": false,\n      \"startPaused\": true\n    }\n  },\n  {\n    \"name\": \"macOS\",\n    \"id\": \"macos\",\n    \"isSupported\": true,\n    \"targetPlatform\": \"darwin\",\n    \"emulator\": false,\n    \"sdk\": \"macOS 15.7.7 24G720 darwin-arm64\",\n    \"capabilities\": {\n      \"hotReload\": true,\n      \"hotRestart\": true,\n      \"screenshot\": false,\n      \"flutterExit\": true,\n      \"hardwareRendering\": false,\n      \"startPaused\": true\n    }\n  },\n  {\n    \"name\": \"Chrome\",\n    \"id\": \"chrome\",\n    \"isSupported\": true,\n    \"targetPlatform\": \"web-javascript\",\n    \"emulator\": false,\n    \"sdk\": \"Google Chrome 150.0.7871.186\",\n    \"capabilities\": {\n      \"hotReload\": true,\n      \"hotRestart\": true,\n      \"screenshot\": false,\n      \"flutterExit\": false,\n      \"hardwareRendering\": false,\n      \"startPaused\": true\n    }\n  }\n]",
+      "stderr": "",
+      "elapsed_ms": 16818.5
+    },
+    {
+      "command": "flutter test test/on_device_inference_service_test.dart",
+      "returncode": 0,
+      "stdout": "00:00 +0: loading /Users/pranay/Projects/medpiper/insurance_app/mobile/test/on_device_inference_service_test.dart\n00:00 +0: on-device inference config reflects compile-time environment\n00:00 +1: service refuses model installation without an approved configuration\n00:00 +2: service install attempt path is reachable when configured\n00:00 +3: All tests passed!",
+      "stderr": "",
+      "elapsed_ms": 25494.0
+    },
+    {
+      "command": "flutter test -d F5AC13E5-FDAF-4877-B7FF-4265A3180931 --dart-define=ON_DEVICE_TEST_INSTALL_ATTEMPT=true --dart-define=ON_DEVICE_INFERENCE_ENABLED=true --dart-define=ON_DEVICE_MODEL_URL=https://example.com/model.task test/on_device_inference_service_test.dart",
+      "returncode": 0,
+      "stdout": "00:00 +0: loading /Users/pranay/Projects/medpiper/insurance_app/mobile/test/on_device_inference_service_test.dart\n00:00 +0: on-device inference config reflects compile-time environment\n00:00 +1: service refuses model installation without an approved configuration\n00:00 +2: service install attempt path is reachable when configured\n00:00 +3: All tests passed!",
+      "stderr": "",
+      "elapsed_ms": 18614.6
+    }
+  ]
+}

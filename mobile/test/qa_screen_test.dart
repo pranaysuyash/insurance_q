@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/providers/questions_provider.dart';
+import 'package:coverwise/providers/connectivity_provider.dart';
 import 'package:coverwise/utils/ref_state.dart';
 import 'package:coverwise/screens/qa_screen.dart';
 import 'package:coverwise/services/app_state_store.dart';
@@ -17,18 +18,26 @@ import 'package:dio/dio.dart';
 import 'package:coverwise/providers/service_providers.dart';
 import 'package:coverwise/services/query_service.dart';
 
+/// A QueryService that blocks on a controllable stream, so tests can
+/// verify the in-flight guard (second submission is ignored).
 class _BlockingQueryService extends QueryService {
   _BlockingQueryService() : super(Dio());
 
   int callCount = 0;
-  final Completer<Map<String, dynamic>> response =
-      Completer<Map<String, dynamic>>();
+  final StreamController<String> _controller = StreamController<String>();
 
   @override
-  Future<Map<String, dynamic>> queryDocument(String query,
-      {String? documentId}) {
+  Stream<String> queryDocumentStream(
+    String query, {
+    String? documentId,
+  }) {
     callCount++;
-    return response.future;
+    return _controller.stream;
+  }
+
+  void complete(String answer) {
+    _controller.add(answer);
+    _controller.close();
   }
 }
 
@@ -79,7 +88,10 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
-        documentsProvider.overrideWith((ref) async => documents),        selectedDocumentProvider.overrideWith(() => RefState<String?>(initialDocumentId)),
+        documentsProvider.overrideWith((ref) async => documents),
+        selectedDocumentProvider
+            .overrideWith(() => RefState<String?>(initialDocumentId)),
+        isOnlineProvider.overrideWith((ref) => true),
         if (queryService != null)
           queryServiceProvider.overrideWithValue(queryService),
       ],
@@ -173,30 +185,35 @@ void main() {
     });
 
     testWidgets(
-        'ignores a second keyboard submission while a question is in flight',
-        (tester) async {
-      final queryService = _BlockingQueryService();
-      await tester.pumpWidget(buildQaScreen(queryService: queryService));
-      await tester.pumpAndSettle();
+      'ignores a second keyboard submission while a question is in flight',
+      (tester) async {
+        final queryService = _BlockingQueryService();
+        await tester.pumpWidget(buildQaScreen(queryService: queryService));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Your question'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'What is covered?');
-      await tester.showKeyboard(find.byType(TextField));
+        await tester.tap(find.text('Your question'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'What is covered?');
+        await tester.showKeyboard(find.byType(TextField));
 
-      await tester.testTextInput.receiveAction(TextInputAction.send);
-      await tester.pump();
-      await tester.testTextInput.receiveAction(TextInputAction.send);
-      await tester.pump();
+        await tester.testTextInput.receiveAction(TextInputAction.send);
+        // Pump multiple frames to ensure the async _askQuestionStream has
+        // time to set _questionRequestInFlight = true before the second
+        // submission fires. A single pump() may not give enough frames
+        // for the Future to execute, causing the guard to miss the second
+        // submission (the root cause of the pre-existing flake).
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.testTextInput.receiveAction(TextInputAction.send);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
 
-      expect(queryService.callCount, 1);
+        expect(queryService.callCount, 1);
 
-      queryService.response.complete({
-        'answer': 'Emergency care is covered.',
-        'sources': <String>[],
-      });
-      await tester.pump(const Duration(milliseconds: 100));
-    });
+        queryService.complete('Emergency care is covered.');
+        await tester.pump(const Duration(milliseconds: 100));
+      },
+    );
   });
 
   group('QaScreen — history tab', () {

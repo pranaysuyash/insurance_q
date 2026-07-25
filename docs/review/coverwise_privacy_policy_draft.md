@@ -38,7 +38,7 @@ The final policy must be narrowed to the actual deployed behavior. Do not publis
 
 We use submitted information to provide document processing and explanations, maintain service security, measure reliability, respond to support requests, and meet legal obligations where applicable.
 
-We do not use policy documents or inferences from them for advertising. The current product direction does not permit policy-targeted advertising even with an ordinary consent prompt; changing that boundary would require a new product decision, legal review, and a rewritten privacy architecture.
+We do not use policy documents or inferences from them for advertising. The current product direction does not permit policy-targeted advertising even with an ordinary consent prompt; changing that boundary would require a new product decision, optional external review, and a rewritten privacy architecture.
 
 ## Sensitive documents
 
@@ -56,7 +56,7 @@ The published policy must match actual runtime behavior, including backups, logs
 
 ## User choices and rights
 
-Users may contact **[PRIVACY EMAIL]** to ask about access, correction, deletion, or other rights available in their jurisdiction. Identity verification and response timelines should be described after legal review.
+Users may contact **[PRIVACY EMAIL]** to ask about access, correction, deletion, or other rights available in their jurisdiction. Identity verification and response timelines should be described after the owner finalizes operational commitments (and optional external review if you want).
 
 ## Children
 
@@ -68,4 +68,4 @@ We may update this policy when the service or legal requirements change. The pub
 
 ## Approval gate
 
-Do not link this draft from the production website or Play Store until the bracketed values are resolved and the final text has been reviewed by the operator/legal reviewer.
+Do not link this draft from the production website or Play Store until the bracketed values are resolved and the final text has been reviewed by the operator (or an external reviewer of your choice).

@@ -13,12 +13,12 @@ import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/policy_type_icon.dart';
 import 'documents_screen.dart';
 
-/// Digital Insurance Card — proof of insurance from your phone.
+/// Policy quick-reference card for details extracted from a user's document.
 ///
 /// Shows a visual card for each policy with:
 /// - Policy number, insurer, coverage amount, expiry
 /// - One-tap call insurer and share a limited text card
-/// - Shareable card format
+/// - Shareable reference format that is not insurer-issued proof of cover
 class InsuranceCardScreen extends ConsumerWidget {
   const InsuranceCardScreen({super.key});
 

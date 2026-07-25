@@ -17,6 +17,9 @@ from src.services.artifact_lifecycle_service import delete_pending, mark_expired
 from src.utils.runtime_config import normalize_supabase_environment
 
 
+DEFAULT_ANALYTICS_RETENTION_DAYS = 30
+
+
 def run_retention_pass(
     *,
     analytics_retention_days: int,
@@ -45,7 +48,16 @@ def run_retention_pass(
 def main() -> None:
     normalize_supabase_environment()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--analytics-retention-days", type=int, default=int(os.getenv("ANALYTICS_RETENTION_DAYS", "365")))
+    parser.add_argument(
+        "--analytics-retention-days",
+        type=int,
+        default=int(
+            os.getenv(
+                "ANALYTICS_RETENTION_DAYS",
+                str(DEFAULT_ANALYTICS_RETENTION_DAYS),
+            )
+        ),
+    )
     parser.add_argument("--artifact-limit", type=int, default=100)
     args = parser.parse_args()
     try:

@@ -15,6 +15,9 @@ For local verification, run `supabase db reset --local --no-seed` and
 - `ANONYMOUS_AUTH_SIGNING_KEY`: long random secret for the launch bearer identity.
 - `ALLOWED_ORIGINS`: comma-separated final HTTPS browser origins; required in
   production and must never contain `*`.
+- `ALLOWED_HOSTS`: comma-separated API DNS hostnames only (no scheme/path);
+  required in production and must never contain `*`. Include every direct
+  public API and provider health-check hostname.
 
 Account auth uses Supabase Auth. The mobile release receives only the project
 URL and publishable/anonymous key through build-time configuration; the API

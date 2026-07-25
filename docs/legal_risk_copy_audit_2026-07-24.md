@@ -1,0 +1,2019 @@
+# Legal-Risk Copy & Claims Audit Inventory
+
+Date: 2026-07-24
+
+Scope: Static audit only. No code changes were made.
+
+## Files and search scope
+- `docs/legal/*.md`
+- `mobile/assets/legal/*.md`
+- `mobile/lib/l10n/app_en.arb`
+- `mobile/lib/l10n/app_hi.arb`
+- `mobile/lib/screens/**/*.dart`
+- `mobile/lib/widgets/**/*.dart`
+- `site/**/*.html`
+- `src/frontend/templates/**/*.html`
+
+## Why this inventory was run
+The app repeatedly communicates legal, policy, claims, billing, insurance, and privacy semantics in user-facing copy. That copy carries regulatory/customer-protection, contract, and liability risk if wording is overbroad, misleading, or internally inconsistent.
+
+## Risk taxonomy used for triage
+- **Category A — Core legal disclaimer quality**: non-insurer claims, legal/financial advice limits, liability exclusions, indemnity language.
+- **Category B — Medical/insurance claim/process guidance**: claim steps, eligibility suggestions, coverage interpretation, claim outcomes.
+- **Category C — Billing and entitlement promises**: paid plan caps, refunds, cancellation, restoration, subscription behavior.
+- **Category D — Account/data/privacy deletion and consent**: account deletion, local vs server data, retention, consent, consent withdrawal.
+- **Category E — Availability and reliability statements**: interruption, fallback, errors, verification dependencies.
+- **Category F — AI capability and accuracy signaling**: “AI-generated,” error/fallibility, required verification against source documents.
+- **Category G — Marketing promises / implied outcome expectations**: coverage readiness, emergency readiness, instant understanding, guaranteed extraction outcomes.
+
+## High-level issue map
+- Legal and claims surfaces are present in both mobile copy and legal policy pages, creating duplicate canonical points of truth.
+- Billing and entitlement language appears repeatedly in screen UI and l10n, including in multiple CTAs and status messages.
+- Claim-related wording is extensive across onboarding, question flow, claim assistance, claim tracking, and legal docs.
+- Account deletion and consent states are partly clear in legal docs, but several user-facing strings mention irreversibility or staged deletion in ways that should be consistent with backend behavior.
+- Several screens and widgets imply AI convenience and guidance boundaries and should be checked for precise legal safety in every locale.
+
+## Evidence pack
+- Total flagged files: `83`
+- Total flagged copy lines found: `1793`
+- Duplicate legal policy source exists in:
+  - `docs/legal/terms_of_service.md`
+  - `docs/legal/privacy_policy.md`
+  - `mobile/assets/legal/terms_of_service.md`
+  - `mobile/assets/legal/privacy_policy.md`
+
+### Top files by risk-density (manual attention first)
+- `mobile/lib/screens/claim_assistance_screen.dart`
+- `mobile/lib/widgets/shared/global_error_boundary.dart`
+- `mobile/lib/screens/claim_tracking_screen.dart`
+- `mobile/lib/l10n/app_en.arb`
+- `mobile/lib/screens/upgrade_screen.dart`
+- `mobile/lib/screens/policy_detail_screen.dart`
+- `mobile/lib/screens/qa_screen.dart`
+- `mobile/lib/screens/documents_screen.dart`
+- `mobile/lib/screens/documents_list.dart`
+- `mobile/lib/widgets/shared/screen_error_boundary.dart`
+- `src/frontend/templates/index.html`
+
+## Detailed findings by file
+
+The sections below list each flagged occurrence with line references in `<line>: <copy>` form so legal/comms can review directly.
+
+### docs/legal/privacy_policy.md
+- 10: We are a **policy information assistant** — we help you understand your insurance documents. We do not sell insurance, provide financial advice, or act as an insurer or broker.
+- 111: *CoverWise helps you understand your insurance policies. It does not provide insurance, financial, or legal advice.*
+- 15: - **Policy documents:** PDFs and images you upload for processing
+- 1: # CoverWise Privacy Policy
+- 26: - Health information beyond what appears in your policy documents
+- 55: | Policy documents (local) | Until you delete | Settings → Clear local data |
+- 56: | Policy documents (server) | Until account deletion | Account deletion request |
+- 77: - Toggle analytics consent anytime in Settings → Privacy
+- 88: ## Children's Privacy
+- 8: CoverWise ("we," "our," or "us") helps you store and understand your insurance policies by extracting key information and answering questions grounded in your uploaded documents. This Privacy Policy explains what data we collect, how we protect it, and your privacy rights.
+- 98: For privacy questions or data requests:
+
+### docs/legal/terms_of_service.md
+- 101: We may update these Terms. Continued use after changes constitutes acceptance. We will notify you of material changes via the App.
+- 105: These Terms are governed by the laws of India, without regard to conflict of law principles.
+- 109: For questions about these Terms:
+- 115: *CoverWise helps you understand your insurance policies. It does not provide insurance, financial, or legal advice. Always verify coverage details with your insurer.*
+- 13: - Extracting key information from policy documents
+- 14: - Answering questions about your coverage in plain language
+- 17: **We are not an insurer, insurance agent, broker, or financial advisor.**
+- 19: ## 3. Important Disclaimers
+- 1: # CoverWise Terms of Service
+- 21: ### Not Insurance Advice
+- 22: CoverWise provides general information based on your policy documents. This information:
+- 24: - May contain errors or inaccuracies
+- 25: - Should **always** be verified against your actual policy document
+- 26: - Should **always** be confirmed with your insurer
+- 28: ### Coverage Decisions
+- 29: - Coverage is determined by your policy and insurer, not by CoverWise
+- 30: - We do not make coverage decisions or claims determinations
+- 31: - Always contact your insurer for official coverage verification
+- 33: ### AI-Generated Content
+- 36: - Cross-reference AI answers with your actual policy document
+- 45: - Provide accurate policy documents for best results
+- 56: - You retain ownership of your policy documents and questions
+- 62: - These Terms do not grant you any rights to our trademarks, logos, or technology
+- 64: ## 6. Privacy
+- 66: Your use of the App is also governed by our Privacy Policy, which describes how we collect, use, and protect your data. By using the App, you consent to the data practices described in the Privacy Policy.
+- 68: ## 7. Limitation of Liability
+- 6: ## 1. Acceptance of Terms
+- 70: ### No Warranty
+- 71: The App is provided "as is" without warranties of any kind. We do not warrant that:
+- 72: - The App will be error-free or uninterrupted
+- 78: - We are not liable for any indirect, incidental, or consequential damages
+- 79: - Our total liability shall not exceed the amount you paid for the App (if any)
+- 80: - We are not liable for any losses arising from your reliance on AI-generated information
+- 83: We are specifically not liable for:
+- 84: - Denied insurance claims based on App information
+- 85: - Coverage gaps not identified by the App
+- 88: ## 8. Indemnification
+- 8: By downloading, installing, or using CoverWise ("the App"), you agree to these Terms of Service. If you do not agree, do not use the App.
+- 90: You agree to indemnify and hold harmless CoverWise from any claims arising from:
+- 92: - Your violation of these Terms
+- 97: We may terminate or suspend your access to the App at any time, with or without notice, for conduct that we determine violates these Terms.
+- 99: ## 10. Changes to Terms
+
+### mobile/lib/l10n/app_en.arb
+- 100:   "qaPacksFaqA4": "Your pack questions remain active and are used after your monthly subscription quota is exhausted.",
+- 102:   "qaPacksFromMonthlyPlan": "{count} from monthly plan",
+- 104:   "qaPacksFromMonthlyAndPacks": "{monthly} from monthly plan · {packs} from packs",
+- 109:   "qaPacksPurchaseCancelled": "Purchase was cancelled.",
+- 119:   "familyLibraryError": "Your policy library could not be loaded.",
+- 120:   "familyMembersReadError": "Covered family members could not be read from your policies.",
+- 125:   "familyRemoveContent": "Remove {name} from your family list? This does not affect your policy documents.",
+- 134:   "familyDetailUpdateError": "Could not update member: {error}",
+- 155:   "insuranceCardsHeaderSubtitle": "A quick reference for policy and insurer details. Verify proof requirements with your insurer.",
+- 156:   "insuranceCardsPolicyNumber": "Policy Number",
+- 157:   "insuranceCardsCoverage": "Coverage",
+- 161:   "insuranceCardsCallInsurer": "Call insurer",
+- 165:   "insuranceCardsInsurerPrefix": "Insurer: ",
+- 166:   "insuranceCardsPolicyNumberPrefix": "Policy number: ",
+- 167:   "insuranceCardsCoveragePrefix": "Coverage: ",
+- 169:   "insuranceCardsHelplinePrefix": "Insurer helpline: ",
+- 170:   "insuranceCardsShareFooter": "Verify current details with the insurer and the source policy document.",
+- 171:   "insuranceCardsPhoneError": "Could not open the phone app",
+- 172:   "insuranceCardsShareError": "Could not open sharing options",
+- 178:   "renewalHeaderSubtitle": "See what needs attention first and keep insurer contact details close.",
+- 186:   "renewalNoDateInfo": "Expiry date not found in your policy — check your policy document",
+- 187:   "renewalInsurerNotFound": "Insurer not found",
+- 189:   "renewalContactToRenew": "Contact insurer to renew",
+- 192:   "renewalContactInsurer": "Contact {insurer} to start the renewal process.",
+- 195:   "renewalContactInfoNotFound": "Contact info not found for {insurer}. Check your policy document or call the insurer directly.",
+- 196:   "renewalPhoneDialerError": "Could not open phone dialer",
+- 197:   "renewalEmailClientError": "Could not open email client",
+- 204:   "settingsSectionPlan": "Plan",
+- 208:   "settingsSectionPrivacy": "Privacy & consent",
+- 210:   "settingsCurrentPlan": "Current plan: {plan}",
+- 213:   "settingsBuyQuestions": "Buy questions without a subscription",
+- 225:   "settingsSmartSuggestions": "Coverage insights",
+- 226:   "settingsSmartSuggestionsSubtitle": "Coming soon: coverage guidance based on your policy details",
+- 230:   "settingsClearDataContent": "This permanently removes all locally stored documents, policy summaries, Q&A history, family members, and session data from this device. Uploaded documents on the server are not affected. This cannot be undone.",
+- 238:   "settingsConsentTermsAccepted": "Terms accepted",
+- 251:   "profileRestoreWorkspace": "Restore this policy workspace across devices",
+- 261:   "profilePrivacySection": "Privacy",
+- 264:   "profileDeleteAccount": "Delete account",
+- 265:   "profileDeleteAccountSubtitle": "Permanently remove account and all server data",
+- 268:   "profileDeleteConfirmTitle": "Delete account permanently?",
+- 270:   "profileDeleteItemAccount": "• Your CoverWise account",
+- 271:   "profileDeleteItemDocs": "• All uploaded policy documents on our servers",
+- 272:   "profileDeleteItemSummaries": "• All policy summaries and embeddings",
+- 274:   "profileDeleteWarning": "This action cannot be undone. Local data on this device will be cleared separately via Settings → Clear local data.",
+- 281:   "profileDeleteComplete": "Account deleted. {docs} document(s) and {files} storage file(s) removed.",
+- 282:   "profileDeletePartial": "Account deletion is partially complete. Failed stages: {failed}. Do not assume server deletion is complete.",
+- 283:   "profileDeleteRequested": "Account deletion requested. Status: {status}.",
+- 292:   "upgradeTitle": "Choose your plan",
+- 293:   "upgradeBillingUnavailable": "Billing is not available yet. Please try again later.",
+- 294:   "upgradeCouldNotOpenSettings": "Could not open subscription settings",
+- 295:   "upgradeSuccess": "Upgraded to {plan}! Enjoy your new features.",
+- 296:   "upgradePurchaseCancelled": "Purchase was cancelled.",
+- 300:   "upgradeCurrentPlan": "Current plan",
+- 302:   "upgradeTo": "Upgrade to {plan}",
+- 303:   "upgradeComparePlans": "Compare plans",
+- 305:   "upgradeFaqSwitch": "Can I switch plans?",
+- 306:   "upgradeFaqSwitchAnswer": "You can manage plan changes through your App Store or Play Store subscription settings.",
+- 308:   "upgradeFaqPacksAnswer": "Pack questions remain active and are used after your monthly subscription quota is exhausted.",
+- 309:   "upgradeFaqCancel": "How do I cancel?",
+- 310:   "upgradeFaqCancelAnswer": "Cancel anytime from your App Store or Play Store subscription settings.",
+- 323:   "accountHeaderSubtitle": "An account lets you restore your CoverWise workspace on another device.",
+- 347:   "accountCouldNotVerify": "Could not send verification email. Try again later.",
+- 352:   "notifHeaderSubtitle": "Choose when this device should remind you. Notifications are reminders, not insurer renewal notices.",
+- 387:   "docsDeletePolicy": "Delete policy",
+- 388:   "docsDeletePolicyTitle": "Delete policy?",
+- 389:   "docsDeletePolicyContent": "This permanently deletes \"{filename}\" from CoverWise and this device.",
+- 390:   "docsDeleted": "Policy deleted",
+- 401:   "docsRestore": "Restore",
+- 402:   "docsRestored": "Policy restored",
+- 407:   "docsArchiveConfirmContent": "\"{filename}\" will be hidden from your active policy list. You can restore it any time from the archive.",
+- 408:   "docsDeletePermanentWarning": "This permanently deletes the policy from both CoverWise and this device. Consider archiving instead.",
+- 425:   "docsRenameEmpty": "Name cannot be empty",
+- 427:   "tosTitle": "Terms of Service",
+- 428:   "tosCopySuccess": "Terms of service copied to clipboard",
+- 429:   "tosLoadError": "The terms of service could not be loaded.",
+- 42:   "qaMonthlyPlan": "{remaining} questions left this month",
+- 431:   "privacyTitle": "Privacy Policy",
+- 432:   "privacyCopySuccess": "Privacy policy copied to clipboard",
+- 433:   "privacyLoadError": "The privacy policy could not be loaded.",
+- 441:   "processingCategorisingDesc": "Determining policy type and insurer",
+- 446:   "onboardTermsAcceptance": "I have read and accept the Privacy Policy and Terms of Service.",
+- 459:   "coverageGapTitle": "Coverage Gaps",
+- 460:   "coverageGapEmpty": "No coverage gaps identified yet",
+- 463:   "literacySearchHint": "Search terms...",
+- 474:   "whatIfDescription": "Explore how different coverage options affect your estimated costs.",
+- 491:   "familyVisTitle": "Coverage map",
+- 496:   "familyVisEmptyTitle": "No coverage data yet",
+- 497:   "familyVisEmptySubtitle": "Upload policies and add family members to see your coverage map.",
+- 499:   "familyVisSeeMap": "View coverage map"
+- 73:   "qaCouldNotGetAnswer": "Could not get an answer. {error}",
+- 89:   "qaPacksSubtitle": "No subscription needed. Pay once, ask questions.",
+- 94:   "qaPacksFaqA1": "A question is deducted each time you submit one. Monthly subscription questions are used first, then pack questions.",
+- 99:   "qaPacksFaqQ4": "What happens if I upgrade to a subscription?",
+- 9:   "cancel": "Cancel",
+
+### mobile/lib/l10n/app_hi.arb
+- 102:   "qaPacksFromMonthlyPlan": "{count} मासिक योजना से",
+- 109:   "qaPacksPurchaseCancelled": "खरीदारी रद्द कर दी गई।",
+- 119:   "familyLibraryError": "आपकी पॉलिसी लाइब्रेरी लोड नहीं हो सकी।",
+- 120:   "familyMembersReadError": "आपकी पॉलिसियों से कवर किए गए परिवार के सदस्यों को पढ़ा नहीं जा सका।",
+- 134:   "familyDetailUpdateError": "सदस्य अपडेट नहीं कर सका: {error}",
+- 157:   "insuranceCardsCoverage": "कवरेज",
+- 161:   "insuranceCardsCallInsurer": "बीमाकर्ता को कॉल करें",
+- 165:   "insuranceCardsInsurerPrefix": "बीमाकर्ता: ",
+- 167:   "insuranceCardsCoveragePrefix": "कवरेज: ",
+- 171:   "insuranceCardsPhoneError": "फ़ोन ऐप नहीं खोल सका",
+- 172:   "insuranceCardsShareError": "साझाकरण विकल्प नहीं खोल सका",
+- 187:   "renewalInsurerNotFound": "बीमाकर्ता नहीं मिला",
+- 192:   "renewalContactInsurer": "नवीकरण प्रक्रिया शुरू करने के लिए {insurer} से संपर्क करें।",
+- 195:   "renewalContactInfoNotFound": "{insurer} के लिए संपर्क जानकारी नहीं मिली। अपना पॉलिसी दस्तावेज़ जाँचें या सीधे बीमाकर्ता को कॉल करें।",
+- 196:   "renewalPhoneDialerError": "फ़ोन डायलर नहीं खोल सका",
+- 197:   "renewalEmailClientError": "ईमेल क्लाइंट नहीं खोल सका",
+- 204:   "settingsSectionPlan": "योजना",
+- 208:   "settingsSectionPrivacy": "गोपनीयता और सहमति",
+- 210:   "settingsCurrentPlan": "वर्तमान योजना: {plan}",
+- 238:   "settingsConsentTermsAccepted": "शर्तें स्वीकार की गईं",
+- 251:   "profileRestoreWorkspace": "इस पॉलिसी वर्कस्पेस को डिवाइसों में पुनर्स्थापित करें",
+- 261:   "profilePrivacySection": "गोपनीयता",
+- 264:   "profileDeleteAccount": "खाता हटाएँ",
+- 265:   "profileDeleteAccountSubtitle": "खाता और सभी सर्वर डेटा स्थायी रूप से हटाएँ",
+- 270:   "profileDeleteItemAccount": "• आपका CoverWise खाता",
+- 293:   "upgradeBillingUnavailable": "बिलिंग अभी उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।",
+- 295:   "upgradeSuccess": "{plan} में अपग्रेड किया गया! अपनी नई सुविधाओं का आनंद लें।",
+- 296:   "upgradePurchaseCancelled": "खरीदारी रद्द कर दी गई।",
+- 300:   "upgradeCurrentPlan": "वर्तमान योजना",
+- 302:   "upgradeTo": "{plan} में अपग्रेड करें",
+- 303:   "upgradeComparePlans": "योजनाओं की तुलना करें",
+- 309:   "upgradeFaqCancel": "मैं कैसे रद्द करूँ?",
+- 310:   "upgradeFaqCancelAnswer": "अपने App Store या Play Store सब्सक्रिप्शन सेटिंग से कभी भी रद्द करें।",
+- 347:   "accountCouldNotVerify": "पुष्टिकरण ईमेल नहीं भेज सका। बाद में पुनः प्रयास करें।",
+- 387:   "docsDeletePolicy": "पॉलिसी हटाएँ",
+- 388:   "docsDeletePolicyTitle": "पॉलिसी हटाएँ?",
+- 389:   "docsDeletePolicyContent": "यह \"{filename}\" को CoverWise और इस डिवाइस से स्थायी रूप से हटा देता है।",
+- 401:   "docsRestore": "पुनर्स्थापित करें",
+- 402:   "docsRestored": "पॉलिसी पुनर्स्थापित हो गई",
+- 429:   "tosLoadError": "सेवा की शर्तें लोड नहीं हो सकीं।",
+- 42:   "qaMonthlyPlan": "इस महीने {remaining} प्रश्न शेष",
+- 431:   "privacyTitle": "गोपनीयता नीति",
+- 432:   "privacyCopySuccess": "गोपनीयता नीति क्लिपबोर्ड पर कॉपी हो गई",
+- 433:   "privacyLoadError": "गोपनीयता नीति लोड नहीं हो सकी।",
+- 446:   "onboardTermsAcceptance": "मैंने गोपनीयता नीति और सेवा की शर्तें पढ़ और स्वीकार कर ली हैं।",
+- 459:   "coverageGapTitle": "कवरेज अंतराल",
+- 460:   "coverageGapEmpty": "अभी तक कोई कवरेज अंतराल पहचाना नहीं गया",
+- 73:   "qaCouldNotGetAnswer": "उत्तर नहीं मिल सका। {error}",
+- 9:   "cancel": "रद्द करें",
+
+### mobile/lib/screens/about_screen.dart
+- 100:                     title: 'Privacy policy',
+- 102:                     trailing: AppConfig.hasPrivacyPolicy
+- 106:                       if (AppConfig.hasPrivacyPolicy) {
+- 107:                         _openUrl(AppConfig.privacyPolicyUrl);
+- 10: /// About screen: app identity, version, description, disclaimer, and legal links.
+- 112:                             builder: (_) => const PrivacyPolicyScreen(),
+- 122:                     title: 'Terms of service',
+- 123:                     subtitle: 'Terms for using CoverWise',
+- 124:                     trailing: AppConfig.hasTermsOfService
+- 128:                       if (AppConfig.hasTermsOfService) {
+- 129:                         _openUrl(AppConfig.termsOfServiceUrl);
+- 134:                             builder: (_) => const TermsOfServiceScreen(),
+- 7: import 'privacy_policy_screen.dart';
+- 80:                       '${AppConfig.appName} provides information based on your documents to help you understand them. It does not constitute insurance, financial, or legal advice. Answers are AI-generated and may contain errors. Always verify coverage details against your policy document and with your insurer. Coverage decisions are determined by your policy and insurer, not by this app.',
+- 8: import 'terms_of_service_screen.dart';
+- 92:           if (AppConfig.hasPrivacyPolicy || AppConfig.hasTermsOfService) ...[
+- 98:                     icon: Icons.privacy_tip_outlined,
+
+### mobile/lib/screens/account_screen.dart
+- 102:   void _message(String message, {bool isError = true}) {
+- 103:     if (isError) {
+- 104:       CoverWiseSnackBar.error(context, message);
+- 117:       await AuthService.prepareAnonymousWorkspaceClaim();
+- 119:       // deep link callback → authStateProvider triggers workspace + claim path.
+- 124:     } catch (error) {
+- 144:       _message('Verification email sent. Check your inbox.', isError: false);
+- 145:     } catch (error) {
+- 164:               'An account lets you restore your CoverWise workspace on another device. Your account does not make policy explanations binding insurance advice.'),
+- 184:           // Inline resend verification banner — shown after 'email not confirmed' error
+- 51:       await AuthService.prepareAnonymousWorkspaceClaim();
+- 58:             isError: false);
+- 62:     } catch (error) {
+- 64:       // Provide more specific error messages
+- 65:       final errorStr = error.toString().toLowerCase();
+- 66:       if (errorStr.contains('invalid login credentials')) {
+- 68:       } else if (errorStr.contains('email not confirmed')) {
+- 70:       } else if (errorStr.contains('user already registered')) {
+- 72:       } else if (errorStr.contains('password')) {
+- 93:       _message('Password reset email sent. Check your inbox.', isError: false);
+- 94:     } catch (error) {
+
+### mobile/lib/screens/add_family_member_dialog.dart
+- 147:           child: const Text('Cancel'),
+- 9: /// Use case: a dependent (e.g. a child who cannot hold their own policy) who
+
+### mobile/lib/screens/agent_requests_screen.dart
+- 259:             if (request.insurer != null || request.documentType != null) ...[
+- 271:                       if (request.insurer != null) request.insurer,
+- 54:           'This cannot be undone.',
+- 59:             child: const Text('Cancel'),
+
+### mobile/lib/screens/claim_assistance_screen.dart
+- 102:                     "We don't have your insurer's name yet.",
+- 110:                     'For now, contact your insurer directly using the '
+- 111:                     'phone number or email on your policy document.',
+- 118:                     onPressed: () => _GenericClaimProcessCard
+- 119:                         ._openInsurerClaims(context, insurerName: null),
+- 127:           _GenericClaimProcessCard(insurerName: insurer?.value.display),
+- 12: /// shows the substrate's `insurer_name` field (the foundation
+- 135:             title: 'Not yet extracted for your claim',
+- 139:                 'insurer directly for the helpline, network hospital '
+- 13: /// of the claim flow) and a deep-link to a generic insurer
+- 140:                 'list, and the per-policy claim document checklist.',
+- 14: /// claim process page. The per-insurer claim process URL is
+- 158: class _InsurerCard extends StatelessWidget {
+- 159:   final String insurerName;
+- 15: /// a per-insurer lookup table in v1; the per-policy checklist
+- 162:   const _InsurerCard({
+- 163:     required this.insurerName,
+- 184:               'Your insurer',
+- 191:               insurerName,
+- 22: /// to the substrate, and does not invent insurer details.
+- 232: class _GenericClaimProcessCard extends StatelessWidget {
+- 233:   final String? insurerName;
+- 235:   const _GenericClaimProcessCard({required this.insurerName});
+- 23: class ClaimAssistanceScreen extends StatelessWidget {
+- 254:               'Filing a claim in 5 steps',
+- 27:   const ClaimAssistanceScreen({
+- 288:               onPressed: () => _GenericClaimProcessCard
+- 289:                   ._openInsurerClaims(context, insurerName: insurerName),
+- 291:               label: const Text('View insurer claim process'),
+- 300:     'Notify your insurer as soon as possible after the event (most insurers require notification within 24-48 hours for cashless claims).',
+- 301:     'Collect all relevant documents: policy number, hospital bills, discharge summary, diagnosis, prescriptions, investigation reports.',
+- 302:     'For cashless claims, request pre-authorization at a network hospital; for reimbursement claims, pay upfront and submit documents after discharge.',
+- 303:     'Submit the claim form and documents to your insurer; track the claim status through the insurer\'s portal or customer service.',
+- 304:     'Follow up with the insurer if there are delays in processing.',
+- 307:   /// Per-insurer claim process URL lookup. v1 is a small static
+- 308:   /// table for the most common Indian insurers. v2 will add
+- 309:   /// more entries; v3 will use a CMS or per-insurer API.
+- 311:   /// per-insurer table is an honest small static table, not a
+- 312:   /// claim about a specific policy.
+- 313:   static const Map<String, String> _insurerClaimUrls = {
+- 314:     'HDFC ERGO': 'https://www.hdfcergo.com/health-insurance/claims',
+- 315:     'ICICI Lombard': 'https://www.icicilombard.com/claims',
+- 316:     'Bajaj Allianz': 'https://www.bajajallianz.com/Customer-Services/Claims-Services.htm',
+- 317:     'Tata AIG': 'https://www.tataaig.com/claims',
+- 318:     'New India Assurance': 'https://www.newindia.co.in/claims',
+- 319:     'Oriental Insurance': 'https://www.orientalinsurance.org.in/claims',
+- 320:     'National Insurance': 'https://www.nationalinsuranceindia.com/claims.htm',
+- 321:     'United India': 'https://www.uiic.in/claims',
+- 322:     'Reliance General': 'https://www.reliancegeneral.co.in/insurance/Claims/Pages/Claims.aspx',
+- 323:     'IFFCO Tokio': 'https://www.iffcotokio.co.in/claims',
+- 324:     'SBI General': 'https://www.sbigeneral.in/claims',
+- 325:     'Star Health': 'https://www.starhealth.in/claims',
+- 326:     'ManipalCigna': 'https://www.manipalcigna.com/claims',
+- 327:     'Niva Bupa': 'https://www.nivabupa.com/claims',
+- 328:     'Aditya Birla Health': 'https://www.adityabirlacapital.com/healthinsurance/claims',
+- 329:     'Care Health': 'https://www.careinsurance.com/claims',
+- 330:     'Digit': 'https://www.godigit.com/claims',
+- 331:     'Acko': 'https://www.acko.com/claims',
+- 332:     'Zuno': 'https://www.zuno.com/claims',
+- 333:     'Future Generali': 'https://www.futuregenerali.in/claims',
+- 334:     'Cholamandalam': 'https://www.cholainsurance.com/claims',
+- 335:     'Edelweiss': 'https://www.edelweissinsurance.com/claims',
+- 336:     'Kotak General': 'https://www.kotakgeneral.com/claims',
+- 337:     'Liberty General': 'https://www.libertyinsurance.in/claims',
+- 338:     'Universal Sompo': 'https://www.universalsompo.com/claims',
+- 339:     'Bharti AXA': 'https://www.bharti-axagi.co.in/claims',
+- 340:     'Royal Sundaram': 'https://www.royalsundaram.in/claims',
+- 341:     'Shriram General': 'https://www.shriramgi.com/claims',
+- 342:     'Magma HDI': 'https://www.magmahdi.com/claims',
+- 345:   static Future<void> _openInsurerClaims(
+- 347:     required String? insurerName,
+- 349:     // 1. Per-insurer direct URL if we have one.
+- 350:     if (insurerName != null && _insurerClaimUrls.containsKey(insurerName)) {
+- 351:       final url = Uri.parse(_insurerClaimUrls[insurerName]!);
+- 35:   /// - claim_helpline
+- 360:     final insurer = insurerName ?? 'insurance';
+- 362:       'https://www.google.com/search?q=${Uri.encodeComponent("$insurer claim process")}',
+- 368:       CoverWiseSnackBar.error(
+- 36:   /// - claim_email
+- 370:         'Could not open the browser. Search for your insurer\'s claim process online.',
+- 371:         operation: 'open claim process',
+- 377: /// CRITICAL: the legal disclaimer card. This is a regulated
+- 379: /// not financial or legal advice, and that the policy and the
+- 380: /// insurer's own claims process are the authoritative sources.
+- 381: class _LegalDisclaimerCard extends StatelessWidget {
+- 382:   const _LegalDisclaimerCard();
+- 38:   /// - claim_document_checklist (per-policy)
+- 39:   /// - claim_form_draft (per-policy)
+- 407:               'This is general information, not financial or legal advice. '
+- 408:               'Your policy document and your insurer are the authoritative sources '
+- 409:               'for any claim decision.',
+- 41:     'Claim helpline phone number',
+- 423: /// user's last-resort channel for an unreasonably denied claim.
+- 42:     'Claim email address',
+- 44:     'Per-policy claim document checklist',
+- 452:                   'If your claim is unreasonably denied',
+- 45:     'Per-policy claim form draft',
+- 488:       CoverWiseSnackBar.error(
+- 52:     final insurer = _findCitation(citations, 'insurer_name');
+- 56:         title: const Text('Claim assistance'),
+- 61:           // CRITICAL: legal disclaimer. This is a regulated
+- 63:           // screen is not financial or legal advice, and that
+- 64:           // the policy and the insurer's own claims process
+- 66:           const _LegalDisclaimerCard(),
+- 70:               'Filing a claim',
+- 80:               'The information below is taken from your policy document. '
+- 81:               'For the most accurate, up-to-date claim process, '
+- 82:               'always confirm with your insurer directly.',
+- 88:           if (insurer != null)
+- 89:             _InsurerCard(
+- 8: /// The claim-assistance entry point (Trust audit ADR-09 thin
+- 90:               insurerName: insurer.value.display,
+- 91:               citeString: insurer.citeString,
+
+### mobile/lib/screens/claim_tracking_screen.dart
+- 101:         title: const Text('Delete claim record?'),
+- 102:         content: Text('Delete the claim "${claim.description}"?'),
+- 106:             child: const Text('Cancel'),
+- 10: import '../widgets/claims/claim_status_timeline.dart';
+- 116:       await AppStateRepository.deleteClaimRecord(claim.id);
+- 117:       _expandedTimelines.remove(claim.id);
+- 118:       _loadClaims();
+- 11: import '../widgets/claims_workflow_sheet.dart';
+- 125:       appBar: AppBar(title: const Text('Claim log')),
+- 127:         onPressed: _addClaim,
+- 128:         tooltip: 'Log a claim',
+- 133:           : _claims.isEmpty
+- 136:                   title: 'No claims logged yet',
+- 138:                       'Keep a private, on-device record of claims you filed with an insurer. CoverWise does not submit claims or receive insurer updates.',
+- 139:                   actionLabel: 'Log a claim',
+- 13: /// Claim tracking: a personal log of insurance claims the user has filed.
+- 142:                   onAction: _addClaim,
+- 148:                       title: 'Your claim notes',
+- 150:                           'A personal record stored on this device. Update statuses yourself after checking with the insurer.',
+- 152:                     const CoverWiseSectionLabel('Logged claims'),
+- 153:                     ..._claims.map(
+- 154:                       (claim) => _ClaimCard(
+- 155:                         claim: claim,
+- 157:                             _expandedTimelines.contains(claim.id),
+- 15: /// This is NOT connected to any insurer system — it's a local record the user
+- 160:                             if (_expandedTimelines.contains(claim.id)) {
+- 161:                               _expandedTimelines.remove(claim.id);
+- 163:                               _expandedTimelines.add(claim.id);
+- 169:                         onDelete: _deleteClaim,
+- 17: class ClaimTrackingScreen extends ConsumerStatefulWidget {
+- 18:   const ClaimTrackingScreen({super.key});
+- 194:               errorBuilder: (_, __, ___) => Container(
+- 21:   ConsumerState<ClaimTrackingScreen> createState() =>
+- 225: class _ClaimCard extends StatelessWidget {
+- 226:   final ClaimRecord claim;
+- 229:   final Function(ClaimRecord, ClaimStatus) onStatusChanged;
+- 22:       _ClaimTrackingScreenState();
+- 230:   final Function(ClaimRecord) onEditReference;
+- 231:   final Function(ClaimRecord) onDelete;
+- 233:   const _ClaimCard({
+- 234:     required this.claim,
+- 242:   Color _statusColor(ClaimStatus status) {
+- 244:       case ClaimStatus.filed:
+- 246:       case ClaimStatus.inReview:
+- 248:       case ClaimStatus.approved:
+- 250:       case ClaimStatus.rejected:
+- 252:       case ClaimStatus.paid:
+- 257:   IconData _statusIcon(ClaimStatus status) => switch (status) {
+- 258:         ClaimStatus.filed => Icons.upload_file_rounded,
+- 259:         ClaimStatus.inReview => Icons.manage_search_rounded,
+- 25: class _ClaimTrackingScreenState extends ConsumerState<ClaimTrackingScreen> {
+- 260:         ClaimStatus.approved => Icons.check_circle_rounded,
+- 261:         ClaimStatus.rejected => Icons.cancel_rounded,
+- 262:         ClaimStatus.paid => Icons.payments_rounded,
+- 267:     final statusColor = _statusColor(claim.status);
+- 269:     final policyType = classifyPolicyType(claim.policyType);
+- 26:   List<ClaimRecord> _claims = [];
+- 292:                     claim.incidentType,
+- 297:                 PopupMenuButton<ClaimStatus>(
+- 29:   /// Tracks which claim cards have their timeline expanded.
+- 303:                         icon: _statusIcon(claim.status),
+- 304:                         label: claim.status.label,
+- 30:   /// Keyed by claim ID so multiple cards can be open independently.
+- 316:                   onSelected: (s) => onStatusChanged(claim, s),
+- 317:                   itemBuilder: (_) => ClaimStatus.values
+- 328:             Text(claim.description, style: theme.textTheme.bodyMedium),
+- 331:             // Metadata chips: insurer, date, reference number
+- 336:                 _chip(context, Icons.business_outlined, claim.insurer),
+- 338:                     '${claim.filedDate.day}/${claim.filedDate.month}/${claim.filedDate.year}'),
+- 343:                     onTap: () => onEditReference(claim),
+- 353:                               color: claim.referenceNumber != null
+- 358:                             claim.referenceNumber != null
+- 359:                                 ? 'Ref: ${claim.referenceNumber}'
+- 362:                               color: claim.referenceNumber != null
+- 365:                               fontWeight: claim.referenceNumber != null
+- 36:     _loadClaims();
+- 386:             if (claim.photoPaths.isNotEmpty) ...[
+- 392:                   itemCount: claim.photoPaths.length,
+- 395:                     final path = claim.photoPaths[i];
+- 39:   Future<void> _loadClaims() async {
+- 405:                           errorBuilder: (_, __, ___) => Container(
+- 40:     final claims = AppStateRepository.getClaimRecords();
+- 421:             if (claim.notes != null && claim.notes!.isNotEmpty) ...[
+- 430:                   claim.notes!,
+- 43:         _claims = claims;
+- 482:                 child: ClaimStatusTimeline(
+- 483:                   statusHistory: claim.statusHistory,
+- 49:   Future<void> _addClaim() async {
+- 4: import '../models/claim_record.dart';
+- 500:                     tooltip: 'Delete ${claim.incidentType} claim record',
+- 501:                     onPressed: () => onDelete(claim),
+- 50:     await ClaimWizardSheet.show(context);
+- 51:     _loadClaims();
+- 54:   Future<void> _updateStatus(ClaimRecord claim, ClaimStatus newStatus) async {
+- 56:     final updated = claim.withStatusUpdate(newStatus);
+- 57:     await AppStateRepository.updateClaimRecord(updated);
+- 58:     _loadClaims();
+- 61:   Future<void> _editReferenceNumber(ClaimRecord claim) async {
+- 62:     final controller = TextEditingController(text: claim.referenceNumber ?? '');
+- 67:         title: const Text('Claim reference number'),
+- 80:             child: const Text('Cancel'),
+- 91:       final updated = claim.copyWith(referenceNumber: result);
+- 92:       await AppStateRepository.updateClaimRecord(updated);
+- 93:       _loadClaims();
+- 97:   Future<void> _deleteClaim(ClaimRecord claim) async {
+
+### mobile/lib/screens/claims_assistant_screen.dart
+- 10: import '../widgets/shared/error_widget.dart';
+- 11: import '../widgets/claims_workflow_sheet.dart';
+- 130:                                   '${s.documentType} — ${s.insurer ?? "Unknown"}'),
+- 145:                           'No policy summary is available, so this guide cannot include policy-specific contacts or requirements.',
+- 157:                       onPressed: () => _showClaimGuide(),
+- 15: class ClaimsAssistantScreen extends ConsumerStatefulWidget {
+- 169:   void _showClaimGuide() {
+- 16:   const ClaimsAssistantScreen({super.key});
+- 172:         ref.read(claimGuideProvider((_selectedIncident!, _selectedDocumentId)));
+- 176:     final count = _claimCount();
+- 182:       builder: (sheetContext) => _ClaimGuideSheet(
+- 185:         claimCount: count,
+- 186:         onFileClaim: () {
+- 188:           ClaimWizardSheet.show(context, preselectedPolicy: preselected);
+- 190:         onViewClaims: () {
+- 192:           Navigator.of(context).pushNamed('/claim-tracker');
+- 19:   ConsumerState<ClaimsAssistantScreen> createState() =>
+- 206:   int _claimCount() => AppStateRepository.getClaimRecords().length;
+- 209: class _ClaimGuideSheet extends StatelessWidget {
+- 20:       _ClaimsAssistantScreenState();
+- 210:   final ClaimGuide guide;
+- 212:   final int claimCount;
+- 213:   final VoidCallback onFileClaim;
+- 214:   final VoidCallback onViewClaims;
+- 216:   const _ClaimGuideSheet({
+- 219:     this.claimCount = 0,
+- 220:     required this.onFileClaim,
+- 221:     required this.onViewClaims,
+- 239:               'Use this as a preparation checklist. Confirm requirements and deadlines directly with your insurer.',
+- 23: class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
+- 291:             // Record a claim CTA — opens the private claim-log wizard with the
+- 292:             // guide's context. It does not send a claim to an insurer.
+- 297:                 label: const Text('Record a claim'),
+- 298:                 onPressed: onFileClaim,
+- 304:             // View existing claims
+- 311:                   'View my claims ($claimCount)',
+- 313:                 onPressed: onViewClaims,
+- 333:   final ClaimStep step;
+- 37:       'Life insurance claim',
+- 53:         'death' => 'Review nominee, identity and insurer requirements.',
+- 63:       appBar: AppBar(title: const Text('Claim guide')),
+- 66:         error: (e, _) => AppErrorView(
+- 67:           message: 'Claim guidance could not load your policy library.',
+- 76:               subtitle: 'Choose a policy file to get claim guidance.',
+- 95:                     'Choose an incident to see a practical preparation guide. CoverWise does not file or manage the claim.',
+
+### mobile/lib/screens/coverage_gap_screen.dart
+- 100:           if (roomRent == null && insurer == null)
+- 10: /// most-asked-about coverage gap) and the `insurer_name` (for
+- 113:                 'For now, check your policy document or contact your insurer.',
+- 11: /// context). Other coverage gaps (maternity, dental, OPD,
+- 137: class _CoverageGapRow extends StatelessWidget {
+- 144:   const _CoverageGapRow({
+- 209:                       'against your policy text. Please verify against the source document.',
+- 20: class CoverageGapScreen extends StatelessWidget {
+- 24:   const CoverageGapScreen({
+- 254: /// Evidence-tier badge showing the reliability level of an extracted field.
+- 39:     'Maternity coverage',
+- 40:     'Dental coverage',
+- 41:     'Outpatient (OPD) coverage',
+- 43:     'Mental health coverage',
+- 44:     'Cosmetic procedure coverage',
+- 52:     final insurer = _findCitation(citations, 'insurer_name');
+- 56:         title: const Text('Coverage overview'),
+- 6: /// The coverage overview (Trust audit ADR-09 thin slice).
+- 74:               'Each item below shows its evidence tier — how reliable the information is. '
+- 78:               'system (Tier 0). Missing items do not mean your policy lacks that coverage.',
+- 85:             _CoverageGapRow(
+- 92:           if (insurer != null)
+- 93:             _CoverageGapRow(
+- 94:               label: 'Insurer',
+- 95:               displayValue: insurer.value.display,
+- 96:               citeString: insurer.citeString,
+- 97:               pageNumber: insurer.pageNumber,
+- 98:               fieldConfidence: insurer.fieldConfidence,
+
+### mobile/lib/screens/dashboard_screen.dart
+- 130:       icon: Icons.error_rounded,
+- 148:   // boundary; coverage conclusions require cited policy evidence.
+- 150:     title: 'Review your coverage',
+- 163:   // Action 1: cited coverage details (if any policies exist).
+- 166:       title: 'Coverage details',
+- 170:       route: '/coverage-gaps',
+- 44:           error: (e, _) => AppErrorView(
+- 597:                 Expanded(child: _StatusTile(label: 'Expired', value: expiredCount.toString(), icon: Icons.error_rounded, color: const Color(0xFFE53935))),
+- 701:               'Add your first policy to see renewals, coverage details, and quick tools.',
+- 7: import '../widgets/shared/error_widget.dart';
+
+### mobile/lib/screens/document_preview_screen.dart
+- 108:           if (!_isLoading && _error == null && _isPdf)
+- 135:           : _error != null
+- 136:               ? _buildErrorState()
+- 13: /// This is the trust-building screen: users can verify extracted data against
+- 141:           !_isLoading && _error == null && _isPdf && _totalPages > 1
+- 14: /// the source document (motto_v3 §0.11 — customer-facing claims verification).
+- 157:             const LoadingWidget(message: 'Opening policy document…'),
+- 160:         errorBuilder: (_, error) => const AppErrorView(
+- 177:           errorBuilder: (_, __, ___) => const AppErrorView(
+- 186:   Widget _buildErrorState() {
+- 187:     return AppErrorView(
+- 189:           'Document not available\n\n$_error\n\nThe file may have been added on another device or removed from local storage.',
+- 265:     String? errorText;
+- 273:         errorText = 'Enter a page number between 1 and $_totalPages';
+- 287:               errorText: errorText,
+- 295:               child: const Text('Cancel'),
+- 38:   String? _error;
+- 4: import '../widgets/shared/error_widget.dart';
+- 59:         _error = 'File not found on this device.';
+- 83:           _error = 'Could not open PDF: $e';
+
+### mobile/lib/screens/document_selection_dialog.dart
+- 70:                       doc.documentType ?? 'Policy document',
+
+### mobile/lib/screens/documents_list.dart
+- 1135:   String? _error;
+- 1147:         _error = null;
+- 1174:             child: Text(S.cancel),
+- 1193:       _error = null;
+- 1196:     Object? replaceError;
+- 1208:       if (result.containsKey('error')) {
+- 1210:           _error = result['message']?.toString() ?? 'Replacement failed';
+- 1219:       replaceError = e;
+- 1222:     if (replaceError != null) {
+- 1224:         _error = AppError.userMessage(replaceError!);
+- 1279:             if (_error != null) ...[
+- 1286:                 child: Text(_error!, style: const TextStyle(color: Colors.red)),
+- 185:       error: (e, _) => AppErrorView(
+- 23: import '../utils/app_error.dart';
+- 24: import '../widgets/shared/error_widget.dart';
+- 264:                                   .errorContainer
+- 279:                                   ? Theme.of(context).colorScheme.error
+- 293:                                     ? Theme.of(context).colorScheme.error
+- 568:                                               label: Text(S.docsRestore),
+- 570:                                                   _restoreDocument(
+- 585:                                             label: Text(S.docsDeletePolicy),
+- 589:                                                   .error,
+- 634:             child: Text(S.cancel),
+- 658:       insurer: document.insurer,
+- 668:     Object? error;
+- 673:       error = e;
+- 676:     if (error != null) {
+- 678:       CoverWiseSnackBar.error(context, AppError.userMessage(error),
+- 698:       insurer: document.insurer,
+- 708:     Object? error;
+- 713:       error = e;
+- 716:     if (error != null) {
+- 718:       CoverWiseSnackBar.error(context, AppError.userMessage(error),
+- 737:               child: Text(S.cancel)),
+- 760:   Future<void> _restoreDocument(
+- 764:         .restoreDocument(document.id);
+- 770:       CoverWiseSnackBar.success(context, S.docsRestored);
+- 779:         title: Text(S.docsDeletePolicyTitle),
+- 784:             Text(S.docsDeletePolicyContent(document.filename)),
+- 791:                     .errorContainer
+- 799:                       color: Theme.of(context).colorScheme.error),
+- 806:                         color: Theme.of(context).colorScheme.error,
+- 817:               onPressed: () => Navigator.pop(context, 'cancel'),
+- 818:               child: Text(S.cancel)),
+- 827:                 S.docsDeletePolicy,
+- 829:                   color: Theme.of(context).colorScheme.error,
+- 845:       Object? deleteError;
+- 867:         deleteError = e;
+- 870:       if (deleteError != null) {
+- 872:         CoverWiseSnackBar.error(context,
+- 873:             AppError.contextual(error: deleteError, operation: 'delete_document'),
+- 874:             operation: 'delete policy');
+- 883:     Object? retryError;
+- 890:       retryError = e;
+- 893:     if (retryError != null) {
+- 895:       CoverWiseSnackBar.error(context, AppError.userMessage(retryError),
+- 905:       CoverWiseSnackBar.error(
+
+### mobile/lib/screens/documents_screen.dart
+- 1182:                         if (_uploadError != null) ...[
+- 1187:                               _uploadError!,
+- 1189:                                 color: Theme.of(context).colorScheme.error,
+- 145:       _uploadError = null;
+- 1564:         icon = Icons.error_outline;
+- 1565:         iconColor = cs.error;
+- 1592:                 ? cs.error
+- 1663:           child: const Text('Cancel'),
+- 166:             () => _uploadError = 'Failed to load bundled policy sample: $e');
+- 183:           setState(() => _uploadError = S.fileTypeUnsupported);
+- 187:           setState(() => _uploadError =
+- 208:         setState(() => _uploadError = S.fileTypeUnsupported);
+- 216:         setState(() => _uploadError =
+- 296:                 onPressed: () => Navigator.pop(context, 'cancel'),
+- 297:                 child: const Text('Cancel')),
+- 29: import '../utils/app_error.dart';
+- 305:       if (shouldProceed == null || shouldProceed == 'cancel') return;
+- 324:       _uploadError = null;
+- 352:         if (result['error'] == 'rate_limit_exceeded') {
+- 360:           setState(() => _uploadError = result['message']);
+- 364:         if (result['error'] == 'storage_limit_reached') {
+- 374:         if (result['error'] == 'pdf_password_required' ||
+- 375:             result['error'] == 'pdf_password_invalid') {
+- 383:               isRetry: result['error'] == 'pdf_password_invalid',
+- 395:         if (result['error'] == 'pdf_unreadable') {
+- 397:             _uploadError = result['message']?.toString() ??
+- 404:         if (result['error'] != null) {
+- 406:             _uploadError = result['message']?.toString() ??
+- 484:         'error_class': e.runtimeType.toString(),
+- 487:         setState(() => _uploadError =
+- 506:         setState(() => _uploadError = S.fileTypeUnsupported);
+- 511:         setState(() => _uploadError =
+- 536:           errorMessage: S.batchFileUnsupported,
+- 546:           errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+- 585:       _uploadError = null;
+- 601:   /// Returns the consent version string, or `null` if the user cancelled.
+- 649:       _uploadError = null;
+- 65:   String? _uploadError;
+- 672:             errorMessage: S.batchFileUnsupported,
+- 682:             errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+- 718:           errorMessage: S.batchFileUnsupported,
+- 730:             errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+- 744:           errorMessage: e.toString(),
+- 81:       // principal-scoped bridge also retries onboarding privacy/analytics
+- 822:         entry.errorMessage = 'Plan limit reached';
+- 830:       // Duplicate check before uploading (non-fatal; proceed on any error).
+- 844:         entry.errorMessage = S.batchDuplicateSkipped;
+- 84:     } catch (error) {
+- 85:       debugPrint('server consent sync deferred: ${error.runtimeType}');
+- 865:           entry.errorMessage = 'File not found';
+- 872:         if (result['error'] != null) {
+- 874:           entry.errorMessage =
+- 875:               result['message']?.toString() ?? result['error'].toString();
+- 885:         entry.errorMessage = 'Upload failed';
+- 922:           entry.errorMessage = null;
+- 945:       CoverWiseSnackBar.error(
+- 947:         AppError.userMessage(e),
+
+### mobile/lib/screens/emergency_screen.dart
+- 131:                       if (summary.insurer != null)
+- 133:                           summary.insurer!,
+- 156:                 'Policy number',
+- 161:             if (summary.formattedCoverageAmount != 'Unknown') ...[
+- 164:                 'Coverage',
+- 165:                 summary.formattedCoverageAmount,
+- 177:             if (summary.insurerHelpline != null) ...[
+- 183:                   label: Text('Call insurer • ${summary.insurerHelpline}'),
+- 184:                   onPressed: () => _callNumber(summary.insurerHelpline!),
+- 191:             if (summary.insurerEmail != null) ...[
+- 197:                   label: Text('Email • ${summary.insurerEmail!}'),
+- 198:                   onPressed: () => _sendEmail(summary.insurerEmail!),
+- 236:           ? Icons.error_rounded
+- 86:                 'Keep policy numbers and insurer contact details ready when time matters.',
+
+### mobile/lib/screens/family_member_detail_screen.dart
+- 110:       CoverWiseSnackBar.error(
+- 112:         AppError.contextual(error: e, operation: 'update family member'),
+- 217:                           onPressed: _cancelEditing,
+- 218:                           child: const Text('Cancel'),
+- 5: import '../utils/app_error.dart';
+- 74:   void _cancelEditing() {
+
+### mobile/lib/screens/family_screen.dart
+- 147:                                     child: Text(S.cancel),
+- 164:               // ── Coverage Summary Section ──
+- 169:                   child: CoverWiseSectionLabel('Coverage summary'),
+- 172:                 _CoverageMatrix(
+- 472:                   if (document.insurer != null)
+- 474:                       document.insurer!,
+- 497: // ─── Coverage Summary Matrix ───
+- 499: /// A compact coverage matrix showing which members are covered by which policies.
+- 501: class _CoverageMatrix extends StatelessWidget {
+- 505:   const _CoverageMatrix({
+- 52:       error: (e, _) => AppErrorView(
+- 53:         message: S.familyLibraryError,
+- 88:       error: (e, _) => AppErrorView(
+- 89:         message: S.familyMembersReadError,
+- 9: import '../widgets/shared/error_widget.dart';
+
+### mobile/lib/screens/family_visualization_screen.dart
+- 146:               // Coverage matrix (members × policies)
+- 149:                 const CoverWiseSectionLabel('Coverage matrix'),
+- 151:                 _CoverageMatrix(
+- 18: /// and policies radiate outward, with lines showing coverage associations.
+- 31:         error: (e, _) => Center(
+- 32:           child: Text('Error loading documents: $e'),
+- 376: /// A single policy connection line with icon and coverage info.
+- 390:     final coverageText = summary?.formattedCoverageAmount ?? '';
+- 391:     final insurerText = summary?.insurer ?? '';
+- 459:                   if (insurerText.isNotEmpty)
+- 461:                       insurerText,
+- 471:             if (coverageText.isNotEmpty)
+- 479:                   coverageText,
+- 500: /// Coverage matrix: rows = members, columns = policies.
+- 501: /// Shows checkmarks or coverage amounts at intersections.
+- 502: class _CoverageMatrix extends StatelessWidget {
+- 506:   const _CoverageMatrix({
+- 89:       error: (e, _) => Center(child: Text('Error: $e')),
+
+### mobile/lib/screens/help_support_screen.dart
+- 10: /// per the customer-facing-claims rule — copy stays conditional and honest.
+- 39:           'generation. Always confirm important details (coverage, exclusions, '
+- 40:           'claim procedures) against the source document and your insurer.',
+
+### mobile/lib/screens/insights_screen.dart
+- 53:                           title: 'Coverage overview',
+- 55:                               'Review what your uploaded policy does and does not verify',
+- 60:                                 '/coverage-gaps',
+- 81:                           title: 'Claims info guide',
+- 84:                           onTap: () => Navigator.pushNamed(context, '/claims'),
+- 91:                           subtitle: 'Learn useful terms without the jargon',
+
+### mobile/lib/screens/insurance_card_screen.dart
+- 118:                         if (summary.insurer != null)
+- 120:                             summary.insurer!,
+- 134:                           ? Icons.error_outline_rounded
+- 145:               // Policy number
+- 153:               // Coverage and premium row
+- 158:                   if (summary.formattedCoverageAmount != 'Unknown')
+- 160:                       label: S.insuranceCardsCoverage,
+- 161:                       value: summary.formattedCoverageAmount,
+- 188:               if (summary.insurerHelpline != null) ...[
+- 198:                         label: Text(S.insuranceCardsCallInsurer),
+- 199:                         onPressed: () => _callInsurer(context),
+- 19: /// - Policy number, insurer, coverage amount, expiry
+- 20: /// - One-tap call insurer and share a limited text card
+- 232:   Future<void> _callInsurer(BuildContext context) async {
+- 233:     final rawNumber = summary.insurerHelpline;
+- 243:       CoverWiseSnackBar.error(context, S.insuranceCardsPhoneError);
+- 251:       if (summary.insurer != null)
+- 252:         '${S.insuranceCardsInsurerPrefix}${summary.insurer}',
+- 255:       if (summary.formattedCoverageAmount != 'Unknown')
+- 256:         '${S.insuranceCardsCoveragePrefix}${summary.formattedCoverageAmount}',
+- 259:       if (summary.insurerHelpline != null)
+- 260:         '${S.insuranceCardsHelplinePrefix}${summary.insurerHelpline}',
+- 268:         CoverWiseSnackBar.error(context, S.insuranceCardsShareError);
+
+### mobile/lib/screens/insurance_literacy_screen.dart
+- 108:       explanation:
+- 109:           'The deductible is your out-of-pocket amount before insurance coverage begins.',
+- 117:         'Only motor claims'
+- 120:       explanation:
+- 124:       question: 'What is a cashless claim?',
+- 127:         'Insurer pays the hospital directly',
+- 132:       explanation:
+- 133:           'In a cashless claim, your insurer settles the bill directly with the network hospital.',
+- 136:       question: 'No Claim Bonus (NCB) rewards you for:',
+- 138:         'Filing more claims',
+- 139:         'Not making a claim in a year',
+- 144:       explanation:
+- 145:           'NCB is a reward for not filing claims — you get a discount or increased coverage.',
+- 156:       explanation:
+- 164:         'Restores the sum for the same year',
+- 169:       explanation:
+- 189:       _showingExplanation = true;
+- 195:       _showingExplanation = false;
+- 24:   bool _showingExplanation = false;
+- 264:         // Terms list
+- 268:             itemCount: _terms.length,
+- 270:               final t = _terms[index];
+- 27:   static const _terms = [
+- 331:             final showHighlight = _showingExplanation && isCorrect;
+- 337:                   onPressed: _showingExplanation ? null : () => _answerQuiz(i),
+- 356:           // Explanation after answering
+- 357:           if (_showingExplanation) ...[
+- 388:                     Text(q.explanation, style: const TextStyle(fontSize: 13)),
+- 416:             ? 'Good effort! Review the terms to improve.'
+- 417:             : 'Keep learning! Check the glossary for terms you missed.';
+- 43:           'The maximum amount your insurer will pay for a covered claim.',
+- 488:   final String explanation;
+- 493:     required this.explanation,
+- 59:       term: 'Cashless Claim',
+- 5: /// Insurance Literacy Quiz — gamified learning about policy terms.
+- 61:           "Your insurer pays the hospital directly — you don't pay upfront (for network hospitals).",
+- 65:       term: 'Reimbursement Claim',
+- 67:           'You pay first, then submit bills to your insurer to get paid back.',
+- 77:       term: 'No Claim Bonus (NCB)',
+- 79:           'A discount or increased coverage you earn for not making a claim in a year.',
+- 8: /// - Key terms glossary with simple explanations
+- 91:           'A fixed percentage of the claim amount that you pay yourself (e.g., 10% of ₹1 lakh = ₹10,000).',
+- 97:           'If your sum insured is exhausted, this benefit restores it (fully or partially) for the same year.',
+
+### mobile/lib/screens/more_screen.dart
+- 100:       planItems.add(_MoreItem(
+- 103:           'Coverage overview',
+- 105:           '/coverage-gaps'));
+- 108:         planItems.add(_MoreItem(
+- 116:       if (planItems.isNotEmpty) {
+- 117:         groups.add(_MoreGroup('Review policy records', planItems));
+- 121:     // Group 3: Claims and learning - show if has policies
+- 123:       final claimsItems = <_MoreItem>[
+- 128:             'Learn useful terms without the jargon',
+- 132:       claimsItems.addAll([
+- 136:             'Claim guide',
+- 137:             'Prepare questions and records; CoverWise does not file or manage a claim',
+- 138:             '/claims'),
+- 142:             'My claims log',
+- 143:             'Record your own claim details; statuses are not verified by CoverWise',
+- 144:             '/claim-tracker'),
+- 147:       if (claimsItems.isNotEmpty) {
+- 148:         groups.add(_MoreGroup('Claims and learning', claimsItems));
+- 167:           'Privacy & security', 'How CoverWise handles your data', '/privacy'),
+- 180:             'Scan or upload a policy document to begin',
+- 69:             'Policy numbers and helplines at a glance',
+- 82:       final planItems = <_MoreItem>[];
+- 85:         planItems.add(_MoreItem(
+- 93:       planItems.add(_MoreItem(
+
+### mobile/lib/screens/notification_preferences_screen.dart
+- 106:                 'Choose when this device should remind you. Notifications are reminders, not insurer renewal notices.',
+- 278:                     summary.insurer ?? 'Unknown insurer',
+- 61:       await NotificationService.cancelAll();
+
+### mobile/lib/screens/onboarding_screen.dart
+- 102:         purpose: ConsentPurpose.privacyPolicy,
+- 103:         version: AppConfig.privacyPolicyVersion,
+- 104:         granted: _acceptedTerms,
+- 10: import 'privacy_policy_screen.dart';
+- 11: import 'terms_of_service_screen.dart';
+- 255:                     // Privacy Policy and Terms of Service links
+- 25:   bool _acceptedTerms = false; // Must be true to proceed from last page.
+- 265:                                 builder: (_) => const PrivacyPolicyScreen(),
+- 268:                             child: const Text('Privacy Policy'),
+- 280:                                 builder: (_) => const TermsOfServiceScreen(),
+- 283:                             child: const Text('Terms of Service'),
+- 295:                             value: _acceptedTerms,
+- 298:                                 _acceptedTerms = value ?? false;
+- 306:                                 'I have read and agree to the Privacy Policy '
+- 307:                                 'and Terms of Service',
+- 318:                     // Scope disclaimer — CoverWise is an information assistant.
+- 334:                               'CoverWise is a policy information assistant, not an insurer, '
+- 351:                           ? (_acceptedTerms
+- 424:                       errorBuilder: (context, error, stackTrace) => ColoredBox(
+- 49:           'See policy dates, document-based questions, and preparation notes in one place. CoverWise helps organize policy information; it is not an insurer, broker, or adviser.',
+- 61:     if (!_acceptedTerms) return;
+- 62:     // Record both analytics consent and terms acceptance.
+- 64:     // Terms: always record — the user must check the box to proceed.
+
+### mobile/lib/screens/paywall_screen.dart
+- 47:     'You have reached the policy limit for your current plan. '
+- 48:     'Compare available plans to add another policy.',
+- 51:     'You have reached the question limit for your current plan. '
+- 52:     'Compare available plans or question packs to continue.',
+- 6: /// Compatibility entry point used when a free-plan limit is reached.
+- 8: /// Pricing, plan features and purchase actions intentionally remain owned by
+
+### mobile/lib/screens/policy_comparison_screen.dart
+- 186:       subtitle: Text('${summary.insurer ?? "Unknown"}'
+- 201:       _ComparisonRow('Insurer', (s) => s.insurer ?? 'Unknown'),
+- 202:       _ComparisonRow('Policy Number', (s) => s.policyNumber ?? 'Unknown'),
+- 203:       _ComparisonRow('Coverage', (s) => s.formattedCoverageAmount),
+- 20:   /// Selected policy documentIds (target 2-3). Pre-selects the first two so the
+- 216:       _ComparisonRow('Helpline', (s) => s.insurerHelpline ?? 'Not listed'),
+
+### mobile/lib/screens/policy_detail_screen.dart
+- 1062:               label: const Text('Record a claim'),
+- 1063:               onPressed: () => Navigator.pushNamed(context, '/claim-tracker'),
+- 1071:             if (summary.insurerHelpline != null ||
+- 1072:                 summary.insurerEmail != null) ...[
+- 1078:                     if (summary.insurerHelpline != null)
+- 1081:                         label: const Text('Call insurer'),
+- 1083:                           'tel:${summary.insurerHelpline!.replaceAll(RegExp(r'[^0-9+]'), '')}',
+- 1086:                     if (summary.insurerEmail != null)
+- 1089:                         label: const Text('Email insurer'),
+- 1091:                             _launchUrl('mailto:${summary.insurerEmail}'),
+- 1137:   if (summary.insurer != null) buffer.writeln('🏢 ${summary.insurer}');
+- 1142:   if (summary.coverageAmount != null) {
+- 1143:     buffer.writeln('🛡️ Coverage: ${summary.formattedCoverageAmount}');
+- 121:       'insurer' => summary.insurer ?? '',
+- 125:       'coverage_amount' => summary.formattedCoverageAmount,
+- 1301:           'Your policy document is on file, but the extracted summary is missing one or more '
+- 1302:           'critical fields (policy number, insurer, dates, or coverage). Showing those fields '
+- 1430: /// A horizontal row of two action buttons: "Coverage gaps" and
+- 1431: /// "Claim assistance". Each button pushes the respective
+- 1438: /// audit's ADR-09. The full coverage-gap + claim-assistance
+- 1456:               onPressed: () => _openCoverageGaps(context),
+- 1469:               onPressed: () => _openClaimAssistance(context),
+- 1471:               label: const Text('How to file a claim'),
+- 1484:   Future<void> _openCoverageGaps(BuildContext context) async {
+- 1492:         builder: (_) => CoverageGapScreen(
+- 1500:   Future<void> _openClaimAssistance(BuildContext context) async {
+- 1508:         builder: (_) => ClaimAssistanceScreen(
+- 174:             'This summary is missing critical fields and cannot be safely displayed yet.',
+- 208:             subtitle: summary.insurer == null
+- 210:                 : '${summary.insurer} \u2022 Your policy at a glance',
+- 21: import 'claim_assistance_screen.dart';
+- 22: import 'coverage_gap_screen.dart';
+- 251:           // to the coverage-gap + claim-assistance screens. The
+- 317:                 iconColor: Theme.of(context).colorScheme.error,
+- 320:                 itemColor: Theme.of(context).colorScheme.error,
+- 337:           if (summary.coverageItems.isNotEmpty) ...[
+- 338:             const CoverWiseSectionLabel('Coverage details'),
+- 339:             _CoverageItemsCard(items: summary.coverageItems),
+- 358:                     'Extracted on ${_formatDate(summary.extractedAt)} from your uploaded policy document. '
+- 359:                     'Always verify important details against the source document and your insurer.',
+- 407:       CoverWiseSnackBar.error(
+- 40: /// Displays everything the system extracted: coverage, premium, deductible,
+- 41: /// key benefits, exclusions, waiting periods, coverage items, and dates.
+- 42: /// Provides quick actions: ask a question, view claim guide, call/email insurer.
+- 483:                       if (summary.insurer != null) ...[
+- 486:                           label: 'Insurer',
+- 488:                               overrides['insurer']?.value ?? summary.insurer!,
+- 489:                           originalValue: summary.insurer,
+- 490:                           hasOverride: overrides.containsKey('insurer'),
+- 491:                           onSave: (v) => onEditField('insurer', v),
+- 492:                           onRevert: () => onRevertField('insurer'),
+- 493:                           hintText: 'Enter insurer name',
+- 514:                   label: 'Policy number',
+- 521:                   hintText: 'Enter policy number',
+- 543:       color = scheme.error;
+- 557:           ? Icons.error_rounded
+- 586:     final coverageDisplay = resolveFieldOverride(
+- 587:         overrides, 'coverage_amount', summary.formattedCoverageAmount);
+- 592:       if (summary.coverageAmount != null ||
+- 593:           overrides.containsKey('coverage_amount'))
+- 597:               'The maximum amount your insurer will pay for a covered claim',
+- 598:           value: coverageDisplay,
+- 601:           field: 'coverage_amount',
+- 602:           originalValue: summary.formattedCoverageAmount,
+- 603:           hasOverride: overrides.containsKey('coverage_amount'),
+- 773:     // Acceptable for v1 since you can't correct a field that doesn't exist.
+- 928: class _CoverageItemsCard extends StatelessWidget {
+- 929:   final List<CoverageItem> items;
+- 930:   const _CoverageItemsCard({required this.items});
+- 965:                           item.covered ? Icons.check_circle : Icons.cancel,
+- 969:                               : Theme.of(context).colorScheme.error,
+
+### mobile/lib/screens/privacy_policy_screen.dart
+- 10: /// In-app privacy policy viewer.
+- 12: /// Loads content from `assets/legal/privacy_policy.md` at runtime
+- 15: class PrivacyPolicyScreen extends StatefulWidget {
+- 16:   const PrivacyPolicyScreen({super.key});
+- 19:   State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+- 22: class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
+- 28:     _future ??= LegalContentLoader.loadPrivacyPolicy(
+- 39:         title: const Text('Privacy Policy'),
+- 49:               CoverWiseSnackBar.success(context, 'Privacy policy copied to clipboard');
+- 61:           if (snapshot.hasError) {
+- 62:             return AppErrorView(
+- 63:               message: 'The privacy policy could not be loaded.',
+- 64:               icon: Icons.privacy_tip_outlined,
+- 66:                 _future = LegalContentLoader.loadPrivacyPolicy(
+- 8: import '../widgets/shared/error_widget.dart';
+- 91:                               icon: Icons.privacy_tip_outlined,
+
+### mobile/lib/screens/privacy_security_screen.dart
+- 101:           builder: (_) => const PrivacyPolicyScreen(),
+- 10: /// Privacy & Security: visible copy follows the production data architecture.
+- 110:       appBar: AppBar(title: const Text('Privacy and security')),
+- 11: class PrivacySecurityScreen extends StatefulWidget {
+- 125:               icon: Icons.privacy_tip_outlined,
+- 127:               title: 'View full privacy policy',
+- 128:               subtitle: AppConfig.hasPrivacyPolicy
+- 12:   const PrivacySecurityScreen({super.key});
+- 131:               onTap: _openPrivacyPolicy,
+- 132:               trailing: AppConfig.hasPrivacyPolicy
+- 138:           const _PrivacyItem(
+- 140:             title: 'Policy documents',
+- 145:           const _PrivacyItem(
+- 153:           const _PrivacyItem(
+- 15:   State<PrivacySecurityScreen> createState() => _PrivacySecurityScreenState();
+- 18: class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
+- 214:           const _PrivacyItem(
+- 221:           const _PrivacyItem(
+- 228:           const _PrivacyItem(
+- 238:                 'third parties. Your policy documents are processed by '
+- 245:           const _PrivacyItem(
+- 252:           const _PrivacyItem(
+- 261:           _PrivacyItem(
+- 271:                     'For account deletion, use the Delete account action '
+- 280:           const _PrivacyItem(
+- 287:           const _PrivacyItem(
+- 311:                     'CoverWise helps you understand your insurance policies. It does not provide insurance, financial, or legal advice. Always verify coverage details with your insurer. Answers are AI-generated and may contain errors.',
+- 31:     if (_ledger.isPrivacyPolicyAccepted(AppConfig.privacyPolicyVersion)) return;
+- 328: class _PrivacyItem extends StatelessWidget {
+- 333:   const _PrivacyItem({
+- 37:         title: const Text('Privacy policy updated'),
+- 39:           'The privacy policy has been updated. Please review and accept '
+- 47:                   builder: (_) => const PrivacyPolicyScreen(),
+- 63:         version: AppConfig.privacyPolicyVersion,
+- 88:   Future<void> _openPrivacyPolicy() async {
+- 8: import 'privacy_policy_screen.dart';
+- 90:     if (AppConfig.hasPrivacyPolicy) {
+- 91:       final uri = Uri.parse(AppConfig.privacyPolicyUrl);
+
+### mobile/lib/screens/processing_status_screen.dart
+- 151:   String? _errorMessage;
+- 191:     _pollTimer?.cancel();
+- 25:       'Identifying coverage, premiums, and dates',
+- 267:       _pollTimer?.cancel();
+- 270:           _errorMessage =
+- 28:   classification(3, 'Categorising', 'Identifying the policy type and insurer',
+- 327:         _pollTimer?.cancel();
+- 346:         _pollTimer?.cancel();
+- 354:         _pollTimer?.cancel();
+- 363:             _errorMessage = isTerminal
+- 364:                 ? 'This file cannot be processed. It may be corrupted or in an unsupported format.'
+- 36:   failed(5, 'Failed', 'Something went wrong', Icons.error, Colors.red);
+- 375:       debugPrint('Processing status poll error: $e');
+- 384:       canPop: _errorMessage != null ||
+- 396:           automaticallyImplyLeading: _errorMessage != null ||
+- 409:                 subtitle: _errorMessage ?? _currentStage.description,
+- 412:                       ? Icons.error_outline_rounded
+- 457:                 child: _errorMessage != null
+- 458:                     ? _buildErrorState(theme)
+- 587:                   ? Icon(Icons.error, size: 20, color: stage.color)
+- 622:   Widget _buildErrorState(ThemeData theme) {
+- 632:               icon: Icons.error_outline_rounded,
+- 633:               color: theme.colorScheme.error,
+- 642:               _errorMessage!,
+- 805:       _errorMessage = null;
+- 827:           _errorMessage = null;
+- 833:         _pollTimer?.cancel();
+- 843:           _errorMessage =
+- 844:               'This document cannot be reprocessed in its current state.';
+- 849:           _errorMessage =
+- 858:           _errorMessage =
+- 859:               'Could not start reprocessing due to a network error. Please check your connection and try again.';
+- 87:     case 'completed_with_errors':
+
+### mobile/lib/screens/profile_screen.dart
+- 141:         await ref.read(billingAdapterProvider).clearAccountIdentity();
+- 150:       debugPrint('Error clearing workspace data on sign-out: $e');
+- 156:   Future<void> _confirmDeleteAccount(
+- 185:             Text(S.profileDeleteItemAccount),
+- 199:             child: Text(S.cancel),
+- 223:       final result = await AuthService.deleteAccount();
+- 244:       CoverWiseSnackBar.error(this.context,
+- 245:           AppError.contextual(error: e, operation: 'account_deletion'),
+- 24: import '../utils/app_error.dart';
+- 268:             child: Text(S.cancel),
+- 294:     } catch (error) {
+- 296:       CoverWiseSnackBar.error(
+- 298:         AppError.contextual(error: error, operation: 'account_export'),
+- 338:                 subtitle: Text(S.profileRestoreWorkspace),
+- 448:           CoverWiseSectionLabel(S.profilePrivacySection),
+- 463:                 title: S.profileDeleteAccount,
+- 464:                 subtitle: S.profileDeleteAccountSubtitle,
+- 466:                     ? () => _confirmDeleteAccount(context, documents)
+- 499:       error: (e, _) => Padding(
+- 501:         child: Text('Error loading family: $e'),
+- 79:           child: Text(S.cancel),
+
+### mobile/lib/screens/qa_packs_screen.dart
+- 10: import '../utils/app_error.dart';
+- 122:                   'Monthly subscription questions are used first, then pack questions.',
+- 135:               question: 'What happens if I upgrade to a subscription?',
+- 137:                   'your monthly subscription quota is exhausted.',
+- 146: /// Shows current question balance (subscription + packs).
+- 15: /// This is the alternative to subscription for occasional users who don't
+- 173:             if (packState.hasSubscriptionQuestions &&
+- 176:                 '${packState.subscriptionQuestionsRemaining} from monthly plan · '
+- 193:                 '${packState.subscriptionQuestionsRemaining} from monthly plan',
+- 352:       final adapter = ref.read(billingAdapterProvider);
+- 381:         'reason': 'error',
+- 383:       final msg = AppError.contextual(error: e, operation: 'purchase');
+- 385:         CoverWiseSnackBar.error(context, msg, operation: 'purchase Q&A pack');
+- 54:               'No subscription needed. Pay once, ask questions.',
+
+### mobile/lib/screens/qa_screen.dart
+- 109:       'What is my policy number?',
+- 111:       'Who is the insurer for this policy?',
+- 113:       'What is the claims process?',
+- 1327:     CoverWiseSnackBar.error(context, S.qaNoSourceDocument,
+- 1370:       CoverWiseSnackBar.error(
+- 1443:   /// and the policy context (insurer name, document type, expiry state).
+- 1448:     // Resolve the policy summary for personalized CTA copy (insurer name, etc.)
+- 1554:                                   ? Icons.error_outline
+- 1570:                           // with “Verify in your policy” — the citation could
+- 1572:                           // card nudges the user to verify directly.
+- 1614:                                             'Verify in your policy',
+- 165:     // inside one request boundary so rapid submissions cannot race them.
+- 1785:                         ? Theme.of(context).colorScheme.error
+- 1822: /// verify which policy each fact was extracted from.
+- 185:     // usable after a subscription expires; the provider owns that rule.
+- 191:         'plan_tier': entitlement.planTier.name,
+- 192:         'subscription_remaining': entitlement.subscriptionQuestionsRemaining,
+- 227:       if (question == "What is my policy number?") {
+- 229:             "What is the policy number shown in this insurance document?";
+- 250:       if (result.containsKey('error') && !result.containsKey('answer')) {
+- 251:         final serverError = result['error']?.toString();
+- 252:         if (serverError == 'qa_budget_exhausted') {
+- 256:             'No server-verified questions remain. Buy a Q&A pack or renew your plan.',
+- 264:         if (serverError == 'qa_usage_unavailable') {
+- 266:           CoverWiseSnackBar.error(
+- 269:             operation: 'verify question usage',
+- 274:         // The response error is untrusted server data. Route it through the
+- 276:         final safeMessage = AppError.userMessage(
+- 277:           Exception(result['error']?.toString() ?? 'query failed'),
+- 279:         CoverWiseSnackBar.error(context, safeMessage,
+- 28: import '../utils/app_error.dart';
+- 313:         // Deduct a question from subscription (first) or pack (FIFO)
+- 322:           debugPrint('Error saving recent question: $e');
+- 326:       debugPrint('Error during question: $e');
+- 355:       CoverWiseSnackBar.error(
+- 357:         AppError.userMessage(e),
+- 402:         'plan_tier': entitlement.planTier.name,
+- 403:         'subscription_remaining': entitlement.subscriptionQuestionsRemaining,
+- 419:     // may switch policies between the error and tapping Retry.
+- 437:       if (question == "What is my policy number?") {
+- 439:             "What is the policy number shown in this insurance document?";
+- 462:         // Handle error tokens
+- 463:         if (token.startsWith('{"error"')) {
+- 464:           final errorJson = jsonDecode(token);
+- 465:           if (errorJson['error'] == 'qa_budget_exhausted') {
+- 469:               'No server-verified questions remain. Buy a Q&A pack or renew your plan.',
+- 477:           if (errorJson['error'] == 'qa_usage_unavailable') {
+- 479:             CoverWiseSnackBar.error(
+- 482:               operation: 'verify question usage',
+- 486:           // Other error - show fallback
+- 488:           // Track the failed question for retry from error tokens too
+- 500:           CoverWiseSnackBar.error(
+- 554:           debugPrint('Error saving recent question: $e');
+- 558:       debugPrint('Error during stream question: $e');
+- 584:       CoverWiseSnackBar.error(
+- 586:         AppError.userMessage(e),
+- 601:   /// the user navigates before tapping the error action.
+- 696: /// Shows remaining questions (subscription + packs) with a CTA to buy more.
+- 711:     if (entitlement.planTier != PlanTier.free &&
+- 717:     final subtitle = packState.hasSubscriptionQuestions &&
+- 719:         ? '${packState.subscriptionQuestionsRemaining} monthly + ${packState.packQuestionsRemaining} pack'
+- 722:             : '${packState.subscriptionQuestionsRemaining} questions left this month';
+- 732:                   ? Icons.error_outline_rounded
+- 738:                   ? Theme.of(context).colorScheme.error
+- 756:                           isZero ? Theme.of(context).colorScheme.error : null,
+
+### mobile/lib/screens/renewal_calendar_screen.dart
+- 1002:       S.renewalContactInfoNotFound(summary.insurer ?? 'this insurer'),
+- 209:           _SectionHeader(S.renewalSectionExpired, Icons.error, Colors.red,
+- 291:                     ? theme.colorScheme.error.withValues(alpha: 0.65)
+- 606:           '${summary.insurer ?? S.renewalInsurerNotFound} • $statusLabel',
+- 817:                   '${summary.insurer ?? S.renewalInsurerNotFound}\n${S.renewalExpires(summary.formattedExpiryDate)}',
+- 825:                             ? Icons.error_rounded
+- 845:                                 ? Icons.error_rounded
+- 882:         summary.insurerHelpline != null || summary.insurerEmail != null;
+- 939:                 S.renewalContactInsurer(summary.insurer ?? 'your insurer'),
+- 945:               if (summary.insurerHelpline != null) ...[
+- 950:                   subtitle: summary.insurerHelpline!,
+- 955:               if (summary.insurerEmail != null) ...[
+- 960:                   subtitle: summary.insurerEmail!,
+- 973:     final cleaned = summary.insurerHelpline!.replaceAll(RegExp(r'[^0-9+]'), '');
+- 978:       CoverWiseSnackBar.error(context, S.renewalPhoneDialerError);
+- 986:       path: summary.insurerEmail,
+- 995:       CoverWiseSnackBar.error(context, S.renewalEmailClientError);
+
+### mobile/lib/screens/reset_password_screen.dart
+- 138:                     if (_error != null) ...[
+- 141:                         _error!,
+- 143:                           color: theme.colorScheme.error,
+- 23:   String? _error;
+- 37:       setState(() => _error = 'Password must be at least 8 characters.');
+- 41:       setState(() => _error = 'Passwords do not match.');
+- 47:       _error = null;
+- 60:           _error = 'Could not update password. The link may have expired. '
+
+### mobile/lib/screens/search_screen.dart
+- 17: /// matching on document type, insurer, policy number, benefits, exclusions,
+- 18: /// and coverage items. Results are ranked by relevance.
+- 395:                         if (summary.insurer != null)
+- 397:                             text: summary.insurer!,
+- 416:                   if (summary.formattedCoverageAmount != 'Unknown') ...[
+- 417:                     _ResultMetric(Icons.shield, 'Coverage',
+- 418:                         summary.formattedCoverageAmount),
+- 44:     _debounceTimer?.cancel();
+- 454:                     Icons.cancel, Colors.red),
+- 456:               if (query.isNotEmpty && summary.coverageItems.isNotEmpty) ...[
+- 457:                 ...summary.coverageItems
+- 468:                                     : Icons.cancel_outlined,
+- 474:                                 'Coverage: ${c.name}',
+- 538: /// Text widget that highlights matching query terms
+- 54:     _debounceTimer?.cancel();
+- 60:     _debounceTimer?.cancel();
+- 638:           ? Icons.error_rounded
+- 68:     // Cancel pending debounce and reset search state when leaving.
+- 69:     _debounceTimer?.cancel();
+- 99:                 hintText: 'Insurer, policy number, benefit…',
+
+### mobile/lib/screens/settings_screen.dart
+- 108:             child: const Text('Cancel'),
+- 144:       // 5. Cancel all scheduled renewal notifications
+- 145:       await NotificationService.cancelAll();
+- 157:       CoverWiseSnackBar.error(
+- 158:           context, AppError.contextual(error: e, operation: 'clear_data'));
+- 177:           CoverWiseSectionLabel(S.settingsSectionPlan),
+- 185:                     color: entitlement.planTier == PlanTier.free
+- 189:                         S.settingsCurrentPlan(entitlement.planTier.displayName),
+- 190:                     subtitle: entitlement.planTier.tagline,
+- 199:                         entitlement.planTier == PlanTier.free
+- 223:                   if (entitlement.planTier != PlanTier.free) ...[
+- 26: import '../utils/app_error.dart';
+- 350:           CoverWiseSectionLabel(S.settingsSectionPrivacy),
+- 428:       case ConsentPurpose.privacyPolicy:
+- 429:         return S.settingsConsentTermsAccepted;
+- 447:       case ConsentPurpose.privacyPolicy:
+- 472:         icon: isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
+
+### mobile/lib/screens/splash_screen.dart
+- 93:     _completionTimer?.cancel();
+- 94:     _healthPoller?.cancel();
+
+### mobile/lib/screens/terms_of_service_screen.dart
+- 10: /// In-app terms of service viewer.
+- 12: /// Loads content from `assets/legal/terms_of_service.md` at runtime
+- 15: class TermsOfServiceScreen extends StatefulWidget {
+- 16:   const TermsOfServiceScreen({super.key});
+- 19:   State<TermsOfServiceScreen> createState() => _TermsOfServiceScreenState();
+- 22: class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
+- 28:     _future ??= LegalContentLoader.loadTermsOfService(
+- 39:         title: const Text('Terms of Service'),
+- 43:             tooltip: 'Copy terms text',
+- 49:               CoverWiseSnackBar.success(context, 'Terms of service copied to clipboard');
+- 61:           if (snapshot.hasError) {
+- 62:             return AppErrorView(
+- 63:               message: 'The terms of service could not be loaded.',
+- 66:                 _future = LegalContentLoader.loadTermsOfService(
+- 8: import '../widgets/shared/error_widget.dart';
+
+### mobile/lib/screens/upgrade_screen.dart
+- 100:                           'Plan upgraded! New features are now available.',
+- 10: import '../utils/app_error.dart';
+- 117:               'Compare plans',
+- 123:             _FeatureComparisonTable(currentTier: entitlement.planTier),
+- 12: /// Screen showing subscription plan options (Free / Plus / Family).
+- 135:               question: 'Can I switch plans?',
+- 137:                   'You can manage plan changes through your App Store or Play Store subscription settings. Timing, proration, and refunds follow the store and subscription terms.',
+- 142:                   'Pack questions remain active and are used after your monthly subscription quota is exhausted.',
+- 145:               question: 'How do I cancel?',
+- 147:                   'Cancel anytime from your App Store or Play Store subscription settings. You keep access until the end of your billing period.',
+- 156:   Future<void> _manageSubscription(BuildContext context) async {
+- 157:     final billingAsync = ref.read(billingInitProvider);
+- 158:     if (billingAsync is! AsyncData) {
+- 15: /// RevenueCat. The billing adapter handles the purchase flow and the
+- 160:         CoverWiseSnackBar.info(context, 'Billing is not available yet. Please try again later.');
+- 164:     final billing = ref.read(billingAdapterProvider);
+- 165:     final opened = await billing.manageSubscription();
+- 167:       CoverWiseSnackBar.error(context, 'Could not open subscription settings', operation: 'manage subscription');
+- 172: // ── Current Plan Banner ───────────────────────────────────────────────
+- 174: class _CurrentPlanBanner extends StatelessWidget {
+- 176:   const _CurrentPlanBanner({required this.entitlement});
+- 180:     final isFree = entitlement.planTier == PlanTier.free;
+- 200:                     'Current plan: ${entitlement.planTier.displayName}',
+- 207:                     entitlement.planTier.tagline,
+- 233: class _BillingToggle extends StatelessWidget {
+- 236:   const _BillingToggle({required this.annual, required this.onChanged});
+- 28:   PlanTier? _purchasing;
+- 314: // ── Plan Card ─────────────────────────────────────────────────────────
+- 316: class _PlanCard extends ConsumerWidget {
+- 317:   final PlanTier tier;
+- 321:   final bool billingReady;
+- 322:   final ValueChanged<PlanTier> onStartPurchase;
+- 326:   const _PlanCard({
+- 331:     required this.billingReady,
+- 339:     final limits = planLimits[tier]!;
+- 342:     final isFamily = tier == PlanTier.family;
+- 343:     final isPlus = tier == PlanTier.plus;
+- 34:     final billingAsync = ref.watch(billingInitProvider);
+- 35:     final billingReady = billingAsync is AsyncData<void>;
+- 368:                     tier == PlanTier.free
+- 370:                         : tier == PlanTier.plus
+- 40:         title: const Text('Choose your plan'),
+- 42:           if (entitlement.planTier != PlanTier.free)
+- 44:               onPressed: () => _manageSubscription(context),
+- 451:                   child: const Text('Current plan'),
+- 454:             else if (tier == PlanTier.free)
+- 466:                   onPressed: isPurchasing || !billingReady
+- 486:     AnalyticsService.track('plan_purchase_started', {
+- 487:       'plan_tier': tier.name,
+- 488:       'billing_cycle': annual ? 'annual' : 'monthly',
+- 492:       final billing = ref.read(billingAdapterProvider);
+- 493:       final result = await billing.purchasePlan(tier, annual: annual);
+- 497:       if (result?.planTier == tier) {
+- 498:         AnalyticsService.track('plan_purchase_completed', {
+- 499:           'plan_tier': tier.name,
+- 505:         AnalyticsService.track('plan_purchase_failed', {
+- 506:           'plan_tier': tier.name,
+- 511:           'Purchase was not completed. No plan changes were made.',
+- 516:       AnalyticsService.track('plan_purchase_failed', {
+- 517:         'plan_tier': tier.name,
+- 518:         'reason': 'error',
+- 520:       final msg = AppError.contextual(error: e, operation: 'purchase');
+- 522:         CoverWiseSnackBar.error(context, msg, operation: 'purchase plan');
+- 559:   final PlanTier currentTier;
+- 566:       ('Policies', (PlanTier t) => '${planLimits[t]!.maxPolicies}'),
+- 569:         (PlanTier t) => '${planLimits[t]!.maxQuestionsPerMonth}'
+- 573:         (PlanTier t) => planLimits[t]!.allowComparison ? '✓' : '—'
+- 577:         (PlanTier t) => planLimits[t]!.allowFamilyView ? '✓' : '—'
+- 579:       ('Cloud sync', (PlanTier t) => planLimits[t]!.allowCloudSync ? '✓' : '—'),
+- 57:                 title: 'Plan limit reached',
+- 582:         (PlanTier t) => planLimits[t]!.allowEmergencyAccess ? '✓' : '—'
+- 586:         (PlanTier t) => planLimits[t]!.allowAnnualReview ? '✓' : '—'
+- 590:         (PlanTier t) => planLimits[t]!.allowAdvancedSearch ? '✓' : '—'
+- 610:                   for (final tier in PlanTier.values)
+- 63:             // Current plan banner
+- 642:                     for (final tier in PlanTier.values)
+- 64:             _CurrentPlanBanner(entitlement: entitlement),
+- 68:             if (billingReady) ...[
+- 69:               _BillingToggle(
+- 76:             // Plan cards
+- 77:             ...PlanTier.values.map((tier) => _PlanCard(
+- 80:                   isCurrent: entitlement.planTier == tier,
+- 82:                   billingReady: billingReady,
+
+### mobile/lib/screens/what_if_calculator_screen.dart
+- 101:                 label: 'Coverage amount',
+- 102:                 value: _coverageMultiplier,
+- 107:                 onChanged: (v) => setState(() => _coverageMultiplier = v),
+- 10: /// What-If Calculator — lets users explore how changing coverage parameters
+- 127:             // Coverage toggles
+- 135:                     title: const Text('Maternity coverage'),
+- 164:             // Disclaimer
+- 180:                           'These are rough estimates for planning purposes only. Actual premiums vary by insurer and underwriting.',
+- 217:                       'Base policy: ${_baseSummary?.insurer ?? "Unknown"}',
+- 228:                 _infoChip('Coverage',
+- 229:                     _formatCurrency(_baseSummary?.coverageAmount ?? 0)),
+- 25:   double _coverageMultiplier = 1.0;
+- 299:     final estimatedCoverage =
+- 300:         calc.estimateCoverage(_baseSummary?.coverageAmount ?? 0);
+- 304:     final coverageDiff =
+- 305:         estimatedCoverage - (_baseSummary?.coverageAmount ?? 0);
+- 317:             _resultRow('Coverage', _formatCurrency(estimatedCoverage),
+- 318:                 coverageDiff >= 0 ? '+${_formatCurrency(coverageDiff)}' : null),
+- 362:                         ? Theme.of(context).colorScheme.error
+- 375:       _coverageMultiplier = 1.0;
+- 39:         coverageMultiplier: _coverageMultiplier,
+- 57:           subtitle: 'Choose a policy file to explore planning estimates.',
+- 88:                   'Adjust policy inputs to see rough planning estimates. Your saved policy is not changed.',
+- 97:             // Coverage slider
+
+### mobile/lib/widgets/answer_verification_badge.dart
+- 43:         return 'Could not verify';
+- 83:         return 'Every claim in this answer is verified against your policy documents.';
+- 85:         return 'Some claims in this answer are verified, some are not. Cross-check with your policy.';
+- 87:         return 'This answer could not be verified against your policy documents. Verify independently.';
+- 97: /// and color. Includes a tooltip for the full explanation.
+
+### mobile/lib/widgets/claims/claim_status_timeline.dart
+- 10: class ClaimStatusTimeline extends StatelessWidget {
+- 13:   const ClaimStatusTimeline({super.key, required this.statusHistory});
+- 15:   /// Returns which lifecycle nodes to display based on the claim's path.
+- 17:   /// If the claim has been rejected, stop at "Rejected" (don't show "Paid"
+- 19:   List<ClaimStatus> _lifecycle() {
+- 21:         statusHistory.any((u) => u.status == ClaimStatus.rejected);
+- 225:     // Use the same hex colors as the claim card's status chip for consistency.
+- 227:       case ClaimStatus.filed:
+- 229:       case ClaimStatus.inReview:
+- 231:       case ClaimStatus.approved:
+- 233:       case ClaimStatus.rejected:
+- 235:       case ClaimStatus.paid:
+- 240:   IconData _statusIcon(ClaimStatus status) {
+- 242:       case ClaimStatus.filed:
+- 244:       case ClaimStatus.inReview:
+- 246:       case ClaimStatus.approved:
+- 248:       case ClaimStatus.rejected:
+- 249:         return Icons.cancel_rounded;
+- 24:         ClaimStatus.filed,
+- 250:       case ClaimStatus.paid:
+- 25:         ClaimStatus.inReview,
+- 26:         ClaimStatus.rejected,
+- 2: import '../../models/claim_record.dart';
+- 30:       ClaimStatus.filed,
+- 31:       ClaimStatus.inReview,
+- 32:       ClaimStatus.approved,
+- 33:       ClaimStatus.paid,
+- 42:         : ClaimStatus.filed;
+- 4: /// A vertical timeline displaying a user's recorded claim-status history.
+- 78:   final ClaimStatus status;
+
+### mobile/lib/widgets/claims_workflow_sheet.dart
+- 140:       final claimsDir = Directory('${appDir.path}/claim_photos');
+- 141:       if (!await claimsDir.exists()) {
+- 142:         await claimsDir.create(recursive: true);
+- 147:           '${claimsDir.path}/claim_${_selectedDocId ?? 'new'}_$timestamp.jpg';
+- 155:         CoverWiseSnackBar.error(context, 'Could not select photo: $e');
+- 160:   Future<void> _saveClaim() async {
+- 16: /// A multi-step bottom sheet for recording a private claim note with photo evidence.
+- 172:     final claim = ClaimRecord(
+- 176:       insurer: selectedSummary?.insurer ?? 'Unknown',
+- 187:     if (mounted) Navigator.of(context).pop(claim);
+- 22: /// 4. Save to the on-device claim log; CoverWise never submits it to an insurer.
+- 23: class ClaimWizardSheet extends ConsumerStatefulWidget {
+- 26:   const ClaimWizardSheet({super.key, this.preselectedPolicy});
+- 28:   /// Show the claim wizard as a modal bottom sheet.
+- 301:           title: 'Private claim note',
+- 303:               'This records information on this device only. It does not file, submit, or update a claim with an insurer.',
+- 31:     final result = await showModalBottomSheet<ClaimRecord>(
+- 336:                     '${s.documentType} — ${s.insurer ?? "Unknown"}',
+- 386:                       errorBuilder: (_, __, ___) => Container(
+- 39:       builder: (_) => ClaimWizardSheet(preselectedPolicy: preselectedPolicy),
+- 42:       await AppStateRepository.addClaimRecord(result);
+- 468:                     'Photos are optional. They stay on this device and can help you organize information before you contact your insurer.',
+- 46:           'Claim logged — ${result.incidentType}. Track it in Claim log.',
+- 53:   ConsumerState<ClaimWizardSheet> createState() => _ClaimWizardSheetState();
+- 543:             hintText: 'Repair estimate, claim reference from insurer...',
+- 56: class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
+- 600:               child: const Text('Cancel'),
+- 612:                   : _saveClaim,
+- 620:                   : const Text('Save to claim log'),
+- 77:     ('Life Claim', Icons.favorite_outline_rounded, Color(0xFF7C5AC7)),
+- 8: import '../models/claim_record.dart';
+
+### mobile/lib/widgets/dashboard/coverage_type_explorer.dart
+- 21:         CoverageTypeExplorer(documents: documents),
+- 27: class CoverageTypeExplorer extends StatefulWidget {
+- 30:   const CoverageTypeExplorer({super.key, required this.documents});
+- 33:   State<CoverageTypeExplorer> createState() => _CoverageTypeExplorerState();
+- 36: class _CoverageTypeExplorerState extends State<CoverageTypeExplorer> {
+- 85:                         AnalyticsService.track('dashboard_coverage_type_tapped', {
+
+### mobile/lib/widgets/dashboard/family_section.dart
+- 53:           error: (e, _) => const Card(
+
+### mobile/lib/widgets/dashboard/first_upload_cta.dart
+- 73:                           'CoverWise is a policy information assistant, not an insurer, agent, or broker. '
+
+### mobile/lib/widgets/dashboard/policy_summary_cards.dart
+- 133:         ? ('EXPIRED', scheme.error)
+- 140:           ? Icons.error_rounded
+- 74:                           if (summary.insurer != null)
+- 76:                               summary.insurer!,
+- 92:                     if (summary.formattedCoverageAmount != 'Unknown') ...[
+- 93:                       _MetricChip(Icons.shield, 'Coverage',
+- 94:                           summary.formattedCoverageAmount),
+
+### mobile/lib/widgets/dashboard/quick_actions.dart
+- 185:             color: scheme.errorContainer,
+- 192:                   color: scheme.onErrorContainer, size: 22),
+- 197:                   color: scheme.onErrorContainer,
+- 78:               label: 'Insurance Terms',
+- 81:                 AnalyticsService.track('dashboard_quick_action_tapped', {'action_type': 'terms'});
+- 91:           label: 'My claims log',
+- 94:             AnalyticsService.track('dashboard_quick_action_tapped', {'action_type': 'claims'});
+- 95:             Navigator.pushNamed(context, '/claim-tracker');
+
+### mobile/lib/widgets/dashboard/recent_activities.dart
+- 60:                 color: Theme.of(context).colorScheme.error,
+
+### mobile/lib/widgets/dashboard/recent_claims.dart
+- 106:                 backgroundColor: _statusColor(claim.status, scheme)
+- 10: Color _claimStatusColor(ClaimStatus status, ColorScheme scheme) {
+- 110:                   _incidentIcon(claim.incidentType),
+- 111:                   color: _statusColor(claim.status, scheme),
+- 116:               // Claim details
+- 122:                       claim.insurer,
+- 12:     case ClaimStatus.filed:
+- 131:                       '${claim.incidentType} — ${claim.filedDate.day}/${claim.filedDate.month}/${claim.filedDate.year}',
+- 143:               _ClaimStatusChip(status: claim.status),
+- 14:     case ClaimStatus.inReview:
+- 168:       case 'liability':
+- 16:     case ClaimStatus.approved:
+- 175:   Color _statusColor(ClaimStatus status, ColorScheme scheme) =>
+- 176:       _claimStatusColor(status, scheme);
+- 179: class _ClaimStatusChip extends StatelessWidget {
+- 180:   final ClaimStatus status;
+- 181:   const _ClaimStatusChip({required this.status});
+- 18:     case ClaimStatus.rejected:
+- 19:       return scheme.error;
+- 205:   Color _chipColor(ClaimStatus status, ColorScheme scheme) =>
+- 206:       _claimStatusColor(status, scheme);
+- 20:     case ClaimStatus.paid:
+- 25: class RecentClaims extends StatelessWidget {
+- 26:   /// Optional: inject claims directly for testing without Hive.
+- 27:   final List<ClaimRecord>? claims;
+- 29:   const RecentClaims({super.key, this.claims});
+- 2: import '../../models/claim_record.dart';
+- 33:     final claims = this.claims ?? AppStateRepository.getClaimRecords();
+- 34:     final recent = claims.take(3).toList();
+- 41:         const CoverWiseSectionLabel('Recent Claims'),
+- 43:         ...recent.map((claim) => _ClaimCard(claim: claim)),
+- 44:         if (claims.length > 3) ...[
+- 49:                 'dashboard_recent_claims_tapped',
+- 55:                   builder: (_) => const ClaimTrackingScreen(),
+- 5: import '../../screens/claim_tracking_screen.dart';
+- 61:               'View all ${claims.length} claims',
+- 73: class _ClaimCard extends StatelessWidget {
+- 74:   final ClaimRecord claim;
+- 75:   const _ClaimCard({required this.claim});
+- 89:           AnalyticsService.track('dashboard_recent_claim_tapped', {
+- 8: /// Shows the 3 most recently filed claims with their current status.
+- 90:             'claim_id': claim.id,
+- 91:             'status': claim.status.name,
+- 96:               builder: (_) => const ClaimTrackingScreen(),
+- 9: /// Shared: maps a [ClaimStatus] to its display color for the given theme.
+
+### mobile/lib/widgets/dashboard/welcome_card.dart
+- 66:                     'Add a policy PDF to see coverage, exclusions and renewal dates in one place.',
+
+### mobile/lib/widgets/document_thumbnail.dart
+- 14: /// local file is available or the thumbnail cannot be generated.
+
+### mobile/lib/widgets/document_type_picker.dart
+- 67:           child: const Text('Cancel'),
+
+### mobile/lib/widgets/editable_field.dart
+- 165:               foregroundColor: colorScheme.error,
+- 19:   /// "The maximum amount your insurer will pay for a covered claim").
+- 211:               onPressed: _cancelEditing,
+- 216:               child: const Text('Cancel'),
+- 4: /// Tapping the edit icon switches to a text field with save/cancel.
+- 68:   void _cancelEditing() {
+
+### mobile/lib/widgets/field_citations_card.dart
+- 148:                           'Less reliable — verify against your policy',
+- 14: /// contract: the user can verify every field by going to the
+
+### mobile/lib/widgets/lead_capture_dialog.dart
+- 130:                 onPressed: AppConfig.hasPrivacyPolicy
+- 132:                           Uri.parse(AppConfig.privacyPolicyUrl),
+- 136:                 child: const Text('Review the current Privacy Policy'),
+- 141:                 _consentError = null;
+- 146:             if (_consentError != null)
+- 149:                 child: Text(_consentError!,
+- 150:                     style: TextStyle(color: scheme.error, fontSize: 12)),
+- 178:                 setState(() => _consentError =
+- 179:                     'Accept the Privacy Policy to process this policy.');
+- 187:                   version: AppConfig.privacyPolicyVersion,
+- 196:                 'processing_consent_version': AppConfig.privacyPolicyVersion,
+- 205:           child: const Text('Cancel'),
+- 211:                 setState(() => _consentError =
+- 212:                     'Accept the Privacy Policy to process this policy.');
+- 220:                   version: AppConfig.privacyPolicyVersion,
+- 230:                   version: AppConfig.privacyPolicyVersion,
+- 243:                 'processing_consent_version': AppConfig.privacyPolicyVersion,
+- 29:   String? _consentError;
+- 78:             icon: Icons.privacy_tip_outlined,
+
+### mobile/lib/widgets/not_yet_extracted_section.dart
+- 13: /// to a new surface (coverage gaps and claim inputs the
+- 29:   /// A short subtitle / explanation. Defaults to
+- 32:   /// document or contact your insurer."
+- 42:         'document or contact your insurer.',
+- 5: /// The trust audit's NO-GO is about claim-shaped UI that the
+- 6: /// system cannot verify. The fix is to refuse to show what the
+- 7: /// system does not know, not to add a disclaimer.
+
+### mobile/lib/widgets/phone_capture_sheet.dart
+- 115:       CoverWiseSnackBar.error(context, 'Failed to send OTP code: $e');
+- 119:   Future<void> _verifyOtp() async {
+- 126:         await AuthService.verifyPhoneOtp(phone, code);
+- 139:       CoverWiseSnackBar.error(context, 'Invalid OTP code. Please try again.');
+- 19: ///   verified account/restore contract exists. Treating it as such
+- 20: ///   was a false claim that the security audit explicitly flagged.
+- 248:                 onPressed: (_isValidOtp && !_isLoading) ? _verifyOtp : null,
+- 260:                     : const Text('Verify & Link Account'),
+
+### mobile/lib/widgets/policy_comparison_sheet.dart
+- 213:                   ? 'Coverage details available'
+- 56:                   ? 'You currently have one policy in the library. Add another policy to compare coverage, dates, and document details side by side.'
+
+### mobile/lib/widgets/policy_readiness_card.dart
+- 29:       return s.insurer != null &&
+- 30:           s.insurer!.isNotEmpty &&
+- 7: /// Replaces ungrounded health scores and coverage gap heuristics with
+
+### mobile/lib/widgets/shared/agent_request_sheet.dart
+- 106:       _phoneError = digits.length >= 10
+- 125:       insurer: widget.insurer,
+- 143:       CoverWiseSnackBar.error(
+- 14:   final String? insurer;
+- 20:     this.insurer,
+- 281:               errorText: _nameError,
+- 28:     String? insurer,
+- 295:               errorText: _phoneError,
+- 390:           if (widget.insurer != null || widget.documentType != null) ...[
+- 406:                         if (widget.insurer != null) widget.insurer,
+- 40:         insurer: insurer,
+- 57:   String? _nameError;
+- 58:   String? _phoneError;
+- 8: /// policy context (insurer, document type) if provided.
+- 94:       _nameError == null &&
+- 95:       _phoneError == null;
+- 99:       _nameError = value.trim().isEmpty ? 'Please enter your name.' : null;
+
+### mobile/lib/widgets/shared/coverwise_components.dart
+- 424: /// that are planned but not yet implemented.
+
+### mobile/lib/widgets/shared/coverwise_scene.dart
+- 22: /// Typed access to explanatory art.
+- 66:               errorBuilder: (context, error, stackTrace) => ColoredBox(
+
+### mobile/lib/widgets/shared/coverwise_snackbar.dart
+- 15: /// CoverWiseSnackBar.error(context, 'Upload failed', operation: 'policy upload');
+- 29:   /// Shows an error snackbar with red background and dismiss action.
+- 34:   static void error(
+- 46:       backgroundColor: Theme.of(context).colorScheme.error,
+- 47:       textColor: Theme.of(context).colorScheme.onError,
+- 48:       icon: Icons.error_outline_rounded,
+- 5: /// Provides consistent styling, context-specific error messages, and
+- 9: /// - [error] accepts an [operation] parameter for context-specific messages
+
+### mobile/lib/widgets/shared/error_widget.dart
+- 10: /// framework error renderer and is a latent footgun.
+- 11: class AppErrorView extends StatelessWidget {
+- 16:   const AppErrorView({
+- 20:     this.icon = Icons.error_outline,
+- 5: /// Centered, retryable error view for screens that failed to load content.
+- 69: class AppErrorBanner extends StatelessWidget {
+- 73:   const AppErrorBanner({super.key, required this.message, this.onRetry});
+- 7: /// Named [AppErrorView] rather than `ErrorWidget` to avoid shadowing Flutter's
+- 8: /// built-in [material.ErrorWidget], which renders red error screens for
+
+### mobile/lib/widgets/shared/global_error_boundary.dart
+- 102:     // Catch asynchronous errors from the platform dispatcher.
+- 103:     // Skip in debug mode — FlutterError.onError and ErrorWidget.builder
+- 104:     // already handle most errors there. The PlatformDispatcher override is
+- 105:     // needed only in release mode for truly uncaught async errors, but it
+- 108:       PlatformDispatcher.instance.onError = (error, stackTrace) {
+- 109:         _scheduleHandleError(FlutterErrorDetails(
+- 110:           exception: error,
+- 119:   void _scheduleHandleError(FlutterErrorDetails details) {
+- 120:     if (_errorUpdateScheduled || !mounted) return;
+- 121:     _errorUpdateScheduled = true;
+- 123:       _errorUpdateScheduled = false;
+- 124:       if (mounted) _handleError(details);
+- 12: /// - Flutter framework errors (build/layout/paint)
+- 130:     _errorUpdateScheduled = false;
+- 131:     _restoreOriginalHandlers();
+- 135:   void _handleError(FlutterErrorDetails details) {
+- 138:     // Log error in debug mode
+- 13: /// - Widget build errors via [ErrorWidget.builder]
+- 140:       debugPrint('=== ERROR ===');
+- 141:       debugPrint('Error: ${details.exception}');
+- 147:     // Track error event for production monitoring
+- 148:     _trackError(details);
+- 14: /// - Asynchronous errors via [PlatformDispatcher]
+- 152:     if (ErrorBoundaryRegistry.instance.dispatch(details)) {
+- 157:       _errorDetails = details;
+- 15: /// - Uncaught zone errors via [runZonedGuarded]
+- 161:   /// Track an error event with allowlisted, non-PII properties only.
+- 164:   /// sent `_safeErrorMessage(details.exception)` which is the
+- 167:   /// policy IDs. Per the audit: "emit allowlisted error codes only;
+- 173:   ///   - error_type: the runtime class name of the exception
+- 175:   ///   - error_code: a hash of the exception type, used for
+- 179:   void _trackError(FlutterErrorDetails details) {
+- 17: /// Shows a friendly error screen with retry option instead of a red screen.
+- 181:       final errorType = details.exception.runtimeType.toString();
+- 182:       AnalyticsService.track('global_error', {
+- 183:         'error_type': errorType,
+- 184:         'error_code': _errorCode(errorType),
+- 186:         // No error_message, no stack_summary. Per the audit, those
+- 18: class GlobalErrorBoundary extends StatefulWidget {
+- 190:       // Analytics failure should never disrupt error handling
+- 194:   /// Short allowlisted error code derived from the exception type.
+- 195:   /// Used by the operator dashboard to deduplicate errors without
+- 197:   String _errorCode(String errorType) {
+- 198:     final hash = errorType.hashCode.toRadixString(16);
+- 202:   /// Clear the current error and attempt to rebuild.
+- 203:   void clearError() {
+- 204:     // Track error recovery for analytics. The error_type is the
+- 205:     // runtime class name (allowlisted); the error message is not
+- 208:       final errorType =
+- 209:           _errorDetails?.exception.runtimeType.toString() ?? 'unknown';
+- 210:       AnalyticsService.track('global_error_recovered', {
+- 211:         'error_type': errorType,
+- 212:         'error_code': _errorCode(errorType),
+- 213:         'library': _errorDetails?.library ?? 'unknown',
+- 216:       // Analytics failure should never disrupt error handling
+- 21:   const GlobalErrorBoundary({super.key, required this.child});
+- 220:       _errorDetails = null;
+- 226:     if (_errorDetails != null) {
+- 227:       return _ErrorScreen(
+- 228:         error: _errorDetails!,
+- 229:         onRetry: clearError,
+- 236: /// Full-screen error display shown when an unhandled error occurs.
+- 239: class _ErrorScreen extends StatelessWidget {
+- 240:   final FlutterErrorDetails error;
+- 243:   const _ErrorScreen({required this.error, required this.onRetry});
+- 24:   GlobalErrorBoundaryState createState() => GlobalErrorBoundaryState();
+- 257:           'Something went wrong. An unexpected display error occurred. Retry or close the app.',
+- 27: class GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
+- 280:                   // Error icon
+- 288:                       Icons.error_outline_rounded,
+- 28:   /// Current error details, null if no error.
+- 29:   FlutterErrorDetails? _errorDetails;
+- 307:                     'An unexpected display error occurred. Try again to return to the app.',
+- 315:                   // Error details (debug only)
+- 31:   /// Whether the app is in error state.
+- 326:                         '${error.exception}',
+- 32:   bool get hasError => _errorDetails != null;
+- 35:   FlutterExceptionHandler? _originalFlutterOnError;
+- 36:   late Widget Function(FlutterErrorDetails) _originalErrorWidgetBuilder;
+- 37:   bool Function(Object, StackTrace)? _originalPlatformDispatcherOnError;
+- 39:   /// Dedup flag: prevents both FlutterError.onError and ErrorWidget.builder
+- 40:   /// from scheduling duplicate _handleError calls for the same error.
+- 41:   bool _errorUpdateScheduled = false;
+- 47:     _setupErrorHandlers();
+- 50:   /// Save the original error handlers so we can restore them in dispose().
+- 52:     _originalFlutterOnError = FlutterError.onError;
+- 53:     _originalErrorWidgetBuilder = ErrorWidget.builder;
+- 54:     _originalPlatformDispatcherOnError = PlatformDispatcher.instance.onError;
+- 57:   /// Restore the original error handlers when this boundary is disposed.
+- 58:   void _restoreOriginalHandlers() {
+- 59:     FlutterError.onError = _originalFlutterOnError;
+- 60:     ErrorWidget.builder = _originalErrorWidgetBuilder;
+- 61:     if (_originalPlatformDispatcherOnError != null) {
+- 62:       PlatformDispatcher.instance.onError = _originalPlatformDispatcherOnError!;
+- 66:   void _setupErrorHandlers() {
+- 67:     // Catch Flutter framework errors (build/layout/paint).
+- 68:     // Do NOT call FlutterError.presentError() here — the ErrorWidget.builder
+- 69:     // override below handles the user-facing display. Calling presentError()
+- 72:     FlutterError.onError = (FlutterErrorDetails details) {
+- 73:       _scheduleHandleError(details);
+- 76:     // Override ErrorWidget.builder to show friendly UI instead of red screen.
+- 7: import 'screen_error_boundary.dart';
+- 81:     // to avoid infinite frame scheduling. The full _ErrorScreen replaces this
+- 82:     // once _handleError runs via the post-frame callback.
+- 83:     ErrorWidget.builder = (FlutterErrorDetails details) {
+- 84:       // Schedule error handling for next frame to avoid build-during-build
+- 85:       _scheduleHandleError(details);
+- 86:       // Show a minimal error indicator immediately — static, no animations
+- 9: /// Global error boundary that wraps the entire app and catches unhandled errors.
+
+### mobile/lib/widgets/shared/legal_content_section.dart
+- 4: /// Shared section widget for legal content (Privacy Policy, Terms of Service).
+- 7: /// Used by both [PrivacyPolicyScreen] and [TermsOfServiceScreen] to avoid
+
+### mobile/lib/widgets/shared/newsletter_signup_sheet.dart
+- 145:                       ? 'Manage your subscription'
+- 173:                 errorText: _error,
+- 233:                   foregroundColor: scheme.error,
+- 234:                   side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
+- 37:   String? _error;
+- 57:       setState(() => _error = 'Please enter your email address.');
+- 61:       setState(() => _error = AppConfig.isDisposableEmail(email)
+- 69:       _error = null;
+- 86:         _error = 'Could not subscribe. Please try again.';
+
+### mobile/lib/widgets/shared/offline_banner.dart
+- 9: /// leaving them to infer it from repeated SnackBar errors.
+
+### mobile/lib/widgets/shared/operation_usage_card.dart
+- 31:     final totalRemaining = entitlement.subscriptionQuestionsRemaining;
+
+### mobile/lib/widgets/shared/screen_error_boundary.dart
+- 103:     if (_error case final error?) {
+- 104:       if (widget.errorBuilder != null) {
+- 105:         return widget.errorBuilder!(error);
+- 107:       return _ScreenErrorFallback(
+- 109:         onRetry: _clearError,
+- 10: class ErrorBoundaryRegistry {
+- 116: /// Default fallback UI shown by [ScreenErrorBoundary] when no custom
+- 117: /// [errorBuilder] is provided.
+- 118: class _ScreenErrorFallback extends StatelessWidget {
+- 11:   ErrorBoundaryRegistry._();
+- 122:   const _ScreenErrorFallback({
+- 12:   static final _instance = ErrorBoundaryRegistry._();
+- 13:   static ErrorBoundaryRegistry get instance => _instance;
+- 151:                     Icons.error_outline_rounded,
+- 153:                     color: theme.colorScheme.error,
+- 165:                     'An unexpected error occurred on this screen.',
+- 17:   void register(String screenName, void Function(FlutterErrorDetails) onError) {
+- 18:     _boundaries.add(_BoundaryEntry(name: screenName, onError: onError));
+- 25:   /// Returns true if an active screen boundary handled the error.
+- 26:   bool dispatch(FlutterErrorDetails details) {
+- 28:     _boundaries.last.onError(details);
+- 35:   final void Function(FlutterErrorDetails) onError;
+- 36:   _BoundaryEntry({required this.name, required this.onError});
+- 39: /// Per-screen error boundary that isolates crashes to the current screen.
+- 3: /// Lightweight registry that routes errors from the global error handler
+- 41: /// Wraps a screen's widget tree so that a build error in one screen does not
+- 42: /// take down the entire app. When an error occurs, this boundary shows a
+- 44: /// global [GlobalErrorBoundary].
+- 4: /// to the most specific active [ScreenErrorBoundary].
+- 50: /// ScreenErrorBoundary(
+- 55: class ScreenErrorBoundary extends StatefulWidget {
+- 58:   final Widget Function(FlutterErrorDetails details)? errorBuilder;
+- 60:   const ScreenErrorBoundary({
+- 64:     this.errorBuilder,
+- 68:   State<ScreenErrorBoundary> createState() => _ScreenErrorBoundaryState();
+- 71: class _ScreenErrorBoundaryState extends State<ScreenErrorBoundary> {
+- 72:   FlutterErrorDetails? _error;
+- 74:   bool get hasError => _error != null;
+- 79:     ErrorBoundaryRegistry.instance.register(widget.screenName, _onError);
+- 7: /// When [GlobalErrorBoundary] detects an error, it calls [dispatch] first.
+- 84:     ErrorBoundaryRegistry.instance.unregister(widget.screenName);
+- 88:   void _onError(FlutterErrorDetails details) {
+- 8: /// If a screen-level boundary is active, the error is scoped to that screen
+- 91:       _error = details;
+- 95:   void _clearError() {
+- 97:       _error = null;
+
+### mobile/lib/widgets/terminology_dialog.dart
+- 40:                         Text('Insurance terms',
+- 82:                         ...section.terms.map((term) => ListTile(
+
+### mobile/lib/widgets/usage_stats_widget.dart
+- 40:       error: (e, _) => Card(
+
+### site/index.html
+- 249:       <a href="#privacy">Privacy</a>
+- 250:       <a href="/privacy" class="nav-cta">Get the app</a>
+- 261:       <p>Upload your insurance PDF. CoverWise reads it, extracts the coverage, exclusions, and benefits, and answers your questions — with sources.</p>
+- 308:       <p>No more reading 40-page policy documents. CoverWise does it for you.</p>
+- 319:         <p>The app extracts coverage, exclusions, benefits, waiting periods, and premium details — organized on one screen.</p>
+- 324:         <p>"Am I covered for maternity?" "What's my deductible?" "How do I file a claim?" Get sourced answers in seconds.</p>
+- 335:       <p>From understanding your coverage to filing a claim at 2 AM.</p>
+- 343:         <p>See coverage, exclusions, benefits, and waiting periods on one screen. No more scrolling through 16 pages of legalese.</p>
+- 364:         <p>Helpline numbers, claim steps, and policy details — all available offline, at the moment you need them most.</p>
+- 370:         <h3>Family Coverage</h3>
+- 377:         <h3>Coverage Gaps</h3>
+- 384: <!-- ── Privacy ── -->
+- 385: <section class="features" id="privacy" style="background:var(--cloud)">
+- 420:     <h2>Stop guessing about your coverage.</h2>
+- 451:         <a href="/privacy">Privacy Policy</a>
+- 452:         <a href="/terms">Terms of Service</a>
+- 464:       <span>CoverWise helps you understand your policies. It does not provide insurance advice.</span>
+- 7: <meta name="description" content="Upload your insurance policies and CoverWise turns them into clear answers. Coverage, exclusions, benefits — on one screen.">
+
+### site/privacy.html
+- 21: .disclaimer{background:#fff;border-radius:12px;padding:20px;margin-top:32px;font-size:.85rem;color:#64748b;border:1px solid #DCE6F1}
+- 27:   <h1>Privacy Policy</h1>
+- 33:   <p><strong>Policy documents:</strong> When you upload an insurance policy (PDF or image), the text is extracted and stored on your device. The text is also sent to the CoverWise backend to generate answers and summaries.</p>
+- 40:   <p><strong>No data selling:</strong> CoverWise does not sell, share, or rent your data to third parties. Your policy documents are used solely to provide the app's features to you.</p>
+- 52:   <h2>Children's Privacy</h2>
+- 58:   <div class="disclaimer">
+- 59:     CoverWise helps you understand your insurance policies. It does not provide insurance, financial, or legal advice. Answers are AI-generated and may contain errors. Always verify coverage details with your insurer. Coverage decisions are determined by your policy and insurer, not by this app.
+- 6: <title>Privacy Policy — CoverWise</title>
+
+### site/terms.html
+- 24:   <h1>Terms of Service</h1>
+- 28:   <p>By using CoverWise, you agree to these terms. If you do not agree, do not use the app.</p>
+- 31:   <p>CoverWise reads your insurance policy documents and helps you understand them by providing summaries and answering questions. It is an information tool, not an insurance provider, broker, or advisor.</p>
+- 34:   <p>CoverWise does not provide insurance, financial, or legal advice. Answers are AI-generated from your policy text and may contain errors. Coverage decisions are determined by your insurance policy and your insurer. Always verify important details directly with your insurer.</p>
+- 39:   <h2>Limitation of Liability</h2>
+- 40:   <p>CoverWise is provided "as is" without warranties of any kind. We are not liable for decisions made based on the app's output. The app's summaries and answers may be incomplete or incorrect.</p>
+- 43:   <p>We strive for reliability but do not guarantee uninterrupted service. The app may be unavailable during maintenance or due to technical issues.</p>
+- 45:   <h2>Privacy</h2>
+- 46:   <p>Your use of CoverWise is also governed by our <a href="/privacy">Privacy Policy</a>.</p>
+- 49:   <p>Questions about these terms? Email support@coverwise.app.</p>
+- 6: <title>Terms of Service — CoverWise</title>
+
+### src/frontend/templates/index.html
+- 100:                         CoverWise reads your policy PDFs and scans, surfaces the dates, coverage, exclusions,
+- 101:                         premiums, and claim details that matter, and answers questions grounded in the document itself.
+- 104:                         <li>See policy numbers, insurers, and coverage periods at a glance.</li>
+- 105:                         <li>Surface waiting periods, exclusions, and claim details without digging through legalese.</li>
+- 106:                         <li>Keep the critical information ready for renewal, claims, and family coverage checks.</li>
+- 113:                         CoverWise is not an insurer or broker. It helps you understand the policy you already own,
+- 114:                         and it always defers to the document and insurer for binding decisions.
+- 130:                                 <div class="summary-value">Coverage, exclusions, claims, renewal readiness</div>
+- 148:                             <p>Extract the details that matter from long policy documents.</p>
+- 156:                             <p>Prepare for claims and renewals with less friction.</p>
+- 179:                             Pull out the policy number, insurer, coverage dates, premiums, waiting periods, and
+- 187:                             Ask what the policy covers, what it excludes, how claims work, and where the important
+- 193:                         <h3>Stay ready for renewal and claims</h3>
+- 195:                             Surface the details a user needs when the pressure is high: expiry timing, family coverage,
+- 196:                             claim steps, and quick access to the most important policy facts.
+- 228:                         <p>Use plain language to ask about coverage, exclusions, waiting periods, or claims.</p>
+- 239:                             <li>Policy number, insurer, and coverage period.</li>
+- 241:                             <li>Claim steps and emergency contact details from the policy.</li>
+- 242:                             <li>Available coverage details, renewal timing, and family coverage context.</li>
+- 243:                             <li>Answers with sources so users can verify the result themselves.</li>
+- 252:                                 <strong>“What is my policy number and expiry date?”</strong>
+- 260:                                 <strong>“What claim steps does this policy describe?”</strong>
+- 265:                                 <p>Shows the policy text available for the user to review before renewal or planning.</p>
+- 328:                         <p>We do not accept policy documents through this public marketing site. The production flow uses an authenticated mobile session before a document can be uploaded or queried.</p>
+- 34:       "description": "CoverWise reads insurance policy PDFs and helps people understand coverage, exclusions, waiting periods, and claim details in plain language."
+- 353:                         <summary>Is CoverWise an insurer or broker?</summary>
+- 354:                         <p>No. CoverWise helps people understand the insurance policy they already have. It is not a broker, and it does not replace the insurer or the policy document.</p>
+- 361:                         <summary>How does the app handle answers it cannot fully confirm?</summary>
+- 365:                         <summary>What should the user verify before relying on an answer?</summary>
+- 366:                         <p>Any binding or high-stakes decision should be verified with the policy document and the insurer. CoverWise is a helper, not the source of legal truth.</p>
+- 379:                     <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a><br>
+- 405:             const toneClass = tone === "success" ? "status-success" : tone === "error" ? "status-error" : "status-neutral";
+- 52:           "name": "Is CoverWise an insurer or broker?",
+- 55:             "text": "No. CoverWise helps people understand the policy they already have. The policy document and insurer remain the source of truth."
+- 576:                 setStatus(uploadStatus, "Choose a policy PDF or scan first.", "error");
+- 596:                     throw new Error(data.detail || data.message || "Upload failed");
+- 601:             } catch (error) {
+- 602:                 uploadResults.innerHTML = `<div class="status status-error">Could not analyze the policy: ${escapeHtml(error.message)}</div>`;
+- 603:                 setStatus(uploadStatus, `Could not analyze the policy: ${error.message}`, "error");
+- 616:                 queryResults.innerHTML = '<div class="status status-error">Ask a question first.</div>';
+- 636:                     throw new Error(data.detail || data.error || "Query failed");
+- 63:             "text": "You can ask about policy numbers, coverage periods, premiums, exclusions, waiting periods, claim steps, and other details already present in the document."
+- 640:             } catch (error) {
+- 641:                 queryResults.innerHTML = `<div class="status status-error">Could not answer the question: ${escapeHtml(error.message)}</div>`;
+- 71:             "text": "It is explicit about limits, keeps answers grounded in the uploaded document, and reminds users to verify binding decisions with their insurer."
+
+### src/frontend/templates/landing.html
+- 30:         <p>AI-powered insurance document assistant. Read your policies, ask questions, track renewals, file claims.</p>
+- 42:             <p>"What is my coverage?" "What is not covered?" "When does my policy expire?" Get instant answers from your documents.</p>
+- 46:             <h3>Find Coverage Gaps</h3>
+- 56:             <h3>Claims Assistant</h3>
+- 57:             <p>When something happens, get step-by-step claim guidance: what's covered, what documents you need, who to call.</p>
+- 62:             <p>One-tap access to all your policy numbers, insurer helplines, and coverage summaries. When you need it most.</p>
+- 75:         Not insurance advice. Always verify coverage with your insurer.
+- 7:     <meta name="description" content="AI-powered insurance document assistant. Upload your policies, ask questions in plain English, track renewals, find coverage gaps, and get claims guidance.">

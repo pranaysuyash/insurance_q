@@ -37,7 +37,7 @@
 - 3-step conceptual flow (Understand → Ask → Stay Informed) — clear mental model
 - Explicit analytics opt-in (Switch, not dark pattern)
 - Mandatory TOS/Privacy checkbox — legally sound
-- "CoverWise is an information broker, not an insurer" disclaimer — builds trust
+- "CoverWise is a policy information assistant, not an insurer" disclaimer — builds trust
 - Skip intro respects reduced-motion
 
 **Issues:**
@@ -267,7 +267,7 @@ showAccountSection() // Profile, Settings, Help, Privacy
 
 ### Voice attributes (observed):
 - **Direct** — "Turn policy pages into plain answers"
-- **Honest** — "CoverWise is an information broker, not an insurer"
+- **Honest** — "CoverWise is a policy information assistant, not an insurer"
 - **Technical but accessible** — "extraction", "processing", "citations"
 - **Conservative** — no humor, no personality
 

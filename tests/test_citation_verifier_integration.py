@@ -1,5 +1,4 @@
 """Tests for citation verifier with three-tier model (ADR-26, Commit 1)."""
-import pytest
 from src.models.rag import RAGCitation
 from src.services.citation_verifier import (
     verify_citation,

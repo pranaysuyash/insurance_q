@@ -33,7 +33,9 @@ def test_revenuecat_webhook_is_authorized_and_idempotent(tmp_path, monkeypatch):
     app = _app(tmp_path, monkeypatch)
     expiry = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp() * 1000)
     with TestClient(app) as client:
-        unauthorized = client.post("/subscription/webhook", json=_event("e1", "INITIAL_PURCHASE"))
+        unauthorized = client.post(
+            "/subscription/webhook", json=_event("e1", "INITIAL_PURCHASE")
+        )
         assert unauthorized.status_code == 401
 
         headers = {"Authorization": "Bearer rc-test"}
@@ -73,6 +75,43 @@ def test_expiration_overrides_client_sync(tmp_path, monkeypatch):
             headers=headers,
         )
         assert expired.status_code == 200
+    assert expired.json()["is_active"] is False
+
+
+def test_refund_reversal_restores_access_only_through_future_expiry(
+    tmp_path, monkeypatch
+):
+    app = _app(tmp_path, monkeypatch)
+    future_expiry = int(
+        (datetime.now(timezone.utc) + timedelta(days=30)).timestamp() * 1000
+    )
+    past_expiry = int(
+        (datetime.now(timezone.utc) - timedelta(days=1)).timestamp() * 1000
+    )
+    with TestClient(app) as client:
+        headers = {"Authorization": "Bearer rc-test"}
+        restored = client.post(
+            "/subscription/webhook",
+            json=_event(
+                "refund-reversed-future",
+                "REFUND_REVERSED",
+                expiry=future_expiry,
+            ),
+            headers=headers,
+        )
+        expired = client.post(
+            "/subscription/webhook",
+            json=_event(
+                "refund-reversed-past",
+                "REFUND_REVERSED",
+                expiry=past_expiry,
+            ),
+            headers=headers,
+        )
+
+    assert restored.status_code == 200
+    assert restored.json()["is_active"] is True
+    assert expired.status_code == 200
     assert expired.json()["is_active"] is False
 
 
@@ -134,9 +173,7 @@ def test_unknown_non_renewing_product_cannot_downgrade_subscription(
     assert status["is_active"] is True
 
 
-def test_client_sync_does_not_grant_paid_status_without_webhook(
-    tmp_path, monkeypatch
-):
+def test_client_sync_does_not_grant_paid_status_without_webhook(tmp_path, monkeypatch):
     monkeypatch.setattr(subscription, "DB_PATH", str(tmp_path / "billing.db"))
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("BILLING_LEDGER_BACKEND", "sqlite")

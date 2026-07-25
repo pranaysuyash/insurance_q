@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable
+from typing import Awaitable, Callable
 
 from src.models.job_outbox import JobStatus, JobType, OutboxJob
 from src.services.job_outbox_service import JobOutboxService

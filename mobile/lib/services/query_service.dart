@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:async';
+import 'dart:convert';
 import '../config/app_config.dart';
 import 'local_storage_service.dart';
 import 'session_service.dart';
@@ -231,6 +233,9 @@ class QueryService {
       'retrieval_confidence': responseData['retrieval_confidence'],
       'retrieval_strategy': responseData['retrieval_strategy'],
       'embedding_model_used': responseData['embedding_model_used'],
+      // Preserve the server-side four-face result. Dropping this field makes
+      // a fully verified answer render as "Not verified" in the mobile UI.
+      'verification_status': responseData['verification_status'],
       'document_id': documentId,
     };
   }
@@ -277,6 +282,9 @@ class QueryService {
         'retrieval_confidence': result['retrieval_confidence'],
         'retrieval_strategy': result['retrieval_strategy'],
         'embedding_model_used': result['embedding_model_used'],
+        // The wrapped production response carries this inside `result`.
+        // Keep it intact for QaAnswer and AnswerVerificationBadge.
+        'verification_status': result['verification_status'],
         'document_id': documentId,
       };
     }
@@ -349,6 +357,92 @@ class QueryService {
         'ip_uploads': 0,
         'ip_limit': 10,
       };
+    }
+  }
+
+  /// Stream query response from the /query/stream endpoint using SSE.
+  /// Returns a stream of tokens as they arrive from the backend.
+  Stream<String> queryDocumentStream(String query,
+      {String? documentId}) async* {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+      Map<String, dynamic> data = {
+        'query': query,
+        '_cache_buster': timestamp.toString(),
+        'request_id': _uuid.v4(),
+      };
+
+      if (documentId != null) {
+        final backendDocumentId =
+            await _localStorageService.getBackendDocumentId(documentId);
+        if (backendDocumentId == null) {
+          yield '{"error": "document_not_synced"}';
+          return;
+        }
+        data['filters'] = {'document_id': backendDocumentId};
+      }
+
+      final sessionId = await SessionService.getSessionId();
+
+      final response = await _dio.post(
+        '/query/stream',
+        data: data,
+        options: Options(
+          headers: {'X-Session-ID': sessionId},
+          contentType: Headers.jsonContentType,
+          responseType: ResponseType.stream,
+          validateStatus: (status) => true,
+          receiveTimeout: const Duration(seconds: 120),
+        ),
+      );
+
+      if (response.statusCode != 200) {
+        yield '{"error": "Stream request failed with status ${response.statusCode}"}';
+        return;
+      }
+
+      final stream = response.data.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+
+      await for (final line in stream) {
+        if (line.isEmpty) continue;
+        if (line.startsWith('data: ')) {
+          final jsonStr = line.substring(6);
+          try {
+            final json = jsonDecode(jsonStr);
+            if (json is Map<String, dynamic>) {
+              if (json.containsKey('token')) {
+                yield json['token'] as String;
+              } else if (json.containsKey('error')) {
+                yield '{"error": "${json['error']}"}';
+                return;
+              } else if (json['done'] == true) {
+                return;
+              }
+            }
+          } catch (e) {
+            debugPrint('Failed to parse SSE token: $e');
+          }
+        }
+      }
+    } on DioException catch (e) {
+      debugPrint('Stream query error: $e');
+      if (AppConfig.bootstrapPolicyDemo) {
+        yield _demoService.buildLocalPolicyAnswer(query,
+            documentId: documentId)['answer'] ?? '';
+      } else {
+        yield '{"error": "Stream failed"}';
+      }
+    } catch (e) {
+      debugPrint('Stream query unhandled error: $e');
+      if (AppConfig.bootstrapPolicyDemo) {
+        yield _demoService.buildLocalPolicyAnswer(query,
+            documentId: documentId)['answer'] ?? '';
+      } else {
+        yield '{"error": "Stream failed"}';
+      }
     }
   }
 }

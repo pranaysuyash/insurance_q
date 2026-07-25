@@ -1,5 +1,42 @@
 # Reusable project tools
 
+## `verify_local_tenant_isolation.py`
+
+Runs a disposable, local-only BR-05 replay: two synthetic Supabase users,
+canonical document upload, cross-owner API/Storage denial, owner deletion, and
+post-delete absence. It refuses remote URLs and requires local publishable and
+server keys. It is not evidence of deployed RLS, durable-worker deletion, or
+production erasure.
+
+```bash
+python3 tools/verify_local_tenant_isolation.py
+```
+
+## `evaluate_provider_smoke.py`
+
+Runs three synthetic-only checks against an explicitly selected hosted provider:
+structured JSON extraction, refusal to invent an absent field, and source-ID
+grounding. It never reads the CoverWise policy corpus and records only
+sanitized outcome categories, timings, and model metadata. Use it before a
+provider is admitted to a governed corpus evaluation.
+
+```bash
+python tools/evaluate_provider_smoke.py --provider openai \
+  --output docs/review/evidence/provider-smoke/openai-synthetic.json
+```
+
+For an approved credential held in another project, pass its dotenv path
+explicitly. The file is parsed without being sourced or printed:
+
+```bash
+python tools/evaluate_provider_smoke.py --provider openrouter \
+  --dotenv /Users/pranay/Projects/orbitcover-d2c/.env \
+  --output docs/review/evidence/provider-smoke/openrouter-synthetic.json
+```
+
+This is an API-contract smoke test, not an insurance-accuracy, mobile-device,
+privacy, or production-readiness evaluation.
+
 ## `validate_production_config.py`
 
 Checks the canonical Cloud Run + Supabase launch configuration without exposing
@@ -30,8 +67,10 @@ uv run --python .venv/bin/python python tools/validate_production_config.py \
 ## `build_mobile_release.sh`
 
 Builds the Android App Bundle only after explicit public release configuration
-is supplied; it runs mobile analysis and tests first. It does not accept server
-secrets.
+is supplied; it runs legal-asset, mobile analysis, and test checks first. It
+does not accept server secrets. The legal preflight rejects unresolved legal
+placeholders and packaged/publishable-document drift; it is intentionally a
+release block until counsel or the accountable owner finalizes the terms.
 
 ```bash
 COVERWISE_API_BASE_URL=https://api.example.com \
@@ -48,7 +87,104 @@ tools/build_mobile_release.sh
 Replace every example value with a live production value. The script rejects
 the placeholders shown above and rejects RevenueCat secret (`sk_`) and OAuth
 (`atk_`) credentials; only the public SDK key for the Android app belongs in a
-mobile build.
+mobile build. Before running Flutter, it also checks that the configured HTTPS
+Privacy and Terms pages serve the exact approved legal sources.
+
+## `validate_legal_release_assets.py`
+
+Checks that the versioned legal sources match the Flutter-packaged copies and
+contain no known unresolved legal placeholders. It is called by the mobile
+release build, and may be run independently:
+
+```bash
+python tools/validate_legal_release_assets.py
+```
+
+## `verify_hosted_legal_documents.py`
+
+Fetches the configured HTTPS Privacy and Terms URLs and verifies that each page
+returns a `no-store` response whose page and header SHA-256, plus decoded
+content, match the canonical `docs/legal/` source. It limits each response to
+1 MB and does not send credentials or customer data. Run it after a
+non-production or production-like deployment; unresolved legal placeholders
+still block release before this check can pass.
+
+```bash
+.venv/bin/python tools/verify_hosted_legal_documents.py \
+  --privacy-url https://www.example.com/privacy \
+  --terms-url https://www.example.com/terms
+```
+
+## `run_tracked_source_secret_scan.sh`
+
+Scans tracked release-relevant source plus untracked, non-ignored source under
+review with Gitleaks. It deliberately excludes ignored local state, generated
+artifacts, documentation examples, and test fixtures so a local `.env` or a
+vendor build cannot be mistaken for a release-source result. It redacts any
+match and returns non-zero on a finding.
+
+```bash
+tools/run_tracked_source_secret_scan.sh
+```
+
+## `run_supply_chain_audit.sh`
+
+Runs the direct, pinned production-dependency vulnerability scan and the
+tracked release-source Gitleaks scan. The dependency result covers declared
+production pins; it does not replace a fully resolved, hash-locked transitive
+dependency audit.
+
+```bash
+tools/run_supply_chain_audit.sh
+```
+
+## `generate_production_sbom.sh`
+
+Generates a CycloneDX JSON component inventory from the canonical Linux x86_64
+production lock. It intentionally does **not** turn a vulnerability finding
+into a passing audit: if findings exist, it still emits the valid SBOM and
+prints a warning so the inventory can be retained with the release evidence.
+It refuses to overwrite an existing file.
+
+```bash
+bash tools/generate_production_sbom.sh /secure/release-evidence/coverwise-production-sbom.json
+```
+
+The generated SBOM is a review artifact, not publication, image provenance, or
+container-scan proof. Publish/sign only after the remaining locked-graph and
+container-image gates are resolved.
+
+## `extract_locked_license_metadata.py`
+
+Builds a licence-review candidate from the pinned packages in the canonical
+production lock and the published package metadata in the interpreter used to
+run it. It refuses to overwrite an existing report and labels missing
+packages, version mismatches, and the absence of legal approval explicitly.
+It does not infer SPDX expressions, approve a licence policy, or publish an
+SBOM.
+
+```bash
+.venv/bin/python tools/extract_locked_license_metadata.py \
+  --lock requirements-production-ocr-linux-x86_64.lock \
+  --output /secure/release-evidence/coverwise-license-metadata.json
+```
+
+## `requirements-production-ocr-linux-x86_64.lock`
+
+The Docker release image installs this generated, hash-locked Linux x86_64
+profile, including the CPU Torch wheels. Regenerate it only after reviewing a
+source dependency change:
+
+```bash
+uv pip compile requirements-production-ocr.txt \
+  --generate-hashes \
+  --python-platform x86_64-manylinux_2_17 \
+  --torch-backend cpu \
+  --output-file requirements-production-ocr-linux-x86_64.lock
+```
+
+CI recompiles and compares the lock. It is intentionally not a macOS or ARM
+lock; the production OCR image is Linux x86_64 by contract.
 
 ## `deploy_cloud_run.sh`
 
@@ -59,7 +195,8 @@ Secret Manager and are referenced by secret name.
 
 The runtime env file must contain only non-secret production configuration,
 including `ENVIRONMENT=production`, the four selected Supabase backends,
-`SUPABASE_URL`, `ALLOWED_ORIGINS`, and `PUBLIC_SITE_URL`.
+`SUPABASE_URL`, `ALLOWED_ORIGINS`, `PUBLIC_SITE_URL`, and hostname-only
+`ALLOWED_HOSTS`.
 
 ```bash
 COVERWISE_GCP_PROJECT=your-project \
@@ -111,10 +248,20 @@ It fails when `/health` reports degraded RAG or document processing, so a
 deployment with an invalid provider credential cannot be called launch-ready.
 It neither uploads policy data nor prints bearer tokens.
 
+For ASYNC-01 durable-work evidence, require the internal worker listener as
+well. `--require-worker` prevents an API-only pass from being treated as worker
+health or recovery proof.
+
 ```bash
 uv run --python .venv/bin/python python tools/verify_deployed_launch.py \
   --base-url https://api.example.com \
   --origin https://www.example.com
+
+# Required for durable-worker/recovery evidence (ASYNC-01):
+uv run --python .venv/bin/python python tools/verify_deployed_launch.py \
+  --base-url https://api.example.com \
+  --worker-url https://coverwise-outbox-worker.internal.example.com \
+  --require-worker
 
 # Optional stronger owner-isolation probe (creates two anonymous identities):
 uv run --python .venv/bin/python python tools/verify_deployed_launch.py \
@@ -236,9 +383,13 @@ run automatically from API startup.
 
 ```bash
 uv run --python .venv/bin/python python tools/run_data_retention.py \
-  --analytics-retention-days 365 \
+  --analytics-retention-days 30 \
   --artifact-limit 100
 ```
+
+The safe fallback is 30 days, matching the published privacy policy. Any
+`ANALYTICS_RETENTION_DAYS` deployment override is a privacy-policy change and
+requires product and legal review before release.
 
 ## `verify_supabase_schema.py`
 
@@ -257,12 +408,25 @@ Runs a local-only, synthetic guest-to-account acceptance check through local
 Supabase Auth and the running API. It creates a temporary `example.com`
 account, verifies anonymous identity creation, claims the guest workspace, and
 checks the account profile before deleting the temporary Auth user. It never
-uploads a document or prints tokens.
+uploads a document or prints tokens, and refuses non-local Supabase **and**
+API URLs before issuing any request.
 
 ```bash
 set -a; . ./.env; set +a
 SUPABASE_URL=http://127.0.0.1:54321 \
 SUPABASE_PUBLISHABLE_KEY="$(supabase status -o env | awk -F= '/^ANON_KEY=/{print $2}' | tr -d '\"')" \
-SUPABASE_SECRET_KEY="$(supabase status -o env | awk -F= '/^SERVICE_ROLE_KEY=/{print $2}' | tr -d '\"')" \
+SUPABASE_SERVICE_ROLE_KEY="$(supabase status -o env | awk -F= '/^SERVICE_ROLE_KEY=/{print $2}' | tr -d '\"')" \
 uv run --python .venv/bin/python python tools/verify_local_identity_claim.py --api-url http://127.0.0.1:8005
+```
+
+## `check_buyer_readiness_prereqs.sh`
+
+Runs a one-command BR-04/BR-05 unblock check:
+
+- verifies docker daemon connectivity,
+- verifies required env vars are set,
+- probes Supabase REST and API `/healthz` when endpoints are set.
+
+```bash
+./tools/check_buyer_readiness_prereqs.sh
 ```

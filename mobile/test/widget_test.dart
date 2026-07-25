@@ -66,7 +66,7 @@ void main() {
     // Verify that our app loads with the navigation bar
     // Home appears in both the page header and navigation destination.
     expect(find.text('Home'), findsWidgets);
-    expect(find.text('Documents'), findsOneWidget);
+    expect(find.text('Policies'), findsOneWidget);
     expect(find.text('Ask'), findsOneWidget);
   });
 }

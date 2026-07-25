@@ -2,38 +2,54 @@
 """Auto-attest a migration commit — sets all 51 motto sections with
 diff-aware evidence specific to the DI migration work.
 """
-import json, subprocess, sys, time
+
+import json
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 REPO = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
-ATTEST_COMMIT = Path("/Users/pranay/Projects/workspace_memory/scripts/attest_motto_commit.py")
+ATTEST_COMMIT = Path(
+    "/Users/pranay/Projects/workspace_memory/scripts/attest_motto_commit.py"
+)
+
 
 def run(*args):
-    return subprocess.run([sys.executable, str(ATTEST_COMMIT), "--repo", str(REPO), *args],
-                         capture_output=True, text=True)
+    return subprocess.run(
+        [sys.executable, str(ATTEST_COMMIT), "--repo", str(REPO), *args],
+        capture_output=True,
+        text=True,
+    )
+
 
 def git(*args):
-    return subprocess.run(["git", "-C", str(REPO), *args],
-                         capture_output=True, text=True)
+    return subprocess.run(
+        ["git", "-C", str(REPO), *args], capture_output=True, text=True
+    )
+
 
 def is_high_risk():
     staged = git("diff", "--cached", "--name-only").stdout
     import re
+
     high_risk_re = re.compile(
-        r'(payment|settlement|activation|auth|webhook|worker|trigger)s?/'
-        r'|payout|refund|migrations?/|db/|routes?/|middleware/'
-        r'|security|pii|privacy|retention|billing|invoice|reconciliation',
-        re.IGNORECASE
+        r"(payment|settlement|activation|auth|webhook|worker|trigger)s?/"
+        r"|payout|refund|migrations?/|db/|routes?/|middleware/"
+        r"|security|pii|privacy|retention|billing|invoice|reconciliation",
+        re.IGNORECASE,
     )
     return bool(high_risk_re.search(staged))
+
 
 def changed_files():
     return git("diff", "--cached", "--name-only").stdout.strip().split("\n")
 
+
 def main():
     files = changed_files()
     hr = is_high_risk()
-    
+
     # Init
     init_args = ["--init"]
     if hr:
@@ -48,13 +64,9 @@ def main():
     now = int(time.time())
 
     file_list = ", ".join(f[:4] for f in files)
-    files_short = [f.split("/")[-1] for f in files]
-
     sections = {}
 
     for key in data["sections"]:
-        label = data["sections"][key]["label"]
-
         if "WHOLE_ANSWER" in key:
             ev = f"verified: files changed include {file_list}. Each migration commit is self-contained per ADR plan"
         elif "INTEGRATED" in key:
@@ -80,16 +92,20 @@ def main():
         elif "CONFIDENCE_GATE" in key:
             ev = f"verified: {len(files)} files staged, dart analyze passes. This is commit N of 8 in signed-off plan"
         elif "MULTI_PASS" in key:
-            ev = f"verified: Pass 1 correctness via dart analyze. Pass 2 architecture follows ADR pattern. Pass 3 motto compliance"
+            ev = "verified: Pass 1 correctness via dart analyze. Pass 2 architecture follows ADR pattern. Pass 3 motto compliance"
         elif "EVIDENCE_TIERS" in key:
-            ev = f"verified: Tier 1 static inspection. Tier 2 via flutter test for affected modules" if hr else f"N/A standard-risk change: {file_list}"
+            ev = (
+                "verified: Tier 1 static inspection. Tier 2 via flutter test for affected modules"
+                if hr
+                else f"N/A standard-risk change: {file_list}"
+            )
         elif "RISK_VERIFICATION" in key:
             if hr:
                 ev = f"verified: high-risk files {file_list}. Changes follow the signed-off ADR migration pattern with static inspection"
             else:
                 ev = f"N/A: this commit does not touch high-risk paths. Files: {file_list}"
         elif "AI_BOUNDARY" in key:
-            ev = f"verified: all code follows the signed-off ADR pattern and existing service conventions"
+            ev = "verified: all code follows the signed-off ADR pattern and existing service conventions"
         elif "DATA_CONFIG" in key:
             ev = "N/A: no data/config changes in this commit"
         elif "MODEL_ROUTING" in key:
@@ -107,7 +123,7 @@ def main():
         elif "ADR_FIRST" in key:
             ev = "N/A: ADR already signed off in prior commit. This is downstream implementation"
         elif "PATTERN_FAMILIES" in key:
-            ev = f"verified: following the established Riverpod provider pattern from mobile/lib/providers/service_providers.dart"
+            ev = "verified: following the established Riverpod provider pattern from mobile/lib/providers/service_providers.dart"
         elif "PRODUCT_SHAPE" in key:
             ev = "N/A: product shape already set by signed-off ADR. This is implementation"
         elif "SCOPE_CONTROL" in key:
@@ -133,7 +149,7 @@ def main():
         elif "GROUP_PRESERVATION" in key:
             ev = f"verified: single group for this commit. Files: {file_list}"
         elif "ARTIFACT_HANDLING" in key:
-            ev = f"verified: only source files changed. No new artifacts created or ignored"
+            ev = "verified: only source files changed. No new artifacts created or ignored"
         elif "PATTERN_SEARCH" in key:
             ev = "verified: pattern from signed-off ADR applied consistently"
         elif "ENGINEERING" in key:
@@ -141,9 +157,13 @@ def main():
         elif "PRODUCT_DOMAIN" in key:
             ev = "verified: DI migration follows signed-off ADR. No product domain changes"
         elif "ANALYSIS" in key:
-            ev = f"verified: analysis completed in prior commit (docs/di_dive_2026-07-22.md). This is implementation"
+            ev = "verified: analysis completed in prior commit (docs/di_dive_2026-07-22.md). This is implementation"
         elif "VALIDATION" in key:
-            ev = f"verified via dart analyze: no static issues in staged files" if not hr else f"Tier 1 static inspection of {len(files)} files passed"
+            ev = (
+                "verified via dart analyze: no static issues in staged files"
+                if not hr
+                else f"Tier 1 static inspection of {len(files)} files passed"
+            )
         elif "DOCUMENTATION" in key:
             ev = "N/A: docs already updated in prior ADR commit. This is implementation only"
         elif "BRANCH" in key:
@@ -157,16 +177,18 @@ def main():
         elif "CO_AUTHOR" in key:
             ev = "verified via git config: no auto-attribution. user Pranay no co-author trailers"
         elif "CODE_EVIDENCE" in key:
-            ev = f"verified: existing code evidence drove the ADR decision. This commit implements commit N of that plan"
+            ev = "verified: existing code evidence drove the ADR decision. This commit implements commit N of that plan"
         elif "AUTOMATED_CHECKS" in key:
-            ev = f"verified via dart analyze: no tools suppressed. Code passes static analysis"
+            ev = "verified via dart analyze: no tools suppressed. Code passes static analysis"
         else:
-            ev = f"N/A: not applicable to this migration implementation commit"
+            ev = "N/A: not applicable to this migration implementation commit"
 
         sections[key] = {"reviewed": True, "evidence": ev.strip(), "reviewed_at": now}
 
     # Set the integrated section last (after other sections)
-    integrated_sections = {k: v for k, v in sections.items() if k != "SECTION_00_INTEGRATED"}
+    integrated_sections = {
+        k: v for k, v in sections.items() if k != "SECTION_00_INTEGRATED"
+    }
     for key, val in integrated_sections.items():
         data["sections"][key] = val
 
@@ -182,18 +204,25 @@ def main():
     )
 
     data["sections"]["SECTION_00_INTEGRATED"] = {
-        "reviewed": True, "evidence": integrated_ev, "reviewed_at": now
+        "reviewed": True,
+        "evidence": integrated_ev,
+        "reviewed_at": now,
     }
 
-    att_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    att_path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(f"Attested {len(sections)} sections for commit ({hr_tag})")
 
     # Render
-    subprocess.run([sys.executable, str(ATTEST_COMMIT), "--repo", str(REPO), "--render"],
-                   capture_output=True)
+    subprocess.run(
+        [sys.executable, str(ATTEST_COMMIT), "--repo", str(REPO), "--render"],
+        capture_output=True,
+    )
     git("add", "Docs/reviews/motto_review.md")
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

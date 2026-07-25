@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
@@ -12,6 +15,7 @@ import '../models/document_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/document_providers.dart';
 import '../providers/entitlement_provider.dart';
+import '../providers/family_providers.dart';
 import '../config/app_config.dart';
 import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
@@ -243,6 +247,60 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _exportAccountData(BuildContext context) async {
+    if (!AuthService.hasAccountSession) {
+      CoverWiseSnackBar.info(context, S.profileCreateAccountFirst);
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.ios_share_rounded),
+        title: const Text('Export account data?'),
+        content: const Text(
+          'This export includes account and policy metadata. It may include '
+          'short-lived links to your private source files. Share it only with '
+          'a destination you trust.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(S.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final export = await AuthService.exportAccount();
+      final json = const JsonEncoder.withIndent('  ').convert(export);
+      if (!mounted) return;
+      await SharePlus.instance.share(
+        ShareParams(
+          text: json,
+          subject: 'CoverWise account export',
+        ),
+      );
+      if (!mounted) return;
+      CoverWiseSnackBar.success(
+        this.context,
+        'Account export is ready to share.',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      CoverWiseSnackBar.error(
+        this.context,
+        AppError.contextual(error: error, operation: 'account_export'),
+        operation: 'export account data',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final accountUser = ref.watch(currentUserProvider);
@@ -335,6 +393,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const Divider(indent: 74),
               CoverWiseActionRow(
+                icon: Icons.ios_share_rounded,
+                color: CoverWiseColors.blue,
+                title: 'Export account data',
+                subtitle: accountUser != null
+                    ? 'Download account metadata and available source links'
+                    : 'Create an account to export server-held data',
+                onTap: () => _exportAccountData(context),
+              ),
+              const Divider(indent: 74),
+              CoverWiseActionRow(
                 icon: Icons.key_rounded,
                 color: const Color(0xFF7557D3),
                 title: S.profileSecureSession,
@@ -369,8 +437,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         : 'System default',
                 trailing: const SizedBox.shrink(),
                 onTap: null,
-              ),
-            ]),
+),
+              ],
+            ),
+          ),
+          CoverWiseSectionLabel(S.profileFamilySection),
+          CoverWiseSurface(
+            child: _FamilySection(documents: documents),
           ),
           CoverWiseSectionLabel(S.profilePrivacySection),
           CoverWiseSurface(
@@ -409,6 +482,77 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FamilySection extends ConsumerWidget {
+  final List<InsuranceDocument> documents;
+  const _FamilySection({required this.documents});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final familyAsync = ref.watch(mergedFamilyMembersProvider(documents));
+
+    return familyAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('Error loading family: $e'),
+      ),
+      data: (policyHolders) {
+        if (policyHolders.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CoverWiseIconBadge(
+                  icon: Icons.family_restroom_rounded,
+                  color: const Color(0xFF16866B),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Family',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'No family members detected yet',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => Navigator.pushNamed(context, '/family'),
+                  child: const Text('Add family member'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            CoverWiseActionRow(
+              icon: Icons.family_restroom_rounded,
+              color: const Color(0xFF16866B),
+              title: 'Family members',
+              subtitle: '${policyHolders.length} people across your policies',
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.pushNamed(context, '/family'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

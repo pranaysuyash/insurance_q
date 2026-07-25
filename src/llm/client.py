@@ -4,6 +4,7 @@ from typing import Optional, AsyncGenerator
 from dataclasses import dataclass, field
 from openai import AsyncOpenAI
 from src.config.settings import settings
+from src.security.prompt_injection import SECURITY_SYSTEM_INSTRUCTION
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ class UsageRecord:
     output_tokens: int
     input_cost: float
     output_cost: float
+    cached_input_tokens: int = 0
 
     @property
     def total_cost(self) -> float:
@@ -78,11 +80,15 @@ class CostTracker:
         model: str,
         input_tokens: int,
         output_tokens: int,
+        cached_input_tokens: int = 0,
     ):
         pricing = MODEL_PRICING.get(model, {"input": 0.0, "output": 0.0})
         input_cost = (input_tokens / 1_000_000) * pricing["input"]
         output_cost = (output_tokens / 1_000_000) * pricing["output"]
-        rec = UsageRecord(model, input_tokens, output_tokens, input_cost, output_cost)
+        rec = UsageRecord(
+            model, input_tokens, output_tokens, input_cost, output_cost,
+            cached_input_tokens=max(0, cached_input_tokens),
+        )
         self.records.append(rec)
         self._total_input_tokens += input_tokens
         self._total_output_tokens += output_tokens
@@ -95,6 +101,7 @@ class CostTracker:
             "total_output_tokens": self._total_output_tokens,
             "total_cost": round(self._total_cost, 6),
             "total_calls": len(self.records),
+            "cached_input_tokens": sum(record.cached_input_tokens for record in self.records),
         }
 
 
@@ -150,6 +157,19 @@ class LLMClient:
             )
         return self._mlx_client
 
+    @staticmethod
+    def _harden_messages(messages: list[dict]) -> list[dict]:
+        """Add the shared security boundary without mutating caller messages."""
+        hardened = [dict(message) for message in messages]
+        for index, message in enumerate(hardened):
+            if message.get("role") == "system":
+                hardened[index] = {
+                    **message,
+                    "content": f"{SECURITY_SYSTEM_INSTRUCTION}\n\n{message.get('content', '')}",
+                }
+                return hardened
+        return [{"role": "system", "content": SECURITY_SYSTEM_INSTRUCTION}, *hardened]
+
     def _is_permanent_error(self, error: Exception) -> bool:
         err_str = str(error).lower()
         return any(k in err_str for k in ["insufficient_quota", "quota", "invalid_api_key", "invalid_api_key"])
@@ -201,6 +221,7 @@ class LLMClient:
         max_retries: int = 3,
         fallback_models: Optional[list[str]] = None,
     ) -> str:
+        messages = self._harden_messages(messages)
         models_to_try = []
         if self.client is not None:
             models_to_try.append(self.model)
@@ -262,7 +283,6 @@ class LLMClient:
                             kwargs["max_tokens"] = max_tokens
                     if adapted_rf is not None:
                         kwargs["response_format"] = adapted_rf
-
                     async with self._semaphore:
                         try:
                             response = await client.chat.completions.create(**kwargs)
@@ -271,19 +291,31 @@ class LLMClient:
                             # GPT-5 parameter name at the client boundary.
                             # Retry once with their legacy spelling; modern
                             # SDKs/providers keep the first request unchanged.
-                            if "max_completion_tokens" not in str(error):
+                            if "max_completion_tokens" in str(error):
+                                kwargs.pop("max_completion_tokens", None)
+                                kwargs["max_tokens"] = max_tokens
+                                response = await client.chat.completions.create(**kwargs)
+                            else:
                                 raise
-                            kwargs.pop("max_completion_tokens", None)
-                            kwargs["max_tokens"] = max_tokens
-                            response = await client.chat.completions.create(**kwargs)
 
                     usage = response.usage
                     if usage:
+                        cached_tokens = getattr(
+                            getattr(usage, "prompt_tokens_details", None),
+                            "cached_tokens",
+                            0,
+                        ) or 0
                         self.cost_tracker.record(
                             model=model,
                             input_tokens=usage.prompt_tokens,
                             output_tokens=usage.completion_tokens,
+                            cached_input_tokens=cached_tokens,
                         )
+                        if cached_tokens:
+                            logger.info(
+                                "LLM prompt cache hit: model=%s cached_input_tokens=%d",
+                                model, cached_tokens,
+                            )
 
                     if model != self.model:
                         logger.info("LLM fallback: %s → %s", self.model, model)
@@ -316,6 +348,7 @@ class LLMClient:
         fallback_models: Optional[list[str]] = None,
     ) -> AsyncGenerator[str, None]:
         """Generate streaming response - yields tokens as they arrive."""
+        messages = self._harden_messages(messages)
         models_to_try = []
         if self.client is not None:
             models_to_try.append(self.model)
@@ -367,7 +400,6 @@ class LLMClient:
                             kwargs["max_completion_tokens"] = max_tokens
                         else:
                             kwargs["max_tokens"] = max_tokens
-
                     async with self._semaphore:
                         stream = await client.chat.completions.create(**kwargs)
 

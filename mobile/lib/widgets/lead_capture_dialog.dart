@@ -91,7 +91,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
           children: [
             if (!widget.isRequired)
               const Text(
-                'CoverWise needs your permission to securely store and analyze this policy. Contact details are optional and stay on this device unless you later choose to share them.',
+                'CoverWise needs your permission to store and analyze this policy. Contact details are optional; how they are handled is described in the Privacy Policy.',
                 style: TextStyle(fontSize: 14),
               )
             else
@@ -125,7 +125,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
             ),
             const SizedBox(height: 16),
             CheckboxListTile(
-              title: const Text('I agree to secure policy processing'),
+              title: const Text('I agree to policy processing'),
               subtitle: TextButton(
                 onPressed: AppConfig.hasPrivacyPolicy
                     ? () => launchUrl(

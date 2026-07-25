@@ -360,7 +360,8 @@ def test_link_field_evidence_rejects_empty_cite_string():
 def test_get_field_citations_returns_empty_on_no_rows():
     svc = _service_with_mocked_client()
     svc._client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
-    import uuid, asyncio
+    import asyncio
+    import uuid
     result = asyncio.run(svc.get_field_citations(uuid.uuid4()))
     assert result == []
 
@@ -381,7 +382,8 @@ def test_get_field_citations_parses_pydantic_models():
         "page_sha256": "0" * 64,
     }
     svc._client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [raw_row]
-    import uuid, asyncio
+    import asyncio
+    import uuid
     result = asyncio.run(svc.get_field_citations(uuid.uuid4()))
     assert len(result) == 1
     cite = result[0]
@@ -399,7 +401,8 @@ def test_get_field_citations_filters_by_field_names():
     chain = MagicMock()
     chain.execute.return_value.data = []
     svc._client.table.return_value.select.return_value.eq.return_value.in_.return_value = chain
-    import uuid, asyncio
+    import asyncio
+    import uuid
     result = asyncio.run(
         svc.get_field_citations(uuid.uuid4(), field_names=["sum_insured"])
     )
@@ -409,6 +412,227 @@ def test_get_field_citations_filters_by_field_names():
 
 
 # --- 7. PageArtifact roundtrip ---
+
+# --- 8. is_substrate_backed (ADR-2026-07-19-09 Face 1) ---
+
+def test_is_substrate_backed_returns_true_all_conditions_met():
+    """Happy path: all 5 conditions pass."""
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+    field_id = uuid.uuid4()
+
+    def table_side_effect(name):
+        mock = MagicMock()
+        if name == "extracted_fields":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"id": str(field_id), "document_id": "doc-1",
+                 "parser_version": "coverwise.document-intelligence.v1"},
+            ]
+        elif name == "documents":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"owner_id": "principal-1"},
+            ]
+        elif name == "field_evidence":
+            mock.select.return_value.eq.return_value.execute.return_value.data = [
+                {"evidence_strength": 0.85},
+            ]
+        return mock
+
+    client.table.side_effect = table_side_effect
+
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+    result = asyncio.run(svc.is_substrate_backed(field_id, "principal-1"))
+    assert result is True
+
+
+def test_is_substrate_backed_returns_false_field_not_found():
+    """Condition 1 fails: field does not exist in extracted_fields."""
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+    field_id = uuid.uuid4()
+
+    def table_side_effect(name):
+        mock = MagicMock()
+        if name == "extracted_fields":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+        return mock
+
+    client.table.side_effect = table_side_effect
+
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+    result = asyncio.run(svc.is_substrate_backed(field_id, "principal-1"))
+    assert result is False
+
+
+def test_is_substrate_backed_returns_false_parser_version_mismatch():
+    """Condition 3 fails: parser_version does not match current."""
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+
+    def table_side_effect(name):
+        mock = MagicMock()
+        if name == "extracted_fields":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"id": str(uuid.uuid4()), "document_id": "doc-1",
+                 "parser_version": "deprecated-v0"},
+            ]
+        return mock
+
+    client.table.side_effect = table_side_effect
+
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+    result = asyncio.run(svc.is_substrate_backed(uuid.uuid4(), "principal-1"))
+    assert result is False
+
+
+def test_is_substrate_backed_returns_false_owner_mismatch():
+    """Condition 4 fails: document owner does not match principal."""
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+
+    def table_side_effect(name):
+        mock = MagicMock()
+        if name == "extracted_fields":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"id": str(uuid.uuid4()), "document_id": "doc-1",
+                 "parser_version": "coverwise.document-intelligence.v1"},
+            ]
+        elif name == "documents":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"owner_id": "other-principal"},
+            ]
+        return mock
+
+    client.table.side_effect = table_side_effect
+
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+    result = asyncio.run(svc.is_substrate_backed(uuid.uuid4(), "principal-1"))
+    assert result is False
+
+
+def test_is_substrate_backed_returns_false_no_field_evidence():
+    """Condition 5 fails: no linked field_evidence rows."""
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+
+    def table_side_effect(name):
+        mock = MagicMock()
+        if name == "extracted_fields":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"id": str(uuid.uuid4()), "document_id": "doc-1",
+                 "parser_version": "coverwise.document-intelligence.v1"},
+            ]
+        elif name == "documents":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"owner_id": "principal-1"},
+            ]
+        elif name == "field_evidence":
+            mock.select.return_value.eq.return_value.execute.return_value.data = []
+        return mock
+
+    client.table.side_effect = table_side_effect
+
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+    result = asyncio.run(svc.is_substrate_backed(uuid.uuid4(), "principal-1"))
+    assert result is False
+
+
+def test_is_substrate_backed_returns_false_evidence_strength_below_threshold():
+    """Condition 2 fails: evidence_strength < 0.7."""
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+
+    def table_side_effect(name):
+        mock = MagicMock()
+        if name == "extracted_fields":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"id": str(uuid.uuid4()), "document_id": "doc-1",
+                 "parser_version": "coverwise.document-intelligence.v1"},
+            ]
+        elif name == "documents":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"owner_id": "principal-1"},
+            ]
+        elif name == "field_evidence":
+            mock.select.return_value.eq.return_value.execute.return_value.data = [
+                {"evidence_strength": 0.5},
+            ]
+        return mock
+
+    client.table.side_effect = table_side_effect
+
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+    result = asyncio.run(svc.is_substrate_backed(uuid.uuid4(), "principal-1"))
+    assert result is False
+
+
+def test_is_substrate_backed_returns_false_document_not_found():
+    """Condition 4 (sub-check): the document itself is missing."""
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+
+    def table_side_effect(name):
+        mock = MagicMock()
+        if name == "extracted_fields":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"id": str(uuid.uuid4()), "document_id": "doc-missing",
+                 "parser_version": "coverwise.document-intelligence.v1"},
+            ]
+        elif name == "documents":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+        return mock
+
+    client.table.side_effect = table_side_effect
+
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+    result = asyncio.run(svc.is_substrate_backed(uuid.uuid4(), "principal-1"))
+    assert result is False
+
+
+def test_is_substrate_backed_accepts_exact_threshold():
+    """evidence_strength exactly at 0.7 should be accepted."""
+    import asyncio
+    import uuid
+
+    client = MagicMock()
+
+    def table_side_effect(name):
+        mock = MagicMock()
+        if name == "extracted_fields":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"id": str(uuid.uuid4()), "document_id": "doc-1",
+                 "parser_version": "coverwise.document-intelligence.v1"},
+            ]
+        elif name == "documents":
+            mock.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+                {"owner_id": "principal-1"},
+            ]
+        elif name == "field_evidence":
+            mock.select.return_value.eq.return_value.execute.return_value.data = [
+                {"evidence_strength": 0.7},
+            ]
+        return mock
+
+    client.table.side_effect = table_side_effect
+
+    svc = EvidenceSubstrateService("https://x.supabase.co", "test-key", client=client)
+    result = asyncio.run(svc.is_substrate_backed(uuid.uuid4(), "principal-1"))
+    assert result is True
+
 
 def test_page_artifact_parses_iso_datetime():
     """Pydantic must accept the Supabase-returned ISO datetime."""

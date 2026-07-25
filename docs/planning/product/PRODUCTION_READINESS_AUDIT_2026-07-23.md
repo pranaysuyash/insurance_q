@@ -283,3 +283,153 @@ Place it in `MainNavigation.build()` as a `Column` wrapping the `IndexedStack` +
 | Date | Change |
 |------|--------|
 | 2026-07-23 | Initial audit. 6 audits, composite score 5.0/10. 5 P0/P1 items for Phase 1. |
+
+## Addendum (2026-07-23) — implementation reconciliation
+
+The initial resilience findings were written before the latest mobile changes
+were committed. Current code now includes Sentry startup wiring, a backend
+health provider/banner, and the offline banner. Those items still require
+runtime/device evidence before they can be treated as launch proof.
+
+The renewal-reminder path was not complete: `NotificationService` displayed
+notifications immediately with `show()` and did not initialize the device
+timezone. The implementation now builds a testable reminder plan and uses
+timezone-aware `zonedSchedule()` with inexact Android scheduling. Reminder
+delivery remains a device-runtime check, not a unit-test claim.
+
+**Anything else?** Yes: the audit and TODO remain stale for several broader
+launch claims. The next reconciliation pass must distinguish code existence
+from integration/runtime/production evidence and must address unsupported
+customer-facing coverage claims before public release.
+
+## Addendum (2026-07-24) — Regression gate closure for current tranche
+
+The current worktree was re-verified after parallel auth, QA, claims, More
+screen, RAG, and answer-verification changes:
+
+- Flutter full suite: **1,028 passed**.
+- Python full suite: **532 passed, 1 skipped, 47 warnings**.
+- Answer verifier and RAG pipeline focused checks: passed.
+- `flutter analyze`: no compile errors; 12 existing warnings/info remain in
+  test utilities and benchmarks.
+- `git diff --check`: passed.
+
+The earlier full-mobile failure was a real syntax error in the in-flight More
+screen and is now fixed; the repaired screen smoke test passes. Parallel work
+was preserved. These results establish Tier 2 regression evidence, not Tier 3
+authenticated-flow or Tier 4 device evidence. Deployed provider health,
+representative-document extraction, authenticated provenance flow, and actual
+device notification delivery remain launch gates.
+
+### Anything else?
+
+The next implementation pass should close the highest-risk runtime gates in
+this order: authenticated upload-to-citation flow, notification delivery and
+quiet-hours behavior on a supported device, deployed service/provider health,
+then representative-corpus evidence for the answer and policy-extraction
+contracts.
+
+## Addendum (2026-07-24) — Test skip and warning classification
+
+The full Python run was repeated with `-ra`:
+
+- **Skipped:** `tests/test_azure_api.py:20` — deployed-service integration is
+  opt-in and requires `COVERWISE_INTEGRATION_BASE_URL`. It is a missing Tier 3
+  environment gate, not a product test failure. The related mutating upload
+  test also requires `COVERWISE_RUN_MUTATING_INTEGRATION=1` when that suite is
+  enabled.
+- **47 warnings:** all are dependency deprecation warnings:
+  - 36 from `httpx`'s deprecated `app` shortcut;
+  - 4 from Supabase client's deprecated `timeout`/`verify` parameters;
+  - 6 from `httpx`'s deprecated `content=` upload path;
+  - 1 from `defusedxml.cElementTree`.
+
+No warning is an assertion failure or a swallowed application exception. The
+cleanup path is dependency/API migration with regression checks, not warning
+suppression. The Azure skip remains an explicit deployed integration gate.
+
+### Anything else?
+
+The next runtime execution should supply `COVERWISE_INTEGRATION_BASE_URL` and
+run the non-mutating deployed checks first. Mutating Azure upload coverage
+requires explicit environment authorization and representative test data.
+
+## Addendum (2026-07-24) — Deprecation closure pass
+
+The first deprecation-closure slice is now implemented and verified:
+
+- FastAPI/Starlette and HTTPX moved to the supported TestClient boundary.
+- Supabase client construction now injects the supported HTTPX client through
+  one canonical helper instead of forwarding deprecated PostgREST keywords.
+- Qdrant Client moved to `1.18.0`, removing the deprecated raw `data=` request
+  path observed in the RAG health test.
+- The native-text OCR path no longer initializes docTR; docTR `1.0.1` is
+  loaded only for scanned-image OCR. Its upstream `defusedxml` warning is
+  isolated to that optional import because no maintained upstream fix exists
+  in the current release.
+- The remaining Azure skip is unchanged and still requires deployed-service
+  credentials; it is not a deprecation warning.
+
+Verification after the pass: 506 non-slow Python tests passed with one Azure
+integration skip; the focused Supabase/frontend/OCR boundary checks passed 15
+tests with deprecations treated as errors; and the RAG pipeline passed 9 tests
+with no deprecation warning. One Qdrant `UserWarning` remains when a local
+server is unreachable during a health check and is intentionally visible as
+operational status.
+
+## Addendum (2026-07-24) — Fresh authenticated upload probe
+
+A fresh local process on `127.0.0.1:8011` was exercised with a temporary
+anonymous bearer identity and a repacked synthetic policy fixture:
+
+- upload accepted with HTTP 202;
+- owner-scoped status transitioned from `processing` to
+  `completed_summary_partial` with HTTP 200;
+- the status payload exposed stage metadata without raw text or page-image
+  bytes after the status-contract fix;
+- summary returned 404 because the tiny fixture did not meet the policy
+  summary extraction threshold;
+- field citations returned 503 because the local process had no configured
+  Supabase evidence substrate;
+- page readback returned 404 because no page artifact was persisted without
+  the evidence substrate path.
+
+This closes the local status serialization failure at Tier 4, but does not
+close the authenticated evidence gate. The next required execution is a
+configured Supabase run with a representative policy corpus, followed by
+two-owner citation/page isolation and replay checks. No local in-memory
+evidence substitute should be added; the substrate contract intentionally
+fails closed when its durable backing service is absent.
+
+## Addendum (2026-07-24) — Mobile dependency gate restored
+
+The notification-delivery gate initially could not start because the mobile
+package contract declared `intl ^0.17.0`, while the installed Flutter SDK's
+`flutter_localizations` package requires `intl 0.20.2`. The dependency was
+updated to `^0.20.2` and the lockfile was regenerated through `flutter pub
+get`.
+
+Verification after the change:
+
+- renewal reminder and quiet-hours tests passed;
+- `flutter analyze` passed with no analyzer findings;
+- the full Flutter suite passed: **1,038 tests**.
+
+This restores Tier 2 mobile regression evidence. It does not replace the
+remaining Tier 4 supported-device notification test: permission grant,
+timezone resolution, scheduled delivery, quiet-hours behavior, and tap
+payload navigation still require a real supported device or emulator.
+
+## Addendum (2026-07-24) — Device runtime gate blocked by host storage
+
+An iPhone 16e simulator was booted and the app launch reached the native iOS
+build. Xcode then failed while extracting the Sentry binary package with I/O
+error code 28. The host filesystem had only **300 MB available** at the time
+of the attempt; CoreSimulator used approximately **5.6 GB**, Xcode
+DerivedData **1.9 GB**, and the Flutter SDK cache **3.4 GB**.
+
+This is an environment blocker, not evidence of an application compile or
+notification implementation failure. Device notification evidence remains
+open until storage is safely reclaimed or expanded, followed by a simulator
+or physical-device run that observes permission, scheduling, quiet-hours, and
+tap-payload behavior. No cache or user data was deleted during this pass.

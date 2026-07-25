@@ -210,6 +210,7 @@ class GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
       AnalyticsService.track('global_error_recovered', {
         'error_type': errorType,
         'error_code': _errorCode(errorType),
+        'library': _errorDetails?.library ?? 'unknown',
       });
     } catch (_) {
       // Analytics failure should never disrupt error handling

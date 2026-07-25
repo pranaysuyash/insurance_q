@@ -34,11 +34,17 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
   },
   'global_error': {
     'error_type': AnalyticsPropertyType.string,
+    'library': AnalyticsPropertyType.string,
     // Security audit P0-12: allowlisted short error code. The full
     // exception message and stack trace are NOT sent (they can leak
     // PII per the audit). error_code is a stable hash of the
     // exception type, used for deduplication on the operator side.
     'error_code': AnalyticsPropertyType.string,
+  },
+  'global_error_recovered': {
+    'error_type': AnalyticsPropertyType.string,
+    'error_code': AnalyticsPropertyType.string,
+    'library': AnalyticsPropertyType.string,
   },
   'plan_upgraded': {
     'from_plan': AnalyticsPropertyType.string,
@@ -192,6 +198,93 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
     'amount_paise': AnalyticsPropertyType.number,
     'reason_bucket': AnalyticsPropertyType.string,
   },
+  'analytics_consent_re_enabled': {},
+  'batch_upload_started': {
+    'file_count': AnalyticsPropertyType.number,
+  },
+  'batch_upload_completed': {
+    'completed': AnalyticsPropertyType.number,
+    'failed': AnalyticsPropertyType.number,
+    'total': AnalyticsPropertyType.number,
+  },
+  'cta_clicked': {
+    'cta_id': AnalyticsPropertyType.string,
+    'cta_title': AnalyticsPropertyType.string,
+  },
+  'cta_dismissed': {
+    'cta_id': AnalyticsPropertyType.string,
+  },
+  'dashboard_activity_item_tapped': {
+    'activity_type': AnalyticsPropertyType.string,
+  },
+  'dashboard_coverage_type_tapped': {
+    'type_name': AnalyticsPropertyType.string,
+    'document_count': AnalyticsPropertyType.number,
+  },
+  'dashboard_emergency_shortcut_tapped': {},
+  'dashboard_family_member_tapped': {
+    'is_manual': AnalyticsPropertyType.boolean,
+  },
+  'dashboard_first_upload_cta_tapped': {},
+  'dashboard_health_score_expanded': {
+    'current_score': AnalyticsPropertyType.number,
+  },
+  'dashboard_policy_tapped': {
+    'policy_type': AnalyticsPropertyType.string,
+    'status': AnalyticsPropertyType.string,
+  },
+  'dashboard_preventive_tip_dismissed': {
+    'tip_id': AnalyticsPropertyType.string,
+  },
+  'dashboard_preventive_tips_dismiss_all': {},
+  'dashboard_quick_action_tapped': {
+    'action_type': AnalyticsPropertyType.string,
+  },
+  'dashboard_recent_claim_tapped': {
+    'claim_id': AnalyticsPropertyType.string,
+    'status': AnalyticsPropertyType.string,
+  },
+  'dashboard_recent_claims_tapped': {
+    'action': AnalyticsPropertyType.string,
+  },
+  'document_processing_failed': {
+    'error_class': AnalyticsPropertyType.string,
+  },
+  'document_processing_succeeded': {
+    'file_type': AnalyticsPropertyType.string,
+    'status': AnalyticsPropertyType.string,
+  },
+  'first_upload_started': {
+    'file_type': AnalyticsPropertyType.string,
+  },
+  'first_value_delivered': {
+    'document_id': AnalyticsPropertyType.string,
+  },
+  'free_tier_limit_hit': {
+    'limit_type': AnalyticsPropertyType.string,
+  },
+  'phone_capture_dismissed': {},
+  'phone_capture_shown': {
+    'prompt_number': AnalyticsPropertyType.number,
+  },
+  'phone_otp_requested': {
+    'otp_channel': AnalyticsPropertyType.string,
+  },
+  'phone_otp_verified': {
+    'otp_channel': AnalyticsPropertyType.string,
+  },
+  'qa_pack_balance_reconciled': {
+    'pack_count': AnalyticsPropertyType.number,
+    'questions_remaining': AnalyticsPropertyType.number,
+  },
+  'qa_question_blocked_no_budget': {
+    'plan_tier': AnalyticsPropertyType.string,
+    'subscription_remaining': AnalyticsPropertyType.number,
+    'pack_remaining': AnalyticsPropertyType.number,
+  },
+  'support_intent': {
+    'source_surface': AnalyticsPropertyType.string,
+  },
 };
 
 /// Property types for analytics events.
@@ -204,15 +297,17 @@ enum AnalyticsPropertyType {
 /// Validate an event payload against the registered schema.
 ///
 /// Returns a list of validation errors, or an empty list if valid.
-/// Unknown event names are allowed (forward-compat) but warned.
+/// Unknown event names are rejected to keep schema contract strict.
 List<String> validateAnalyticsEvent(
     String eventName, Map<String, dynamic> properties) {
   final errors = <String>[];
   final schema = kEventSchemas[eventName];
 
   if (schema == null) {
-    // Unknown event — allow but warn in debug.
-    return [];
+    errors.add(
+      'Unknown analytics event "$eventName". Register it in kEventSchemas.',
+    );
+    return errors;
   }
 
   // Check that every registered property is present and correctly typed.

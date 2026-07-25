@@ -6,6 +6,12 @@ import pytest
 from tools import run_data_retention
 
 
+def test_default_retention_matches_published_analytics_period():
+    """The deployment fallback must not retain analytics longer than the
+    30-day period stated in the in-app privacy policy."""
+    assert run_data_retention.DEFAULT_ANALYTICS_RETENTION_DAYS == 30
+
+
 def test_retention_pass_reports_analytics_fence_and_object_cleanup(monkeypatch):
     analytics = MagicMock()
     analytics.purge_before.return_value = 7

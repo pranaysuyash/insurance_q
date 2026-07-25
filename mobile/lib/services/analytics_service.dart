@@ -26,6 +26,11 @@ class AnalyticsState {
 /// Public API for analytics. All track() calls are static delegates to
 /// the Riverpod-managed [AnalyticsNotifier] instance. This preserves the
 /// existing 60+ call sites while gaining proper lifecycle management.
+///
+/// Event contract rule:
+/// Every event emitted through this service must exist in
+/// `docs/analysis/analytics_tracking_event_registry.md` and `kEventSchemas`.
+/// New events require a schema entry and conversion mapping before rollout.
 class AnalyticsService {
   static AnalyticsNotifier? get _notifier => AnalyticsNotifier.instance;
 

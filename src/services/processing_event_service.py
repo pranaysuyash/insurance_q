@@ -17,7 +17,7 @@ class ProcessingEventService:
         key = supabase_server_key()
         if not url or not key:
             raise RuntimeError("Supabase processing event configuration is required")
-        from supabase import create_client
+        from src.utils.supabase_client import create_client
         self._client = create_client(url, key)
 
     def append(

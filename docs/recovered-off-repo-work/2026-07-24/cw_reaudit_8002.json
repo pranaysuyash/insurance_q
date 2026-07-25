@@ -1,0 +1,1 @@
+{"status":"degraded","rag_status":"degraded","embedding_probe":"failed: The canonical Supabase embedding provider failed; refusing to mix embedding spaces","document_processing_status":"available","version":"2.0.0"}

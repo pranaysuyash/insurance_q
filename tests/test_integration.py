@@ -5,8 +5,7 @@ Tests: upload → OCR → extract → query → answer.
 Run with: pytest tests/test_integration.py -v
 """
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from types import SimpleNamespace
 
 
@@ -49,6 +48,7 @@ class TestDocumentProcessingFlow:
             {"entity_type": "phone", "value": "1800 2666"},
             {"entity_type": "email", "value": "ihealthcare@icicilombard.com"},
         ]
+        assert "4214i/CPHSR/407834350/00/000" in sample_text
         assert len(entities) >= 3, "Should extract multiple entities from policy text"
 
     @pytest.mark.asyncio
@@ -116,15 +116,15 @@ class TestRAGRetrievalFlow:
             return True
         
         # Empty results — should reject
-        assert evaluate_quality("test", []) == False
+        assert not evaluate_quality("test", [])
         
         # Very low score — should reject
         low = [SimpleNamespace(score=0.001, payload={})]
-        assert evaluate_quality("test", low) == False
+        assert not evaluate_quality("test", low)
         
         # Good score — should accept
         good = [SimpleNamespace(score=0.05, payload={})]
-        assert evaluate_quality("test", good) == True
+        assert evaluate_quality("test", good)
 
     def test_rrf_merge_consensus(self):
         """Test RRF merge with consensus results."""

@@ -19,6 +19,13 @@ class PolicySummary {
   final List<CoverageItem> coverageItems;
   final DateTime extractedAt;
   final List<String> executiveSummary;
+  // Type-specific fields — populated only when documentType matches
+  final MotorPolicyFields? motorFields;
+  final TravelPolicyFields? travelFields;
+  final LifePolicyFields? lifeFields;
+  final HomePolicyFields? homeFields;
+  final HealthPolicyFields? healthFields;
+  final MarinePolicyFields? marineFields;
 
   PolicySummary({
     required this.documentId,
@@ -39,10 +46,15 @@ class PolicySummary {
     this.coverageItems = const [],
     required this.extractedAt,
     this.executiveSummary = const [],
+    this.motorFields,
+    this.travelFields,
+    this.lifeFields,
+    this.homeFields,
+    this.healthFields,
+    this.marineFields,
   });
 
-  bool get isActive =>
-      endDate != null && endDate!.isAfter(DateTime.now());
+  bool get isActive => endDate != null && endDate!.isAfter(DateTime.now());
 
   /// Phase 0 P0-0.4 (trust audit, 2026-07-18): a policy summary must not be
   /// displayed to the user unless it carries a minimum viable set of
@@ -163,6 +175,12 @@ class PolicySummary {
         'waiting_periods': waitingPeriods,
         'coverage_items': coverageItems.map((c) => c.toJson()).toList(),
         'executive_summary': executiveSummary,
+        'motor_fields': motorFields?.toJson(),
+        'travel_fields': travelFields?.toJson(),
+        'life_fields': lifeFields?.toJson(),
+        'home_fields': homeFields?.toJson(),
+        'health_fields': healthFields?.toJson(),
+        'marine_fields': marineFields?.toJson(),
         'extracted_at': extractedAt.toIso8601String(),
       };
 
@@ -189,10 +207,9 @@ class PolicySummary {
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
-        exclusions: (json['exclusions'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            [],
+        exclusions:
+            (json['exclusions'] as List?)?.map((e) => e.toString()).toList() ??
+                [],
         waitingPeriods: (json['waiting_periods'] as List?)
                 ?.map((e) => e.toString())
                 .toList() ??
@@ -205,6 +222,30 @@ class PolicySummary {
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
+        motorFields: json['motor_fields'] != null
+            ? MotorPolicyFields.fromJson(
+                json['motor_fields'] as Map<String, dynamic>)
+            : null,
+        travelFields: json['travel_fields'] != null
+            ? TravelPolicyFields.fromJson(
+                json['travel_fields'] as Map<String, dynamic>)
+            : null,
+        lifeFields: json['life_fields'] != null
+            ? LifePolicyFields.fromJson(
+                json['life_fields'] as Map<String, dynamic>)
+            : null,
+        homeFields: json['home_fields'] != null
+            ? HomePolicyFields.fromJson(
+                json['home_fields'] as Map<String, dynamic>)
+            : null,
+        healthFields: json['health_fields'] != null
+            ? HealthPolicyFields.fromJson(
+                json['health_fields'] as Map<String, dynamic>)
+            : null,
+        marineFields: json['marine_fields'] != null
+            ? MarinePolicyFields.fromJson(
+                json['marine_fields'] as Map<String, dynamic>)
+            : null,
         extractedAt: json['extracted_at'] != null
             ? DateTime.parse(json['extracted_at'])
             : DateTime.now(),
@@ -231,6 +272,12 @@ class PolicySummary {
     List<String>? waitingPeriods,
     List<CoverageItem>? coverageItems,
     List<String>? executiveSummary,
+    MotorPolicyFields? motorFields,
+    TravelPolicyFields? travelFields,
+    LifePolicyFields? lifeFields,
+    HomePolicyFields? homeFields,
+    HealthPolicyFields? healthFields,
+    MarinePolicyFields? marineFields,
   }) {
     return PolicySummary(
       documentId: documentId,
@@ -250,9 +297,705 @@ class PolicySummary {
       waitingPeriods: waitingPeriods ?? this.waitingPeriods,
       coverageItems: coverageItems ?? this.coverageItems,
       executiveSummary: executiveSummary ?? this.executiveSummary,
+      motorFields: motorFields ?? this.motorFields,
+      travelFields: travelFields ?? this.travelFields,
+      lifeFields: lifeFields ?? this.lifeFields,
+      homeFields: homeFields ?? this.homeFields,
+      healthFields: healthFields ?? this.healthFields,
+      marineFields: marineFields ?? this.marineFields,
       extractedAt: DateTime.now(),
     );
   }
+}
+
+/// Type-specific fields for life insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.life.
+class LifePolicyFields {
+  final String? lifeAssuredName;
+  final double? sumAssured;
+  final int? policyTermYears;
+  final int? premiumPayingTermYears;
+  final String? nomineeName;
+  final String? nomineeShare;
+  final String? maturityDate;
+  final double? maturityAmount;
+  final double? accidentalDeathBenefit;
+  final String? terminalIllnessBenefit;
+  final List<String> riderDetails;
+  final String? suicideExclusion;
+  final String? freeLookPeriod;
+  final String? gracePeriod;
+  final String? surrenderValue;
+  final String? deathBenefitType;
+  final String? policyTypeDetail;
+
+  const LifePolicyFields({
+    this.lifeAssuredName,
+    this.sumAssured,
+    this.policyTermYears,
+    this.premiumPayingTermYears,
+    this.nomineeName,
+    this.nomineeShare,
+    this.maturityDate,
+    this.maturityAmount,
+    this.accidentalDeathBenefit,
+    this.terminalIllnessBenefit,
+    this.riderDetails = const [],
+    this.suicideExclusion,
+    this.freeLookPeriod,
+    this.gracePeriod,
+    this.surrenderValue,
+    this.deathBenefitType,
+    this.policyTypeDetail,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'life_assured_name': lifeAssuredName,
+        'sum_assured': sumAssured,
+        'policy_term_years': policyTermYears,
+        'premium_paying_term_years': premiumPayingTermYears,
+        'nominee_name': nomineeName,
+        'nominee_share': nomineeShare,
+        'maturity_date': maturityDate,
+        'maturity_amount': maturityAmount,
+        'accidental_death_benefit': accidentalDeathBenefit,
+        'terminal_illness_benefit': terminalIllnessBenefit,
+        'rider_details': riderDetails,
+        'suicide_exclusion': suicideExclusion,
+        'free_look_period': freeLookPeriod,
+        'grace_period': gracePeriod,
+        'surrender_value': surrenderValue,
+        'death_benefit_type': deathBenefitType,
+        'policy_type_detail': policyTypeDetail,
+      };
+
+  factory LifePolicyFields.fromJson(Map<String, dynamic> json) =>
+      LifePolicyFields(
+        lifeAssuredName: json['life_assured_name']?.toString(),
+        sumAssured: (json['sum_assured'] as num?)?.toDouble(),
+        policyTermYears: (json['policy_term_years'] as num?)?.toInt(),
+        premiumPayingTermYears:
+            (json['premium_paying_term_years'] as num?)?.toInt(),
+        nomineeName: json['nominee_name']?.toString(),
+        nomineeShare: json['nominee_share']?.toString(),
+        maturityDate: json['maturity_date']?.toString(),
+        maturityAmount: (json['maturity_amount'] as num?)?.toDouble(),
+        accidentalDeathBenefit:
+            (json['accidental_death_benefit'] as num?)?.toDouble(),
+        terminalIllnessBenefit: json['terminal_illness_benefit']?.toString(),
+        riderDetails: (json['rider_details'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        suicideExclusion: json['suicide_exclusion']?.toString(),
+        freeLookPeriod: json['free_look_period']?.toString(),
+        gracePeriod: json['grace_period']?.toString(),
+        surrenderValue: json['surrender_value']?.toString(),
+        deathBenefitType: json['death_benefit_type']?.toString(),
+        policyTypeDetail: json['policy_type_detail']?.toString(),
+      );
+
+  bool get hasAnyFields =>
+      lifeAssuredName != null ||
+      sumAssured != null ||
+      policyTermYears != null ||
+      premiumPayingTermYears != null ||
+      nomineeName != null ||
+      nomineeShare != null ||
+      maturityDate != null ||
+      maturityAmount != null ||
+      accidentalDeathBenefit != null ||
+      terminalIllnessBenefit != null ||
+      riderDetails.isNotEmpty ||
+      suicideExclusion != null ||
+      freeLookPeriod != null ||
+      gracePeriod != null ||
+      surrenderValue != null ||
+      deathBenefitType != null ||
+      policyTypeDetail != null;
+}
+
+/// Type-specific fields for travel insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.travel.
+class TravelPolicyFields {
+  final String? travellerName;
+  final String? destination;
+  final int? tripDurationDays;
+  final String? tripStartDate;
+  final String? tripEndDate;
+  final String? tripType;
+  final double? tripCostCovered;
+  final double? medicalExpensesCover;
+  final double? medicalEvacuationCover;
+  final double? personalAccidentCover;
+  final double? baggageLossCover;
+  final double? baggageDelayCover;
+  final double? tripCancellationCover;
+  final double? flightDelayCover;
+  final List<String> addOnCovers;
+  final String? emergencyAssistancePhone;
+  final String? geographicalZone;
+  final String? preexistingConditionWaiver;
+  final String? adventureSportsCover;
+  final String? hijackCover;
+  final String? passportLossCover;
+  final double? deductiblePerClaimTravel;
+
+  const TravelPolicyFields({
+    this.travellerName,
+    this.destination,
+    this.tripDurationDays,
+    this.tripStartDate,
+    this.tripEndDate,
+    this.tripType,
+    this.tripCostCovered,
+    this.medicalExpensesCover,
+    this.medicalEvacuationCover,
+    this.personalAccidentCover,
+    this.baggageLossCover,
+    this.baggageDelayCover,
+    this.tripCancellationCover,
+    this.flightDelayCover,
+    this.addOnCovers = const [],
+    this.emergencyAssistancePhone,
+    this.geographicalZone,
+    this.preexistingConditionWaiver,
+    this.adventureSportsCover,
+    this.hijackCover,
+    this.passportLossCover,
+    this.deductiblePerClaimTravel,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'traveller_name': travellerName,
+        'destination': destination,
+        'trip_duration_days': tripDurationDays,
+        'trip_start_date': tripStartDate,
+        'trip_end_date': tripEndDate,
+        'trip_type': tripType,
+        'trip_cost_covered': tripCostCovered,
+        'medical_expenses_cover': medicalExpensesCover,
+        'medical_evacuation_cover': medicalEvacuationCover,
+        'personal_accident_cover': personalAccidentCover,
+        'baggage_loss_cover': baggageLossCover,
+        'baggage_delay_cover': baggageDelayCover,
+        'trip_cancellation_cover': tripCancellationCover,
+        'flight_delay_cover': flightDelayCover,
+        'add_on_covers': addOnCovers,
+        'emergency_assistance_phone': emergencyAssistancePhone,
+        'geographical_zone': geographicalZone,
+        'preexisting_condition_waiver': preexistingConditionWaiver,
+        'adventure_sports_cover': adventureSportsCover,
+        'hijack_cover': hijackCover,
+        'passport_loss_cover': passportLossCover,
+        'deductible_per_claim_travel': deductiblePerClaimTravel,
+      };
+
+  factory TravelPolicyFields.fromJson(Map<String, dynamic> json) =>
+      TravelPolicyFields(
+        travellerName: json['traveller_name']?.toString(),
+        destination: json['destination']?.toString(),
+        tripDurationDays: (json['trip_duration_days'] as num?)?.toInt(),
+        tripStartDate: json['trip_start_date']?.toString(),
+        tripEndDate: json['trip_end_date']?.toString(),
+        tripType: json['trip_type']?.toString(),
+        tripCostCovered: (json['trip_cost_covered'] as num?)?.toDouble(),
+        medicalExpensesCover: (json['medical_expenses_cover'] as num?)?.toDouble(),
+        medicalEvacuationCover: (json['medical_evacuation_cover'] as num?)?.toDouble(),
+        personalAccidentCover: (json['personal_accident_cover'] as num?)?.toDouble(),
+        baggageLossCover: (json['baggage_loss_cover'] as num?)?.toDouble(),
+        baggageDelayCover: (json['baggage_delay_cover'] as num?)?.toDouble(),
+        tripCancellationCover: (json['trip_cancellation_cover'] as num?)?.toDouble(),
+        flightDelayCover: (json['flight_delay_cover'] as num?)?.toDouble(),
+        addOnCovers: (json['add_on_covers'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        emergencyAssistancePhone: json['emergency_assistance_phone']?.toString(),
+        geographicalZone: json['geographical_zone']?.toString(),
+        preexistingConditionWaiver: json['preexisting_condition_waiver']?.toString(),
+        adventureSportsCover: json['adventure_sports_cover']?.toString(),
+        hijackCover: json['hijack_cover']?.toString(),
+        passportLossCover: json['passport_loss_cover']?.toString(),
+        deductiblePerClaimTravel: (json['deductible_per_claim_travel'] as num?)?.toDouble(),
+      );
+
+  bool get hasAnyFields =>
+      travellerName != null ||
+      destination != null ||
+      tripDurationDays != null ||
+      tripType != null ||
+      tripCostCovered != null ||
+      medicalExpensesCover != null ||
+      medicalEvacuationCover != null ||
+      personalAccidentCover != null ||
+      baggageLossCover != null ||
+      baggageDelayCover != null ||
+      tripCancellationCover != null ||
+      flightDelayCover != null ||
+      addOnCovers.isNotEmpty ||
+      emergencyAssistancePhone != null ||
+      geographicalZone != null ||
+      preexistingConditionWaiver != null ||
+      adventureSportsCover != null ||
+      hijackCover != null ||
+      passportLossCover != null ||
+      deductiblePerClaimTravel != null;
+}
+
+/// Type-specific fields for home / property insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.home.
+class HomePolicyFields {
+  final String? propertyAddress;
+  final double? buildingSumInsured;
+  final double? contentsSumInsured;
+  final double? rebuildCost;
+  final List<String> perilsCovered;
+  final List<String> perilsExcluded;
+  final List<String> addOnCovers;
+  final double? deductible;
+  final String? structureType;
+  final String? policyType;
+  final String? occupancyType;
+  final String? constructionType;
+  final String? underinsuranceClause;
+  final int? yearBuilt;
+  final String? escalationClause;
+
+  const HomePolicyFields({
+    this.propertyAddress,
+    this.buildingSumInsured,
+    this.contentsSumInsured,
+    this.rebuildCost,
+    this.perilsCovered = const [],
+    this.perilsExcluded = const [],
+    this.addOnCovers = const [],
+    this.deductible,
+    this.structureType,
+    this.policyType,
+    this.occupancyType,
+    this.constructionType,
+    this.underinsuranceClause,
+    this.yearBuilt,
+    this.escalationClause,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'property_address': propertyAddress,
+        'building_sum_insured': buildingSumInsured,
+        'contents_sum_insured': contentsSumInsured,
+        'rebuild_cost': rebuildCost,
+        'perils_covered': perilsCovered,
+        'perils_excluded': perilsExcluded,
+        'add_on_covers': addOnCovers,
+        'deductible': deductible,
+        'structure_type': structureType,
+        'policy_type': policyType,
+        'occupancy_type': occupancyType,
+        'construction_type': constructionType,
+        'underinsurance_clause': underinsuranceClause,
+        'year_built': yearBuilt,
+        'escalation_clause': escalationClause,
+      };
+
+  factory HomePolicyFields.fromJson(Map<String, dynamic> json) =>
+      HomePolicyFields(
+        propertyAddress: json['property_address']?.toString(),
+        buildingSumInsured: (json['building_sum_insured'] as num?)?.toDouble(),
+        contentsSumInsured: (json['contents_sum_insured'] as num?)?.toDouble(),
+        rebuildCost: (json['rebuild_cost'] as num?)?.toDouble(),
+        perilsCovered: (json['perils_covered'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        perilsExcluded: (json['perils_excluded'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        addOnCovers: (json['add_on_covers'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        deductible: (json['deductible'] as num?)?.toDouble(),
+        structureType: json['structure_type']?.toString(),
+        policyType: json['policy_type']?.toString(),
+        occupancyType: json['occupancy_type']?.toString(),
+        constructionType: json['construction_type']?.toString(),
+        underinsuranceClause: json['underinsurance_clause']?.toString(),
+        yearBuilt: (json['year_built'] as num?)?.toInt(),
+        escalationClause: json['escalation_clause']?.toString(),
+      );
+
+  bool get hasAnyFields =>
+      propertyAddress != null ||
+      buildingSumInsured != null ||
+      contentsSumInsured != null ||
+      rebuildCost != null ||
+      perilsCovered.isNotEmpty ||
+      perilsExcluded.isNotEmpty ||
+      addOnCovers.isNotEmpty ||
+      deductible != null ||
+      structureType != null ||
+      policyType != null ||
+      occupancyType != null ||
+      constructionType != null ||
+      underinsuranceClause != null ||
+      yearBuilt != null ||
+      escalationClause != null;
+}
+
+/// Type-specific fields for health insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.health.
+class HealthPolicyFields {
+  final String? roomRentCap;
+  final List<String> preExistingDiseases;
+  final double? coPayPercent;
+  final String? networkHospitals;
+  final String? maternityCover;
+  final double? deductiblePerClaim;
+  final String? cumulativeBonus;
+  final String? dayCareProcedures;
+  final String? consumablesCover;
+  final double? ambulanceCover;
+  final String? healthCheckupCover;
+  final String? prePostHospitalizationDays;
+  final String? restorationBenefit;
+  final List<String> criticalIllnessList;
+  final String? modernTreatmentCover;
+  final String? moratoriumPeriod;
+  final String? preAuthTimeLimit;
+  final String? domiciliaryHospitalization;
+  final List<String> subLimits;
+  final double? noClaimBonusPercent;
+
+  const HealthPolicyFields({
+    this.roomRentCap,
+    this.preExistingDiseases = const [],
+    this.coPayPercent,
+    this.networkHospitals,
+    this.maternityCover,
+    this.deductiblePerClaim,
+    this.cumulativeBonus,
+    this.dayCareProcedures,
+    this.consumablesCover,
+    this.ambulanceCover,
+    this.healthCheckupCover,
+    this.prePostHospitalizationDays,
+    this.restorationBenefit,
+    this.criticalIllnessList = const [],
+    this.modernTreatmentCover,
+    this.moratoriumPeriod,
+    this.preAuthTimeLimit,
+    this.domiciliaryHospitalization,
+    this.subLimits = const [],
+    this.noClaimBonusPercent,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'room_rent_cap': roomRentCap,
+        'pre_existing_diseases': preExistingDiseases,
+        'co_pay_percent': coPayPercent,
+        'network_hospitals': networkHospitals,
+        'maternity_cover': maternityCover,
+        'deductible_per_claim': deductiblePerClaim,
+        'cumulative_bonus': cumulativeBonus,
+        'day_care_procedures': dayCareProcedures,
+        'consumables_cover': consumablesCover,
+        'ambulance_cover': ambulanceCover,
+        'health_checkup_cover': healthCheckupCover,
+        'pre_post_hospitalization_days': prePostHospitalizationDays,
+        'restoration_benefit': restorationBenefit,
+        'critical_illness_list': criticalIllnessList,
+        'modern_treatment_cover': modernTreatmentCover,
+        'moratorium_period': moratoriumPeriod,
+        'pre_auth_time_limit': preAuthTimeLimit,
+        'domiciliary_hospitalization': domiciliaryHospitalization,
+        'sub_limits': subLimits,
+        'no_claim_bonus_percent': noClaimBonusPercent,
+      };
+
+  factory HealthPolicyFields.fromJson(Map<String, dynamic> json) =>
+      HealthPolicyFields(
+        roomRentCap: json['room_rent_cap']?.toString(),
+        preExistingDiseases: (json['pre_existing_diseases'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        coPayPercent: (json['co_pay_percent'] as num?)?.toDouble(),
+        networkHospitals: json['network_hospitals']?.toString(),
+        maternityCover: json['maternity_cover']?.toString(),
+        deductiblePerClaim: (json['deductible_per_claim'] as num?)?.toDouble(),
+        cumulativeBonus: json['cumulative_bonus']?.toString(),
+        dayCareProcedures: json['day_care_procedures']?.toString(),
+        consumablesCover: json['consumables_cover']?.toString(),
+        ambulanceCover: (json['ambulance_cover'] as num?)?.toDouble(),
+        healthCheckupCover: json['health_checkup_cover']?.toString(),
+        prePostHospitalizationDays:
+            json['pre_post_hospitalization_days']?.toString(),
+        restorationBenefit: json['restoration_benefit']?.toString(),
+        criticalIllnessList: (json['critical_illness_list'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        modernTreatmentCover: json['modern_treatment_cover']?.toString(),
+        moratoriumPeriod: json['moratorium_period']?.toString(),
+        preAuthTimeLimit: json['pre_auth_time_limit']?.toString(),
+        domiciliaryHospitalization:
+            json['domiciliary_hospitalization']?.toString(),
+        subLimits: (json['sub_limits'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        noClaimBonusPercent:
+            (json['no_claim_bonus_percent'] as num?)?.toDouble(),
+      );
+
+  bool get hasAnyFields =>
+      roomRentCap != null ||
+      preExistingDiseases.isNotEmpty ||
+      coPayPercent != null ||
+      networkHospitals != null ||
+      maternityCover != null ||
+      deductiblePerClaim != null ||
+      cumulativeBonus != null ||
+      dayCareProcedures != null ||
+      consumablesCover != null ||
+      ambulanceCover != null ||
+      healthCheckupCover != null ||
+      prePostHospitalizationDays != null ||
+      restorationBenefit != null ||
+      criticalIllnessList.isNotEmpty ||
+      modernTreatmentCover != null ||
+      moratoriumPeriod != null ||
+      preAuthTimeLimit != null ||
+      domiciliaryHospitalization != null ||
+      subLimits.isNotEmpty ||
+      noClaimBonusPercent != null;
+}
+
+/// Type-specific fields for motor/auto insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.auto.
+/// All fields are optional since extraction completeness varies.
+class MotorPolicyFields {
+  final String? vehicleRegistrationNumber;
+  final String? vin;
+  final String? engineNumber;
+  final double? ncbPercent;
+  final double? idv;
+  final String? vehicleMakeModel;
+  final int? vehicleYear;
+  final List<String> addOnCovers;
+  final double? ownDamagePremium;
+  final double? thirdPartyPremium;
+  final String? policyTypeDetail;
+  final String? geographicalLimit;
+  final double? personalAccidentCoverOwner;
+  final String? cubicCapacity;
+  final int? seatingCapacity;
+  final String? garagingPincode;
+  final String? fuelType;
+  final String? voluntaryDeductible;
+  final String? hypothecation;
+
+  const MotorPolicyFields({
+    this.vehicleRegistrationNumber,
+    this.vin,
+    this.engineNumber,
+    this.ncbPercent,
+    this.idv,
+    this.vehicleMakeModel,
+    this.vehicleYear,
+    this.addOnCovers = const [],
+    this.ownDamagePremium,
+    this.thirdPartyPremium,
+    this.policyTypeDetail,
+    this.geographicalLimit,
+    this.personalAccidentCoverOwner,
+    this.cubicCapacity,
+    this.seatingCapacity,
+    this.garagingPincode,
+    this.fuelType,
+    this.voluntaryDeductible,
+    this.hypothecation,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'vehicle_registration_number': vehicleRegistrationNumber,
+        'vin': vin,
+        'engine_number': engineNumber,
+        'ncb_percent': ncbPercent,
+        'idv': idv,
+        'vehicle_make_model': vehicleMakeModel,
+        'vehicle_year': vehicleYear,
+        'add_on_covers': addOnCovers,
+        'own_damage_premium': ownDamagePremium,
+        'third_party_premium': thirdPartyPremium,
+        'policy_type_detail': policyTypeDetail,
+        'geographical_limit': geographicalLimit,
+        'personal_accident_cover_owner': personalAccidentCoverOwner,
+        'cubic_capacity': cubicCapacity,
+        'seating_capacity': seatingCapacity,
+        'garaging_pincode': garagingPincode,
+        'fuel_type': fuelType,
+        'voluntary_deductible': voluntaryDeductible,
+        'hypothecation': hypothecation,
+      };
+
+  factory MotorPolicyFields.fromJson(Map<String, dynamic> json) =>
+      MotorPolicyFields(
+        vehicleRegistrationNumber: json['vehicle_registration_number']?.toString(),
+        vin: json['vin']?.toString(),
+        engineNumber: json['engine_number']?.toString(),
+        ncbPercent: (json['ncb_percent'] as num?)?.toDouble(),
+        idv: (json['idv'] as num?)?.toDouble(),
+        vehicleMakeModel: json['vehicle_make_model']?.toString(),
+        vehicleYear: (json['vehicle_year'] as num?)?.toInt(),
+        addOnCovers: (json['add_on_covers'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        ownDamagePremium: (json['own_damage_premium'] as num?)?.toDouble(),
+        thirdPartyPremium: (json['third_party_premium'] as num?)?.toDouble(),
+        policyTypeDetail: json['policy_type_detail']?.toString(),
+        geographicalLimit: json['geographical_limit']?.toString(),
+        personalAccidentCoverOwner: (json['personal_accident_cover_owner'] as num?)?.toDouble(),
+        cubicCapacity: json['cubic_capacity']?.toString(),
+        seatingCapacity: (json['seating_capacity'] as num?)?.toInt(),
+        garagingPincode: json['garaging_pincode']?.toString(),
+        fuelType: json['fuel_type']?.toString(),
+        voluntaryDeductible: json['voluntary_deductible']?.toString(),
+        hypothecation: json['hypothecation']?.toString(),
+      );
+
+  bool get hasAnyFields =>
+      vehicleRegistrationNumber != null ||
+      vin != null ||
+      engineNumber != null ||
+      ncbPercent != null ||
+      idv != null ||
+      vehicleMakeModel != null ||
+      vehicleYear != null ||
+      addOnCovers.isNotEmpty ||
+      ownDamagePremium != null ||
+      thirdPartyPremium != null ||
+      policyTypeDetail != null ||
+      geographicalLimit != null ||
+      personalAccidentCoverOwner != null ||
+      cubicCapacity != null ||
+      seatingCapacity != null ||
+      garagingPincode != null ||
+      fuelType != null ||
+      voluntaryDeductible != null ||
+      hypothecation != null;
+}
+
+/// Type-specific fields for marine / cargo insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.marine.
+class MarinePolicyFields {
+  final String? policyTypeMarine;
+  final String? vesselName;
+  final String? voyageDetails;
+  final String? cargoDescription;
+  final String? cargoValue;
+  final String? incoterms;
+  final String? instituteClauses;
+  final String? voyageFrom;
+  final String? voyageTo;
+  final String? transitStartDate;
+  final String? transitEndDate;
+  final String? conveyance;
+  final String? generalAverageClause;
+  final String? warRiskClause;
+  final String? strikesRiotsClause;
+  final String? warehouseToWarehouse;
+  final String? marineInsuranceCertificateNo;
+
+  const MarinePolicyFields({
+    this.policyTypeMarine,
+    this.vesselName,
+    this.voyageDetails,
+    this.cargoDescription,
+    this.cargoValue,
+    this.incoterms,
+    this.instituteClauses,
+    this.voyageFrom,
+    this.voyageTo,
+    this.transitStartDate,
+    this.transitEndDate,
+    this.conveyance,
+    this.generalAverageClause,
+    this.warRiskClause,
+    this.strikesRiotsClause,
+    this.warehouseToWarehouse,
+    this.marineInsuranceCertificateNo,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'policy_type_marine': policyTypeMarine,
+        'vessel_name': vesselName,
+        'voyage_details': voyageDetails,
+        'cargo_description': cargoDescription,
+        'cargo_value': cargoValue,
+        'incoterms': incoterms,
+        'institute_clauses': instituteClauses,
+        'voyage_from': voyageFrom,
+        'voyage_to': voyageTo,
+        'transit_start_date': transitStartDate,
+        'transit_end_date': transitEndDate,
+        'conveyance': conveyance,
+        'general_average_clause': generalAverageClause,
+        'war_risk_clause': warRiskClause,
+        'strikes_riots_clause': strikesRiotsClause,
+        'warehouse_to_warehouse': warehouseToWarehouse,
+        'marine_insurance_certificate_no': marineInsuranceCertificateNo,
+      };
+
+  factory MarinePolicyFields.fromJson(Map<String, dynamic> json) =>
+      MarinePolicyFields(
+        policyTypeMarine: json['policy_type_marine']?.toString(),
+        vesselName: json['vessel_name']?.toString(),
+        voyageDetails: json['voyage_details']?.toString(),
+        cargoDescription: json['cargo_description']?.toString(),
+        cargoValue: json['cargo_value']?.toString(),
+        incoterms: json['incoterms']?.toString(),
+        instituteClauses: json['institute_clauses']?.toString(),
+        voyageFrom: json['voyage_from']?.toString(),
+        voyageTo: json['voyage_to']?.toString(),
+        transitStartDate: json['transit_start_date']?.toString(),
+        transitEndDate: json['transit_end_date']?.toString(),
+        conveyance: json['conveyance']?.toString(),
+        generalAverageClause: json['general_average_clause']?.toString(),
+        warRiskClause: json['war_risk_clause']?.toString(),
+        strikesRiotsClause: json['strikes_riots_clause']?.toString(),
+        warehouseToWarehouse: json['warehouse_to_warehouse']?.toString(),
+        marineInsuranceCertificateNo:
+            json['marine_insurance_certificate_no']?.toString(),
+      );
+
+  bool get hasAnyFields =>
+      policyTypeMarine != null ||
+      vesselName != null ||
+      voyageDetails != null ||
+      cargoDescription != null ||
+      cargoValue != null ||
+      incoterms != null ||
+      instituteClauses != null ||
+      voyageFrom != null ||
+      voyageTo != null ||
+      transitStartDate != null ||
+      transitEndDate != null ||
+      conveyance != null ||
+      generalAverageClause != null ||
+      warRiskClause != null ||
+      strikesRiotsClause != null ||
+      warehouseToWarehouse != null ||
+      marineInsuranceCertificateNo != null;
 }
 
 class CoverageItem {
@@ -287,16 +1030,40 @@ class CoverageItem {
       );
 }
 
+/// Provenance state for a coverage insight.
+///
+/// `notFoundInWorkspace` deliberately does not mean the user lacks coverage;
+/// it only describes what is currently observable in uploaded documents.
+abstract final class CoverageEvidenceStatus {
+  static const present = 'present';
+  static const notFoundInWorkspace = 'not_found_in_workspace';
+  static const notVerified = 'not_verified';
+  static const conflicting = 'conflicting';
+  static const expiring = 'expiring';
+  static const expired = 'expired';
+}
+
 class CoverageGap {
   final String category;
   final String description;
   final String severity;
+  final String evidenceStatus;
+  final List<String> sourceDocumentIds;
+  final List<String> sourceFieldNames;
+  final double? confidence;
+
+  /// Kept for serialized compatibility. New producers should use neutral
+  /// review language rather than purchase, rider, or adequacy advice.
   final String? recommendation;
 
   CoverageGap({
     required this.category,
     required this.description,
     required this.severity,
+    this.evidenceStatus = CoverageEvidenceStatus.notVerified,
+    this.sourceDocumentIds = const [],
+    this.sourceFieldNames = const [],
+    this.confidence,
     this.recommendation,
   });
 
@@ -308,6 +1075,10 @@ class CoverageGap {
         'category': category,
         'description': description,
         'severity': severity,
+        'evidence_status': evidenceStatus,
+        'source_document_ids': sourceDocumentIds,
+        'source_field_names': sourceFieldNames,
+        'confidence': confidence,
         'recommendation': recommendation,
       };
 
@@ -315,13 +1086,25 @@ class CoverageGap {
         category: json['category'] ?? '',
         description: json['description'] ?? '',
         severity: json['severity'] ?? 'info',
+        evidenceStatus:
+            json['evidence_status'] ?? CoverageEvidenceStatus.notVerified,
+        sourceDocumentIds: (json['source_document_ids'] as List?)
+                ?.map((value) => value.toString())
+                .toList() ??
+            const [],
+        sourceFieldNames: (json['source_field_names'] as List?)
+                ?.map((value) => value.toString())
+                .toList() ??
+            const [],
+        confidence: (json['confidence'] as num?)?.toDouble(),
         recommendation: json['recommendation'],
       );
 }
 
 /// Standalone gapId function — computes a stable hash-based ID for a CoverageGap.
 /// Delegates to the shared _computeGapId helper (same as CoverageGap.gapId getter).
-String gapId(CoverageGap gap) => _computeGapId(gap.category, gap.description, gap.severity);
+String gapId(CoverageGap gap) =>
+    _computeGapId(gap.category, gap.description, gap.severity);
 
 /// Private shared implementation for gapId computation.
 String _computeGapId(String category, String description, String severity) {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,18 +9,19 @@ import '../models/qa_models.dart';
 import '../models/document_model.dart';
 import '../config/app_config.dart';
 import '../providers/questions_provider.dart';
-import '../widgets/shared/newsletter_signup_sheet.dart';
-import '../widgets/shared/agent_request_sheet.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
+import '../providers/connectivity_provider.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/analytics_service.dart';
 import '../services/lead_generation_service.dart';
+import '../services/on_device_inference_service.dart';
 import '../widgets/shared/contextual_cta_card.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/loading_widget.dart';
 import '../widgets/shared/coverwise_components.dart';
+import '../widgets/answer_verification_badge.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
@@ -50,6 +53,14 @@ class QaScreenState extends ConsumerState<QaScreen>
   bool _demoSequenceStarted = false;
   int _demoSequenceGeneration = 0;
   bool _questionRequestInFlight = false;
+  final OnDeviceInferenceService _onDeviceInference =
+      OnDeviceInferenceService();
+
+  /// Tracks the last question that failed on the network so "Retry"
+  /// can resend it without the user retyping. Cleared on successful
+  /// response or when a new question is submitted.
+  String? _lastFailedQuestion;
+  String? _lastFailedDocumentId;
 
   @override
   void initState() {
@@ -143,6 +154,7 @@ class QaScreenState extends ConsumerState<QaScreen>
 
   @override
   void dispose() {
+    _onDeviceInference.dispose();
     _tabController.dispose();
     _customQuestionController.dispose();
     super.dispose();
@@ -159,6 +171,23 @@ class QaScreenState extends ConsumerState<QaScreen>
       return;
     }
     if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+      return;
+    }
+
+    // Check connectivity before making API calls — show instant offline
+    // feedback instead of a 90s timeout.
+    if (!ref.read(isOnlineProvider)) {
+      final handled = await _askOfflineAssist(
+        question,
+        documentId: _currentDocumentId(),
+        demoGeneration: demoGeneration,
+      );
+      if (handled) return;
+      if (!mounted || !widget.isActive) return;
+      CoverWiseSnackBar.warning(
+        context,
+        S.qaOfflineMessage,
+      );
       return;
     }
 
@@ -187,6 +216,9 @@ class QaScreenState extends ConsumerState<QaScreen>
 
     final selectedDoc = _currentDocumentId();
     _questionRequestInFlight = true;
+    // Clear any previous failed-question tracking before submitting
+    _lastFailedQuestion = null;
+    _lastFailedDocumentId = null;
     ref.read(isLoadingProvider.notifier).setState(true);
     // Don't clear currentAnswerProvider here — keep the previous answer
     // visible while the new question loads. The new answer replaces it
@@ -327,8 +359,313 @@ class QaScreenState extends ConsumerState<QaScreen>
       if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
         return;
       }
-      CoverWiseSnackBar.error(context, AppError.userMessage(e),
-          operation: 'ask question');
+      // Track the failed question so "Retry" can resend it.
+      _lastFailedQuestion = question;
+      _lastFailedDocumentId = selectedDoc;
+      CoverWiseSnackBar.error(
+        context,
+        AppError.userMessage(e),
+        operation: 'ask question',
+        actionLabel: 'Retry',
+        onAction: _retryLastFailedQuestion,
+      );
+    } finally {
+      _questionRequestInFlight = false;
+      if (mounted && widget.isActive) {
+        ref.read(isLoadingProvider.notifier).setState(false);
+      }
+    }
+  }
+
+  Future<void> _askQuestionStream(
+    String question, {
+    int? demoGeneration,
+    String? documentId,
+  }) async {
+    if (!mounted || !widget.isActive) {
+      return;
+    }
+    if (_questionRequestInFlight) {
+      return;
+    }
+    if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+      return;
+    }
+
+    // Check connectivity before making API calls — show instant offline
+    // feedback instead of a 90s timeout.
+    if (!ref.read(isOnlineProvider)) {
+      final handled = await _askOfflineAssist(
+        question,
+        documentId: documentId ?? _currentDocumentId(),
+        demoGeneration: demoGeneration,
+      );
+      if (handled) return;
+      if (!mounted || !widget.isActive) return;
+      CoverWiseSnackBar.warning(
+        context,
+        S.qaOfflineMessage,
+      );
+      return;
+    }
+
+    // Gate on entitlement (same as non-streaming)
+    final entitlement = ref.read(entitlementProvider);
+    final entitlementReason =
+        ref.read(entitlementProvider.notifier).checkAction('ask_question');
+    if (entitlementReason != null) {
+      AnalyticsService.track('qa_question_blocked_no_budget', {
+        'plan_tier': entitlement.planTier.name,
+        'subscription_remaining': entitlement.subscriptionQuestionsRemaining,
+        'pack_remaining': entitlement.packQuestionsRemaining,
+      });
+      if (!mounted) return;
+      CoverWiseSnackBar.warning(
+        context,
+        entitlementReason,
+        actionLabel: S.getPacks,
+        onAction: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const QaPacksScreen()),
+        ),
+      );
+      return;
+    }
+
+    // A retry must preserve the document that produced the failure. The user
+    // may switch policies between the error and tapping Retry.
+    final selectedDoc = documentId ?? _currentDocumentId();
+    _questionRequestInFlight = true;
+    // Clear any previous failed-question tracking before submitting
+    _lastFailedQuestion = null;
+    _lastFailedDocumentId = null;
+    ref.read(isLoadingProvider.notifier).setState(true);
+
+    AnalyticsService.track('question_submitted', {
+      'question_length_bucket': question.length < 30
+          ? 'short'
+          : question.length < 80
+              ? 'medium'
+              : 'long',
+    });
+
+    try {
+      String formattedQuestion = question;
+      if (question == "What is my policy number?") {
+        formattedQuestion =
+            "What is the policy number shown in this insurance document?";
+      } else if (question.contains("deductible")) {
+        formattedQuestion =
+            "What is the deductible amount specified in this insurance policy?";
+      } else if (question.contains("premium")) {
+        formattedQuestion =
+            "What is the premium amount stated in this insurance document?";
+      }
+
+      // Start with empty answer and stream tokens
+      String buffer = '';
+      final stream = ref.read(queryServiceProvider).queryDocumentStream(
+            formattedQuestion,
+            documentId: selectedDoc,
+          );
+
+      await for (final token in stream) {
+        if (!mounted || !widget.isActive) return;
+        if (demoGeneration != null &&
+            demoGeneration != _demoSequenceGeneration) {
+          return;
+        }
+
+        // Handle error tokens
+        if (token.startsWith('{"error"')) {
+          final errorJson = jsonDecode(token);
+          if (errorJson['error'] == 'qa_budget_exhausted') {
+            if (!mounted) return;
+            CoverWiseSnackBar.warning(
+              context,
+              'No server-verified questions remain. Buy a Q&A pack or renew your plan.',
+              actionLabel: S.getPacks,
+              onAction: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const QaPacksScreen()),
+              ),
+            );
+            return;
+          }
+          if (errorJson['error'] == 'qa_usage_unavailable') {
+            if (!mounted) return;
+            CoverWiseSnackBar.error(
+              context,
+              'Question usage could not be verified. Please try again.',
+              operation: 'verify question usage',
+            );
+            return;
+          }
+          // Other error - show fallback
+          if (!mounted) return;
+          // Track the failed question for retry from error tokens too
+          _lastFailedQuestion = question;
+          _lastFailedDocumentId = selectedDoc;
+          final fallbackAnswer = QaAnswer(
+            text: S.qaFallbackAnswer,
+            sources: [],
+            timestamp: DateTime.now(),
+            documentId: selectedDoc ?? '',
+            question: question,
+          );
+          ref.read(currentAnswerProvider.notifier).setState(fallbackAnswer);
+          if (!mounted) return;
+          CoverWiseSnackBar.error(
+            context,
+            S.qaFallbackAnswer,
+            operation: 'ask question',
+            actionLabel: 'Retry',
+            onAction: _retryLastFailedQuestion,
+          );
+          return;
+        }
+
+        // Accumulate token and update UI
+        buffer += token;
+        final partialAnswer = QaAnswer(
+          text: buffer,
+          sources: [],
+          timestamp: DateTime.now(),
+          documentId: selectedDoc ?? '',
+          question: question,
+        );
+        if (mounted && widget.isActive) {
+          ref.read(currentAnswerProvider.notifier).setState(partialAnswer);
+        }
+      }
+
+      // Stream completed - finalize
+      if (!mounted || !widget.isActive) return;
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
+
+      if (buffer.isNotEmpty) {
+        final finalAnswer = QaAnswer(
+          text: buffer,
+          sources: [],
+          timestamp: DateTime.now(),
+          documentId: selectedDoc ?? '',
+          question: question,
+        );
+        ref.read(currentAnswerProvider.notifier).setState(finalAnswer);
+
+        // Clear failed-question tracking on successful stream completion
+        _lastFailedQuestion = null;
+        _lastFailedDocumentId = null;
+
+        AnalyticsService.track('answer_rendered', {});
+
+        await ref.read(entitlementProvider.notifier).recordQuestionUsed(
+              operation: 'ask_question',
+            );
+
+        ref.read(qaHistoryProvider.notifier).addItem(question, finalAnswer);
+        try {
+          await AppStateRepository.addRecentQuestion(question);
+        } catch (e) {
+          debugPrint('Error saving recent question: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error during stream question: $e');
+      final previous = ref.read(currentAnswerProvider);
+      if (previous == null) {
+        final fallbackAnswer = QaAnswer(
+          text: S.qaFallbackAnswer,
+          sources: [],
+          timestamp: DateTime.now(),
+          documentId: selectedDoc ?? '',
+          question: question,
+        );
+        if (mounted &&
+            widget.isActive &&
+            (demoGeneration == null ||
+                demoGeneration == _demoSequenceGeneration)) {
+          ref.read(currentAnswerProvider.notifier).setState(fallbackAnswer);
+        }
+      }
+      if (!mounted || !widget.isActive) {
+        return;
+      }
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return;
+      }
+      // Track the failed question so "Retry" can resend it.
+      _lastFailedQuestion = question;
+      _lastFailedDocumentId = selectedDoc;
+      CoverWiseSnackBar.error(
+        context,
+        AppError.userMessage(e),
+        operation: 'ask question',
+        actionLabel: 'Retry',
+        onAction: _retryLastFailedQuestion,
+      );
+    } finally {
+      _questionRequestInFlight = false;
+      if (mounted && widget.isActive) {
+        ref.read(isLoadingProvider.notifier).setState(false);
+      }
+    }
+  }
+
+  /// Replays the exact failed request. Keeping the original document ID
+  /// prevents an answer from being generated against a different policy when
+  /// the user navigates before tapping the error action.
+  Future<void> _retryLastFailedQuestion() async {
+    final question = _lastFailedQuestion;
+    if (question == null || question.trim().isEmpty) return;
+
+    await _askQuestionStream(
+      question,
+      documentId: _lastFailedDocumentId,
+    );
+  }
+
+  Future<bool> _askOfflineAssist(
+    String question, {
+    required String? documentId,
+    int? demoGeneration,
+  }) async {
+    if (!AppConfig.hasOnDeviceInferenceConfig || documentId == null) {
+      return false;
+    }
+    final documents = ref.read(documentsProvider).asData?.value ?? [];
+    final document = documents.cast<InsuranceDocument?>().firstWhere(
+          (item) => item?.id == documentId,
+          orElse: () => null,
+        );
+    final filePath = document?.localFilePath;
+    if (filePath == null || filePath.isEmpty) return false;
+
+    _questionRequestInFlight = true;
+    ref.read(isLoadingProvider.notifier).setState(true);
+    try {
+      if (demoGeneration != null && demoGeneration != _demoSequenceGeneration) {
+        return true;
+      }
+      await _onDeviceInference.prepareDocumentFromFile(documentId, filePath);
+      final text = await _onDeviceInference.ask(documentId, question);
+      if (!mounted || !widget.isActive) return true;
+      final answer = QaAnswer(
+        text: text,
+        sources: const [],
+        timestamp: DateTime.now(),
+        documentId: documentId,
+        question: question,
+        status: 'offline_assist',
+        verificationStatus: 'unverified',
+      );
+      ref.read(currentAnswerProvider.notifier).setState(answer);
+      ref.read(qaHistoryProvider.notifier).addItem(question, answer);
+      await AppStateRepository.addRecentQuestion(question);
+      return true;
+    } catch (error) {
+      debugPrint('Offline assistant unavailable: $error');
+      return false;
     } finally {
       _questionRequestInFlight = false;
       if (mounted && widget.isActive) {
@@ -349,7 +686,7 @@ class QaScreenState extends ConsumerState<QaScreen>
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(questionCategoriesProvider);
-    final standardQuestions = ref.watch(standardQuestionsProvider);
+    final standardQuestions = ref.watch(filteredStandardQuestionsProvider);
     final qaHistory = ref.watch(qaHistoryProvider);
     final isLoading = ref.watch(isLoadingProvider);
     final currentAnswer = ref.watch(currentAnswerProvider);
@@ -371,12 +708,13 @@ class QaScreenState extends ConsumerState<QaScreen>
       ),
       body: Column(
         children: [
-
           _QuestionBudgetBanner(
             onTapUpgrade: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const QaPacksScreen()),
             ),
           ),
+          if (AppConfig.hasOnDeviceInferenceConfig)
+            _OnDeviceAssistantBanner(service: _onDeviceInference),
           _DocumentSelector(
             documentsAsync: documentsAsync,
             selectedDocumentId: selectedDocumentId,
@@ -395,12 +733,14 @@ class QaScreenState extends ConsumerState<QaScreen>
                   isLoading: isLoading,
                   currentAnswer: currentAnswer,
                   onAskQuestion: _askQuestion,
+                  onAskQuestionStream: _askQuestionStream,
                 ),
                 _CustomQuestionTab(
                   controller: _customQuestionController,
                   isLoading: isLoading,
                   currentAnswer: currentAnswer,
                   onAskQuestion: _askQuestion,
+                  onAskQuestionStream: _askQuestionStream,
                 ),
                 _HistoryTab(
                   qaHistory: qaHistory,
@@ -495,6 +835,82 @@ class _QuestionBudgetBanner extends ConsumerWidget {
                 onPressed: onTapUpgrade,
                 child: Text(S.getMore),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Opt-in model preparation control. It is absent from normal builds because
+/// no model URL is configured. Local answers remain explicitly unverified.
+class _OnDeviceAssistantBanner extends StatefulWidget {
+  final OnDeviceInferenceService service;
+
+  const _OnDeviceAssistantBanner({required this.service});
+
+  @override
+  State<_OnDeviceAssistantBanner> createState() =>
+      _OnDeviceAssistantBannerState();
+}
+
+class _OnDeviceAssistantBannerState extends State<_OnDeviceAssistantBanner> {
+  bool _busy = false;
+  int _progress = 0;
+  String? _error;
+
+  Future<void> _prepare() async {
+    setState(() {
+      _busy = true;
+      _progress = 0;
+      _error = null;
+    });
+    try {
+      await widget.service.installModel(
+        onProgress: (progress) {
+          if (mounted) setState(() => _progress = progress);
+        },
+      );
+      await widget.service.loadModel();
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Offline assistant could not be prepared.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CoverWiseSurface(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.offline_bolt_outlined),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Offline assistant',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    _error ??
+                        (_busy
+                            ? 'Preparing on-device model ($_progress%)'
+                            : 'Optional local answers are not verified.'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: _busy ? null : _prepare,
+              child: Text(_busy ? 'Preparing' : 'Prepare'),
+            ),
           ],
         ),
       ),
@@ -612,6 +1028,7 @@ class _StandardQuestionsTab extends StatelessWidget {
   final bool isLoading;
   final QaAnswer? currentAnswer;
   final Future<void> Function(String) onAskQuestion;
+  final Future<void> Function(String) onAskQuestionStream;
 
   const _StandardQuestionsTab({
     required this.categories,
@@ -619,6 +1036,7 @@ class _StandardQuestionsTab extends StatelessWidget {
     required this.isLoading,
     required this.currentAnswer,
     required this.onAskQuestion,
+    required this.onAskQuestionStream,
   });
 
   @override
@@ -668,7 +1086,8 @@ class _StandardQuestionsTab extends StatelessWidget {
                               height: 24,
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.arrow_forward_rounded),
-                      onTap: isLoading ? null : () => onAskQuestion(q.text),
+                      onTap:
+                          isLoading ? null : () => onAskQuestionStream(q.text),
                       contentPadding: EdgeInsets.zero,
                     )),
               ],
@@ -685,12 +1104,14 @@ class _CustomQuestionTab extends StatelessWidget {
   final bool isLoading;
   final QaAnswer? currentAnswer;
   final Future<void> Function(String) onAskQuestion;
+  final Future<void> Function(String) onAskQuestionStream;
 
   const _CustomQuestionTab({
     required this.controller,
     required this.isLoading,
     required this.currentAnswer,
     required this.onAskQuestion,
+    required this.onAskQuestionStream,
   });
 
   @override
@@ -722,7 +1143,7 @@ class _CustomQuestionTab extends StatelessWidget {
             maxLines: 4,
             textInputAction: TextInputAction.send,
             onSubmitted: (value) {
-              if (value.trim().isNotEmpty) onAskQuestion(value.trim());
+              if (value.trim().isNotEmpty) onAskQuestionStream(value.trim());
             },
           ),
           const SizedBox(height: 16),
@@ -733,7 +1154,7 @@ class _CustomQuestionTab extends StatelessWidget {
               label: Text(S.qaScreenTitle),
               onPressed: isLoading || value.text.trim().isEmpty
                   ? null
-                  : () => onAskQuestion(value.text.trim()),
+                  : () => onAskQuestionStream(value.text.trim()),
             ),
           ),
           const SizedBox(height: 24),
@@ -1071,9 +1492,8 @@ Future<void> _navigateToSource(
   // If remote-only, try to cache the source first
   if (doc.remoteId != null) {
     try {
-      final cached = await ref
-          .read(documentServiceProvider)
-          .cacheRemoteSource(doc.id);
+      final cached =
+          await ref.read(documentServiceProvider).cacheRemoteSource(doc.id);
       if (!context.mounted) return;
       ref.invalidate(documentsProvider);
       if (cached.localFilePath == null) return;
@@ -1172,41 +1592,16 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
     PolicySummary? resolvedPolicy;
     if (answer.documentId.isNotEmpty) {
       final summaries = ref.read(policySummariesProvider);
-      resolvedPolicy = summaries
-          .where((s) => s.documentId == answer.documentId)
-          .firstOrNull;
+      resolvedPolicy =
+          summaries.where((s) => s.documentId == answer.documentId).firstOrNull;
     }
 
     final ctas = LeadGenerationService.ctasForTopic(
       topic: topic,
       policy: resolvedPolicy,
-      context: context,
       onUpgrade: () {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const QaPacksScreen()),
-        );
-      },
-      onCompare: () {
-        CoverWiseSnackBar.warning(
-          context,
-          'Compare policy options — upgrade to Plus for detailed comparisons.',
-          actionLabel: S.upgrade,
-          onAction: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const QaPacksScreen()),
-            );
-          },
-        );
-      },
-      onNewsletter: () {
-        NewsletterSignupSheet.show(context);
-      },
-      onContactAgent: () {
-        AgentRequestSheet.show(
-          context,
-          insurer: resolvedPolicy?.insurer,
-          documentType: resolvedPolicy?.documentType,
-          documentId: answer.documentId,
         );
       },
     );
@@ -1257,6 +1652,15 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
+                  if (answer.verificationStatus != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: AnswerVerificationBadge(
+                        status: AnswerVerificationStatus.fromString(
+                            answer.verificationStatus),
+                      ),
+                    ),
+                  ],
                   if (answer.confidence != null)
                     ConfidenceBadge(confidence: answer.confidence!),
                 ],
@@ -1302,6 +1706,80 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                               ? page
                               : int.tryParse(page?.toString() ?? '');
                           final hasPage = pageInt != null && pageInt > 0;
+                          final isRejected = normalizedStatus == 'failed' ||
+                              normalizedStatus == 'rejected';
+
+                          // Rejected citations render as a greyed-out card
+                          // with “Verify in your policy” — the citation could
+                          // not be verified against the source text, so the
+                          // card nudges the user to verify directly.
+                          if (isRejected) {
+                            final mutedColor =
+                                Theme.of(context).colorScheme.onSurfaceVariant;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Opacity(
+                                opacity: 0.55,
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outlineVariant,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(citationIcon,
+                                              size: 16, color: mutedColor),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              label,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 12,
+                                                color: mutedColor,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            'Verify in your policy',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: mutedColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (quote != null &&
+                                          quote.isNotEmpty) ...[
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          '"$quote"',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: mutedColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
@@ -1314,16 +1792,17 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                                 borderRadius: BorderRadius.circular(8),
                                 onTap: hasPage && documentId.isNotEmpty
                                     ? () => _navigateToSource(
-                                        context,
-                                        ref,
-                                        documentId,
-                                        pageInt,
-                                      )
+                                          context,
+                                          ref,
+                                          documentId,
+                                          pageInt,
+                                        )
                                     : null,
                                 child: Padding(
                                   padding: const EdgeInsets.all(10),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
@@ -1361,10 +1840,12 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                                           ),
                                         ],
                                       ),
-                                      if (quote != null && quote.isNotEmpty) ...[
+                                      if (quote != null &&
+                                          quote.isNotEmpty) ...[
                                         const SizedBox(height: 5),
                                         Text('“$quote”',
-                                            style: const TextStyle(fontSize: 13)),
+                                            style:
+                                                const TextStyle(fontSize: 13)),
                                       ],
                                     ],
                                   ),
@@ -1498,8 +1979,7 @@ class _SourceCard extends ConsumerWidget {
             .firstOrNull
         : null;
     final docName = doc?.filename;
-    final hasPage =
-        source.pageNumber != null && source.pageNumber! > 0;
+    final hasPage = source.pageNumber != null && source.pageNumber! > 0;
 
     final title = <String>[
       if (docName != null) docName,
@@ -1516,11 +1996,11 @@ class _SourceCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
         onTap: hasPage && doc != null
             ? () => _navigateToSource(
-                context,
-                ref,
-                source.documentId,
-                source.pageNumber!,
-              )
+                  context,
+                  ref,
+                  source.documentId,
+                  source.pageNumber!,
+                )
             : null,
         child: Padding(
           padding: const EdgeInsets.all(12),
