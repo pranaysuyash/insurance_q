@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
 import '../providers/family_providers.dart';
@@ -20,7 +21,6 @@ import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/operation_usage_card.dart';
-import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import '../models/entitlement.dart';
 import '../utils/app_error.dart';
@@ -96,23 +96,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  // ── M10: Language picker ──────────────────────────────────────────
+
+  String _localeLabel(String? locale) {
+    switch (locale) {
+      case 'hi':
+        return 'हिन्दी';
+      case 'gu':
+        return 'ગુજરાતી';
+      case 'mr':
+        return 'मराठी';
+      case 'ta':
+        return 'தமிழ்';
+      case 'en':
+        return 'English';
+      default:
+        return 'English';
+    }
+  }
+
+  void _showLanguagePicker() async {
+    final current = AppStateRepository.getLocale();
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Language / भाषा'),
+        children: [
+          _localeOption(ctx, 'en', 'English', current),
+          _localeOption(ctx, 'hi', 'हिन्दी', current),
+          _localeOption(ctx, 'gu', 'ગુજરાતી', current),
+          _localeOption(ctx, 'mr', 'मराठी', current),
+          _localeOption(ctx, 'ta', 'தமிழ்', current),
+        ],
+      ),
+    );
+    if (selected != null && selected != current) {
+      await AppStateRepository.setLocale(selected);
+      // Trigger MaterialApp rebuild by toggling the locale counter.
+      ref.read(localeTagProvider.notifier).setState(selected);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Widget _localeOption(
+      BuildContext ctx, String value, String label, String? current) {
+    return SimpleDialogOption(
+      onPressed: () => Navigator.pop(ctx, value),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          if (value == current) const Icon(Icons.check, color: Colors.blue),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmClearData() async {
+    final l10n = AppLocalizationsGen.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(S.settingsClearDataTitle),
-        content: Text(S.settingsClearDataContent),
+        title: Text(l10n.settingsClearDataTitle),
+        content: Text(l10n.settingsClearDataContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton.tonal(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
               foregroundColor: Colors.red.shade700,
             ),
-            child: Text(S.clear),
+            child: Text(l10n.clear),
           ),
         ],
       ),
@@ -151,7 +207,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await AuthService.clearToken();
 
       if (!mounted) return;
-      CoverWiseSnackBar.success(context, S.settingsClearDataSuccess);
+      CoverWiseSnackBar.success(context, l10n.settingsClearDataSuccess);
     } catch (e) {
       if (!mounted) return;
       CoverWiseSnackBar.error(
@@ -161,22 +217,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final box = Hive.box(AppStateStore.boxName);
     final phone = box.get(AppStateStore.phoneNumberKey) as String?;
     final accountUser = ref.watch(currentUserProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(S.settingsTitle)),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           CoverWisePageHeader(
-            title: S.settingsHeaderTitle,
-            subtitle: S.settingsHeaderSubtitle,
+            title: l10n.settingsHeaderTitle,
+            subtitle: l10n.settingsHeaderSubtitle,
           ),
-          CoverWiseSectionLabel(S.settingsSectionPlan),
+          CoverWiseSectionLabel(l10n.settingsSectionPlan),
           Consumer(
             builder: (context, ref, _) {
+              final l10n = AppLocalizationsGen.of(context);
               final entitlement = ref.watch(entitlementProvider);
               return CoverWiseSurface(
                 child: Column(children: [
@@ -186,7 +244,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ? const Color(0xFF637083)
                         : const Color(0xFF7557D3),
                     title:
-                        S.settingsCurrentPlan(entitlement.planTier.displayName),
+                        l10n.settingsCurrentPlan(entitlement.planTier.displayName),
                     subtitle: entitlement.planTier.tagline,
                     trailing: TextButton(
                       onPressed: () => Navigator.push(
@@ -197,8 +255,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                       child: Text(
                         entitlement.planTier == PlanTier.free
-                            ? S.upgrade
-                            : S.manage,
+                            ? l10n.upgrade
+                            : l10n.manage,
                       ),
                     ),
                     onTap: null,
@@ -207,11 +265,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   CoverWiseActionRow(
                     icon: Icons.shopping_bag_outlined,
                     color: const Color(0xFFE58726),
-                    title: S.settingsQaPacks,
+                    title: l10n.settingsQaPacks,
                     subtitle: entitlement.hasPackQuestionsRemaining
-                        ? S.settingsQuestionsInPacks(
+                        ? l10n.settingsQuestionsInPacks(
                             entitlement.packQuestionsRemaining)
-                        : S.settingsBuyQuestions,
+                        : l10n.settingsBuyQuestions,
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.push(
                       context,
@@ -225,7 +283,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     CoverWiseActionRow(
                       icon: Icons.calendar_today_rounded,
                       color: const Color(0xFF0F9D84),
-                      title: S.settingsRenews,
+                      title: l10n.settingsRenews,
                       subtitle: entitlement.expiresAt != null
                           ? '${entitlement.expiresAt!.day}/${entitlement.expiresAt!.month}/${entitlement.expiresAt!.year}'
                           : 'Unknown',
@@ -245,15 +303,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
           const SizedBox(height: 8),
-          CoverWiseSectionLabel(S.settingsSectionAccount),
+          CoverWiseSectionLabel(l10n.settingsSectionAccount),
           CoverWiseSurface(
             child: Column(children: [
               if (accountUser != null) ...[
                 CoverWiseActionRow(
                   icon: Icons.email_outlined,
                   color: const Color(0xFF0F9D84),
-                  title: accountUser.email ?? S.settingsSignedIn,
-                  subtitle: S.settingsSupabaseAccount,
+                  title: accountUser.email ?? l10n.settingsSignedIn,
+                  subtitle: l10n.settingsSupabaseAccount,
                   trailing: const SizedBox.shrink(),
                   onTap: null,
                 ),
@@ -267,11 +325,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ? const Color(0xFF0F9D84)
                     : CoverWiseColors.blue,
                 title: phone != null
-                    ? S.settingsAccountLinked
-                    : S.settingsLinkYourPhone,
+                    ? l10n.settingsAccountLinked
+                    : l10n.settingsLinkYourPhone,
                 subtitle: phone != null
-                    ? S.settingsConnectedAs(phone)
-                    : S.settingsBackupSubtitle,
+                    ? l10n.settingsConnectedAs(phone)
+                    : l10n.settingsBackupSubtitle,
                 trailing: TextButton(
                   onPressed: () async {
                     if (phone != null) {
@@ -283,13 +341,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     }
                     if (mounted) setState(() {});
                   },
-                  child: Text(phone != null ? S.remove : S.add),
+                  child: Text(phone != null ? l10n.remove : l10n.add),
                 ),
                 onTap: null,
               ),
             ]),
           ),
-          CoverWiseSectionLabel(S.settingsSectionExperience),
+          CoverWiseSectionLabel(l10n.settingsSectionExperience),
           CoverWiseSurface(
             child: Column(children: [
               CoverWiseActionRow(
@@ -297,7 +355,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ? Icons.dark_mode_rounded
                     : Icons.light_mode_rounded,
                 color: const Color(0xFF7557D3),
-                title: S.settingsAppearance,
+                title: l10n.settingsAppearance,
                 subtitle: _themeModeLabel(AppStateRepository.getThemeMode()),
                 onTap: _showThemePicker,
               ),
@@ -305,8 +363,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               CoverWiseActionRow(
                 icon: Icons.notifications_active_outlined,
                 color: const Color(0xFFE58726),
-                title: S.settingsNotifications,
-                subtitle: S.settingsNotificationsSubtitle,
+                title: l10n.settingsNotifications,
+                subtitle: l10n.settingsNotificationsSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -315,23 +373,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const Divider(indent: 74),
+              // M10: Language picker — choose between English and Hindi
+              CoverWiseActionRow(
+                icon: Icons.translate_rounded,
+                color: const Color(0xFF0F9D84),
+                title: l10n.settingsLanguage,
+                subtitle: l10n.settingsLanguageSubtitle,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _localeLabel(AppStateRepository.getLocale()),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right_rounded, size: 18),
+                  ],
+                ),
+                onTap: _showLanguagePicker,
+              ),
+              const Divider(indent: 74),
               CoverWiseActionRow(
                 icon: Icons.auto_awesome_outlined,
-                color: Color(0xFF7557D3),
-                title: S.settingsSmartSuggestions,
-                subtitle: S.settingsSmartSuggestionsSubtitle,
+                color: const Color(0xFF7557D3),
+                title: l10n.settingsSmartSuggestions,
+                subtitle: l10n.settingsSmartSuggestionsSubtitle,
                 trailing: CoverWiseSoonBadge(),
                 onTap: null,
               ),
             ]),
           ),
-          CoverWiseSectionLabel(S.settingsSectionAppDetails),
+          CoverWiseSectionLabel(l10n.settingsSectionAppDetails),
           CoverWiseSurface(
             child: Column(children: [
               CoverWiseActionRow(
                 icon: Icons.info_outline_rounded,
                 color: CoverWiseColors.blue,
-                title: S.version,
+                title: l10n.version,
                 subtitle: '${AppConfig.appName} ${AppConfig.appVersion}',
                 trailing: const SizedBox.shrink(),
                 onTap: null,
@@ -340,22 +420,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               CoverWiseActionRow(
                 icon: Icons.dns_outlined,
                 color: const Color(0xFF637083),
-                title: S.settingsServiceEndpoint,
+                title: l10n.settingsServiceEndpoint,
                 subtitle: _resolvedBaseUrl ?? AppConfig.baseUrl,
                 trailing: const SizedBox.shrink(),
                 onTap: null,
               ),
             ]),
           ),
-          CoverWiseSectionLabel(S.settingsSectionPrivacy),
-          _ConsentLedgerSection(),
-          CoverWiseSectionLabel(S.settingsSectionDeviceData),
+          CoverWiseSectionLabel(l10n.settingsSectionPrivacy),
+          const _ConsentLedgerSection(),
+          CoverWiseSectionLabel(l10n.settingsSectionDeviceData),
           CoverWiseSurface(
             child: CoverWiseActionRow(
               icon: Icons.delete_outline_rounded,
               color: const Color(0xFFC43D4B),
-              title: S.settingsClearDataAction,
-              subtitle: S.settingsClearDataSubtitle,
+              title: l10n.settingsClearDataAction,
+              subtitle: l10n.settingsClearDataSubtitle,
               onTap: _confirmClearData,
             ),
           ),
@@ -375,6 +455,7 @@ class _ConsentLedgerSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizationsGen.of(context);
     // Watch the entitlement provider to trigger rebuilds after consent changes.
     ref.watch(entitlementProvider);
     final ledger = ConsentLedger();
@@ -385,8 +466,8 @@ class _ConsentLedgerSection extends ConsumerWidget {
         child: CoverWiseActionRow(
           icon: Icons.shield_outlined,
           color: const Color(0xFF0F9D84),
-          title: S.settingsNoConsentRecords,
-          subtitle: S.settingsConsentRecorded,
+          title: l10n.settingsNoConsentRecords,
+          subtitle: l10n.settingsConsentRecorded,
           trailing: const SizedBox.shrink(),
           onTap: null,
         ),
@@ -417,16 +498,16 @@ class _ConsentRecordRow extends StatelessWidget {
   final ConsentRecord record;
   const _ConsentRecordRow({required this.record});
 
-  String _purposeLabel(ConsentPurpose purpose) {
+  String _purposeLabel(ConsentPurpose purpose, AppLocalizationsGen l10n) {
     switch (purpose) {
       case ConsentPurpose.documentProcessing:
-        return S.settingsConsentPolicyProcessing;
+        return l10n.settingsConsentPolicyProcessing;
       case ConsentPurpose.analytics:
-        return S.settingsConsentAnalytics;
+        return l10n.settingsConsentAnalytics;
       case ConsentPurpose.marketingEmails:
         return 'Marketing Emails';
       case ConsentPurpose.privacyPolicy:
-        return S.settingsConsentTermsAccepted;
+        return l10n.settingsConsentTermsAccepted;
       case ConsentPurpose.cameraAccess:
         return 'Camera Access';
       case ConsentPurpose.evaluationDataset:
@@ -457,6 +538,7 @@ class _ConsentRecordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final isActive = record.isActive;
     final date =
         '${record.timestamp.day}/${record.timestamp.month}/${record.timestamp.year}';
@@ -464,14 +546,14 @@ class _ConsentRecordRow extends StatelessWidget {
     return CoverWiseActionRow(
       icon: _purposeIcon(record.purpose),
       color: isActive ? const Color(0xFF0F9D84) : const Color(0xFF637083),
-      title: _purposeLabel(record.purpose),
+      title: _purposeLabel(record.purpose, l10n),
       subtitle: isActive
-          ? S.settingsConsentGranted(date, record.version)
-          : S.settingsConsentRevoked(date),
+          ? l10n.settingsConsentGranted(date, record.version)
+          : l10n.settingsConsentRevoked(date),
       trailing: CoverWiseStatusChip(
         icon: isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
         label:
-            isActive ? S.settingsConsentActive : S.settingsConsentRevokedLabel,
+            isActive ? l10n.settingsConsentActive : l10n.settingsConsentRevokedLabel,
         color: isActive ? const Color(0xFF0F9D84) : const Color(0xFF637083),
         compact: true,
       ),

@@ -146,7 +146,7 @@ class AppLocalizationsGenEn extends AppLocalizationsGen {
   }
 
   @override
-  String qaMonthlyPlusPack(Object monthly, Object pack) {
+  String qaMonthlyPlusPack(Object monthly, Object pack, Object packs) {
     return '$monthly monthly + $pack pack';
   }
 
@@ -289,6 +289,10 @@ class AppLocalizationsGenEn extends AppLocalizationsGen {
   @override
   String get qaRelevanceTooltip =>
       'How closely this source matches your question';
+
+  @override
+  String get qaOfflineMessage =>
+      'You are offline. Please check your connection and try again.';
 
   @override
   String get confidenceHigh => 'High';
@@ -1674,4 +1678,13 @@ class AppLocalizationsGenEn extends AppLocalizationsGen {
 
   @override
   String get familyVisSeeMap => 'View policy member map';
+
+  @override
+  String get coverageShareSummary => 'Share summary';
+
+  @override
+  String get coverageShareSubject => 'CoverWise policy coverage summary';
+
+  @override
+  String get coverageShareError => 'Could not open sharing options';
 }

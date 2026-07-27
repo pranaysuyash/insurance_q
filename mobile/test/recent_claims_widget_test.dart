@@ -1,3 +1,4 @@
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/models/claim_record.dart';
 import 'package:coverwise/widgets/dashboard/recent_claims.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +24,9 @@ ClaimRecord _claim({
     );
 
 Widget buildTestApp({List<ClaimRecord>? claims}) => MaterialApp(
+      localizationsDelegates:
+          AppLocalizationsGen.localizationsDelegates,
+      supportedLocales: AppLocalizationsGen.supportedLocales,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
@@ -157,6 +161,9 @@ void main() {
     testWidgets('renders without hardcoded color issues in dark mode',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates:
+            AppLocalizationsGen.localizationsDelegates,
+        supportedLocales: AppLocalizationsGen.supportedLocales,
         themeMode: ThemeMode.dark,
         darkTheme: ThemeData(
           brightness: Brightness.dark,

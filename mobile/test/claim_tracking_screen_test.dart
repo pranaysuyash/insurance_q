@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/models/claim_record.dart';
 import 'package:coverwise/screens/claim_tracking_screen.dart';
 import 'package:coverwise/services/app_state_store.dart';
@@ -41,6 +42,9 @@ Future<void> _clearClaims() async {
 Widget _buildTestApp() {
   return ProviderScope(
     child: MaterialApp(
+      localizationsDelegates:
+          AppLocalizationsGen.localizationsDelegates,
+      supportedLocales: AppLocalizationsGen.supportedLocales,
       theme: CoverWiseTheme.light(),
       home: const ClaimTrackingScreen(),
     ),

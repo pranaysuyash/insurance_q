@@ -19,7 +19,7 @@ import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/coverwise_scene.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/document_thumbnail.dart';
-import '../localization/app_localizations.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../utils/app_error.dart';
 import '../widgets/shared/error_widget.dart';
 import 'document_preview_screen.dart';
@@ -173,6 +173,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final documentsAsync = ref.watch(documentsProvider);
 
     return documentsAsync.when(
@@ -223,7 +224,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Semantics(
-                      label: S.docsSlotsUsed(usedSlots),
+                      label: l10n.docsSlotsUsed(usedSlots),
                       child: Row(
                         children: [
                           Icon(
@@ -235,9 +236,9 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                           Expanded(
                             child: Text(
                               _filterType != null
-                                  ? S.docsFilterResultCount(
+                                  ? l10n.docsFilterResultCount(
                                       filtered.length, documents.length)
-                                  : S.docsSlotsUsed(usedSlots),
+                                  : l10n.docsSlotsUsed(usedSlots),
                               style: Theme.of(context)
                                   .textTheme
                                   .labelMedium
@@ -284,8 +285,8 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                             const SizedBox(width: 6),
                             Text(
                               remainingSlots == 0
-                                  ? S.docsLimitWarning
-                                  : S.docsLimitRemaining(remainingSlots),
+                                  ? l10n.docsLimitWarning
+                                  : l10n.docsLimitRemaining(remainingSlots),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -418,7 +419,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                                   .onSurfaceVariant),
                                           const SizedBox(width: 2),
                                           Text(
-                                            S.docsArchived,
+                                            l10n.docsArchived,
                                             style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w700,
@@ -478,7 +479,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                             TextButton.icon(
                                               icon:
                                                   const Icon(Icons.visibility),
-                                              label: Text(S.docsPreview),
+                                              label: Text(l10n.docsPreview),
                                               onPressed: () {
                                                 Navigator.push(
                                                   context,
@@ -499,7 +500,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                               icon: const Icon(
                                                   Icons.download_outlined),
                                               label:
-                                                  Text(S.docsDownloadSource),
+                                                  Text(l10n.docsDownloadSource),
                                               onPressed: () =>
                                                   _downloadAndPreview(
                                                       context, ref, doc),
@@ -508,14 +509,14 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                             TextButton.icon(
                                               icon: const Icon(
                                                   Icons.cloud_upload_outlined),
-                                              label: Text(S.docsRetryUpload),
+                                              label: Text(l10n.docsRetryUpload),
                                               onPressed: () =>
                                                   _retryUpload(context, ref),
                                             ),
                                           TextButton.icon(
                                             icon: const Icon(
                                                 Icons.category_outlined),
-                                            label: Text(S.docsChangeType),
+                                            label: Text(l10n.docsChangeType),
                                             onPressed: () =>
                                                 _changeDocumentType(
                                                     context, ref, doc),
@@ -526,8 +527,8 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                               icon: const Icon(
                                                   Icons.forum_outlined),
                                               label: Text(isReady
-                                                  ? S.docsAskQuestions
-                                                  : S.docsReadingPolicy),
+                                                  ? l10n.docsAskQuestions
+                                                  : l10n.docsReadingPolicy),
                                               onPressed: isReady
                                                   ? () {
                                                       if (widget
@@ -549,7 +550,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                             child: TextButton.icon(
                                               icon: const Icon(
                                                   Icons.find_replace_outlined),
-                                              label: Text(S.docsReplace),
+                                              label: Text(l10n.docsReplace),
                                               style: TextButton.styleFrom(
                                                 foregroundColor:
                                                     Theme.of(context)
@@ -565,7 +566,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                             TextButton.icon(
                                               icon: const Icon(
                                                   Icons.unarchive_outlined),
-                                              label: Text(S.docsRestore),
+                                              label: Text(l10n.docsRestore),
                                               onPressed: () =>
                                                   _restoreDocument(
                                                       context, ref, doc),
@@ -574,7 +575,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                             TextButton.icon(
                                               icon: const Icon(
                                                   Icons.archive_outlined),
-                                              label: Text(S.docsArchive),
+                                              label: Text(l10n.docsArchive),
                                               onPressed: () =>
                                                   _archiveDocument(
                                                       context, ref, doc),
@@ -582,7 +583,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                                           TextButton.icon(
                                             icon: const Icon(
                                                 Icons.delete_outline),
-                                            label: Text(S.docsDeletePolicy),
+                                            label: Text(l10n.docsDeletePolicy),
                                             style: TextButton.styleFrom(
                                               foregroundColor: Theme.of(context)
                                                   .colorScheme
@@ -611,16 +612,17 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
 
   Future<void> _renameDocument(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final l10n = AppLocalizationsGen.of(context);
     final controller = TextEditingController(text: document.filename);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(S.docsRenameTitle),
+        title: Text(l10n.docsRenameTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
           decoration: InputDecoration(
-            hintText: S.docsRenameHint,
+            hintText: l10n.docsRenameHint,
             border: const OutlineInputBorder(),
           ),
           textInputAction: TextInputAction.done,
@@ -631,13 +633,13 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(S.cancel),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: controller.text.trim().isEmpty
                 ? null
                 : () => Navigator.pop(ctx, true),
-            child: Text(S.docsRenameSave),
+            child: Text(l10n.docsRenameSave),
           ),
         ],
       ),
@@ -679,12 +681,13 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
           operation: 'rename policy');
     } else {
       // ignore: use_build_context_synchronously
-      CoverWiseSnackBar.success(context, S.docsRenameSuccess);
+      CoverWiseSnackBar.success(context, l10n.docsRenameSuccess);
     }
   }
 
   Future<void> _changeDocumentType(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final l10n = AppLocalizationsGen.of(context);
     final currentType = classifyPolicyType(document.documentType);
     final newType =
         await showDocumentTypePicker(context, currentType: currentType);
@@ -720,24 +723,25 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
     } else {
       CoverWiseSnackBar.success(
           context, // ignore: use_build_context_synchronously
-          '${S.docsTypeChanged} ${canonicalTypeName(newType)}');
+          '${l10n.docsTypeChanged} ${canonicalTypeName(newType)}');
     }
   }
 
   Future<void> _archiveDocument(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final l10n = AppLocalizationsGen.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(S.docsArchiveConfirmTitle),
-        content: Text(S.docsArchiveConfirmContent(document.filename)),
+        title: Text(l10n.docsArchiveConfirmTitle),
+        content: Text(l10n.docsArchiveConfirmContent(document.filename)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text(S.cancel)),
+              child: Text(l10n.cancel)),
           FilledButton.tonal(
               onPressed: () => Navigator.pop(context, true),
-              child: Text(S.docsArchive)),
+              child: Text(l10n.docsArchive)),
         ],
       ),
     );
@@ -751,7 +755,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
         ref.invalidate(documentsProvider);
         if (mounted) {
           // ignore: use_build_context_synchronously
-          CoverWiseSnackBar.success(context, S.docsArchivedSuccess);
+          CoverWiseSnackBar.success(context, l10n.docsArchivedSuccess);
         }
       }
     }
@@ -759,6 +763,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
 
   Future<void> _restoreDocument(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final l10n = AppLocalizationsGen.of(context);
     final success = await ref
         .read(documentServiceProvider)
         .restoreDocument(document.id);
@@ -767,21 +772,22 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
     }
     if (mounted) {
       // ignore: use_build_context_synchronously
-      CoverWiseSnackBar.success(context, S.docsRestored);
+      CoverWiseSnackBar.success(context, l10n.docsRestored);
     }
   }
 
   Future<void> _deleteDocument(
       BuildContext context, WidgetRef ref, InsuranceDocument document) async {
+    final l10n = AppLocalizationsGen.of(context);
     final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(S.docsDeletePolicyTitle),
+        title: Text(l10n.docsDeletePolicyTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(S.docsDeletePolicyContent(document.filename)),
+            Text(l10n.docsDeletePolicyContent(document.filename)),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -800,7 +806,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      S.docsDeletePermanentWarning,
+                      l10n.docsDeletePermanentWarning,
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.error,
@@ -815,16 +821,16 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, 'cancel'),
-              child: Text(S.cancel)),
+              child: Text(l10n.cancel)),
           TextButton.icon(
             icon: const Icon(Icons.archive_outlined, size: 18),
             onPressed: () => Navigator.pop(context, 'archive'),
-            label: Text(S.docsArchive),
+            label: Text(l10n.docsArchive),
           ),
           TextButton(
               onPressed: () => Navigator.pop(context, 'delete'),
               child: Text(
-                S.docsDeletePolicy,
+                l10n.docsDeletePolicy,
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.error,
                 ),
@@ -874,7 +880,7 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
             operation: 'delete policy');
       } else if (didDelete == true) {
         // ignore: use_build_context_synchronously
-        CoverWiseSnackBar.info(context, S.docsDeleted);
+        CoverWiseSnackBar.info(context, l10n.docsDeleted);
       }
     }
   }
@@ -926,20 +932,21 @@ class _DocumentsListState extends ConsumerState<DocumentsList> {
   }
 
   String _processingLabel(String? state) {
+    final l10n = AppLocalizationsGen.of(context);
     switch (state) {
       case 'received':
       case 'processing':
-        return S.docsReadingPolicy;
+        return l10n.docsReadingPolicy;
       case 'pending':
       case 'pending_upload':
-        return S.docsUploadRequired;
+        return l10n.docsUploadRequired;
       case 'failed':
-        return S.docsNeedsAttention;
+        return l10n.docsNeedsAttention;
       case 'completed':
       case 'ready':
-        return S.docsReadyForQuestions;
+        return l10n.docsReadyForQuestions;
       default:
-        return S.docsSaved;
+        return l10n.docsSaved;
     }
   }
 }
@@ -966,6 +973,7 @@ class _SortFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
       child: SizedBox(
@@ -976,7 +984,7 @@ class _SortFilterBar extends StatelessWidget {
             // Sort chip
             _SortFilterChip(
               icon: Icons.sort,
-              label: S.docsSortLabel,
+              label: l10n.docsSortLabel,
               isActive: sortMode != DocsSortMode.dateDesc,
               onTap: () => _showSortPicker(context),
             ),
@@ -985,7 +993,7 @@ class _SortFilterBar extends StatelessWidget {
             FilterChip(
               avatar: const Icon(Icons.archive_outlined, size: 14),
               label: Text(
-                  S.docsShowArchived, style: const TextStyle(fontSize: 12)),
+                  l10n.docsShowArchived, style: const TextStyle(fontSize: 12)),
               selected: showArchived,
               onSelected: onShowArchivedChanged,
               visualDensity: VisualDensity.compact,
@@ -995,7 +1003,7 @@ class _SortFilterBar extends StatelessWidget {
             // "All" filter chip to clear type filter
             FilterChip(
               label:
-                  Text(S.docsFilterAll, style: const TextStyle(fontSize: 12)),
+                  Text(l10n.docsFilterAll, style: const TextStyle(fontSize: 12)),
               selected: filterType == null,
               onSelected: (selected) {
                 onFilterChanged(null);
@@ -1023,6 +1031,7 @@ class _SortFilterBar extends StatelessWidget {
   }
 
   void _showSortPicker(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -1031,14 +1040,14 @@ class _SortFilterBar extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(S.docsSortLabel,
+              child: Text(l10n.docsSortLabel,
                   style: Theme.of(context).textTheme.titleMedium),
             ),
-            _sortOption(ctx, DocsSortMode.dateDesc, S.docsSortDateNewest),
-            _sortOption(ctx, DocsSortMode.dateAsc, S.docsSortDateOldest),
-            _sortOption(ctx, DocsSortMode.nameAsc, S.docsSortNameAZ),
-            _sortOption(ctx, DocsSortMode.nameDesc, S.docsSortNameZA),
-            _sortOption(ctx, DocsSortMode.type, S.docsSortType),
+            _sortOption(ctx, DocsSortMode.dateDesc, l10n.docsSortDateNewest),
+            _sortOption(ctx, DocsSortMode.dateAsc, l10n.docsSortDateOldest),
+            _sortOption(ctx, DocsSortMode.nameAsc, l10n.docsSortNameAZ),
+            _sortOption(ctx, DocsSortMode.nameDesc, l10n.docsSortNameZA),
+            _sortOption(ctx, DocsSortMode.type, l10n.docsSortType),
             const SizedBox(height: 8),
           ],
         ),
@@ -1151,19 +1160,19 @@ class _DocumentReplaceScreenState
 
   Future<void> _confirmReplacement() async {
     if (_selectedFile == null) return;
-
+    final l10n = AppLocalizationsGen.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(S.docsReplaceDocumentTitle),
+        title: Text(l10n.docsReplaceDocumentTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(S.docsReplaceWillDelete(widget.document.filename)),
+            Text(l10n.docsReplaceWillDelete(widget.document.filename)),
             const SizedBox(height: 8),
             Text(
-              S.docsReplaceAnalysisLost,
+              l10n.docsReplaceAnalysisLost,
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -1171,11 +1180,11 @@ class _DocumentReplaceScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(S.cancel),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(S.docsReplace),
+            child: Text(l10n.docsReplace),
           ),
         ],
       ),
@@ -1188,6 +1197,7 @@ class _DocumentReplaceScreenState
   }
 
   Future<void> _performReplacement() async {
+    final l10n = AppLocalizationsGen.of(context);
     setState(() {
       _isUploading = true;
       _error = null;
@@ -1226,7 +1236,7 @@ class _DocumentReplaceScreenState
       });
     } else {
       // ignore: use_build_context_synchronously
-      CoverWiseSnackBar.success(context, S.docsReplaceSuccess);
+      CoverWiseSnackBar.success(context, l10n.docsReplaceSuccess);
       // ignore: use_build_context_synchronously
       Navigator.pop(context);
     }
@@ -1234,9 +1244,10 @@ class _DocumentReplaceScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(S.docsReplaceDocument),
+        title: Text(l10n.docsReplaceDocument),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1249,12 +1260,12 @@ class _DocumentReplaceScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(S.docsCurrentDocument,
+                    Text(l10n.docsCurrentDocument,
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Text(widget.document.filename),
                     Text(
-                        S.docsUploadedDate(widget.document.formattedUploadDate),
+                        l10n.docsUploadedDate(widget.document.formattedUploadDate),
                         style:
                             const TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
@@ -1269,7 +1280,7 @@ class _DocumentReplaceScreenState
                   title: Text(_selectedFile!.path.split('/').last),
                   trailing: IconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: S.docsClearReplacement,
+                    tooltip: l10n.docsClearReplacement,
                     onPressed: () => setState(() => _selectedFile = null),
                   ),
                 ),
@@ -1294,14 +1305,14 @@ class _DocumentReplaceScreenState
               ElevatedButton.icon(
                 onPressed: _pickReplacement,
                 icon: const Icon(Icons.file_upload_outlined),
-                label: Text(S.docsSelectReplacement),
+                label: Text(l10n.docsSelectReplacement),
               ),
               if (_selectedFile != null) ...[
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: _confirmReplacement,
                   icon: const Icon(Icons.swap_horiz),
-                  label: Text(S.docsReplaceDocument),
+                  label: Text(l10n.docsReplaceDocument),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,

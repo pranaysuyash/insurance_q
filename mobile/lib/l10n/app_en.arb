@@ -78,6 +78,7 @@
   "qaNoSourceDocument": "Source document unavailable",
   "qaSourcePageLabel": "Page {page}",
   "qaRelevanceTooltip": "How closely this source matches your question",
+  "qaOfflineMessage": "You are offline. Please check your connection and try again.",
 
   "confidenceHigh": "High",
   "confidenceMedium": "Medium",
@@ -496,5 +497,9 @@
   "familyVisEmptyTitle": "No coverage data yet",
   "familyVisEmptySubtitle": "Upload policies and add family members to compare names listed in your policy documents.",
   "familyVisNoPolicies": "No policies listing {name} yet.",
-  "familyVisSeeMap": "View policy member map"
+  "familyVisSeeMap": "View policy member map",
+
+  "coverageShareSummary": "Share summary",
+  "coverageShareSubject": "CoverWise policy coverage summary",
+  "coverageShareError": "Could not open sharing options"
 }

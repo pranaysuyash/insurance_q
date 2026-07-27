@@ -23,7 +23,7 @@ import '../widgets/shared/loading_widget.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/answer_verification_badge.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
-import '../localization/app_localizations.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../theme/coverwise_theme.dart';
 import '../theme/coverwise_motion.dart';
 import '../utils/app_error.dart';
@@ -161,6 +161,7 @@ class QaScreenState extends ConsumerState<QaScreen>
   }
 
   Future<void> _askQuestion(String question, {int? demoGeneration}) async {
+    final l10n = AppLocalizationsGen.of(context);
     if (!mounted || !widget.isActive) {
       return;
     }
@@ -186,7 +187,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       if (!mounted || !widget.isActive) return;
       CoverWiseSnackBar.warning(
         context,
-        S.qaOfflineMessage,
+        l10n.qaOfflineMessage,
       );
       return;
     }
@@ -206,7 +207,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       CoverWiseSnackBar.warning(
         context,
         entitlementReason,
-        actionLabel: S.getPacks,
+        actionLabel: l10n.getPacks,
         onAction: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const QaPacksScreen()),
         ),
@@ -264,7 +265,7 @@ class QaScreenState extends ConsumerState<QaScreen>
           CoverWiseSnackBar.warning(
             context,
             'No server-verified questions remain. Buy a Q&A pack or renew your plan.',
-            actionLabel: S.getPacks,
+            actionLabel: l10n.getPacks,
             onAction: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const QaPacksScreen()),
             ),
@@ -340,7 +341,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       final previous = ref.read(currentAnswerProvider);
       if (previous == null) {
         final fallbackAnswer = QaAnswer(
-          text: S.qaFallbackAnswer,
+          text: l10n.qaFallbackAnswer,
           sources: [],
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
@@ -382,6 +383,7 @@ class QaScreenState extends ConsumerState<QaScreen>
     int? demoGeneration,
     String? documentId,
   }) async {
+    final l10n = AppLocalizationsGen.of(context);
     if (!mounted || !widget.isActive) {
       return;
     }
@@ -404,7 +406,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       if (!mounted || !widget.isActive) return;
       CoverWiseSnackBar.warning(
         context,
-        S.qaOfflineMessage,
+        l10n.qaOfflineMessage,
       );
       return;
     }
@@ -423,7 +425,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       CoverWiseSnackBar.warning(
         context,
         entitlementReason,
-        actionLabel: S.getPacks,
+        actionLabel: l10n.getPacks,
         onAction: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const QaPacksScreen()),
         ),
@@ -483,7 +485,7 @@ class QaScreenState extends ConsumerState<QaScreen>
             CoverWiseSnackBar.warning(
               context,
               'No server-verified questions remain. Buy a Q&A pack or renew your plan.',
-              actionLabel: S.getPacks,
+              actionLabel: l10n.getPacks,
               onAction: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const QaPacksScreen()),
               ),
@@ -505,7 +507,7 @@ class QaScreenState extends ConsumerState<QaScreen>
           _lastFailedQuestion = question;
           _lastFailedDocumentId = selectedDoc;
           final fallbackAnswer = QaAnswer(
-            text: S.qaFallbackAnswer,
+            text: l10n.qaFallbackAnswer,
             sources: [],
             timestamp: DateTime.now(),
             documentId: selectedDoc ?? '',
@@ -515,7 +517,7 @@ class QaScreenState extends ConsumerState<QaScreen>
           if (!mounted) return;
           CoverWiseSnackBar.error(
             context,
-            S.qaFallbackAnswer,
+            l10n.qaFallbackAnswer,
             operation: 'ask question',
             actionLabel: 'Retry',
             onAction: _retryLastFailedQuestion,
@@ -575,7 +577,7 @@ class QaScreenState extends ConsumerState<QaScreen>
       final previous = ref.read(currentAnswerProvider);
       if (previous == null) {
         final fallbackAnswer = QaAnswer(
-          text: S.qaFallbackAnswer,
+          text: l10n.qaFallbackAnswer,
           sources: [],
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
@@ -685,6 +687,7 @@ class QaScreenState extends ConsumerState<QaScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final categories = ref.watch(questionCategoriesProvider);
     final standardQuestions = ref.watch(filteredStandardQuestionsProvider);
     final qaHistory = ref.watch(qaHistoryProvider);
@@ -696,13 +699,13 @@ class QaScreenState extends ConsumerState<QaScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(S.qaScreenTitle),
+        title: Text(l10n.qaScreenTitle),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: S.qaTabSuggested),
-            Tab(text: S.qaTabYourQuestion),
-            Tab(text: S.qaTabHistory),
+          tabs: [
+            Tab(text: l10n.qaTabSuggested),
+            Tab(text: l10n.qaTabYourQuestion),
+            Tab(text: l10n.qaTabHistory),
           ],
         ),
       ),
@@ -768,6 +771,7 @@ class _QuestionBudgetBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizationsGen.of(context);
     final packState = ref.watch(qaPackStateProvider);
     final entitlement = ref.watch(entitlementProvider);
     final remaining = packState.totalQuestionsRemaining;
@@ -814,8 +818,8 @@ class _QuestionBudgetBanner extends ConsumerWidget {
                 children: [
                   Text(
                     isZero
-                        ? S.qaNoQuestionsRemaining
-                        : S.qaQuestionsLeft(remaining),
+                        ? l10n.qaNoQuestionsRemaining
+                        : l10n.qaQuestionsLeft(remaining),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
@@ -833,7 +837,7 @@ class _QuestionBudgetBanner extends ConsumerWidget {
             if (isZero || isLow)
               TextButton(
                 onPressed: onTapUpgrade,
-                child: Text(S.getMore),
+                child: Text(l10n.getMore),
               ),
           ],
         ),
@@ -932,6 +936,7 @@ class _DocumentSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final documents = documentsAsync.asData?.value ?? [];
     final isAllDocuments = selectedDocumentId == null;
 
@@ -939,14 +944,14 @@ class _DocumentSelector extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
       child: Semantics(
         container: true,
-        label: S.qaQuestionSource,
+        label: l10n.qaQuestionSource,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                S.qaAskAbout,
+                l10n.qaAskAbout,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: CoverWiseColors.blueDeep,
                       fontWeight: FontWeight.w800,
@@ -960,8 +965,8 @@ class _DocumentSelector extends StatelessWidget {
                     child: ChoiceChip(
                       label: Text(
                         isAllDocuments
-                            ? S.qaAllDocuments(documents.length)
-                            : S.qaSingleDocument,
+                            ? l10n.qaAllDocuments(documents.length)
+                            : l10n.qaSingleDocument,
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       selected: isAllDocuments,
@@ -1002,11 +1007,11 @@ class _DocumentSelector extends StatelessWidget {
                 ],
               ),
               if (isAllDocuments)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8.0),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
-                    S.qaSearchAllPolicies,
-                    style: TextStyle(fontSize: 12),
+                    l10n.qaSearchAllPolicies,
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ),
               if (documentsAsync.isLoading)
@@ -1116,13 +1121,14 @@ class _CustomQuestionTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            S.qaAskAboutDescription,
+            l10n.qaAskAboutDescription,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   height: 1.4,
@@ -1132,9 +1138,9 @@ class _CustomQuestionTab extends StatelessWidget {
           TextField(
             controller: controller,
             decoration: InputDecoration(
-              hintText: S.qaHintText,
+              hintText: l10n.qaHintText,
               suffixIcon: IconButton(
-                tooltip: S.qaClearQuestion,
+                tooltip: l10n.qaClearQuestion,
                 icon: const Icon(Icons.close_rounded),
                 onPressed: () => controller.clear(),
               ),
@@ -1151,7 +1157,7 @@ class _CustomQuestionTab extends StatelessWidget {
             valueListenable: controller,
             builder: (context, value, _) => FilledButton.icon(
               icon: const Icon(Icons.arrow_upward_rounded),
-              label: Text(S.qaScreenTitle),
+              label: Text(l10n.qaScreenTitle),
               onPressed: isLoading || value.text.trim().isEmpty
                   ? null
                   : () => onAskQuestionStream(value.text.trim()),
@@ -1198,7 +1204,7 @@ class _HistoryTabState extends State<_HistoryTab> {
     }).toList();
   }
 
-  Map<String, List<QaPair>> get _groupedByDate {
+  Map<String, List<QaPair>> _groupedByDate(AppLocalizationsGen l10n) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
@@ -1210,13 +1216,13 @@ class _HistoryTabState extends State<_HistoryTab> {
           item.timestamp.year, item.timestamp.month, item.timestamp.day);
       String label;
       if (!date.isBefore(today)) {
-        label = S.qaToday;
+        label = l10n.qaToday;
       } else if (!date.isBefore(yesterday)) {
-        label = S.qaYesterday;
+        label = l10n.qaYesterday;
       } else if (!date.isBefore(weekAgo)) {
-        label = S.qaThisWeek;
+        label = l10n.qaThisWeek;
       } else {
-        label = S.qaEarlier;
+        label = l10n.qaEarlier;
       }
       groups.putIfAbsent(label, () => []).add(item);
     }
@@ -1225,16 +1231,17 @@ class _HistoryTabState extends State<_HistoryTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     if (widget.qaHistory.isEmpty) {
-      return const EmptyStateWidget(
+      return EmptyStateWidget(
         icon: Icons.history,
-        title: S.qaNoHistoryYet,
-        color: Color(0xFF6A4BA8),
+        title: l10n.qaNoHistoryYet,
+        color: const Color(0xFF6A4BA8),
       );
     }
 
     final filtered = _filteredHistory;
-    final grouped = _groupedByDate;
+    final grouped = _groupedByDate(l10n);
     final groupLabels = grouped.keys.toList();
 
     // Build a flat list of items with section headers
@@ -1254,7 +1261,7 @@ class _HistoryTabState extends State<_HistoryTab> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: S.qaSearchHistory,
+              hintText: l10n.qaSearchHistory,
               prefixIcon: const Icon(Icons.search, size: 20),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
@@ -1302,7 +1309,7 @@ class _HistoryTabState extends State<_HistoryTab> {
                                 Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(height: 12),
                         Text(
-                          S.qaNoMatchesFor(_searchQuery),
+                          l10n.qaNoMatchesFor(_searchQuery),
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ],
@@ -1417,8 +1424,8 @@ class _HistoryTabState extends State<_HistoryTab> {
                                                 const EdgeInsets.only(top: 4),
                                             child: Text(
                                               isExpanded
-                                                  ? S.commonShowLess
-                                                  : S.commonShowMore,
+                                                  ? l10n.commonShowLess
+                                                  : l10n.commonShowMore,
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
@@ -1461,13 +1468,14 @@ Future<void> _navigateToSource(
   String documentId,
   int page,
 ) async {
+  final l10n = AppLocalizationsGen.of(context);
   final documents = ref.read(documentsProvider).asData?.value ?? [];
   final doc = documents
       .where((d) => d.id == documentId || d.remoteId == documentId)
       .firstOrNull;
   if (doc == null) {
     if (!context.mounted) return;
-    CoverWiseSnackBar.error(context, S.qaNoSourceDocument,
+    CoverWiseSnackBar.error(context, l10n.qaNoSourceDocument,
         operation: 'view source');
     return;
   }
@@ -1512,7 +1520,7 @@ Future<void> _navigateToSource(
       if (!context.mounted) return;
       CoverWiseSnackBar.error(
         context,
-        S.qaNoSourceDocument,
+        l10n.qaNoSourceDocument,
         operation: 'view source',
       );
     }
@@ -1566,6 +1574,7 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
   }
 
   Future<void> _copyAnswer(QaAnswer answer) async {
+    final l10n = AppLocalizationsGen.of(context);
     await Clipboard.setData(ClipboardData(
       text: 'Q: ${answer.question}\nA: ${answer.text}',
     ));
@@ -1573,7 +1582,7 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
 
     final acknowledgement = ++_copyAcknowledgement;
     setState(() => _copied = true);
-    CoverWiseSnackBar.success(context, S.qaAnswerCopiedToClipboard,
+    CoverWiseSnackBar.success(context, l10n.qaAnswerCopiedToClipboard,
         duration: const Duration(seconds: 2));
 
     await Future<void>.delayed(const Duration(milliseconds: 1600));
@@ -1631,6 +1640,7 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final answer = widget.answer;
     return Semantics(
       container: true,
@@ -1676,8 +1686,8 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                           style: const TextStyle(fontSize: 16)),
                       if (answer.citations.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        const Text(S.qaEvidence,
-                            style: TextStyle(
+                        Text(l10n.qaEvidence,
+                            style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 14)),
                         const SizedBox(height: 8),
                         ...answer.citations.asMap().entries.map((entry) {
@@ -1697,9 +1707,9 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                                   ? Icons.error_outline
                                   : Icons.help_outline;
                           final label = page == null
-                              ? S.qaCitationSource(entry.key + 1)
-                              : S.qaCitationSourcePage(entry.key + 1, page);
-                          final displayStatus = status ?? S.qaCitationUnknown;
+                              ? l10n.qaCitationSource(entry.key + 1)
+                              : l10n.qaCitationSourcePage(entry.key + 1, page);
+                          final displayStatus = status ?? l10n.qaCitationUnknown;
                           // Navigate to document preview at the cited page
                           final documentId = answer.documentId;
                           final pageInt = page is int
@@ -1816,7 +1826,7 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                                           ),
                                           if (hasPage && documentId.isNotEmpty)
                                             Text(
-                                              S.qaViewSource,
+                                              l10n.qaViewSource,
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w600,
@@ -1857,8 +1867,8 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                       ],
                       if (answer.missingInformation.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        const Text(S.qaPolicyDoesNotEstablish,
-                            style: TextStyle(
+                        Text(l10n.qaPolicyDoesNotEstablish,
+                            style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 14)),
                         ...answer.missingInformation.map((item) => Padding(
                               padding: const EdgeInsets.only(top: 4),
@@ -1971,6 +1981,7 @@ class _SourceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizationsGen.of(context);
     final documents = ref.watch(documentsProvider).asData?.value ?? [];
     final doc = source.documentId.isNotEmpty
         ? documents
@@ -1983,7 +1994,7 @@ class _SourceCard extends ConsumerWidget {
 
     final title = <String>[
       if (docName != null) docName,
-      if (hasPage) S.qaSourcePageLabel(source.pageNumber!),
+      if (hasPage) l10n.qaSourcePageLabel(source.pageNumber!),
     ].join(' · ');
 
     // Show relevance score as a percentage (score is 0.0–1.0)
@@ -2013,7 +2024,7 @@ class _SourceCard extends ConsumerWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      title.isNotEmpty ? title : S.qaPolicySource,
+                      title.isNotEmpty ? title : l10n.qaPolicySource,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
@@ -2022,7 +2033,7 @@ class _SourceCard extends ConsumerWidget {
                   ),
                   // Relevance score badge with tooltip
                   Tooltip(
-                    message: S.qaRelevanceTooltip,
+                    message: l10n.qaRelevanceTooltip,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),

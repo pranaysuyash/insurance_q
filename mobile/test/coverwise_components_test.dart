@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/theme/coverwise_theme.dart';
 import 'package:coverwise/widgets/shared/coverwise_components.dart';
 import 'package:coverwise/widgets/shared/empty_state_widget.dart';
@@ -7,6 +8,9 @@ import 'package:coverwise/widgets/shared/coverwise_scene.dart';
 
 Widget _host(Widget child, {ThemeData? theme, double textScale = 1}) {
   return MaterialApp(
+    localizationsDelegates:
+        AppLocalizationsGen.localizationsDelegates,
+    supportedLocales: AppLocalizationsGen.supportedLocales,
     theme: theme ?? CoverWiseTheme.light(),
     home: MediaQuery(
       data: MediaQueryData(textScaler: TextScaler.linear(textScale)),

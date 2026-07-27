@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/screens/documents_screen.dart';
@@ -27,7 +28,12 @@ void main() {
       overrides: [
         documentsProvider.overrideWith((ref) async => documents),
       ],
-      child: const MaterialApp(home: DocumentsScreen()),
+      child: MaterialApp(
+        localizationsDelegates:
+            AppLocalizationsGen.localizationsDelegates,
+        supportedLocales: AppLocalizationsGen.supportedLocales,
+        home: const DocumentsScreen(),
+      ),
     );
   }
 
@@ -223,8 +229,12 @@ void main() {
                   'ip_limit': 10,
                 }),
           ],
-          child: const MaterialApp(
-            home: DocumentsScreen(initialFileName: 'policy_demo.pdf'),
+          child: MaterialApp(
+            localizationsDelegates:
+                AppLocalizationsGen.localizationsDelegates,
+            supportedLocales: AppLocalizationsGen.supportedLocales,
+            home: const DocumentsScreen(
+                initialFileName: 'policy_demo.pdf'),
           ),
         ),
       );
@@ -250,7 +260,12 @@ void main() {
           overrides: [
             documentsProvider.overrideWith((ref) => loading.future),
           ],
-          child: const MaterialApp(home: DocumentsScreen()),
+          child: MaterialApp(
+            localizationsDelegates:
+                AppLocalizationsGen.localizationsDelegates,
+            supportedLocales: AppLocalizationsGen.supportedLocales,
+            home: const DocumentsScreen(),
+          ),
         ),
       );
       await tester.pump();

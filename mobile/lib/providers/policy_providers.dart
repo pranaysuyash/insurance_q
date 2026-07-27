@@ -1,3 +1,5 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../models/policy_summary.dart';
@@ -182,6 +184,24 @@ final uniqueDocumentTypesProvider = Provider<List<String>>((ref) {
 
 /// Theme mode — incrementing this counter triggers a rebuild of MaterialApp.
 final themeModeProvider = refStateProvider<int>(0);
+
+/// Locale — stores locale tag and provides a way to trigger MaterialApp rebuild.
+/// The underlying storage is AppStateRepository; this provider just acts as a
+/// rebuild trigger similar to [themeModeProvider]. Initialised from the stored
+/// preference during app startup.
+final localeTagProvider = refStateProvider<String?>(null);
+
+/// Resolves the active [Locale] from the stored locale tag.
+/// Returns null when the stored locale is not available (falls back to system).
+final activeLocaleProvider = Provider<Locale?>((ref) {
+  final tag = ref.watch(localeTagProvider);
+  if (tag == null) return null;
+  try {
+    return Locale(tag);
+  } catch (_) {
+    return null;
+  }
+});
 
 // Demo data for bootstrap mode
 List<PolicySummary> get demoPolicySummaries => [

@@ -1,0 +1,219 @@
+[
+  {
+    "name": "PyMuPDF_flat",
+    "char_count": 44289,
+    "table_count": 0,
+    "parse_time_ms": 141,
+    "facts_found": {
+      "policy_number": true,
+      "sum_insured": true,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": true,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "label_value_pairs": {
+      "policy_number": true,
+      "sum_insured": false,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": false,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "table_structure_preserved": false
+  },
+  {
+    "name": "PyMuPDF_find_tables",
+    "char_count": 44289,
+    "table_count": 22,
+    "parse_time_ms": 3675,
+    "facts_found": {
+      "policy_number": true,
+      "sum_insured": true,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": true,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "label_value_pairs": {
+      "policy_number": true,
+      "sum_insured": false,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": false,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "table_structure_preserved": true
+  },
+  {
+    "name": "pymupdf4llm",
+    "char_count": 12974,
+    "table_count": 0,
+    "parse_time_ms": 24277,
+    "facts_found": {
+      "policy_number": false,
+      "sum_insured": false,
+      "premium": false,
+      "proposer": false,
+      "policy_period_start": false,
+      "policy_period_end": false,
+      "insurer": true,
+      "product": false,
+      "loyalty_bonus": false,
+      "helpline": true
+    },
+    "label_value_pairs": {
+      "policy_number": false,
+      "sum_insured": false,
+      "premium": false,
+      "proposer": false,
+      "policy_period_start": false,
+      "policy_period_end": false,
+      "insurer": false,
+      "product": false,
+      "loyalty_bonus": false,
+      "helpline": true
+    },
+    "table_structure_preserved": false
+  },
+  {
+    "name": "pdfplumber_text",
+    "char_count": 43605,
+    "table_count": 0,
+    "parse_time_ms": 2294,
+    "facts_found": {
+      "policy_number": true,
+      "sum_insured": true,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": true,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "label_value_pairs": {
+      "policy_number": true,
+      "sum_insured": false,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": false,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "table_structure_preserved": false
+  },
+  {
+    "name": "pdfplumber_tables",
+    "char_count": 43605,
+    "table_count": 117,
+    "parse_time_ms": 2710,
+    "facts_found": {
+      "policy_number": true,
+      "sum_insured": true,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": true,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "label_value_pairs": {
+      "policy_number": true,
+      "sum_insured": false,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": false,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "table_structure_preserved": true
+  },
+  {
+    "name": "pdfplumber_spatial_kv",
+    "char_count": 43605,
+    "table_count": 252,
+    "parse_time_ms": 2161,
+    "facts_found": {
+      "policy_number": true,
+      "sum_insured": true,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": true,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "label_value_pairs": {
+      "policy_number": true,
+      "sum_insured": false,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": false,
+      "product": true,
+      "loyalty_bonus": true,
+      "helpline": true
+    },
+    "table_structure_preserved": true
+  },
+  {
+    "name": "docling",
+    "char_count": 125925,
+    "table_count": 16,
+    "parse_time_ms": 192673,
+    "facts_found": {
+      "policy_number": true,
+      "sum_insured": true,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": true,
+      "product": true,
+      "loyalty_bonus": false,
+      "helpline": true
+    },
+    "label_value_pairs": {
+      "policy_number": true,
+      "sum_insured": true,
+      "premium": true,
+      "proposer": true,
+      "policy_period_start": true,
+      "policy_period_end": true,
+      "insurer": false,
+      "product": true,
+      "loyalty_bonus": false,
+      "helpline": true
+    },
+    "table_structure_preserved": true
+  }
+]

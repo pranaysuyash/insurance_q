@@ -1,3 +1,4 @@
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
@@ -77,6 +78,9 @@ void main() {
         documentsProvider.overrideWith((ref) async => documents ?? []),
       ],
       child: MaterialApp(
+        localizationsDelegates:
+            AppLocalizationsGen.localizationsDelegates,
+        supportedLocales: AppLocalizationsGen.supportedLocales,
         home: PolicyDetailScreen(documentId: documentId),
       ),
     );

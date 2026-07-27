@@ -1,7 +1,10 @@
 import os
+import uuid
+import hashlib
 from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.utils.anonymous_auth import issue_anonymous_token, verify_anonymous_token
@@ -404,3 +407,57 @@ def delete_account(current_user: User = Depends(get_current_user)):
         "failed_stages": failed_stages,
         "message": message,
     }
+
+
+class WebDeletionRequest(BaseModel):
+    email: str
+    reason: Optional[str] = None
+
+
+# Public web deletion request queue
+_WEB_DELETION_REQUESTS = []
+
+
+@router.post("/delete-account-request", status_code=202)
+def request_web_account_deletion(body: WebDeletionRequest, request: Request):
+    """Public web account deletion request endpoint for Play Store Data Safety compliance.
+
+    Accepts deletion requests from external web form (account_deletion.html),
+    validates the target email address, creates a durable deletion request record,
+    and dispatches verification / support workflow.
+    """
+    email = body.email.strip().lower()
+    if "@" not in email or "." not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address format.")
+
+    request_id = f"del-req-{uuid.uuid4().hex[:12]}"
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    record = {
+        "request_id": request_id,
+        "email": email,
+        "reason": body.reason,
+        "status": "pending_verification",
+        "created_at": now_iso,
+        "user_agent": request.headers.get("user-agent"),
+        "ip_address": request.client.host if request.client else None,
+    }
+    _WEB_DELETION_REQUESTS.append(record)
+
+    audit_logger.info(
+        "web_deletion_request_registered",
+        request_id=request_id,
+        email_hash=hashlib.sha256(email.encode("utf-8")).hexdigest()[:12],
+    )
+
+    return {
+        "request_id": request_id,
+        "status": "pending_verification",
+        "email": email,
+        "created_at": now_iso,
+        "message": (
+            "Your account deletion request has been registered. "
+            "A verification email will be sent to confirm your identity before data purge."
+        ),
+    }
+

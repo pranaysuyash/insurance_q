@@ -48,8 +48,8 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Coverage overview'), findsOneWidget);
-    expect(find.text('What your policy says'), findsOneWidget);
+    expect(find.text('Coverage review'), findsOneWidget);
+    expect(find.text('What your policy text shows'), findsOneWidget);
   });
 
   testWidgets('shows the room rent cap when present', (tester) async {

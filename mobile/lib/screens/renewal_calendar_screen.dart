@@ -7,7 +7,7 @@ import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/empty_state_widget.dart';
-import '../localization/app_localizations.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../utils/document_icons.dart';
 import '../services/notification_service.dart';
 import 'documents_screen.dart';
@@ -94,12 +94,13 @@ class _RenewalCalendarScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final summaries = ref.watch(policySummariesProvider);
     final hasNoPolicies = summaries.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(S.renewalTitle),
+        title: Text(l10n.renewalTitle),
         actions: [
           if (!hasNoPolicies)
             IconButton(
@@ -132,11 +133,12 @@ class _RenewalCalendarScreenState
   // ─── Empty ─────────────────────────────────────────────────────────
 
   Widget _buildEmptyState() {
+    final l10n = AppLocalizationsGen.of(context);
     return EmptyStateWidget(
       icon: Icons.event_busy,
-      title: S.renewalEmptyTitle,
-      subtitle: S.renewalEmptySubtitle,
-      actionLabel: S.insuranceCardsChooseFile,
+      title: l10n.renewalEmptyTitle,
+      subtitle: l10n.renewalEmptySubtitle,
+      actionLabel: l10n.insuranceCardsChooseFile,
       actionIcon: Icons.upload_file_rounded,
       onAction: () => Navigator.of(context).push(
         MaterialPageRoute(
@@ -185,6 +187,7 @@ class _ListViewContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final expired = summaries.where((s) => s.isExpired).toList();
     final expiringSoon = summaries.where((s) => s.isExpiringSoon).toList();
     final active =
@@ -195,8 +198,8 @@ class _ListViewContent extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         CoverWisePageHeader(
-          title: S.renewalHeaderTitle,
-          subtitle: S.renewalHeaderSubtitle,
+          title: l10n.renewalHeaderTitle,
+          subtitle: l10n.renewalHeaderSubtitle,
           trailing: CoverWiseIconBadge(
             icon: Icons.event_repeat_outlined,
             color: CoverWiseColors.blueDeep,
@@ -206,14 +209,14 @@ class _ListViewContent extends StatelessWidget {
         _ReminderCard(summaries: summaries),
         const SizedBox(height: 24),
         if (expired.isNotEmpty) ...[
-          _SectionHeader(S.renewalSectionExpired, Icons.error, Colors.red,
+          _SectionHeader(l10n.renewalSectionExpired, Icons.error, Colors.red,
               expired.length),
           const SizedBox(height: 8),
           ...expired.map((s) => _RenewalCard(summary: s, color: Colors.red)),
           const SizedBox(height: 20),
         ],
         if (expiringSoon.isNotEmpty) ...[
-          _SectionHeader(S.renewalSectionExpiringSoon, Icons.warning,
+          _SectionHeader(l10n.renewalSectionExpiringSoon, Icons.warning,
               Colors.orange, expiringSoon.length),
           const SizedBox(height: 8),
           ...expiringSoon
@@ -221,14 +224,14 @@ class _ListViewContent extends StatelessWidget {
           const SizedBox(height: 20),
         ],
         if (active.isNotEmpty) ...[
-          _SectionHeader(S.renewalSectionActive, Icons.check_circle,
+          _SectionHeader(l10n.renewalSectionActive, Icons.check_circle,
               Colors.green, active.length),
           const SizedBox(height: 8),
           ...active.map((s) => _RenewalCard(summary: s, color: Colors.green)),
         ],
         if (noEndDate.isNotEmpty) ...[
           if (active.isNotEmpty) const SizedBox(height: 20),
-          _SectionHeader(S.renewalSectionNoDate, Icons.info_outline,
+          _SectionHeader(l10n.renewalSectionNoDate, Icons.info_outline,
               Colors.blueGrey, noEndDate.length),
           const SizedBox(height: 8),
           _NoEndDateNote(),
@@ -428,6 +431,7 @@ class _CalendarViewContent extends StatelessWidget {
     DateTime date,
     List<PolicySummary> policies,
   ) {
+    final l10n = AppLocalizationsGen.of(context);
     final theme = Theme.of(context);
     final dateStr = '${date.day} ${_monthLabel(date).split(' ')[0]} ${date.year}';
 
@@ -455,14 +459,14 @@ class _CalendarViewContent extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                S.renewalExpiringPolicies(dateStr),
+                l10n.renewalExpiringPolicies(dateStr),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                S.renewalExpiringCount(policies.length),
+                l10n.renewalExpiringCount(policies.length),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -583,13 +587,14 @@ class _DayPolicyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final color = _dotColor(summary);
     final icon = iconForDocumentType(summary.documentType);
     final statusLabel = summary.isExpired
-        ? S.renewalSectionExpired
+        ? l10n.renewalSectionExpired
         : summary.isExpiringSoon
-            ? S.renewalSectionExpiringSoon
-            : S.renewalSectionActive;
+            ? l10n.renewalSectionExpiringSoon
+            : l10n.renewalSectionActive;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -603,7 +608,7 @@ class _DayPolicyTile extends StatelessWidget {
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
-          '${summary.insurer ?? S.renewalInsurerNotFound} • $statusLabel',
+          '${summary.insurer ?? l10n.renewalInsurerNotFound} • $statusLabel',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -665,6 +670,7 @@ class _LegendDot extends StatelessWidget {
 class _NoEndDateNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(12),
@@ -680,7 +686,7 @@ class _NoEndDateNote extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              S.renewalNoDateInfo,
+              l10n.renewalNoDateInfo,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color:
                         Theme.of(context).colorScheme.onSurfaceVariant,
@@ -740,6 +746,7 @@ class _ReminderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
@@ -752,7 +759,7 @@ class _ReminderCard extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(S.renewalReminderText),
+              child: Text(l10n.renewalReminderText),
             ),
             FilledButton.tonal(
               onPressed: () async {
@@ -765,13 +772,13 @@ class _ReminderCard extends StatelessWidget {
                 }
                 if (!context.mounted) return;
                 if (granted) {
-                  CoverWiseSnackBar.success(context, S.renewalRemindersOn);
+                  CoverWiseSnackBar.success(context, l10n.renewalRemindersOn);
                 } else {
                   CoverWiseSnackBar.warning(
-                      context, S.renewalNotificationsOff);
+                      context, l10n.renewalNotificationsOff);
                 }
               },
-              child: Text(S.enable),
+              child: Text(l10n.enable),
             ),
           ],
         ),
@@ -787,6 +794,7 @@ class _RenewalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final icon = iconForDocumentType(summary.documentType);
     final days = summary.daysUntilExpiry;
     final hasNoEndDate = summary.endDate == null;
@@ -814,7 +822,7 @@ class _RenewalCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${summary.insurer ?? S.renewalInsurerNotFound}\n${S.renewalExpires(summary.formattedExpiryDate)}',
+                  '${summary.insurer ?? l10n.renewalInsurerNotFound}\n${l10n.renewalExpires(summary.formattedExpiryDate)}',
                 ),
                 if (largeText) ...[
                   const SizedBox(height: 8),
@@ -878,6 +886,7 @@ class _RenewNowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final hasContact =
         summary.insurerHelpline != null || summary.insurerEmail != null;
     return Padding(
@@ -893,7 +902,7 @@ class _RenewNowButton extends StatelessWidget {
             size: 18,
           ),
           label: Text(
-            summary.isExpired ? S.renewalContactToRenew : S.renewalStartRenewal,
+            summary.isExpired ? l10n.renewalContactToRenew : l10n.renewalStartRenewal,
           ),
           style: OutlinedButton.styleFrom(
             foregroundColor: color,
@@ -905,6 +914,7 @@ class _RenewNowButton extends StatelessWidget {
   }
 
   void _showRenewalContactSheet(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -929,14 +939,14 @@ class _RenewNowButton extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                S.renewalRenewTitle(summary.documentType),
+                l10n.renewalRenewTitle(summary.documentType),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
               ),
               const SizedBox(height: 4),
               Text(
-                S.renewalContactInsurer(summary.insurer ?? 'your insurer'),
+                l10n.renewalContactInsurer(summary.insurer ?? 'your insurer'),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -946,7 +956,7 @@ class _RenewNowButton extends StatelessWidget {
                 CoverWiseActionRow(
                   icon: Icons.phone_outlined,
                   color: Colors.green,
-                  title: S.renewalCallHelpline,
+                  title: l10n.renewalCallHelpline,
                   subtitle: summary.insurerHelpline!,
                   onTap: () => _callHelpline(ctx),
                 ),
@@ -956,7 +966,7 @@ class _RenewNowButton extends StatelessWidget {
                 CoverWiseActionRow(
                   icon: Icons.email_outlined,
                   color: CoverWiseColors.blueDeep,
-                  title: S.renewalSendEmail,
+                  title: l10n.renewalSendEmail,
                   subtitle: summary.insurerEmail!,
                   onTap: () => _sendEmail(ctx),
                 ),
@@ -969,17 +979,19 @@ class _RenewNowButton extends StatelessWidget {
   }
 
   void _callHelpline(BuildContext context) async {
+    final l10n = AppLocalizationsGen.of(context);
     Navigator.of(context).pop();
     final cleaned = summary.insurerHelpline!.replaceAll(RegExp(r'[^0-9+]'), '');
     final uri = Uri.parse('tel:$cleaned');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (context.mounted) {
-      CoverWiseSnackBar.error(context, S.renewalPhoneDialerError);
+      CoverWiseSnackBar.error(context, l10n.renewalPhoneDialerError);
     }
   }
 
   void _sendEmail(BuildContext context) async {
+    final l10n = AppLocalizationsGen.of(context);
     Navigator.of(context).pop();
     final uri = Uri(
       scheme: 'mailto',
@@ -992,15 +1004,16 @@ class _RenewNowButton extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (context.mounted) {
-      CoverWiseSnackBar.error(context, S.renewalEmailClientError);
+      CoverWiseSnackBar.error(context, l10n.renewalEmailClientError);
     }
   }
 
   void _showNoContactInfo(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     CoverWiseSnackBar.warning(
       context,
-      S.renewalContactInfoNotFound(summary.insurer ?? 'this insurer'),
-      actionLabel: S.viewPolicy,
+      l10n.renewalContactInfoNotFound(summary.insurer ?? 'this insurer'),
+      actionLabel: l10n.viewPolicy,
       onAction: () {
         Navigator.of(context).pushNamed(
           '/policy-detail',

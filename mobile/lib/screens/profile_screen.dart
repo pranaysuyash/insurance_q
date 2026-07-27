@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:share_plus/share_plus.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
@@ -17,7 +18,6 @@ import '../providers/document_providers.dart';
 import '../providers/entitlement_provider.dart';
 import '../providers/family_providers.dart';
 import '../config/app_config.dart';
-import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
@@ -52,19 +52,20 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     return AlertDialog(
-      title: Text(S.profileDeleteTypeTitle),
+      title: Text(l10n.profileDeleteTypeTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(S.profileDeleteTypeWarning),
+          Text(l10n.profileDeleteTypeWarning),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
             autofocus: true,
             decoration: InputDecoration(
-              hintText: S.profileDeleteTypeHint,
+              hintText: l10n.profileDeleteTypeHint,
               border: const OutlineInputBorder(),
             ),
             onChanged: (value) {
@@ -76,14 +77,14 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text(S.cancel),
+          child: Text(l10n.cancel),
         ),
         FilledButton.tonal(
           onPressed: _canDelete ? () => Navigator.pop(context, true) : null,
           style: FilledButton.styleFrom(
             foregroundColor: const Color(0xFFC43D4B),
           ),
-          child: Text(S.profileDeletePermanently),
+          child: Text(l10n.profileDeletePermanently),
         ),
       ],
     );
@@ -114,14 +115,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  String _deletionStatusMessage(DeletionStatus status) {
+  String _deletionStatusMessage(AppLocalizationsGen l10n, DeletionStatus status) {
     switch (status.status) {
       case 'pending':
-        return S.profileDeletionStatusPending;
+        return l10n.profileDeletionStatusPending;
       case 'running':
-        return S.profileDeletionStatusRunning;
+        return l10n.profileDeletionStatusRunning;
       case 'failed':
-        return S.profileDeletionStatusFailed;
+        return l10n.profileDeletionStatusFailed;
       default:
         return '';
     }
@@ -155,13 +156,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _confirmDeleteAccount(
       BuildContext context, List<InsuranceDocument> docs) async {
+    final l10n = AppLocalizationsGen.of(context);
     final inFlight =
         docs.where((d) => _inFlightStates.contains(d.processingState)).toList();
     if (inFlight.isNotEmpty) {
-      final names = inFlight.map((d) => d.filename).join(', ');
       CoverWiseSnackBar.warning(
         context,
-        S.profileInFlightWarning(inFlight.length, names),
+        l10n.profileInFlightWarning(inFlight.length),
       );
       return;
     }
@@ -172,23 +173,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.warning_rounded,
             color: Color(0xFFC43D4B), size: 48),
-        title: Text(S.profileDeleteConfirmTitle),
+        title: Text(l10n.profileDeleteConfirmTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              S.profileDeleteConfirmHeader,
+              l10n.profileDeleteConfirmHeader,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            Text(S.profileDeleteItemAccount),
-            Text(S.profileDeleteItemDocs),
-            Text(S.profileDeleteItemSummaries),
-            Text(S.profileDeleteItemHistory),
+            Text(l10n.profileDeleteItemAccount),
+            Text(l10n.profileDeleteItemDocs),
+            Text(l10n.profileDeleteItemSummaries),
+            Text(l10n.profileDeleteItemHistory),
             const SizedBox(height: 12),
             Text(
-              S.profileDeleteWarning,
+              l10n.profileDeleteWarning,
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -196,14 +197,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(S.cancel),
+            child: Text(l10n.cancel),
           ),
           FilledButton.tonal(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               foregroundColor: const Color(0xFFC43D4B),
             ),
-            child: Text(S.profileDeleteEverything),
+            child: Text(l10n.profileDeleteEverything),
           ),
         ],
       ),
@@ -219,17 +220,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       if (!mounted) return;
-      CoverWiseSnackBar.info(this.context, S.profileDeletingAccount);
+      CoverWiseSnackBar.info(this.context, l10n.profileDeletingAccount);
       final result = await AuthService.deleteAccount();
       if (!mounted) return;
       final String snackMessage;
       if (result.isComplete) {
-        snackMessage = S.profileDeleteComplete(
+        snackMessage = l10n.profileDeleteComplete(
             result.deletedDocuments, result.deletedStorageFiles);
       } else if (result.isPartial) {
-        snackMessage = S.profileDeletePartial(result.failedStages);
+        snackMessage = l10n.profileDeletePartial(result.failedStages);
       } else {
-        snackMessage = S.profileDeleteRequested(result.status);
+        snackMessage = l10n.profileDeleteRequested(result.status);
       }
       if (result.isComplete) {
         CoverWiseSnackBar.success(this.context, snackMessage,
@@ -248,8 +249,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _exportAccountData(BuildContext context) async {
+    final l10n = AppLocalizationsGen.of(context);
     if (!AuthService.hasAccountSession) {
-      CoverWiseSnackBar.info(context, S.profileCreateAccountFirst);
+      CoverWiseSnackBar.info(context, l10n.profileCreateAccountFirst);
       return;
     }
     final confirmed = await showDialog<bool>(
@@ -265,7 +267,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(S.cancel),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -303,6 +305,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final accountUser = ref.watch(currentUserProvider);
     final docsAsync = ref.watch(documentsProvider);
     final documents = docsAsync.asData?.value ?? const <InsuranceDocument>[];
@@ -311,14 +314,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final themeMode = AppStateRepository.getThemeMode();
 
     return Scaffold(
-      appBar: AppBar(title: Text(S.profileTitle)),
+      appBar: AppBar(title: Text(l10n.profileTitle)),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           CoverWisePageHeader(
-            title: phone ?? S.profileDefaultHeader,
+            title: phone ?? l10n.profileDefaultHeader,
             subtitle:
-                phone != null ? S.profileLinkedHeader : S.profileUnlinkedHeader,
+                phone != null ? l10n.profileLinkedHeader : l10n.profileUnlinkedHeader,
             trailing: CoverWiseIconBadge(
               icon: phone != null
                   ? Icons.verified_user_rounded
@@ -329,13 +332,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               size: 54,
             ),
           ),
-          CoverWiseSectionLabel(S.settingsSectionAccount),
+          CoverWiseSectionLabel(l10n.settingsSectionAccount),
           if (accountUser == null)
             CoverWiseSurface(
               child: ListTile(
                 leading: const Icon(Icons.cloud_sync_rounded),
-                title: Text(S.profileCreateAccount),
-                subtitle: Text(S.profileRestoreWorkspace),
+                title: Text(l10n.profileCreateAccount),
+                subtitle: Text(l10n.profileRestoreWorkspace),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () async {
                   await Navigator.pushNamed(context, '/account');
@@ -346,11 +349,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             CoverWiseSurface(
               child: ListTile(
                 leading: const Icon(Icons.verified_user_rounded),
-                title: Text(accountUser.email ?? S.profileSignedInAccount),
-                subtitle: Text(S.profileWorkspaceLinked),
+                title: Text(accountUser.email ?? l10n.profileSignedInAccount),
+                subtitle: Text(l10n.profileWorkspaceLinked),
                 trailing: TextButton(
                   onPressed: _signOut,
-                  child: Text(S.signOut),
+                  child: Text(l10n.signOut),
                 ),
               ),
             ),
@@ -359,8 +362,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: ListTile(
                 leading: const Icon(Icons.sync_problem_rounded,
                     color: Color(0xFFE58726)),
-                title: Text(S.profileDeletionStatusTitle),
-                subtitle: Text(_deletionStatusMessage(_deletionStatus!)),
+                title: Text(l10n.profileDeletionStatusTitle),
+                subtitle: Text(_deletionStatusMessage(l10n, _deletionStatus!)),
                 trailing: _loadingDeletionStatus
                     ? const SizedBox(
                         width: 20,
@@ -369,7 +372,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       )
                     : TextButton(
                         onPressed: _refreshDeletionStatus,
-                        child: Text(S.profileDeletionStatusRefresh),
+                        child: Text(l10n.profileDeletionStatusRefresh),
                       ),
               ),
             ),
@@ -378,15 +381,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               CoverWiseActionRow(
                 icon: Icons.phone_iphone_rounded,
                 color: const Color(0xFF0F9D84),
-                title: S.profilePhoneNumber,
-                subtitle: phone ?? S.profileNotLinked,
+                title: l10n.profilePhoneNumber,
+                subtitle: phone ?? l10n.profileNotLinked,
                 trailing: phone != null
                     ? TextButton(
                         onPressed: () async {
                           await box.delete(AppStateStore.phoneNumberKey);
                           setState(() {});
                         },
-                        child: Text(S.remove),
+                        child: Text(l10n.remove),
                       )
                     : const SizedBox.shrink(),
                 onTap: null,
@@ -405,22 +408,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               CoverWiseActionRow(
                 icon: Icons.key_rounded,
                 color: const Color(0xFF7557D3),
-                title: S.profileSecureSession,
+                title: l10n.profileSecureSession,
                 subtitle: accountUser != null
-                    ? S.profileAccountSessionActive
-                    : S.profileAnonymousSessionActive,
+                    ? l10n.profileAccountSessionActive
+                    : l10n.profileAnonymousSessionActive,
                 trailing: const SizedBox.shrink(),
                 onTap: null,
               ),
             ]),
           ),
-          CoverWiseSectionLabel(S.profileAppSection),
+          CoverWiseSectionLabel(l10n.profileAppSection),
           CoverWiseSurface(
             child: Column(children: [
               CoverWiseActionRow(
                 icon: Icons.info_outline_rounded,
                 color: CoverWiseColors.blue,
-                title: S.version,
+                title: l10n.version,
                 subtitle: '${AppConfig.appName} ${AppConfig.appVersion}',
                 trailing: const SizedBox.shrink(),
                 onTap: null,
@@ -429,7 +432,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               CoverWiseActionRow(
                 icon: Icons.brightness_auto_rounded,
                 color: const Color(0xFFE58726),
-                title: S.settingsAppearance,
+                title: l10n.settingsAppearance,
                 subtitle: themeMode == 'light'
                     ? 'Light'
                     : themeMode == 'dark'
@@ -441,18 +444,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
           ),
-          CoverWiseSectionLabel(S.profileFamilySection),
+          CoverWiseSectionLabel(l10n.profileFamilySection),
           CoverWiseSurface(
             child: _FamilySection(documents: documents),
           ),
-          CoverWiseSectionLabel(S.profilePrivacySection),
+          CoverWiseSectionLabel(l10n.profilePrivacySection),
           CoverWiseSurface(
             child: Column(children: [
               CoverWiseActionRow(
                 icon: Icons.phonelink_lock_rounded,
                 color: const Color(0xFF0F9D84),
-                title: S.profileDeviceFirstStorage,
-                subtitle: S.profileDeviceFirstSubtitle,
+                title: l10n.profileDeviceFirstStorage,
+                subtitle: l10n.profileDeviceFirstSubtitle,
                 trailing: const SizedBox.shrink(),
                 onTap: null,
               ),
@@ -460,19 +463,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               CoverWiseActionRow(
                 icon: Icons.delete_outline_rounded,
                 color: const Color(0xFFC43D4B),
-                title: S.profileDeleteAccount,
-                subtitle: S.profileDeleteAccountSubtitle,
+                title: l10n.profileDeleteAccount,
+                subtitle: l10n.profileDeleteAccountSubtitle,
                 onTap: accountUser != null
                     ? () => _confirmDeleteAccount(context, documents)
                     : () => CoverWiseSnackBar.info(
-                        context, S.profileCreateAccountFirst),
+                        context, l10n.profileCreateAccountFirst),
               ),
             ]),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
             child: Text(
-              S.profileFooter,
+              l10n.profileFooter,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

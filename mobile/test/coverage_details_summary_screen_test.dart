@@ -399,7 +399,8 @@ void main() {
       expect(find.textContaining('25/7/2026'), findsWidgets);
     });
 
-    testWidgets('renders coverage items when present', (tester) async {
+    testWidgets('renders coverage items with limit and limitText when expanded',
+        (tester) async {
       final summary = basicSummary().copyWith(
         coverageItems: [
           CoverageItem(
@@ -411,6 +412,10 @@ void main() {
             name: 'ICU Charges',
             limitText: 'Up to sum insured',
             covered: true,
+          ),
+          CoverageItem(
+            name: 'Dental Cover',
+            covered: false,
           ),
         ],
       );
@@ -427,8 +432,107 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
+      // Item names visible
       expect(find.text('Room Rent'), findsOneWidget);
       expect(find.text('ICU Charges'), findsOneWidget);
+      expect(find.text('Dental Cover'), findsOneWidget);
+
+      // Section header
+      expect(find.text('Coverage Items'), findsOneWidget);
+
+      // Numeric limit rendered (Room Rent has limit:5000 but no limitText)
+      expect(find.text('Limit: ₹5000'), findsOneWidget);
+
+      // limitText rendered (ICU Charges has limitText)
+      expect(find.text('Up to sum insured'), findsOneWidget);
+
+      // Uncovered item has no limit text shown
+      // (Dental Cover has neither limit nor limitText — just the name and ❌ icon)
+    });
+
+    testWidgets('coverage items render covered/uncovered check icons',
+        (tester) async {
+      final summary = basicSummary().copyWith(
+        coverageItems: [
+          CoverageItem(name: 'Covered Item', limit: 1000, covered: true),
+          CoverageItem(name: 'Not Covered', covered: false),
+        ],
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: CoverageDetailsSummaryScreen(summary: summary),
+      ));
+
+      // Expand Benefits & Coverage
+      final tile = find.widgetWithText(ExpansionTile, 'Benefits & Coverage');
+      await tester.ensureVisible(tile);
+      await tester.pump();
+      await tester.tap(tile);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Check icons: check_circle for covered, cancel for uncovered
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.cancel_rounded), findsOneWidget);
+    });
+  });
+
+  group('buildCoverageShareText — coverage items from details summary', () {
+    test('renders coverage items with limit and limitText in share text', () {
+      final summary = PolicySummary(
+        documentId: 'doc1',
+        policyNumber: 'POL-12345',
+        insurer: 'Test Insurer',
+        documentType: 'health',
+        coverageAmount: 500000,
+        startDate: DateTime(2026, 1, 1),
+        endDate: DateTime(2026, 12, 31),
+        keyBenefits: ['Hospitalization cover'],
+        coverageItems: [
+          CoverageItem(name: 'Room Rent', limit: 5000, covered: true),
+          CoverageItem(name: 'ICU Charges', limitText: 'Up to sum insured', covered: true),
+          CoverageItem(name: 'Dental Cover', covered: false),
+        ],
+        extractedAt: DateTime(2026, 7, 25),
+      );
+
+      final text = buildCoverageShareText(summary);
+
+      // Section header
+      expect(text, contains('📋 Coverage Items:'));
+
+      // ✅ covered items
+      expect(text, contains('✅ Room Rent'));
+      expect(text, contains('(₹5K)')); // fmt(5000)
+
+      // ✅ with limitText
+      expect(text, contains('✅ ICU Charges'));
+      expect(text, contains('(Up to sum insured)'));
+
+      // ❌ uncovered item (no limit)
+      expect(text, contains('❌ Dental Cover'));
+
+      // No numeric limit shown for limitText items
+      expect(text, isNot(contains('Limit:')));
+    });
+
+    test('share text omits coverage items section when list empty', () {
+      final summary = PolicySummary(
+        documentId: 'doc1',
+        policyNumber: 'POL-12345',
+        insurer: 'Test Insurer',
+        documentType: 'health',
+        coverageAmount: 500000,
+        startDate: DateTime(2026, 1, 1),
+        endDate: DateTime(2026, 12, 31),
+        keyBenefits: ['Hospitalization cover'],
+        coverageItems: [],
+        extractedAt: DateTime(2026, 7, 25),
+      );
+
+      final text = buildCoverageShareText(summary);
+
+      expect(text, isNot(contains('📋 Coverage Items:')));
     });
   });
 }

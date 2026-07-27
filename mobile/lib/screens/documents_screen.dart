@@ -25,7 +25,7 @@ import '../widgets/drop_zone.dart';
 import 'paywall_screen.dart';
 import '../theme/coverwise_motion.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
-import '../localization/app_localizations.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../utils/app_error.dart';
 import '../widgets/lead_capture_dialog.dart';
 import '../widgets/phone_capture_sheet.dart';
@@ -141,6 +141,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   };
 
   Future<void> _pickFile() async {
+    final l10n = AppLocalizationsGen.of(context);
     setState(() {
       _uploadError = null;
       _ocrResult = null;
@@ -180,12 +181,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         // Validate web file type by extension.
         final ext = picked.name.split('.').last.toLowerCase();
         if (!_supportedExtensions.contains(ext)) {
-          setState(() => _uploadError = S.fileTypeUnsupported);
+          setState(() => _uploadError = l10n.fileTypeUnsupported);
           return;
         }
         if (picked.bytes.length > AppConfig.maxUploadFileSizeBytes) {
           setState(() => _uploadError =
-              'This file is too large (${_formatFileSize(picked.bytes.length)}). ${S.fileTypeMaxSize}.');
+              'This file is too large (${_formatFileSize(picked.bytes.length)}). ${l10n.fileTypeMaxSize}.');
           return;
         }
         setState(() {
@@ -205,7 +206,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       final ext = file.path.split('.').last.toLowerCase();
       if (!_supportedExtensions.contains(ext)) {
         if (!mounted) return;
-        setState(() => _uploadError = S.fileTypeUnsupported);
+        setState(() => _uploadError = l10n.fileTypeUnsupported);
         return;
       }
 
@@ -214,7 +215,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       if (!mounted) return;
       if (size > AppConfig.maxUploadFileSizeBytes) {
         setState(() => _uploadError =
-            'This file is too large (${_formatFileSize(size)}). ${S.fileTypeMaxSize}.');
+            'This file is too large (${_formatFileSize(size)}). ${l10n.fileTypeMaxSize}.');
         return;
       }
 
@@ -232,6 +233,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 
   Future<void> _uploadFile() async {
+    final l10n = AppLocalizationsGen.of(context);
     final selectedFile = _selectedFile;
     final selectedWebFile = _selectedWebFile;
     if (selectedFile == null && selectedWebFile == null) return;
@@ -473,7 +475,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         } else {
           // Offline/queued - honest message
           final message = isQueuedOnly
-              ? '$selectedName saved locally. ${S.docsUploadRequired}.'
+              ? '$selectedName saved locally. ${l10n.docsUploadRequired}.'
               : '$selectedName saved locally (offline mode)';
           CoverWiseSnackBar.warning(context, message);
           PhoneCaptureSheet.maybeShow(context);
@@ -496,6 +498,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   /// Validates a dropped file's extension and size, then routes it through
   /// the existing upload pipeline (single file for one, batch for multiple).
   Future<void> _handleDroppedFiles(List<DragDropEvent> files) async {
+    final l10n = AppLocalizationsGen.of(context);
     if (files.isEmpty) return;
 
     if (files.length == 1) {
@@ -503,13 +506,13 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       final ext = file.name.split('.').last.toLowerCase();
       if (!_supportedExtensions.contains(ext)) {
         if (!mounted) return;
-        setState(() => _uploadError = S.fileTypeUnsupported);
+        setState(() => _uploadError = l10n.fileTypeUnsupported);
         return;
       }
       if (file.size > AppConfig.maxUploadFileSizeBytes) {
         if (!mounted) return;
         setState(() => _uploadError =
-            'This file is too large (${_formatFileSize(file.size)}). ${S.fileTypeMaxSize}.');
+            'This file is too large (${_formatFileSize(file.size)}). ${l10n.fileTypeMaxSize}.');
         return;
       }
       setState(() {
@@ -533,7 +536,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           fileSizeBytes: file.size,
           isWebFile: true,
           state: BatchUploadState.skipped,
-          errorMessage: S.batchFileUnsupported,
+          errorMessage: l10n.batchFileUnsupported,
         ));
         continue;
       }
@@ -543,7 +546,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           fileSizeBytes: file.size,
           isWebFile: true,
           state: BatchUploadState.skipped,
-          errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+          errorMessage: l10n.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
         ));
         continue;
       }
@@ -645,6 +648,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
   /// Open multi-file picker and validate each selected file.
   Future<void> _pickFiles() async {
+    final l10n = AppLocalizationsGen.of(context);
     setState(() {
       _uploadError = null;
       _ocrResult = null;
@@ -669,7 +673,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             fileSizeBytes: file.bytes.length,
             isWebFile: true,
             state: BatchUploadState.skipped,
-            errorMessage: S.batchFileUnsupported,
+            errorMessage: l10n.batchFileUnsupported,
           ));
           continue;
         }
@@ -679,7 +683,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             fileSizeBytes: file.bytes.length,
             isWebFile: true,
             state: BatchUploadState.skipped,
-            errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+            errorMessage: l10n.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
           ));
           continue;
         }
@@ -715,7 +719,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           fileName: xFile.path.split('/').last,
           fileSizeBytes: 0,
           state: BatchUploadState.skipped,
-          errorMessage: S.batchFileUnsupported,
+          errorMessage: l10n.batchFileUnsupported,
         ));
         continue;
       }
@@ -727,7 +731,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             fileName: xFile.path.split('/').last,
             fileSizeBytes: size,
             state: BatchUploadState.skipped,
-            errorMessage: S.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+            errorMessage: l10n.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
           ));
           continue;
         }
@@ -767,6 +771,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   /// Property and decision ownership are maintained in
   /// `docs/analysis/analytics_tracking_event_registry.md`.
   Future<void> _uploadBatch() async {
+    final l10n = AppLocalizationsGen.of(context);
     if (_batchEntries.isEmpty) return;
     final pending = _batchEntries
         .where((e) => e.state == BatchUploadState.pending)
@@ -841,7 +846,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       if (!mounted) return;
       if (isDuplicate != null) {
         entry.state = BatchUploadState.skipped;
-        entry.errorMessage = S.batchDuplicateSkipped;
+        entry.errorMessage = l10n.batchDuplicateSkipped;
         continue;
       }
 
@@ -902,12 +907,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       if (_batchFailed == 0) {
         CoverWiseSnackBar.success(
           context,
-          S.batchCompletedCount(_batchCompleted),
+          l10n.batchCompletedCount(_batchCompleted),
         );
       } else {
         CoverWiseSnackBar.warning(
           context,
-          S.batchFailedCount(_batchFailed, _batchEntries.length),
+          l10n.batchFailedCount(_batchFailed, _batchEntries.length),
         );
       }
     }
@@ -929,16 +934,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 
   Future<void> _refreshDocumentTypes() async {
+    final l10n = AppLocalizationsGen.of(context);
     setState(() => _isUploading = true);
     try {
       if (!mounted) return;
-      CoverWiseSnackBar.info(context, S.docsRefreshingTypes);
+      CoverWiseSnackBar.info(context, l10n.docsRefreshingTypes);
       await ref.read(documentServiceProvider).refreshAllDocumentTypes();
       ref.invalidate(documentsProvider);
       if (!mounted) return;
       CoverWiseSnackBar.success(
         context,
-        S.docsTypesRefreshed,
+        l10n.docsTypesRefreshed,
       );
     } catch (e) {
       if (!mounted) return;
@@ -954,6 +960,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final documentsAsync = ref.watch(documentsProvider);
     final hasDocuments =
         documentsAsync.whenOrNull(data: (docs) => docs.isNotEmpty) ?? false;
@@ -1232,7 +1239,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     const SizedBox(height: 8),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                      label: Text(S.batchPickMultiple),
+                      label: Text(l10n.batchPickMultiple),
                       onPressed: _pickFiles,
                     ),
                     const SizedBox(height: 12),
@@ -1264,7 +1271,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                      label: Text(S.batchPickMultiple),
+                      label: Text(l10n.batchPickMultiple),
                       onPressed: _pickFiles,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
@@ -1420,6 +1427,7 @@ class _BatchUploadProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -1443,11 +1451,11 @@ class _BatchUploadProgress extends StatelessWidget {
                     Expanded(
                       child: Text(
 isUploading
-                             ? S.batchUploadingProgress(completed + failed, entries.length)
+                             ? l10n.batchUploadingProgress(completed + failed, entries.length)
                             : _allDone
                                 ? (failed == 0
-                                    ? S.batchCompleted
-                                    : S.batchSomeFailed)
+                                    ? l10n.batchCompleted
+                                    : l10n.batchSomeFailed)
                             : '${entries.length} files selected',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
@@ -1457,7 +1465,7 @@ isUploading
                     IconButton(
                       icon: const Icon(Icons.close, size: 20),
                       onPressed: isUploading ? null : onClear,
-                      tooltip: S.batchDone,
+                      tooltip: l10n.batchDone,
                     ),
                   ],
                 ),
@@ -1494,7 +1502,7 @@ isUploading
                       Expanded(
                         child: FilledButton.icon(
                           icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-                          label: Text(S.batchUploadingPendingCount(_pendingCount)),
+                          label: Text(l10n.batchUploadingPendingCount(ObjectKey(_pendingCount))),
                           onPressed: onUpload,
                         ),
                       ),
@@ -1502,7 +1510,7 @@ isUploading
                       Expanded(
                         child: FilledButton.tonalIcon(
                           icon: const Icon(Icons.refresh, size: 18),
-                          label: Text(S.batchRetryFailed),
+                          label: Text(l10n.batchRetryFailed),
                           onPressed: onRetryFailed,
                         ),
                       ),
@@ -1512,7 +1520,7 @@ isUploading
                       Expanded(
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.add_rounded, size: 18),
-                          label: Text(S.batchAddMore),
+                          label: Text(l10n.batchAddMore),
                           onPressed: onAddMore,
                         ),
                       ),
@@ -1520,7 +1528,7 @@ isUploading
                       Expanded(
                         child: Center(
                           child: Text(
-                            S.batchUploadingProgress(completed + failed, entries.length),
+                            l10n.batchUploadingProgress(completed + failed, entries.length),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: cs.onSurfaceVariant,
                             ),

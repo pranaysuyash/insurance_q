@@ -8,7 +8,7 @@ import '../theme/coverwise_theme.dart';
 import '../services/analytics_service.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../utils/app_error.dart';
-import '../localization/app_localizations.dart';
+import '../l10n/app_localizations_gen.dart';
 
 /// Screen where users can browse and purchase pay-per-Q&A packs.
 ///
@@ -28,10 +28,11 @@ class _QaPacksScreenState extends ConsumerState<QaPacksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final packState = ref.watch(qaPackStateProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(S.qaPacksTitle),
+        title: Text(l10n.qaPacksTitle),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -341,6 +342,7 @@ class _PackCard extends ConsumerWidget {
   }
 
   Future<void> _purchasePack(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizationsGen.of(context);
     onStartPurchase(pack);
     AnalyticsService.track('qa_pack_purchase_started', {
       'pack_type': pack.name,
@@ -362,7 +364,7 @@ class _PackCard extends ConsumerWidget {
         onSuccess();
         CoverWiseSnackBar.success(
           context,
-          S.qaPacksPackPurchased(pack.displayName, pack.questionCount),
+          l10n.qaPacksPackPurchased(pack.displayName),
         );
       } else {
         AnalyticsService.track('qa_pack_purchase_failed', {
@@ -371,7 +373,7 @@ class _PackCard extends ConsumerWidget {
         });
         CoverWiseSnackBar.info(
           context,
-          S.qaPacksPurchaseNotCompleted,
+          l10n.qaPacksPurchaseNotCompleted,
         );
       }
     } catch (e) {

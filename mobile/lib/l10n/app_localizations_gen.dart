@@ -6,7 +6,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_gen_en.dart';
+import 'app_localizations_gen_gu.dart';
 import 'app_localizations_gen_hi.dart';
+import 'app_localizations_gen_mr.dart';
+import 'app_localizations_gen_ta.dart';
 
 // ignore_for_file: type=lint
 
@@ -95,7 +98,10 @@ abstract class AppLocalizationsGen {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('hi')
+    Locale('gu'),
+    Locale('hi'),
+    Locale('mr'),
+    Locale('ta')
   ];
 
   /// No description provided for @appName.
@@ -300,7 +306,7 @@ abstract class AppLocalizationsGen {
   ///
   /// In en, this message translates to:
   /// **'{monthly} monthly + {pack} pack'**
-  String qaMonthlyPlusPack(Object monthly, Object pack);
+  String qaMonthlyPlusPack(Object monthly, Object pack, Object packs);
 
   /// No description provided for @qaPackQuestions.
   ///
@@ -541,6 +547,12 @@ abstract class AppLocalizationsGen {
   /// In en, this message translates to:
   /// **'How closely this source matches your question'**
   String get qaRelevanceTooltip;
+
+  /// No description provided for @qaOfflineMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You are offline. Please check your connection and try again.'**
+  String get qaOfflineMessage;
 
   /// No description provided for @confidenceHigh.
   ///
@@ -2899,6 +2911,24 @@ abstract class AppLocalizationsGen {
   /// In en, this message translates to:
   /// **'View policy member map'**
   String get familyVisSeeMap;
+
+  /// No description provided for @coverageShareSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Share summary'**
+  String get coverageShareSummary;
+
+  /// No description provided for @coverageShareSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'CoverWise policy coverage summary'**
+  String get coverageShareSubject;
+
+  /// No description provided for @coverageShareError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open sharing options'**
+  String get coverageShareError;
 }
 
 class _AppLocalizationsGenDelegate
@@ -2913,7 +2943,7 @@ class _AppLocalizationsGenDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'hi'].contains(locale.languageCode);
+      <String>['en', 'gu', 'hi', 'mr', 'ta'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsGenDelegate old) => false;
@@ -2924,8 +2954,14 @@ AppLocalizationsGen lookupAppLocalizationsGen(Locale locale) {
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsGenEn();
+    case 'gu':
+      return AppLocalizationsGenGu();
     case 'hi':
       return AppLocalizationsGenHi();
+    case 'mr':
+      return AppLocalizationsGenMr();
+    case 'ta':
+      return AppLocalizationsGenTa();
   }
 
   throw FlutterError(

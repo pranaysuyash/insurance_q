@@ -1,9 +1,7 @@
 {
   "@@locale": "hi",
-  "@@last_modified": "2026-07-24",
-
+  "@@last_modified": "2026-07-25",
   "appName": "CoverWise",
-
   "commonShowLess": "कम दिखाएँ",
   "commonShowMore": "और दिखाएँ",
   "cancel": "रद्द करें",
@@ -30,7 +28,6 @@
   "expiresInDays": "{count} दिन में समाप्त हो रही है",
   "daysLeft": "{days} दिन शेष",
   "daysBefore": "{days} दिन पहले",
-
   "qaScreenTitle": "CoverWise से पूछें",
   "qaTabSuggested": "सुझाव",
   "qaTabYourQuestion": "आपका प्रश्न",
@@ -78,12 +75,10 @@
   "qaNoSourceDocument": "स्रोत दस्तावेज़ उपलब्ध नहीं",
   "qaSourcePageLabel": "पृष्ठ {page}",
   "qaRelevanceTooltip": "यह स्रोत आपके प्रश्न से कितना मेल खाता है",
-
   "confidenceHigh": "उच्च",
   "confidenceMedium": "मध्यम",
   "confidenceLow": "निम्न",
   "confidenceLabel": "{level} विश्वसनीयता",
-
   "qaPacksTitle": "Q&A पैक",
   "qaPacksBuyHeading": "पैक खरीदें",
   "qaPacksSubtitle": "कोई सब्सक्रिप्शन ज़रूरी नहीं। एक बार भुगतान करें, प्रश्न पूछें।",
@@ -110,7 +105,6 @@
   "qaPacksPurchaseNotCompleted": "खरीदारी पूरी नहीं हुई। कोई प्रश्न नहीं जोड़े गए।",
   "qaPacksPackRemaining": "{type} पैक",
   "qaPacksRemaining": "{remaining}/{total} शेष",
-
   "familyTitle": "परिवार",
   "familyNoMembersYet": "अभी तक कोई परिवार सदस्य नहीं",
   "familyNoMembersFound": "कोई परिवार सदस्य नहीं मिला",
@@ -138,7 +132,6 @@
   "familyDetailManualSource": "मैन्युअल रूप से जोड़ा गया",
   "familyDetailAutoSource": "पॉलिसी से पता चला",
   "familyDetailNoPolicies": "{name} को सूचीबद्ध करने वाली कोई पॉलिसी नहीं मिली। उन्हें शामिल करने वाली पॉलिसी अपलोड करें, या मैन्युअल रूप से जोड़ें।",
-
   "relationshipDependent": "आश्रित",
   "relationshipSpouse": "पति/पत्नी",
   "relationshipChild": "बच्चा",
@@ -146,7 +139,6 @@
   "relationshipSibling": "भाई-बहन",
   "relationshipPrimaryInsured": "प्राथमिक बीमित",
   "relationshipOther": "अन्य",
-
   "insuranceCardsTitle": "बीमा कार्ड",
   "insuranceCardsEmptyTitle": "अभी तक कोई बीमा कार्ड नहीं",
   "insuranceCardsEmptySubtitle": "अपने फ़ोन पर मुख्य विवरण रखने के लिए एक पॉलिसी फ़ाइल चुनें।",
@@ -170,7 +162,6 @@
   "insuranceCardsShareFooter": "बीमाकर्ता और स्रोत पॉलिसी दस्तावेज़ के साथ वर्तमान विवरण सत्यापित करें।",
   "insuranceCardsPhoneError": "फ़ोन ऐप नहीं खोल सका",
   "insuranceCardsShareError": "साझाकरण विकल्प नहीं खोल सका",
-
   "renewalTitle": "नवीकरण कैलेंडर",
   "renewalEmptyTitle": "कोई पॉलिसी ट्रैक नहीं की गई",
   "renewalEmptySubtitle": "नवीकरण तिथियों को ट्रैक करने के लिए एक पॉलिसी फ़ाइल चुनें।",
@@ -197,7 +188,6 @@
   "renewalEmailClientError": "ईमेल क्लाइंट नहीं खोल सका",
   "renewalExpiringPolicies": "{date} को समाप्त होने वाली पॉलिसियाँ",
   "renewalExpiringCount": "{count, plural, =1{इस तिथि पर 1 पॉलिसी समाप्त हो रही है} other{इस तिथि पर {count} पॉलिसियाँ समाप्त हो रही हैं}}",
-
   "settingsTitle": "सेटिंग",
   "settingsHeaderTitle": "आपका ऐप, आपकी प्राथमिकताएँ",
   "settingsHeaderSubtitle": "पहुँच, अनुस्मारक और इस डिवाइस पर क्या रहता है प्रबंधित करें।",
@@ -242,7 +232,6 @@
   "settingsConsentRevokedLabel": "रद्द",
   "settingsLanguage": "भाषा",
   "settingsLanguageSubtitle": "अपनी पसंदीदा ऐप भाषा चुनें",
-
   "profileTitle": "प्रोफ़ाइल",
   "profileDefaultHeader": "आपकी CoverWise प्रोफ़ाइल",
   "profileLinkedHeader": "आपके डिवाइसों पर लिंक और तैयार।",
@@ -288,7 +277,6 @@
   "profileDeletionStatusRefresh": "स्थिति ताज़ा करें",
   "profileDeletionStatusUnavailable": "हटाने की स्थिति अस्थायी रूप से अनुपलब्ध है।",
   "profileInFlightWarning": "{count} दस्तावेज़ अभी भी प्रसंस्करण में हैं। खाता हटाने से पहले प्रसंस्करण पूरा होने तक प्रतीक्षा करें।",
-
   "upgradeTitle": "अपनी योजना चुनें",
   "upgradeBillingUnavailable": "बिलिंग अभी उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।",
   "upgradeCouldNotOpenSettings": "सब्सक्रिप्शन सेटिंग नहीं खोल सका",
@@ -317,7 +305,6 @@
   "upgradeEmergency": "आपातकालीन",
   "upgradeAnnualReview": "वार्षिक समीक्षा",
   "upgradeAdvancedSearch": "उन्नत खोज",
-
   "accountTitle": "{isSignUp, select, true{खाता बनाएँ} other{साइन इन करें}}",
   "accountHeaderTitle": "अपने पॉलिसी वर्कस्पेस की सुरक्षा करें",
   "accountHeaderSubtitle": "एक खाता आपको दूसरे डिवाइस पर अपना CoverWise वर्कस्पेस पुनर्स्थापित करने देता है।",
@@ -346,7 +333,6 @@
   "accountVerificationSent": "पुष्टिकरण ईमेल भेज दिया गया। अपना इनबॉक्स जाँचें।",
   "accountCouldNotVerify": "पुष्टिकरण ईमेल नहीं भेज सका। बाद में पुनः प्रयास करें।",
   "accountCouldNotGoogle": "Google से साइन इन नहीं कर सका। कृपया पुनः प्रयास करें।",
-
   "notifTitle": "नवीकरण अनुस्मारक",
   "notifHeaderTitle": "नवीकरण से आगे रहें",
   "notifHeaderSubtitle": "चुनें कि यह डिवाइस आपको कब याद दिलाए। सूचनाएँ अनुस्मारक हैं, बीमाकर्ता के नवीकरण नोटिस नहीं।",
@@ -363,7 +349,6 @@
   "notifSectionPerPolicy": "प्रति-पॉलिसी अनुस्मारक",
   "notifSectionPerPolicyDescription": "व्यक्तिगत पॉलिसियों के लिए अनुस्मारक चालू/बंद करें।",
   "notifPreferencesSaved": "प्राथमिकताएँ सहेज ली गईं",
-
   "docsTitle": "दस्तावेज़",
   "docsSlotsUsed": "{count} में से 5 मुफ़्त पॉलिसी स्लॉट उपयोग में",
   "docsTypeChanged": "प्रकार बदलकर",
@@ -423,15 +408,12 @@
   "docsRenameSave": "सहेजें",
   "docsRenameSuccess": "पॉलिसी का नाम बदल दिया गया",
   "docsRenameEmpty": "नाम खाली नहीं हो सकता",
-
   "tosTitle": "सेवा की शर्तें",
   "tosCopySuccess": "सेवा की शर्तें क्लिपबोर्ड पर कॉपी हो गईं",
   "tosLoadError": "सेवा की शर्तें लोड नहीं हो सकीं।",
-
   "privacyTitle": "गोपनीयता नीति",
   "privacyCopySuccess": "गोपनीयता नीति क्लिपबोर्ड पर कॉपी हो गई",
   "privacyLoadError": "गोपनीयता नीति लोड नहीं हो सकी।",
-
   "processingReceived": "प्राप्त हुआ",
   "processingProcessing": "प्रसंस्करण",
   "processingCategorising": "वर्गीकरण",
@@ -440,39 +422,29 @@
   "processingProcessingDesc": "पाठ पढ़ा और निकाला जा रहा है",
   "processingCategorisingDesc": "पॉलिसी प्रकार और बीमाकर्ता निर्धारित किया जा रहा है",
   "processingFinishingUpDesc": "आपकी पॉलिसी खोजने योग्य बनाई जा रही है",
-
   "onboardSubtitle": "अपनी वास्तविक पॉलिसी के आधार पर स्पष्ट उत्तर प्राप्त करें — इंटरनेट से सामान्य सलाह नहीं।",
   "onboardNoDataStored": "आपकी सहमति के बिना कोई पॉलिसी डेटा संग्रहीत या साझा नहीं किया जाएगा।",
   "onboardTermsAcceptance": "मैंने गोपनीयता नीति और सेवा की शर्तें पढ़ और स्वीकार कर ली हैं।",
-
   "emergencyTitle": "आपातकालीन",
   "emergencyHelpAtGlance": "एक नज़र में मदद",
-
   "dashboardQuickActions": "त्वरित कार्रवाइयाँ",
   "dashboardEmergency": "आपातकालीन",
   "dashboardAddPolicy": "पॉलिसी फ़ाइल जोड़ें",
-
   "searchTitle": "खोज",
   "searchHint": "सभी पॉलिसियों में खोजें...",
   "searchNoResults": "कोई परिणाम नहीं मिला",
-
   "coverageGapTitle": "कवरेज समीक्षा",
   "coverageGapEmpty": "उपलब्ध पॉलिसी पाठ से अभी तक कोई संभावित कवरेज प्रश्न नहीं मिला",
-
   "literacyTitle": "बीमा शब्दकोश",
   "literacySearchHint": "शर्तें खोजें...",
-
   "docTypePickerTitle": "दस्तावेज़ प्रकार चुनें",
-
   "fileTypeSupported": "समर्थित फ़ाइल प्रकार",
   "fileTypePdf": "PDF दस्तावेज़",
   "fileTypeImage": "चित्र (JPEG, PNG)",
   "fileTypeMaxSize": "अधिकतम फ़ाइल आकार: 20 MB",
   "fileTypeUnsupported": "यह फ़ाइल प्रकार समर्थित नहीं है। कृपया PDF या चित्र चुनें।",
-
   "whatIfTitle": "क्या-अगर कैलकुलेटर",
   "whatIfDescription": "जानें कि विभिन्न कवरेज विकल्प आपके अनुमानित खर्चों को कैसे प्रभावित करते हैं।",
-
   "batchPickMultiple": "एकाधिक फ़ाइलें चुनें",
   "batchUploadingPendingCount": "{count} फ़ाइलें अपलोड हो रही हैं…",
   "batchUploadingProgress": "{done} में से {total} अपलोड हो गए",
@@ -487,7 +459,6 @@
   "batchDone": "हो गया",
   "batchAddMore": "और फ़ाइलें जोड़ें",
   "batchSelectAll": "सभी चुनें",
-
   "familyVisTitle": "कवरेज मानचित्र",
   "familyVisHeader": "पॉलिसी में सूचीबद्ध परिवार के सदस्य",
   "familyVisSubtitle": "हर पॉलिसी में सूचीबद्ध परिवार के सदस्यों की तुलना करें; अपने बीमाकर्ता से कवरेज की पुष्टि करें।",
@@ -496,5 +467,9 @@
   "familyVisEmptyTitle": "अभी तक कोई कवरेज डेटा नहीं",
   "familyVisEmptySubtitle": "अपनी पॉलिसी में सूचीबद्ध नामों की तुलना करने के लिए पॉलिसियाँ अपलोड करें और परिवार के सदस्यों को जोड़ें।",
   "familyVisNoPolicies": "{name} को सूचीबद्ध करने वाली कोई पॉलिसी अभी तक नहीं।",
-  "familyVisSeeMap": "पॉलिसी सदस्य मानचित्र देखें"
+  "familyVisSeeMap": "पॉलिसी सदस्य मानचित्र देखें",
+  "qaOfflineMessage": "You are offline. Please check your connection and try again.",
+  "coverageShareSummary": "Share summary",
+  "coverageShareSubject": "CoverWise policy coverage summary",
+  "coverageShareError": "Could not open sharing options"
 }

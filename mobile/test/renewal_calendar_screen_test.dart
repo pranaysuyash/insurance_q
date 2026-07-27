@@ -1,3 +1,4 @@
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/providers/policy_providers.dart';
 import 'package:coverwise/screens/renewal_calendar_screen.dart';
@@ -20,7 +21,11 @@ void main() {
             () => _EmptyPolicySummaries(),
           ),
         ],
-        child: const MaterialApp(home: RenewalCalendarScreen()),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+          supportedLocales: AppLocalizationsGen.supportedLocales,
+          home: const RenewalCalendarScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

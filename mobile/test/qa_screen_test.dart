@@ -17,6 +17,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:dio/dio.dart';
 import 'package:coverwise/providers/service_providers.dart';
 import 'package:coverwise/services/query_service.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 
 /// A QueryService that blocks on a controllable stream, so tests can
 /// verify the in-flight guard (second submission is ignored).
@@ -96,6 +97,9 @@ void main() {
           queryServiceProvider.overrideWithValue(queryService),
       ],
       child: MaterialApp(
+        localizationsDelegates:
+            AppLocalizationsGen.localizationsDelegates,
+        supportedLocales: AppLocalizationsGen.supportedLocales,
         home: QaScreen(initialDocumentId: initialDocumentId),
       ),
     );

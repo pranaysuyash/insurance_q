@@ -4,7 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
-import '../localization/app_localizations.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../theme/coverwise_theme.dart';
 import '../utils/document_icons.dart';
 import '../widgets/shared/coverwise_components.dart';
@@ -24,16 +24,17 @@ class InsuranceCardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizationsGen.of(context);
     final summaries = ref.watch(policySummariesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(S.insuranceCardsTitle)),
+      appBar: AppBar(title: Text(l10n.insuranceCardsTitle)),
       body: summaries.isEmpty
           ? EmptyStateWidget(
               icon: Icons.credit_card_off_outlined,
-              title: S.insuranceCardsEmptyTitle,
-              subtitle: S.insuranceCardsEmptySubtitle,
-              actionLabel: S.insuranceCardsChooseFile,
+              title: l10n.insuranceCardsEmptyTitle,
+              subtitle: l10n.insuranceCardsEmptySubtitle,
+              actionLabel: l10n.insuranceCardsChooseFile,
               actionIcon: Icons.upload_file_rounded,
               onAction: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -46,9 +47,9 @@ class InsuranceCardScreen extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.only(bottom: 24),
               children: [
-                const CoverWisePageHeader(
-                  title: S.insuranceCardsHeaderTitle,
-                  subtitle: S.insuranceCardsHeaderSubtitle,
+                CoverWisePageHeader(
+                  title: l10n.insuranceCardsHeaderTitle,
+                  subtitle: l10n.insuranceCardsHeaderSubtitle,
                   trailing: CoverWiseIconBadge(
                     icon: Icons.wallet_outlined,
                     color: CoverWiseColors.blueDeep,
@@ -78,6 +79,7 @@ class _InsuranceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final isExpired = summary.isExpired;
     final isExpiring = summary.isExpiringSoon;
 
@@ -145,7 +147,7 @@ class _InsuranceCard extends StatelessWidget {
               // Policy number
               if (summary.policyNumber != null) ...[
                 _CardField(
-                  label: S.insuranceCardsPolicyNumber,
+                  label: l10n.insuranceCardsPolicyNumber,
                   value: summary.policyNumber!,
                 ),
                 const SizedBox(height: 12),
@@ -157,12 +159,12 @@ class _InsuranceCard extends StatelessWidget {
                 children: [
                   if (summary.formattedCoverageAmount != 'Unknown')
                     _CardField(
-                      label: S.insuranceCardsCoverage,
+                      label: l10n.insuranceCardsCoverage,
                       value: summary.formattedCoverageAmount,
                     ),
                   if (summary.formattedPremium != 'Unknown')
                     _CardField(
-                      label: S.insuranceCardsPremium,
+                      label: l10n.insuranceCardsPremium,
                       value: summary.formattedPremium,
                     ),
                 ],
@@ -175,12 +177,12 @@ class _InsuranceCard extends StatelessWidget {
                 children: [
                   if (summary.formattedStartDate != 'Unknown')
                     _CardField(
-                      label: S.insuranceCardsValidFrom,
+                      label: l10n.insuranceCardsValidFrom,
                       value: summary.formattedStartDate,
                     ),
                   if (summary.formattedExpiryDate != 'Unknown')
                     _CardField(
-                      label: S.insuranceCardsValidUntil,
+                      label: l10n.insuranceCardsValidUntil,
                       value: summary.formattedExpiryDate,
                     ),
                 ],
@@ -195,7 +197,7 @@ class _InsuranceCard extends StatelessWidget {
                       width: stack ? double.infinity : null,
                       child: FilledButton.icon(
                         icon: const Icon(Icons.phone_outlined, size: 18),
-                        label: Text(S.insuranceCardsCallInsurer),
+                        label: Text(l10n.insuranceCardsCallInsurer),
                         onPressed: () => _callInsurer(context),
                       ),
                     );
@@ -203,7 +205,7 @@ class _InsuranceCard extends StatelessWidget {
                       width: stack ? double.infinity : null,
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.ios_share_rounded, size: 18),
-                        label: Text(S.insuranceCardsShareCard),
+                        label: Text(l10n.insuranceCardsShareCard),
                         onPressed: () => _shareCard(context),
                       ),
                     );
@@ -230,6 +232,7 @@ class _InsuranceCard extends StatelessWidget {
   }
 
   Future<void> _callInsurer(BuildContext context) async {
+    final l10n = AppLocalizationsGen.of(context);
     final rawNumber = summary.insurerHelpline;
     if (rawNumber == null || rawNumber.trim().isEmpty) return;
     final phone = rawNumber.replaceAll(RegExp(r'[^0-9+]'), '');
@@ -240,32 +243,33 @@ class _InsuranceCard extends StatelessWidget {
       launched = false;
     }
     if (!launched && context.mounted) {
-      CoverWiseSnackBar.error(context, S.insuranceCardsPhoneError);
+      CoverWiseSnackBar.error(context, l10n.insuranceCardsPhoneError);
     }
   }
 
   Future<void> _shareCard(BuildContext context) async {
+    final l10n = AppLocalizationsGen.of(context);
     final lines = <String>[
-      S.insuranceCardsShareTitle,
+      l10n.insuranceCardsShareTitle,
       summary.documentType,
       if (summary.insurer != null)
-        '${S.insuranceCardsInsurerPrefix}${summary.insurer}',
+        '${l10n.insuranceCardsInsurerPrefix}${summary.insurer}',
       if (summary.policyNumber != null)
-        '${S.insuranceCardsPolicyNumberPrefix}${summary.policyNumber}',
+        '${l10n.insuranceCardsPolicyNumberPrefix}${summary.policyNumber}',
       if (summary.formattedCoverageAmount != 'Unknown')
-        '${S.insuranceCardsCoveragePrefix}${summary.formattedCoverageAmount}',
+        '${l10n.insuranceCardsCoveragePrefix}${summary.formattedCoverageAmount}',
       if (summary.formattedExpiryDate != 'Unknown')
-        '${S.insuranceCardsValidUntilPrefix}${summary.formattedExpiryDate}',
+        '${l10n.insuranceCardsValidUntilPrefix}${summary.formattedExpiryDate}',
       if (summary.insurerHelpline != null)
-        '${S.insuranceCardsHelplinePrefix}${summary.insurerHelpline}',
+        '${l10n.insuranceCardsHelplinePrefix}${summary.insurerHelpline}',
       '',
-      S.insuranceCardsShareFooter,
+      l10n.insuranceCardsShareFooter,
     ];
     try {
       await SharePlus.instance.share(ShareParams(text: lines.join('\n')));
     } catch (_) {
       if (context.mounted) {
-        CoverWiseSnackBar.error(context, S.insuranceCardsShareError);
+        CoverWiseSnackBar.error(context, l10n.insuranceCardsShareError);
       }
     }
   }

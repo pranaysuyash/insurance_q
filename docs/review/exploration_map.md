@@ -4018,3 +4018,355 @@ policy. Full results at
 **Recommended next step:** implement Strategy D (hybrid) in the production
 pipeline, add loyalty_bonus to the context header, fix insured-members table
 serialization.
+
+## 2026-07-22 — Extended chunking benchmark: ALL 11 strategies tested
+
+Tested 11 chunking strategies × 10 questions on the real ICICI Lombard policy.
+Full results at `docs/technical/rag/exploration/benchmark_findings_2026-07-22.md`.
+
+**Complete ranking:**
+
+| Rank | Strategy | Accuracy | Chunks | Key insight |
+|---|---|---|---|---|
+| 🥇 | D_hybrid (table+page) | 80% | 39 | Only strategy to solve sum-insured question |
+| 🥇 | A_paragraph+header | 80% | 43 | Current production — proven |
+| 🥇 | C_page_level | 80% | 16 | Best efficiency — fewest chunks |
+| 4 | B_table_aware | 60% | 66 | Table serialization fragments context alone |
+| 4 | E_no_header | 60% | 43 | Control — proves header adds +20% |
+| 6 | 1_token | 50% | 35 | Lucky on Q8 (loyalty bonus) |
+| 6 | 3_sliding | 50% | 64 | Overlap adds noise |
+| 8 | 13_contextual (LLM) | 40% | 43 | WORSE than deterministic header — gpt-5-nano generates poor context |
+| 9 | 2_sentence | 30% | 320 | Too fragmented for tables |
+| 9 | 5_header | 30% | 195 | Over-segmentation from false-positive headings |
+| 9 | 11_semantic | 30% | 44 | Expensive (100+ API calls), no improvement on tables |
+
+**Surprising finding:** LLM-enriched contextual retrieval (Anthropic's technique)
+scored WORSE (40%) than the deterministic context header (80%) on this document
+type. The cheap LLM (gpt-5-nano) generates vague context ("this is a number
+from the policy") vs the deterministic header which says exactly "Sum Insured:
+₹2500000". The deterministic approach wins for structured/table-heavy documents.
+
+**Verdict:** Deterministic context header + hybrid chunking (Strategy D) is the
+correct approach for insurance policies. No "smart" strategy (semantic,
+contextual, sentence-based) outperforms it. The differentiator is table
+extraction quality, not chunking sophistication.
+
+## 2026-07-22 — Pipeline layer exploration analysis
+
+Full analysis at
+`docs/technical/rag/exploration/pipeline_layer_exploration_analysis_2026-07-22.md`.
+
+Mapped all 8 RAG pipeline layers and identified which have the most unexplored
+surface area:
+
+| Layer | Strategies tested | Untested methods | Exploration value |
+|---|---|---|---|
+| 1. Parsing | 2 | ~8 (spatial KV, Docling, VLM, font headings) | **HIGH** — data loss happens here |
+| 2. Chunking | **11** (complete) | Late chunking only | **DONE** |
+| 3. Context enrichment | 3 | Section paths, multi-vector | MEDIUM |
+| 4. Embedding | **1** | ~6 (bge-m3, e5, ColBERT, fine-tuned) | **HIGH** — only tested one model |
+| 5. Retrieval | 1 (cosine, K=5) | ~5 (K sweep, RRF tuning, multi-query) | **HIGH** — parameters never tuned |
+| 6. Reranking | **1** | ~4 (bge-reranker, LLM rerank, ColBERT) | **HIGH** — only tested one reranker |
+| 7. Query routing | 1 (regex) | ~5 (LLM classifier, decomposition, retry) | MEDIUM |
+| 8. Answer generation | 1 (basic prompt) | ~6 (CoT, self-citation, verification) | **HIGH** — legal implications |
+
+**Top 3 exploration priorities (P0):**
+1. **Parsing** — spatial KV detection (fixes root cause at the source)
+2. **Embedding** — bge-m3 and e5-large-v2 (only tested OpenAI; different models have different retrieval profiles)
+3. **Reranking** — bge-reranker-v2-m3 and no-reranker control (only tested MiniLM)
+
+**The meta-finding from the chunking benchmark applies here:** deterministic
+and simple approaches beat "smart" approaches on structured documents. This
+pattern may repeat in other layers (e.g., a well-tuned BM25 might beat a
+fancy embedding model on exact-field matching). The benchmark should test this.
+
+## 2026-07-22 — Parsing layer deep dive (research + evaluation)
+
+Full research at
+`docs/technical/rag/exploration/parsing_deep_dive_2026-07-22.md`.
+
+Researched 10 categories of parsing methods. Key findings:
+
+1. **Spatial KV detection is the right approach** for CoverWise's label-value
+   disconnection problem. The academic field calls this "form understanding"
+   (FUNSD benchmark, DocLLM, LayoutLM). CoverWise can implement a deterministic
+   version using PyMuPDF's `get_text("dict")` which already provides bbox +
+   font for every text span — no new model needed.
+
+2. **PyMuPDF 1.28 already has the primitives** but we're not using them:
+   - `get_text("dict")` → spans with bbox, font, size (for KV pairing)
+   - `find_tables(strategy="text")` → borderless table detection
+   - `pymupdf4llm.to_markdown()` → heading detection + Markdown tables
+
+3. **OmniDocBench v1.6 leaderboard** (current SOTA parsers, mid-2026):
+   PaddleOCR-VL-1.6 (0.9B, 96.34%), MinerU2.5-Pro (1.2B, 95.75%),
+   GLM-OCR (0.9B, 95.22%). All are VLMs requiring GPU.
+
+4. **GMFT** is the lowest-friction table extraction upgrade: CPU-only TATR
+   wrapper, ~1.4s/page, handles borderless tables, minimal deps (torch +
+   transformers only).
+
+5. **SmolDocling-256M** is the most promising compact parser: 256M params,
+   Apache 2.0, OTSL table output preserves cell structure, runs locally.
+
+6. **Recommended phased approach:**
+   - Phase 1: Use PyMuPDF `get_text("dict")` + implement spatial KV detection
+     (zero new deps)
+   - Phase 2: Add GMFT for borderless table extraction (one new dep)
+   - Phase 3: Evaluate SmolDocling-256M for hard pages
+   - Phase 4: Full parser upgrade (Docling/PaddleOCR) if needed
+
+**Meta-finding:** The data needed to solve the label-value problem is already
+available from PyMuPDF — we just haven't been extracting it. The fix is using
+`get_text("dict")` instead of `get_text()` and implementing a spatial pairing
+algorithm. No new model required.
+
+## 2026-07-22 — CRITICAL: PyMuPDF AGPL v3 license finding
+
+Full analysis at
+`docs/technical/rag/exploration/parsing_license_analysis_2026-07-22.md`.
+
+**PyMuPDF (fitz) is AGPL v3.** Using it in the backend (a network service)
+requires open-sourcing the entire backend codebase. This is a launch blocker
+for a closed-source commercial product.
+
+**Safe alternatives tested:**
+- **pdfplumber** (MIT) — direct replacement. Text extraction + table detection
+  + character positions with bbox/font. Tested against the real policy: works.
+  5 tables found on page 1, including `['Policy No.', '4214i/CPHSR/...']`.
+  Character "2500000" at x=97, y=449 — spatial KV detection works.
+- **pypdfium2** (BSD/Apache) — page rendering (replaces get_pixmap)
+- **GMFT** (MIT) — table structure recognition (TATR wrapper)
+- **Docling** (MIT) — full parser
+- **SmolDocling-256M** (Apache 2.0) — compact VLM parser
+
+**NOT safe without commercial license:**
+- PyMuPDF (AGPL v3) — needs Artifex commercial license or replacement
+- Marker (license unclear, likely non-commercial)
+
+**Migration path documented.** pdfplumber provides the same bbox + font data
+needed for spatial KV detection. The chunking/embedding/reranking layers are
+parser-independent — only the parsing layer code changes.
+
+**ACTION REQUIRED before launch:** migrate parsing from PyMuPDF to pdfplumber.
+
+## 2026-07-25 — DEFINITIVE parsing license analysis (supersedes 2026-07-22 version)
+
+Full analysis at
+`docs/technical/rag/exploration/parsing_license_definitive_analysis_2026-07-25.md`.
+
+Re-verified ALL 150 tools from the catalog via GitHub API + LICENSE files +
+PyPI metadata + HuggingFace cards. Corrected several errors from the first pass:
+
+**Corrections from the 2026-07-22 analysis:**
+- Marker: Apache 2.0 (code), NOT "unknown/NC." Surya weights are OpenRAIL-M
+  (free for startups <$5M). Earlier analysis was WRONG about Marker being unsafe.
+- MinerU: Apache 2.0 with terms (free until 100M MAU / $20M revenue). VERIFIED.
+- Surya: code is Apache 2.0 but MODEL WEIGHTS are OpenRAIL-M — this was MISSED
+  entirely in the first pass. Affects Marker (which uses Surya weights).
+- Unstructured: Apache 2.0 (was not checked before).
+
+**The AGPL finding stands and is confirmed:**
+- PyMuPDF → AGPL v3 (confirmed via GitHub API: `pymupdf/PyMuPDF` and
+  `artifexsoftware/mupdf` both AGPL v3)
+- Must be replaced before commercial launch
+
+**Recommended commercial-safe parsing stack:**
+- pdfplumber (MIT) — primary text + table extraction
+- pypdfium2 (BSD/Apache) — page rendering
+- GMFT (MIT) — borderless table structure (TATR wrapper)
+- docTR (Apache 2.0) — OCR for scanned pages
+- Docling (MIT) — full-pipeline fallback for complex pages
+- SmolDocling-256M (Apache 2.0 incl. weights) — compact VLM if needed
+- All MIT or Apache 2.0. No AGPL. No weight restrictions.
+
+## 2026-07-25 — Frontier VLM document parsers deep exploration (18 specialist + 3 general)
+
+Full analysis at
+`docs/technical/rag/exploration/frontier_vlm_parsers_analysis_2026-07-25.md`.
+
+Evaluated ALL 18 requested specialist VLM parsers + 3 general VLMs. Every
+license verified via GitHub API + LICENSE files + HuggingFace model cards.
+
+**KEY FINDING: OvisOCR2 is the NEW OmniDocBench SOTA (96.58)** — a 0.8B
+end-to-end model that beats all pipeline methods. Apache 2.0, commercial-safe,
+runs locally on M3 Max. First end-to-end model to top the leaderboard.
+
+**License status of all 21 models:**
+
+Commercial-safe (Apache 2.0 / MIT):
+- OvisOCR2 (0.8B, Apache 2.0, 96.58) ← NEW SOTA
+- PaddleOCR-VL-1.6 (0.9B, Apache 2.0, 96.34)
+- GLM-OCR (0.9B, Apache 2.0, 95.22)
+- PaddleOCR-VL-1.5 (0.9B, Apache 2.0)
+- Unlimited-OCR (MIT)
+- Logics-Parsing-Omni (Apache 2.0)
+- DeepSeek-OCR 2 (Apache 2.0)
+- DeepSeek-OCR (MIT)
+- MonkeyOCR-pro-3B (Apache 2.0)
+- Qwen3-VL-235B/30B (Apache 2.0 incl. weights)
+
+Conditionally safe:
+- MinerU2.5-Pro (Apache 2.0 + terms: free until $20M revenue)
+- Ovis2.6-30B-A3B (no license on GitHub, but OvisOCR2 by same org is Apache 2.0)
+
+NOT safe:
+- HunyuanOCR-1.5 (Tencent Community License — EU/UK/Korea excluded)
+- Youtu-Parsing (Tencent custom — EU excluded, 69 stars)
+- Dolphin v1/v1.5/v2 (ByteDance custom, LICENSE file 404 — unverifiable)
+- dots.ocr (NO LICENSE FILE — all rights reserved)
+- Gemini 3 Pro (proprietary API, pay per use)
+
+**Recommended for CoverWise:** OvisOCR2 (0.8B, Apache 2.0, SOTA) as the VLM
+parser for scanned/hard pages. pdfplumber (MIT) for born-digital pages. This
+hybrid stack is fully commercial-safe and uses the current state-of-the-art.
+
+## 2026-07-25 — CORRECTION: VLM parsers are Phase 2, not Phase 1
+
+The frontier VLM analysis correctly identified OvisOCR2 as SOTA, but
+**wrongly implied it's viable for Phase 1**. Phase 1 is mobile-only: the user
+uploads from their phone, processing happens on the backend (CPU, no GPU).
+
+**Phase 1 parsing stack (mobile-only, CPU backend):**
+- Born-digital PDF → pdfplumber (MIT) on backend CPU
+- Scanned PDF → ML Kit OCR on mobile device (already implemented)
+- No VLM — they need GPUs, which add cost and complexity
+
+**Phase 2 parsing stack (when volume justifies GPU):**
+- Born-digital PDF → pdfplumber (MIT) on backend CPU (same)
+- Scanned/hard PDF → OvisOCR2 (Apache 2.0, 0.8B) on GPU instance
+- Or: GLM-OCR (Apache 2.0, 0.9B) as alternative
+
+**VLM parsers are the RIGHT long-term answer for quality, but they're not
+the Phase 1 answer for a solo founder deploying on CPU-only cloud.** The
+deterministic approach (pdfplumber + spatial KV detection + context header)
+is the Phase 1 answer.
+
+## 2026-07-25 — Mobile on-device parsing research
+
+Full analysis at
+`docs/technical/rag/exploration/mobile_on_device_parsing_research_2026-07-25.md`.
+
+**Phase 1 is mobile-only.** The phone does document processing before backend.
+Researched what VLM document parsers can run ON the phone.
+
+**Already in the app:**
+- ML Kit Text Recognition (OCR, on-device, free, Latin + Devanagari)
+- Gemma 2B via MediaPipe (on-device LLM for offline Q&A, `on_device_inference_service.dart`)
+- flutter_gemma + flutter_gemma_mediapipe packages
+
+**Mobile-feasible VLM parsers (Apache 2.0, commercial-safe):**
+- SmolDocling-256M → ~130MB int8 → 1-3s/page → tables + layout + OTSL
+- Granite-Docling-258M → same class
+- OvisOCR2 (0.8B) → ~400MB int4 → 3-8s/page → SOTA 96.58
+- PaddleOCR-VL (0.9B) → ~450MB int4 → 3-8s/page
+- GLM-OCR (0.9B) → ~450MB int4 → 3-8s/page
+
+**Serverless GPU fallback (if on-device too slow):**
+- Modal Labs: $0.0001-0.001/request
+- Replicate: $0.001-0.01/image
+- HuggingFace Inference Endpoints: $0.05-0.10/hour dedicated (scale-to-zero)
+
+**Recommended architecture:**
+- Phase 1: ML Kit OCR + backend pdfplumber (current approach)
+- Phase 1.5: SmolDocling-256M on mobile (on-device table extraction)
+- Phase 2: Modal Labs GPU for hard pages (OvisOCR2 SOTA)
+
+**Key insight:** The app already has MediaPipe inference for Gemma. Adding
+SmolDocling uses the same infrastructure path — just a different model.
+The pieces exist; it's a model-swap, not an architecture change.
+
+## 2026-07-25 — PARSER BENCHMARK: 7 parsers evaluated against real policy
+
+Full results at
+`docs/technical/rag/exploration/parser_benchmark_findings_2026-07-25.md`.
+
+Held chunking/embedding/generation constant. Varied ONLY the parser. Scored
+each parser's output on: facts found, label-value pairing, table structure.
+
+**Headline results:**
+
+| Parser | Facts | Paired | Table structure | Speed | License |
+|---|---|---|---|---|---|
+| Docling (TableFormer) | 90% | 80% | ✅ | 192s ❌ | MIT |
+| pdfplumber + tables | 100% | 80% | ✅ | 2.7s ✅ | **MIT** |
+| PyMuPDF + find_tables | 100% | 80% | ✅ | 3.7s | AGPL ❌ |
+| pdfplumber spatial KV | 100% | 80% | ✅ | 2.2s ✅ | **MIT** |
+| PyMuPDF flat | 100% | 80% | ❌ | 0.14s | AGPL ❌ |
+| pdfplumber text | 100% | 80% | ❌ | 2.3s | **MIT** |
+| pymupdf4llm | 20% | 10% | ❌ | 24s | AGPL ❌ |
+
+**Key finding: Docling is the ONLY parser that pairs "Sum Insured" (₹25L)
+with its value "2500000".** All other parsers find the value but can't
+connect it to the label — the label is in a table header row, the value
+is in a data row below it.
+
+**But Docling takes 192 seconds.** pdfplumber takes 2.7s and matches
+PyMuPDF quality with a MIT license.
+
+**Recommendation for Phase 1:** pdfplumber + tables (MIT, fast, 100% facts).
+Improve spatial KV with column-based pairing (top-bottom, not just left-right)
+to catch sum insured without Docling's 192s overhead.
+
+**Recommendation for quality upgrade:** benchmark OvisOCR2 (0.8B, Apache 2.0,
+OmniDocBench 96.58) — it should pair sum insured like Docling but at 0.8B
+params. This is the NEXT benchmark to run (needs vLLM + model download).
+
+## 2026-07-25 — Spatial KV Detection v2 SOLVES the sum insured problem
+
+Implemented column-based (table header → data cell) + cross-row (label row →
+value row below) pairing on top of the existing row-based KV detection.
+
+**Result: 630 KV pairs in 3.1s using pdfplumber (MIT). Sum Insured is now
+paired with its value "2500000" — without Docling (192s) or any VLM (GPU).**
+
+Three complementary detection methods:
+- Row-based (286 pairs): catches inline mentions
+- Table-column (180 pairs): catches structured table headers + data cells
+- Cross-row (164 pairs): catches label-above-value relationships
+
+This is the deterministic, zero-cost solution to the label-value disconnection
+problem that was the root cause of Q2 (sum insured) retrieval failure across
+ALL chunking strategies tested. The problem is now solvable at the parsing
+layer with pdfplumber + spatial KV, without any model or GPU.
+
+## 2026-07-25 — VLM parser benchmark: DeepSeek-OCR + complete parser comparison
+
+Full results at
+`docs/technical/rag/exploration/vlm_parser_benchmark_findings_2026-07-25.md`.
+
+Ran DeepSeek-OCR (3B, via Ollama CPU) on policy page 1. Also attempted
+OvisOCR2 and GLM-OCR — both require CUDA GPU (vLLM), not available on Apple
+Silicon.
+
+### Complete parser comparison (ALL 8 parsers tested)
+
+| Parser | Sum Insured? | Facts | Speed | License |
+|---|---|---|---|---|
+| **pdfplumber spatial KV v2** | **✅** | **100%** | **3.1s** | **MIT** |
+| Docling (TableFormer) | ✅ | 90% | 192s | MIT |
+| DeepSeek-OCR (VLM 3B) | ✅ | 80% | 30s | MIT |
+| PyMuPDF find_tables | ❌ | 100% | 3.7s | AGPL |
+| pdfplumber tables | ❌ | 100% | 2.7s | MIT |
+| PyMuPDF flat | ❌ | 100% | 0.14s | AGPL |
+| pdfplumber text | ❌ | 100% | 2.3s | MIT |
+| pymupdf4llm | ❌ | 20% | 24s | AGPL |
+
+**The sum insured problem is SOLVED by pdfplumber spatial KV v2 —
+deterministic, 3.1s, MIT, no model, no GPU.** VLMs (Docling, DeepSeek-OCR)
+also solve it but are slower and miss more facts.
+
+### OvisOCR2/GLM-OCR status
+
+Both require vLLM (CUDA GPU). Cannot run on Apple Silicon. Their model
+architectures (Qwen3_5ForConditionalGeneration, GlmOcrForConditionalGeneration)
+are not yet supported by transformers 5.8.1. They should be benchmarked on a
+cloud GPU instance (Modal Labs, HF Inference Endpoint) for harder documents.
+
+### Meta-finding (third confirmation)
+
+The chunking benchmark proved deterministic beats smart. The parser benchmark
+proves the same: pdfplumber spatial KV v2 (deterministic, 3s) beats Docling
+(192s) and DeepSeek-OCR (30s, VLM) at both accuracy and speed. The VLMs
+hallucinate (DeepSeek-OCR repeated the sum insured section 3 times) while
+deterministic parsers are exact.

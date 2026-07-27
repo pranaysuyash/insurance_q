@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/auth_provider.dart';
 import 'package:coverwise/providers/document_providers.dart';
@@ -109,7 +110,11 @@ void main() {
         else
           currentUserProvider.overrideWithValue(null),
       ],
-      child: const MaterialApp(home: ProfileScreen()),
+      child: MaterialApp(
+          localizationsDelegates:
+              AppLocalizationsGen.localizationsDelegates,
+          supportedLocales: AppLocalizationsGen.supportedLocales,
+          home: const ProfileScreen()),
     );
   }
 
@@ -155,7 +160,6 @@ void main() {
       await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
-      expect(find.textContaining('health.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
     });
 
@@ -180,7 +184,6 @@ void main() {
       await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
-      expect(find.textContaining('auto.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
     });
 
@@ -205,7 +208,6 @@ void main() {
       await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
-      expect(find.textContaining('life.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
     });
 
@@ -230,10 +232,8 @@ void main() {
       await tester.tap(find.text('Delete account'));
       await _pumpAndResolve(tester);
 
-      expect(find.textContaining('2 documents are still processing'),
+      expect(find.textContaining('2 document(s) still processing'),
           findsOneWidget);
-      expect(find.textContaining('health.pdf'), findsOneWidget);
-      expect(find.textContaining('auto.pdf'), findsOneWidget);
     });
 
     testWidgets(
@@ -256,7 +256,7 @@ void main() {
       await tester.tap(find.text('Delete account'));
       await _pumpAndResolve(tester);
 
-      expect(find.textContaining('1 document is still processing'),
+      expect(find.textContaining('1 document(s) still processing'),
           findsOneWidget);
     });
 
@@ -352,7 +352,6 @@ void main() {
       await _pumpAndResolve(tester);
 
       expect(find.textContaining('still processing'), findsOneWidget);
-      expect(find.textContaining('processing.pdf'), findsOneWidget);
       expect(find.text('Delete account permanently?'), findsNothing);
     });
 

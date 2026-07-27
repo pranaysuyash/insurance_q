@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../models/document_model.dart';
 import '../providers/family_providers.dart';
 import '../providers/document_providers.dart';
@@ -7,7 +8,6 @@ import '../widgets/shared/empty_state_widget.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../widgets/shared/error_widget.dart';
-import '../localization/app_localizations.dart';
 import '../theme/coverwise_theme.dart';
 import '../utils/document_icons.dart';
 import '../utils/policy_type.dart';
@@ -21,8 +21,9 @@ class FamilyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(S.familyTitle)),
+      appBar: AppBar(title: Text(l10n.familyTitle)),
       body: const FamilyMembersContent(),
     );
   }
@@ -45,12 +46,13 @@ class FamilyMembersContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizationsGen.of(context);
     final documentsAsync = ref.watch(documentsProvider);
 
     return documentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppErrorView(
-        message: S.familyLibraryError,
+        message: l10n.familyLibraryError,
         icon: Icons.family_restroom_rounded,
         onRetry: () => ref.invalidate(documentsProvider),
       ),
@@ -58,9 +60,9 @@ class FamilyMembersContent extends ConsumerWidget {
         if (documents.isEmpty) {
           return EmptyStateWidget(
             icon: Icons.family_restroom,
-            title: S.familyNoMembersYet,
-            subtitle: S.familyEmptySubtitle,
-            actionLabel: S.familyAddMember,
+            title: l10n.familyNoMembersYet,
+            subtitle: l10n.familyEmptySubtitle,
+            actionLabel: l10n.familyAddMember,
             actionIcon: Icons.person_add_alt_1_rounded,
             color: const Color(0xFF16866B),
             onAction: () => _addMember(context, ref),
@@ -81,12 +83,13 @@ class _FamilyList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizationsGen.of(context);
     final familyAsync = ref.watch(mergedFamilyMembersProvider(documents));
 
     return familyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => AppErrorView(
-        message: S.familyMembersReadError,
+        message: l10n.familyMembersReadError,
         icon: Icons.family_restroom_rounded,
         onRetry: () => ref.invalidate(mergedFamilyMembersProvider(documents)),
       ),
@@ -94,9 +97,9 @@ class _FamilyList extends ConsumerWidget {
         if (policyHolders.isEmpty) {
           return EmptyStateWidget(
             icon: Icons.family_restroom,
-            title: S.familyNoMembersFound,
-            subtitle: S.familyEmptySubtitle,
-            actionLabel: S.familyAddMember,
+            title: l10n.familyNoMembersFound,
+            subtitle: l10n.familyEmptySubtitle,
+            actionLabel: l10n.familyAddMember,
             actionIcon: Icons.person_add_alt_1_rounded,
             color: const Color(0xFF16866B),
             onAction: onAdd,
@@ -110,15 +113,15 @@ class _FamilyList extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               CoverWisePageHeader(
-                title: S.familyPeopleCovered,
-                subtitle: S.familyPeopleSubtitle,
+                title: l10n.familyPeopleCovered,
+                subtitle: l10n.familyPeopleSubtitle,
                 trailing: CoverWiseIconBadge(
                   icon: Icons.family_restroom_rounded,
                   color: CoverWiseColors.blueDeep,
                   size: 48,
                 ),
               ),
-              CoverWiseSectionLabel(S.familySectionLabel),
+              CoverWiseSectionLabel(l10n.familySectionLabel),
               ...policyHolders.values.map((holder) => _FamilyMemberCard(
                     key: ValueKey(holder.name),
                     holder: holder,
@@ -137,19 +140,18 @@ class _FamilyList extends ConsumerWidget {
                             final confirmed = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: Text(S.familyRemoveTitle),
-                                content:
-                                    Text(S.familyRemoveContent(holder.name)),
+                                title: Text(l10n.familyRemoveTitle),
+                                content: Text(l10n.familyRemoveContent(holder.name)),
                                 actions: [
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, false),
-                                    child: Text(S.cancel),
+                                    child: Text(l10n.cancel),
                                   ),
                                   FilledButton.tonal(
                                     onPressed: () =>
                                         Navigator.pop(context, true),
-                                    child: Text(S.remove),
+                                    child: Text(l10n.remove),
                                   ),
                                 ],
                               ),
@@ -185,7 +187,7 @@ class _FamilyList extends ConsumerWidget {
                       width: double.infinity,
                       child: FilledButton.tonalIcon(
                         icon: const Icon(Icons.account_tree_outlined, size: 18),
-                        label: Text(S.familyVisSeeMap),
+                        label: Text(l10n.familyVisSeeMap),
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -199,7 +201,7 @@ class _FamilyList extends ConsumerWidget {
                       width: double.infinity,
                       child: FilledButton.icon(
                         icon: const Icon(Icons.person_add_alt_1_rounded),
-                        label: Text(S.familyAddButton),
+                        label: Text(l10n.familyAddButton),
                         onPressed: onAdd,
                       ),
                     ),
@@ -250,6 +252,7 @@ class _FamilyMemberCardState extends State<_FamilyMemberCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final theme = Theme.of(context);
     final isPrimary = widget.holder.relationship == 'Primary Insured';
     final policies = _policies;
@@ -311,7 +314,7 @@ class _FamilyMemberCardState extends State<_FamilyMemberCard> {
                       if (widget.onDelete != null)
                         IconButton(
                           icon: const Icon(Icons.person_remove_outlined),
-                          tooltip: S.familyRemoveTooltip(widget.holder.name),
+                          tooltip: l10n.familyRemoveTooltip(widget.holder.name),
                           onPressed: widget.onDelete,
                         ),
                     ],
@@ -324,7 +327,7 @@ class _FamilyMemberCardState extends State<_FamilyMemberCard> {
                             color: theme.colorScheme.onSurfaceVariant),
                         const SizedBox(width: 8),
                         Text(
-                          S.familyDateOfBirth(widget.holder.dob!),
+                          l10n.familyDateOfBirth(widget.holder.dob!),
                           style: theme.textTheme.bodyMedium,
                         ),
                       ],
@@ -623,7 +626,7 @@ class _CoverageMatrix extends StatelessWidget {
 
   String _shortName(String filename) {
     final name = filename.replaceAll(
-        RegExp(r'\.(pdf|jpg|jpeg|png)$', caseSensitive: false), '');
+        RegExp(r'\\.(pdf|jpg|jpeg|png)$', caseSensitive: false), '');
     return name.length > 10 ? '${name.substring(0, 8)}…' : name;
   }
 }
@@ -661,6 +664,7 @@ class _SourceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final theme = Theme.of(context);
     final color =
         isManual ? theme.colorScheme.tertiary : CoverWiseColors.blueDeep;
@@ -672,7 +676,7 @@ class _SourceBadge extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
-        isManual ? S.familyManualBadge : S.familyFromDocumentBadge,
+        isManual ? l10n.familyManualBadge : l10n.familyFromDocumentBadge,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

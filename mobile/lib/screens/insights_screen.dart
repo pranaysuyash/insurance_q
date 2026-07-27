@@ -58,7 +58,7 @@ class InsightsScreen extends ConsumerWidget {
                               Navigator.pushNamed(
                                 context,
                                 '/coverage-gaps',
-                                arguments: summaries.first.documentId,
+                                arguments: {'documentId': summaries.first.documentId},
                               );
                             }
                           },

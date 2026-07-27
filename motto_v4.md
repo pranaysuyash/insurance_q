@@ -136,7 +136,7 @@ For each work chunk, run at least three explicit passes before finalizing:
    - Record outcomes in durable notes and ensure exploration/research areas are updated in the appropriate exploration map when meaningful.
 
 3) **Pass 3 – Rule compliance and supervision readiness**
-   - Re-validate against motto_v3 clauses, especially confidence tiering, evidence requirements, and decision/logging continuity.
+   - Re-validate against motto_v4 clauses, especially confidence tiering, evidence requirements, and decision/logging continuity.
    - Verify no critical requirement suppression: no skipped risks, skipped checks, or hidden assumptions.
    - Confirm who approves open items and what trigger closes each.
    - Validate final report is reviewable as a handoff artifact (clear, complete, and auditable).

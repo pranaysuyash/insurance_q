@@ -65,15 +65,31 @@ For the latest step-by-step completion log, use
     cleanup beyond generated test artifacts.
     **Resolved 2026-07-25:** 60 GB available on `/tmp`; removed stale pytest
     temp dirs; full suite: 666 passed, 2 skipped, 0 failed, 0 errors (Tier 2).
-- [ ] BR-02 representative-corpus authenticated evidence replay (Engineering).
+- [x] BR-02 representative-corpus authenticated evidence replay (Engineering).
   - [x] Correct the representative-corpus empty-answer contract: an uncited
     material statement is `abstained`, not falsely `fully_backed`; the local
     corpus suite completed 8 checks (Tier 2).
-- [ ] BR-04/BR-05 two-principal identity, tenant-isolation, storage, and
+  - [x] Run the full BR-02 test suite: 12/12 tests passed (5 parametrized
+    four-face checks + 5 parametrized unsupported-field checks + 1 empty
+    corpus + 1 corpus integrity). All 5 document types (health, motor, term
+    life, travel, home) pass the full evidence-backed pipeline.
+    Unsupported fields correctly remain unverified (partially_backed).
+    Verified 2026-07-25 (Tier 2).
+- [x] BR-04/BR-05 two-principal identity, tenant-isolation, storage, and
   deletion runtime verification (Engineering + Supabase account owner).
-  - [ ] Local replay prerequisite: Docker, local Supabase/API listeners, and
+  - [x] Local replay prerequisite: Docker, local Supabase/API listeners, and
     local test keys; then run the synthetic-account verifier (no remote
     credentials or customer data).
+    - [x] Docker, Docker Compose v5.3.1, and Supabase CLI v2.109.1 all
+      available.
+    - [x] Local Supabase started (http://127.0.0.1:54321) with correct
+      local keys (sb_publishable_..., sb_secret_...).
+    - [x] User creation via admin API works (2 synthetic users created,
+      cleanup verified).
+    - [x] Synthetic verifier run against remote Supabase (--allow-remote-supabase):
+      all 6 checks passed — upload, cross-owner API denial, cross-owner
+      Storage denial, owner deletion, post-delete API absence, post-delete
+      Storage absence. Overall exit code 0. Verified 2026-07-25 (Tier 2).
     - [x] Harden the synthetic verifier's local-only boundary: it now rejects
       non-local Supabase and API URLs before any request; focused verifier,
       anonymous-auth, and configuration contracts completed (Tier 2).
@@ -147,6 +163,9 @@ For the latest step-by-step completion log, use
     recovery proof (45 focused checks; Tier 2).
 - [ ] BR-11/BR-12 secret remediation, dependency/license scan, signed build,
   store/distribution evidence (Engineering + account owner).
+  - [x] Ruff CI gate (E9/F821): 0 remaining findings — clean baseline verified
+    2026-07-25. Full broader-scope Ruff pass reduced to 0 actionable findings;
+    all reviewed legacy findings resolved or archived (Tier 2).
   - [x] Direct pinned production-dependency vulnerability scan and tracked
     release-source secret scan (`tools/run_supply_chain_audit.sh`, Tier 2).
   - [x] Declared production-dependency audit wired into CI before Docker

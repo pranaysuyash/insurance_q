@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 
 import '../models/claim_record.dart';
@@ -275,4 +276,29 @@ class AppStateRepository {
   static Future<void> setThemeMode(String mode) async {
     await _box.put(AppStateStore.themeModeKey, mode);
   }
+
+  // ---------------------------------------------------------------------------
+  // Locale preference (M10 multi-language support)
+  // ---------------------------------------------------------------------------
+
+  /// Returns the stored locale tag ('en', 'hi'), or null to use system default.
+  static String? getLocale() {
+    return _box.get(AppStateStore.localeKey) as String?;
+  }
+
+  static Future<void> setLocale(String? locale) async {
+    if (locale == null) {
+      await _box.delete(AppStateStore.localeKey);
+      return;
+    }
+    // Validate that the locale is one of our supported values.
+    // Runtime check (not assert) so validation works in release builds.
+    const validLocales = {'en', 'hi', 'gu', 'mr', 'ta'};
+    if (!validLocales.contains(locale)) {
+      debugPrint('AppStateRepository.setLocale: unsupported locale "$locale" — ignoring.');
+      return;
+    }
+    await _box.put(AppStateStore.localeKey, locale);
+  }
 }
+

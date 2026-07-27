@@ -26,6 +26,9 @@ class PolicySummary {
   final HomePolicyFields? homeFields;
   final HealthPolicyFields? healthFields;
   final MarinePolicyFields? marineFields;
+  final CyberPolicyFields? cyberFields;
+  final LiabilityPolicyFields? liabilityFields;
+  final PetPolicyFields? petFields;
 
   PolicySummary({
     required this.documentId,
@@ -52,6 +55,9 @@ class PolicySummary {
     this.homeFields,
     this.healthFields,
     this.marineFields,
+    this.cyberFields,
+    this.liabilityFields,
+    this.petFields,
   });
 
   bool get isActive => endDate != null && endDate!.isAfter(DateTime.now());
@@ -181,6 +187,9 @@ class PolicySummary {
         'home_fields': homeFields?.toJson(),
         'health_fields': healthFields?.toJson(),
         'marine_fields': marineFields?.toJson(),
+        'cyber_fields': cyberFields?.toJson(),
+        'liability_fields': liabilityFields?.toJson(),
+        'pet_fields': petFields?.toJson(),
         'extracted_at': extractedAt.toIso8601String(),
       };
 
@@ -246,6 +255,18 @@ class PolicySummary {
             ? MarinePolicyFields.fromJson(
                 json['marine_fields'] as Map<String, dynamic>)
             : null,
+        cyberFields: json['cyber_fields'] != null
+            ? CyberPolicyFields.fromJson(
+                json['cyber_fields'] as Map<String, dynamic>)
+            : null,
+        liabilityFields: json['liability_fields'] != null
+            ? LiabilityPolicyFields.fromJson(
+                json['liability_fields'] as Map<String, dynamic>)
+            : null,
+        petFields: json['pet_fields'] != null
+            ? PetPolicyFields.fromJson(
+                json['pet_fields'] as Map<String, dynamic>)
+            : null,
         extractedAt: json['extracted_at'] != null
             ? DateTime.parse(json['extracted_at'])
             : DateTime.now(),
@@ -278,6 +299,9 @@ class PolicySummary {
     HomePolicyFields? homeFields,
     HealthPolicyFields? healthFields,
     MarinePolicyFields? marineFields,
+    CyberPolicyFields? cyberFields,
+    LiabilityPolicyFields? liabilityFields,
+    PetPolicyFields? petFields,
   }) {
     return PolicySummary(
       documentId: documentId,
@@ -303,6 +327,9 @@ class PolicySummary {
       homeFields: homeFields ?? this.homeFields,
       healthFields: healthFields ?? this.healthFields,
       marineFields: marineFields ?? this.marineFields,
+      cyberFields: cyberFields ?? this.cyberFields,
+      liabilityFields: liabilityFields ?? this.liabilityFields,
+      petFields: petFields ?? this.petFields,
       extractedAt: DateTime.now(),
     );
   }
@@ -996,6 +1023,423 @@ class MarinePolicyFields {
       strikesRiotsClause != null ||
       warehouseToWarehouse != null ||
       marineInsuranceCertificateNo != null;
+}
+
+/// Type-specific fields for cyber insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.cyber.
+class CyberPolicyFields {
+  final String? policyTypeCyber;
+  final String? coverageType;
+  final double? dataBreachResponseCover;
+  final double? businessInterruptionCover;
+  final double? regulatoryDefenseCover;
+  final double? cyberExtortionCover;
+  final double? networkSecurityLiability;
+  final double? privacyLiability;
+  final double? mediaLiability;
+  final double? notificationCostCover;
+  final double? creditMonitoringCover;
+  final double? forensicInvestigationCover;
+  final double? annualAggregateLimitCyber;
+  final List<String> subLimitsCyber;
+  final String? waitingPeriodCyber;
+  final String? retroactiveDateCyber;
+  final double? deductibleCyber;
+  final List<String> insuredEntities;
+  final List<String> excludedSystems;
+  final String? regulatoryFinesExcluded;
+
+  const CyberPolicyFields({
+    this.policyTypeCyber,
+    this.coverageType,
+    this.dataBreachResponseCover,
+    this.businessInterruptionCover,
+    this.regulatoryDefenseCover,
+    this.cyberExtortionCover,
+    this.networkSecurityLiability,
+    this.privacyLiability,
+    this.mediaLiability,
+    this.notificationCostCover,
+    this.creditMonitoringCover,
+    this.forensicInvestigationCover,
+    this.annualAggregateLimitCyber,
+    this.subLimitsCyber = const [],
+    this.waitingPeriodCyber,
+    this.retroactiveDateCyber,
+    this.deductibleCyber,
+    this.insuredEntities = const [],
+    this.excludedSystems = const [],
+    this.regulatoryFinesExcluded,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'policy_type_cyber': policyTypeCyber,
+        'coverage_type': coverageType,
+        'data_breach_response_cover': dataBreachResponseCover,
+        'business_interruption_cover': businessInterruptionCover,
+        'regulatory_defense_cover': regulatoryDefenseCover,
+        'cyber_extortion_cover': cyberExtortionCover,
+        'network_security_liability': networkSecurityLiability,
+        'privacy_liability': privacyLiability,
+        'media_liability': mediaLiability,
+        'notification_cost_cover': notificationCostCover,
+        'credit_monitoring_cover': creditMonitoringCover,
+        'forensic_investigation_cover': forensicInvestigationCover,
+        'annual_aggregate_limit_cyber': annualAggregateLimitCyber,
+        'sub_limits_cyber': subLimitsCyber,
+        'waiting_period_cyber': waitingPeriodCyber,
+        'retroactive_date_cyber': retroactiveDateCyber,
+        'deductible_cyber': deductibleCyber,
+        'insured_entities': insuredEntities,
+        'excluded_systems': excludedSystems,
+        'regulatory_fines_excluded': regulatoryFinesExcluded,
+      };
+
+  factory CyberPolicyFields.fromJson(Map<String, dynamic> json) =>
+      CyberPolicyFields(
+        policyTypeCyber: json['policy_type_cyber']?.toString(),
+        coverageType: json['coverage_type']?.toString(),
+        dataBreachResponseCover:
+            (json['data_breach_response_cover'] as num?)?.toDouble(),
+        businessInterruptionCover:
+            (json['business_interruption_cover'] as num?)?.toDouble(),
+        regulatoryDefenseCover:
+            (json['regulatory_defense_cover'] as num?)?.toDouble(),
+        cyberExtortionCover:
+            (json['cyber_extortion_cover'] as num?)?.toDouble(),
+        networkSecurityLiability:
+            (json['network_security_liability'] as num?)?.toDouble(),
+        privacyLiability: (json['privacy_liability'] as num?)?.toDouble(),
+        mediaLiability: (json['media_liability'] as num?)?.toDouble(),
+        notificationCostCover:
+            (json['notification_cost_cover'] as num?)?.toDouble(),
+        creditMonitoringCover:
+            (json['credit_monitoring_cover'] as num?)?.toDouble(),
+        forensicInvestigationCover:
+            (json['forensic_investigation_cover'] as num?)?.toDouble(),
+        annualAggregateLimitCyber:
+            (json['annual_aggregate_limit_cyber'] as num?)?.toDouble(),
+        subLimitsCyber: (json['sub_limits_cyber'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        waitingPeriodCyber: json['waiting_period_cyber']?.toString(),
+        retroactiveDateCyber: json['retroactive_date_cyber']?.toString(),
+        deductibleCyber: (json['deductible_cyber'] as num?)?.toDouble(),
+        insuredEntities: (json['insured_entities'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        excludedSystems: (json['excluded_systems'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        regulatoryFinesExcluded: json['regulatory_fines_excluded']?.toString(),
+      );
+
+  bool get hasAnyFields =>
+      policyTypeCyber != null ||
+      coverageType != null ||
+      dataBreachResponseCover != null ||
+      businessInterruptionCover != null ||
+      regulatoryDefenseCover != null ||
+      cyberExtortionCover != null ||
+      networkSecurityLiability != null ||
+      privacyLiability != null ||
+      mediaLiability != null ||
+      notificationCostCover != null ||
+      creditMonitoringCover != null ||
+      forensicInvestigationCover != null ||
+      annualAggregateLimitCyber != null ||
+      subLimitsCyber.isNotEmpty ||
+      waitingPeriodCyber != null ||
+      retroactiveDateCyber != null ||
+      deductibleCyber != null ||
+      insuredEntities.isNotEmpty ||
+      excludedSystems.isNotEmpty ||
+      regulatoryFinesExcluded != null;
+}
+
+/// Type-specific fields for liability insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.liability.
+class LiabilityPolicyFields {
+  final String? policyTypeLiability;
+  final double? limitPerOccurrence;
+  final double? aggregateLimit;
+  final double? deductibleLiability;
+  final String? defenseCost;
+  final String? coverageTerritory;
+  final String? retroactiveDateLiability;
+  final String? extendedReportingPeriod;
+  final String? insuredProfession;
+  final String? priorActsCover;
+  final String? pollutionExclusion;
+  final String? cyberExclusion;
+  final double? contractualLiabilityLimit;
+  final bool? defenseOutsideLimits;
+  final int? numberOfEmployeesCovered;
+  final double? annualRevenue;
+  final String? wrongfulActsDefinition;
+  final String? sanctionsExclusion;
+
+  const LiabilityPolicyFields({
+    this.policyTypeLiability,
+    this.limitPerOccurrence,
+    this.aggregateLimit,
+    this.deductibleLiability,
+    this.defenseCost,
+    this.coverageTerritory,
+    this.retroactiveDateLiability,
+    this.extendedReportingPeriod,
+    this.insuredProfession,
+    this.priorActsCover,
+    this.pollutionExclusion,
+    this.cyberExclusion,
+    this.contractualLiabilityLimit,
+    this.defenseOutsideLimits,
+    this.numberOfEmployeesCovered,
+    this.annualRevenue,
+    this.wrongfulActsDefinition,
+    this.sanctionsExclusion,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'policy_type_liability': policyTypeLiability,
+        'limit_per_occurrence': limitPerOccurrence,
+        'aggregate_limit': aggregateLimit,
+        'deductible_liability': deductibleLiability,
+        'defense_cost': defenseCost,
+        'coverage_territory': coverageTerritory,
+        'retroactive_date_liability': retroactiveDateLiability,
+        'extended_reporting_period': extendedReportingPeriod,
+        'insured_profession': insuredProfession,
+        'prior_acts_cover': priorActsCover,
+        'pollution_exclusion': pollutionExclusion,
+        'cyber_exclusion': cyberExclusion,
+        'contractual_liability_limit': contractualLiabilityLimit,
+        'defense_outside_limits': defenseOutsideLimits,
+        'number_of_employees_covered': numberOfEmployeesCovered,
+        'annual_revenue': annualRevenue,
+        'wrongful_acts_definition': wrongfulActsDefinition,
+        'sanctions_exclusion': sanctionsExclusion,
+      };
+
+  factory LiabilityPolicyFields.fromJson(Map<String, dynamic> json) =>
+      LiabilityPolicyFields(
+        policyTypeLiability: json['policy_type_liability']?.toString(),
+        limitPerOccurrence: (json['limit_per_occurrence'] as num?)?.toDouble(),
+        aggregateLimit: (json['aggregate_limit'] as num?)?.toDouble(),
+        deductibleLiability: (json['deductible_liability'] as num?)?.toDouble(),
+        defenseCost: json['defense_cost']?.toString(),
+        coverageTerritory: json['coverage_territory']?.toString(),
+        retroactiveDateLiability:
+            json['retroactive_date_liability']?.toString(),
+        extendedReportingPeriod:
+            json['extended_reporting_period']?.toString(),
+        insuredProfession: json['insured_profession']?.toString(),
+        priorActsCover: json['prior_acts_cover']?.toString(),
+        pollutionExclusion: json['pollution_exclusion']?.toString(),
+        cyberExclusion: json['cyber_exclusion']?.toString(),
+        contractualLiabilityLimit:
+            (json['contractual_liability_limit'] as num?)?.toDouble(),
+        defenseOutsideLimits: json['defense_outside_limits'],
+        numberOfEmployeesCovered:
+            (json['number_of_employees_covered'] as num?)?.toInt(),
+        annualRevenue: (json['annual_revenue'] as num?)?.toDouble(),
+        wrongfulActsDefinition: json['wrongful_acts_definition']?.toString(),
+        sanctionsExclusion: json['sanctions_exclusion']?.toString(),
+      );
+
+  bool get hasAnyFields =>
+      policyTypeLiability != null ||
+      limitPerOccurrence != null ||
+      aggregateLimit != null ||
+      deductibleLiability != null ||
+      defenseCost != null ||
+      coverageTerritory != null ||
+      retroactiveDateLiability != null ||
+      extendedReportingPeriod != null ||
+      insuredProfession != null ||
+      priorActsCover != null ||
+      pollutionExclusion != null ||
+      cyberExclusion != null ||
+      contractualLiabilityLimit != null ||
+      defenseOutsideLimits != null ||
+      numberOfEmployeesCovered != null ||
+      annualRevenue != null ||
+      wrongfulActsDefinition != null ||
+      sanctionsExclusion != null;
+}
+
+/// Type-specific fields for pet insurance policies.
+///
+/// Populated only when documentType classifies as PolicyType.pet.
+class PetPolicyFields {
+  final String? policyTypePet;
+  final String? petName;
+  final String? petSpecies;
+  final String? petBreed;
+  final int? petAgeYears;
+  final String? microchipNumber;
+  final double? veterinaryFeesCover;
+  final double? annualVetFeesLimit;
+  final String? consultationFeesCover;
+  final String? dentalTreatmentCover;
+  final String? hospitalizationCover;
+  final String? surgeryCover;
+  final String? medicationCover;
+  final String? hereditaryConditionsCover;
+  final String? chronicConditionsCover;
+  final double? thirdPartyLiabilityPet;
+  final String? boardingFeesCover;
+  final String? advertisingRewardCover;
+  final String? theftStrayingCover;
+  final String? deathByInjuryCover;
+  final String? euthanasiaCover;
+  final String? cremationBurialCover;
+  final String? waitingPeriodPet;
+  final String? ageLimit;
+  final double? excessPerClaimPet;
+  final String? preExistingConditionsPet;
+  final String? annualMultiPetDiscount;
+  final String? microchippingRequirement;
+  final String? vaccinationRequirement;
+
+  const PetPolicyFields({
+    this.policyTypePet,
+    this.petName,
+    this.petSpecies,
+    this.petBreed,
+    this.petAgeYears,
+    this.microchipNumber,
+    this.veterinaryFeesCover,
+    this.annualVetFeesLimit,
+    this.consultationFeesCover,
+    this.dentalTreatmentCover,
+    this.hospitalizationCover,
+    this.surgeryCover,
+    this.medicationCover,
+    this.hereditaryConditionsCover,
+    this.chronicConditionsCover,
+    this.thirdPartyLiabilityPet,
+    this.boardingFeesCover,
+    this.advertisingRewardCover,
+    this.theftStrayingCover,
+    this.deathByInjuryCover,
+    this.euthanasiaCover,
+    this.cremationBurialCover,
+    this.waitingPeriodPet,
+    this.ageLimit,
+    this.excessPerClaimPet,
+    this.preExistingConditionsPet,
+    this.annualMultiPetDiscount,
+    this.microchippingRequirement,
+    this.vaccinationRequirement,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'policy_type_pet': policyTypePet,
+        'pet_name': petName,
+        'pet_species': petSpecies,
+        'pet_breed': petBreed,
+        'pet_age_years': petAgeYears,
+        'microchip_number': microchipNumber,
+        'veterinary_fees_cover': veterinaryFeesCover,
+        'annual_vet_fees_limit': annualVetFeesLimit,
+        'consultation_fees_cover': consultationFeesCover,
+        'dental_treatment_cover': dentalTreatmentCover,
+        'hospitalization_cover': hospitalizationCover,
+        'surgery_cover': surgeryCover,
+        'medication_cover': medicationCover,
+        'hereditary_conditions_cover': hereditaryConditionsCover,
+        'chronic_conditions_cover': chronicConditionsCover,
+        'third_party_liability_pet': thirdPartyLiabilityPet,
+        'boarding_fees_cover': boardingFeesCover,
+        'advertising_reward_cover': advertisingRewardCover,
+        'theft_straying_cover': theftStrayingCover,
+        'death_by_injury_cover': deathByInjuryCover,
+        'euthanasia_cover': euthanasiaCover,
+        'cremation_burial_cover': cremationBurialCover,
+        'waiting_period_pet': waitingPeriodPet,
+        'age_limit': ageLimit,
+        'excess_per_claim_pet': excessPerClaimPet,
+        'pre_existing_conditions_pet': preExistingConditionsPet,
+        'annual_multi_pet_discount': annualMultiPetDiscount,
+        'microchipping_requirement': microchippingRequirement,
+        'vaccination_requirement': vaccinationRequirement,
+      };
+
+  factory PetPolicyFields.fromJson(Map<String, dynamic> json) =>
+      PetPolicyFields(
+        policyTypePet: json['policy_type_pet']?.toString(),
+        petName: json['pet_name']?.toString(),
+        petSpecies: json['pet_species']?.toString(),
+        petBreed: json['pet_breed']?.toString(),
+        petAgeYears: (json['pet_age_years'] as num?)?.toInt(),
+        microchipNumber: json['microchip_number']?.toString(),
+        veterinaryFeesCover:
+            (json['veterinary_fees_cover'] as num?)?.toDouble(),
+        annualVetFeesLimit:
+            (json['annual_vet_fees_limit'] as num?)?.toDouble(),
+        consultationFeesCover: json['consultation_fees_cover']?.toString(),
+        dentalTreatmentCover: json['dental_treatment_cover']?.toString(),
+        hospitalizationCover: json['hospitalization_cover']?.toString(),
+        surgeryCover: json['surgery_cover']?.toString(),
+        medicationCover: json['medication_cover']?.toString(),
+        hereditaryConditionsCover:
+            json['hereditary_conditions_cover']?.toString(),
+        chronicConditionsCover: json['chronic_conditions_cover']?.toString(),
+        thirdPartyLiabilityPet:
+            (json['third_party_liability_pet'] as num?)?.toDouble(),
+        boardingFeesCover: json['boarding_fees_cover']?.toString(),
+        advertisingRewardCover: json['advertising_reward_cover']?.toString(),
+        theftStrayingCover: json['theft_straying_cover']?.toString(),
+        deathByInjuryCover: json['death_by_injury_cover']?.toString(),
+        euthanasiaCover: json['euthanasia_cover']?.toString(),
+        cremationBurialCover: json['cremation_burial_cover']?.toString(),
+        waitingPeriodPet: json['waiting_period_pet']?.toString(),
+        ageLimit: json['age_limit']?.toString(),
+        excessPerClaimPet: (json['excess_per_claim_pet'] as num?)?.toDouble(),
+        preExistingConditionsPet:
+            json['pre_existing_conditions_pet']?.toString(),
+        annualMultiPetDiscount: json['annual_multi_pet_discount']?.toString(),
+        microchippingRequirement:
+            json['microchipping_requirement']?.toString(),
+        vaccinationRequirement: json['vaccination_requirement']?.toString(),
+      );
+
+  bool get hasAnyFields =>
+      policyTypePet != null ||
+      petName != null ||
+      petSpecies != null ||
+      petBreed != null ||
+      petAgeYears != null ||
+      microchipNumber != null ||
+      veterinaryFeesCover != null ||
+      annualVetFeesLimit != null ||
+      consultationFeesCover != null ||
+      dentalTreatmentCover != null ||
+      hospitalizationCover != null ||
+      surgeryCover != null ||
+      medicationCover != null ||
+      hereditaryConditionsCover != null ||
+      chronicConditionsCover != null ||
+      thirdPartyLiabilityPet != null ||
+      boardingFeesCover != null ||
+      advertisingRewardCover != null ||
+      theftStrayingCover != null ||
+      deathByInjuryCover != null ||
+      euthanasiaCover != null ||
+      cremationBurialCover != null ||
+      waitingPeriodPet != null ||
+      ageLimit != null ||
+      excessPerClaimPet != null ||
+      preExistingConditionsPet != null ||
+      annualMultiPetDiscount != null ||
+      microchippingRequirement != null ||
+      vaccinationRequirement != null;
 }
 
 class CoverageItem {

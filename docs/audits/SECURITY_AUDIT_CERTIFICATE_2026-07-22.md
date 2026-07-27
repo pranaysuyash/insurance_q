@@ -1,19 +1,18 @@
-# Security Audit Certificate: End-to-End Encryption Compliance
+# Internal Security Architecture Assessment
 
-**Certificate ID:** SEC-AUDIT-2026-07-22-001  
-**Issued:** 2026-07-22  
-**Valid Until:** 2026-10-22  
-**Scope:** Principal-Key Encryption Architecture (ADR-2026-07-21-06)  
-**Auditor:** System Integrity Verification Agent  
+**Document ID:** SEC-ASSESS-2026-07-22-001  
+**Date:** 2026-07-22  
+**Scope:** Principal-Key Encryption & Technical Security Controls (ADR-2026-07-21-06)  
+**Authors:** Internal Engineering Team  
 
 ---
 
 ## Executive Summary
 
-This certificate verifies that the CoverWise insurance application implements a complete end-to-end encryption architecture across three critical data lifecycle phases: ingestion, storage, and governance. All sensitive data is protected using principal-scoped Data Encryption Keys (DEKs) managed by the `PrincipalKeyService`.
+This document details the internal security architecture assessment for the CoverWise application across three critical data lifecycle phases: ingestion, storage, and governance. Sensitive local data is protected using principal-scoped Data Encryption Keys (DEKs) managed by `PrincipalKeyService`.
 
-**Compliance Status:** ✅ FULLY COMPLIANT  
-**Risk Level:** LOW (post-mitigation)  
+**Assessment Status:** Technical Controls Implemented  
+**Risk Level:** Moderate (subject to external third-party audit verification)  
 **Evidence Tier:** 3  
 
 ---

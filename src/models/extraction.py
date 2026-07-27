@@ -167,6 +167,97 @@ class HealthPolicyDetails(BaseModel):
     no_claim_bonus_percent: Optional[float] = Field(None, description="No Claim Bonus / Cumulative Bonus percentage increase (e.g., 50.0 for 50% increase per claim-free year)")
 
 
+class CyberPolicyDetails(BaseModel):
+    """Type-specific fields for cyber insurance policies.
+
+    These are extracted alongside the generic PolicySummaryExtraction fields
+    when the document type is identified as cyber.
+    """
+    policy_type_cyber: Optional[str] = Field(None, description="Cyber policy sub-type (e.g., 'Cyber Liability', 'Data Breach', 'Network Security', 'Technology Errors & Omissions')")
+    coverage_type: Optional[str] = Field(None, description="Coverage type (e.g., 'First Party', 'Third Party', 'Combined')")
+    data_breach_response_cover: Optional[float] = Field(None, description="Data breach response / crisis management cover amount (numeric, in rupees)")
+    business_interruption_cover: Optional[float] = Field(None, description="Business interruption cover due to cyber incident (numeric, in rupees)")
+    regulatory_defense_cover: Optional[float] = Field(None, description="Regulatory defense and penalties cover (numeric, in rupees)")
+    cyber_extortion_cover: Optional[float] = Field(None, description="Cyber extortion / ransomware cover amount (numeric, in rupees)")
+    network_security_liability: Optional[float] = Field(None, description="Network security liability cover (numeric, in rupees)")
+    privacy_liability: Optional[float] = Field(None, description="Privacy liability / data protection cover (numeric, in rupees)")
+    media_liability: Optional[float] = Field(None, description="Media content liability cover (numeric, in rupees)")
+    notification_cost_cover: Optional[float] = Field(None, description="Breach notification cost cover (numeric, in rupees)")
+    credit_monitoring_cover: Optional[float] = Field(None, description="Credit monitoring for affected individuals (numeric, in rupees)")
+    forensic_investigation_cover: Optional[float] = Field(None, description="Forensic investigation cost cover (numeric, in rupees)")
+    annual_aggregate_limit_cyber: Optional[float] = Field(None, description="Annual aggregate limit (numeric, in rupees)")
+    sub_limits_cyber: List[str] = Field(default_factory=list, description="List of specific sub-limits (e.g., 'Notification: ₹50 Cr', 'Forensics: ₹25 Cr')")
+    waiting_period_cyber: Optional[str] = Field(None, description="Waiting period for cyber incident response (e.g., '12 hours', '24 hours')")
+    retroactive_date_cyber: Optional[str] = Field(None, description="Retroactive date for prior acts coverage (ISO format preferred)")
+    deductible_cyber: Optional[float] = Field(None, description="Deductible / self-insured retention (numeric, in rupees)")
+    insured_entities: List[str] = Field(default_factory=list, description="List of insured entities/subsidiaries covered")
+    excluded_systems: List[str] = Field(default_factory=list, description="List of excluded systems or technologies")
+    regulatory_fines_excluded: Optional[str] = Field(None, description="Whether regulatory fines/penalties are excluded (e.g., 'Excluded', 'Covered up to ₹10 Cr')")
+
+
+class LiabilityPolicyDetails(BaseModel):
+    """Type-specific fields for liability insurance policies.
+
+    These are extracted alongside the generic PolicySummaryExtraction fields
+    when the document type is identified as liability.
+    """
+    policy_type_liability: Optional[str] = Field(None, description="Liability sub-type (e.g., 'General Liability', 'Professional Indemnity', 'D&O', 'Product Liability', 'Public Liability', 'Employers Liability')")
+    limit_per_occurrence: Optional[float] = Field(None, description="Limit per occurrence / each claim (numeric, in rupees)")
+    aggregate_limit: Optional[float] = Field(None, description="Annual aggregate limit (numeric, in rupees)")
+    deductible_liability: Optional[float] = Field(None, description="Deductible / excess (numeric, in rupees)")
+    defense_cost: Optional[str] = Field(None, description="Defense costs (e.g., 'Inside limits', 'Outside limits')")
+    coverage_territory: Optional[str] = Field(None, description="Geographic coverage territory (e.g., 'Worldwide', 'India', 'Worldwide excluding USA/Canada')")
+    retroactive_date_liability: Optional[str] = Field(None, description="Retroactive date for claims-made policies (ISO format preferred)")
+    extended_reporting_period: Optional[str] = Field(None, description="Extended reporting period / tail coverage (e.g., '12 months', '36 months', 'Unlimited')")
+    insured_profession: Optional[str] = Field(None, description="Insured profession or business activity description")
+    prior_acts_cover: Optional[str] = Field(None, description="Prior acts / retroactive cover description (e.g., 'Covered from inception', 'Unlimited prior acts')")
+    pollution_exclusion: Optional[str] = Field(None, description="Pollution exclusion details (e.g., 'Total exclusion', 'Limited to sudden & accidental')")
+    cyber_exclusion: Optional[str] = Field(None, description="Cyber/technology exclusion details (e.g., 'Data breach excluded', 'Cyber cover available by endorsement')")
+    contractual_liability_limit: Optional[float] = Field(None, description="Contractual liability limit (numeric, in rupees)")
+    defense_outside_limits: Optional[bool] = Field(None, description="Whether defense costs are outside the aggregate limit")
+    number_of_employees_covered: Optional[int] = Field(None, description="Number of employees covered (for employers/workers liability)")
+    annual_revenue: Optional[float] = Field(None, description="Annual revenue / turnover (numeric, in rupees)")
+    wrongful_acts_definition: Optional[str] = Field(None, description="Definition of wrongful act / professional service")
+    sanctions_exclusion: Optional[str] = Field(None, description="Sanctions / embargo exclusion or limitation")
+
+
+class PetPolicyDetails(BaseModel):
+    """Type-specific fields for pet insurance policies.
+
+    These are extracted alongside the generic PolicySummaryExtraction fields
+    when the document type is identified as pet.
+    """
+    policy_type_pet: Optional[str] = Field(None, description="Pet policy sub-type (e.g., 'Pet Health Insurance', 'Pet Third Party Liability', 'Pet Travel Insurance')")
+    pet_name: Optional[str] = Field(None, description="Name of the insured pet")
+    pet_species: Optional[str] = Field(None, description="Species of the pet (e.g., 'Dog', 'Cat', 'Rabbit', 'Bird')")
+    pet_breed: Optional[str] = Field(None, description="Breed of the pet (e.g., 'Labrador Retriever', 'Persian Cat')")
+    pet_age_years: Optional[int] = Field(None, description="Pet age in years (numeric)")
+    microchip_number: Optional[str] = Field(None, description="Microchip identification number")
+    veterinary_fees_cover: Optional[float] = Field(None, description="Annual veterinary fees / treatment cover limit (numeric, in rupees)")
+    annual_vet_fees_limit: Optional[float] = Field(None, description="Annual limit for veterinary fees (numeric, in rupees)")
+    consultation_fees_cover: Optional[str] = Field(None, description="Consultation fees cover (e.g., 'Covered', 'Up to ₹500 per visit')")
+    dental_treatment_cover: Optional[str] = Field(None, description="Dental treatment cover (e.g., 'Covered up to ₹2,000', 'Not covered')")
+    hospitalization_cover: Optional[str] = Field(None, description="Hospitalization cover for pets (e.g., 'Covered', 'Up to ₹5,000 per night')")
+    surgery_cover: Optional[str] = Field(None, description="Surgery / operation cover (e.g., 'Covered', 'Up to ₹10,000 per procedure')")
+    medication_cover: Optional[str] = Field(None, description="Prescribed medication cover (e.g., 'Covered', 'Up to ₹1,000 per course')")
+    hereditary_conditions_cover: Optional[str] = Field(None, description="Hereditary / congenital condition cover (e.g., 'Covered', 'Excluded', 'Covered with waiting period')")
+    chronic_conditions_cover: Optional[str] = Field(None, description="Chronic condition cover (e.g., 'Covered', 'Up to ₹3,000 per condition per year')")
+    third_party_liability_pet: Optional[float] = Field(None, description="Third party liability cover for pet (numeric, in rupees)")
+    boarding_fees_cover: Optional[str] = Field(None, description="Kennel / cattery boarding fees cover (e.g., 'Up to ₹500 per day, max 7 days')")
+    advertising_reward_cover: Optional[str] = Field(None, description="Advertising and reward cover if pet goes missing (e.g., 'Up to ₹1,000')")
+    theft_straying_cover: Optional[str] = Field(None, description="Theft or straying cover (e.g., 'Covered up to ₹15,000')")
+    death_by_injury_cover: Optional[str] = Field(None, description="Cover if pet dies due to injury (e.g., 'Covered up to ₹10,000')")
+    euthanasia_cover: Optional[str] = Field(None, description="Euthanasia cost cover (e.g., 'Up to ₹500')")
+    cremation_burial_cover: Optional[str] = Field(None, description="Cremation / burial cost cover (e.g., 'Up to ₹1,000')")
+    waiting_period_pet: Optional[str] = Field(None, description="Waiting period for illness cover (e.g., '30 days', '60 days')")
+    age_limit: Optional[str] = Field(None, description="Pet age limit for coverage (e.g., '8 weeks to 9 years', 'Up to 7 years at entry, lifetime cover')")
+    excess_per_claim_pet: Optional[float] = Field(None, description="Excess payable per claim (numeric, in rupees)")
+    pre_existing_conditions_pet: Optional[str] = Field(None, description="Pre-existing condition exclusion (e.g., 'All pre-existing excluded', 'Covered after 12 months')")
+    annual_multi_pet_discount: Optional[str] = Field(None, description="Multi-pet discount (e.g., '10% discount for 2nd pet', '15% for 3 pets')")
+    microchipping_requirement: Optional[str] = Field(None, description="Whether microchipping is mandatory (e.g., 'Mandatory', 'Recommended')")
+    vaccination_requirement: Optional[str] = Field(None, description="Vaccination requirement (e.g., 'Mandatory: annual booster', 'Up to date required')")
+
+
 class MarinePolicyDetails(BaseModel):
     """Type-specific fields for marine / cargo insurance policies.
 

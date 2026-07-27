@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:app_links/app_links.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'l10n/app_localizations_gen.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'utils/ref_state.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -38,6 +40,7 @@ import 'screens/account_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/notification_preferences_screen.dart';
 import 'screens/insights_screen.dart';
+import 'screens/what_if_calculator_screen.dart';
 import 'config/app_config.dart';
 import 'providers/entitlement_provider.dart';
 import 'providers/policy_providers.dart';
@@ -186,6 +189,10 @@ Future<void> _startup() async {
   // and idempotent by current-decision signature.
   unawaited(ConsentSyncService().syncAll());
 
+  // Read stored locale from Hive (box already open) before runApp() so the
+  // first frame renders with the correct locale — no language flash.
+  final storedLocale = AppStateRepository.getLocale();
+
   // Check if onboarding has been completed
   final prefs = await SharedPreferences.getInstance();
   final hasOnboarded = prefs.getBool('onboarding_complete') ?? false;
@@ -193,6 +200,11 @@ Future<void> _startup() async {
   runApp(
     GlobalErrorBoundary(
       child: ProviderScope(
+        overrides: [
+          localeTagProvider.overrideWith(
+            () => RefState<String?>(storedLocale),
+          ),
+        ],
         child: InsuranceApp(showOnboarding: !hasOnboarded),
       ),
     ),
@@ -273,6 +285,10 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
     super.initState();
     ref.read(analyticsServiceProvider.notifier);
     _showOnboarding = widget.showOnboarding;
+
+    // M10: locale was already loaded in _startup() and passed via
+    // ProviderScope override — no initState read needed, no flash.
+
     _authSubscription = ref.listenManual<AsyncValue<AuthState>>(
       authStateProvider,
       (_, next) {
@@ -435,6 +451,8 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         });
       case '/compare':
         nav.pushNamed('/compare');
+      case '/what-if':
+        nav.pushNamed('/what-if');
       case '/qa':
         final docId = uri.queryParameters['documentId'];
         nav.pushNamed('/qa', arguments: docId);
@@ -466,6 +484,8 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   Widget build(BuildContext context) {
     // Watch theme changes — rebuilds MaterialApp when user toggles theme.
     final _ = ref.watch(themeModeProvider);
+    // Watch locale changes — rebuilds MaterialApp when user changes language.
+    ref.watch(localeTagProvider);
 
     // Kick off RevenueCat billing init + entitlement sync.
     // The FutureProvider auto-runs once; its result is cached.
@@ -480,6 +500,10 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       theme: CoverWiseTheme.light(),
       darkTheme: CoverWiseTheme.dark(),
       themeMode: _getThemeMode(),
+      localizationsDelegates:
+          AppLocalizationsGen.localizationsDelegates,
+      supportedLocales: AppLocalizationsGen.supportedLocales,
+      locale: ref.watch(activeLocaleProvider),
       home: AnimatedSwitcher(
         duration: CoverWiseMotion.duration(context, CoverWiseMotion.onboarding),
         switchInCurve: CoverWiseMotion.enterCurve,
@@ -571,6 +595,10 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         '/compare': (context) => const ScreenErrorBoundary(
               screenName: 'compare',
               child: PolicyComparisonScreen(),
+            ),
+        '/what-if': (context) => const ScreenErrorBoundary(
+              screenName: 'what-if',
+              child: WhatIfCalculatorScreen(),
             ),
         '/settings': (context) => const ScreenErrorBoundary(
               screenName: 'settings',

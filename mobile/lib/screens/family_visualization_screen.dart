@@ -8,7 +8,7 @@ import '../providers/policy_providers.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../utils/document_icons.dart';
 import '../utils/policy_type.dart';
-import '../localization/app_localizations.dart';
+import '../l10n/app_localizations_gen.dart';
 import '../theme/coverwise_theme.dart';
 import 'policy_detail_screen.dart';
 
@@ -22,10 +22,11 @@ class FamilyVisualizationScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizationsGen.of(context);
     final documentsAsync = ref.watch(documentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(S.familyVisTitle)),
+      appBar: AppBar(title: Text(l10n.familyVisTitle)),
       body: documentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -45,6 +46,7 @@ class FamilyVisualizationScreen extends ConsumerWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -56,14 +58,14 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            S.familyVisEmptyTitle,
+            l10n.familyVisEmptyTitle,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            S.familyVisEmptySubtitle,
+            l10n.familyVisEmptySubtitle,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -81,6 +83,7 @@ class _VisualizationBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizationsGen.of(context);
     final familyAsync = ref.watch(mergedFamilyMembersProvider(documents));
     final summaries = ref.watch(policySummariesProvider);
 
@@ -117,8 +120,8 @@ class _VisualizationBody extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CoverWisePageHeader(
-                title: S.familyVisHeader,
-                subtitle: S.familyVisSubtitle,
+                title: l10n.familyVisHeader,
+                subtitle: l10n.familyVisSubtitle,
                 trailing: CoverWiseIconBadge(
                   icon: Icons.account_tree_rounded,
                   color: CoverWiseColors.blueDeep,
@@ -171,13 +174,14 @@ class _SummaryStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final theme = Theme.of(context);
     return Row(
       children: [
         Expanded(
           child: _StatCard(
             icon: Icons.people_rounded,
-            label: S.familyVisMembers,
+            label: l10n.familyVisMembers,
             value: '$memberCount',
             color: CoverWiseColors.blueDeep,
           ),
@@ -186,7 +190,7 @@ class _SummaryStats extends StatelessWidget {
         Expanded(
           child: _StatCard(
             icon: Icons.shield_rounded,
-            label: S.familyVisPolicies,
+            label: l10n.familyVisPolicies,
             value: '$policyCount',
             color: theme.colorScheme.primary,
           ),
@@ -255,6 +259,7 @@ class _MemberRelationshipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final theme = Theme.of(context);
     final isPrimary = member.relationship == 'Primary Insured';
 
@@ -355,7 +360,7 @@ class _MemberRelationshipCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          S.familyVisNoPolicies(member.name),
+                          l10n.familyVisNoPolicies(member.name),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),

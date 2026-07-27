@@ -151,10 +151,40 @@
   </div>
 
   <script>
-    function handleSubmit(event) {
+    async function handleSubmit(event) {
       event.preventDefault();
-      document.getElementById('deletionForm').style.display = 'none';
-      document.getElementById('confirmation').style.display = 'block';
+      const email = document.getElementById('email').value.trim();
+      const reason = document.getElementById('reason').value.trim();
+      const btn = event.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.textContent = 'Submitting Request...';
+
+      try {
+        const response = await fetch('/user/delete-account-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, reason: reason })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          document.getElementById('deletionForm').style.display = 'none';
+          const conf = document.getElementById('confirmation');
+          conf.querySelector('p').textContent = data.message || 'Your deletion request has been registered.';
+          conf.style.display = 'block';
+        } else {
+          alert('Failed to submit deletion request: ' + (data.detail || 'Server error. Please try again or email support@coverwise.app.'));
+          btn.disabled = false;
+          btn.textContent = 'Request Account & Data Deletion';
+        }
+      } catch (err) {
+        // Fallback if API offline: provide mailto confirmation
+        const mailtoUrl = 'mailto:support@coverwise.app?subject=' + encodeURIComponent('Account Deletion Request: ' + email) + '&body=' + encodeURIComponent(reason);
+        if (confirm('Connection issue. Would you like to launch your mail app to send the deletion request directly to support@coverwise.app?')) {
+          window.location.href = mailtoUrl;
+        }
+        btn.disabled = false;
+        btn.textContent = 'Request Account & Data Deletion';
+      }
     }
   </script>
 </body>

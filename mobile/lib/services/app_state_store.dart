@@ -34,5 +34,8 @@ class AppStateStore {
   // Theme preference
   static const String themeModeKey = 'theme_mode'; // 'light', 'dark', or 'system'
 
+  // Locale preference (M10 multi-language support)
+  static const String localeKey = 'app_locale'; // 'en', 'hi', or null (system default)
+
   AppStateStore._();
 }

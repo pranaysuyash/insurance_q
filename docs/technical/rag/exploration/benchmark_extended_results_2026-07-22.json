@@ -1,0 +1,374 @@
+{
+  "1_token": [
+    {
+      "q": "Q1",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "4214i/CPHSR/407834350/00/000"
+    },
+    {
+      "q": "Q2",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q3",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q4",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "PRANAY SUYASH"
+    },
+    {
+      "q": "Q5",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q6",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "ICICI Lombard General Insurance Company Limited"
+    },
+    {
+      "q": "Q7",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q8",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "\u20b9700000"
+    },
+    {
+      "q": "Q9",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q10",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "1800 2666"
+    }
+  ],
+  "2_sentence": [
+    {
+      "q": "Q1",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "4214i/CPHSR/407834350/00/000"
+    },
+    {
+      "q": "Q2",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "\u20b92,500,000 (\u20b92500000)"
+    },
+    {
+      "q": "Q3",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q4",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q5",
+      "ret": 0.0,
+      "ans": 0.0,
+      "answer": "Not found in context."
+    },
+    {
+      "q": "Q6",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "ICICI Lombard General Insurance Company Limited"
+    },
+    {
+      "q": "Q7",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q8",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q9",
+      "ret": 0.0,
+      "ans": 0.0,
+      "answer": "Not found in context."
+    },
+    {
+      "q": "Q10",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    }
+  ],
+  "3_sliding": [
+    {
+      "q": "Q1",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "4214i/CPHSR/407834350/00/000"
+    },
+    {
+      "q": "Q2",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q3",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "\u20b931,705."
+    },
+    {
+      "q": "Q4",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "Pranay Suyash"
+    },
+    {
+      "q": "Q5",
+      "ret": 0.0,
+      "ans": 0.0,
+      "answer": "Not found in context."
+    },
+    {
+      "q": "Q6",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "ICICI Lombard General Insurance Company Limited"
+    },
+    {
+      "q": "Q7",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "Health Shield 360 Retail \u2013 Classic Plus"
+    },
+    {
+      "q": "Q8",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": "\u20b9700,000"
+    },
+    {
+      "q": "Q9",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q10",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    }
+  ],
+  "5_header": [
+    {
+      "q": "Q1",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "4214i/CPHSR/407834350/00/000"
+    },
+    {
+      "q": "Q2",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": "\u20b92,500,000."
+    },
+    {
+      "q": "Q3",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q4",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q5",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q6",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "ICICI Lombard General Insurance Company Limited"
+    },
+    {
+      "q": "Q7",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q8",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q9",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q10",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "1800 2666"
+    }
+  ],
+  "11_semantic": [
+    {
+      "q": "Q1",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "4214i/CPHSR/407834350/00/000"
+    },
+    {
+      "q": "Q2",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": "\u20b92,500,000 (Rupees Two Million Five Hundred Thousand)."
+    },
+    {
+      "q": "Q3",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q4",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q5",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q6",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "ICICI Lombard General Insurance Company Limited"
+    },
+    {
+      "q": "Q7",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "Health Shield 360 Retail"
+    },
+    {
+      "q": "Q8",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q9",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q10",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    }
+  ],
+  "13_contextual": [
+    {
+      "q": "Q1",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "4214i/CPHSR/407834350/00/000"
+    },
+    {
+      "q": "Q2",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q3",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q4",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "Pranay Suyash"
+    },
+    {
+      "q": "Q5",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "From 00:00 hrs 27-Aug-2025 to 23:59 hrs 26-Aug-2026."
+    },
+    {
+      "q": "Q6",
+      "ret": 1.0,
+      "ans": 1.0,
+      "answer": "ICICI Lombard General Insurance Company Limited"
+    },
+    {
+      "q": "Q7",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q8",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q9",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    },
+    {
+      "q": "Q10",
+      "ret": 1.0,
+      "ans": 0.0,
+      "answer": ""
+    }
+  ]
+}

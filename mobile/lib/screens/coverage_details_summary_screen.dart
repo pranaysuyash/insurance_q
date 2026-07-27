@@ -5,7 +5,7 @@ import '../theme/coverwise_theme.dart';
 import '../utils/policy_type.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
-import '../localization/app_localizations.dart';
+import '../l10n/app_localizations_gen.dart';
 
 class CoverageDetailsSummaryScreen extends StatelessWidget {
   final PolicySummary summary;
@@ -14,6 +14,7 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     final theme = Theme.of(context);
     final policyType = classifyPolicyType(summary.documentType);
 
@@ -23,7 +24,7 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.ios_share_rounded),
-            tooltip: S.coverageShareSummary,
+            tooltip: l10n.coverageShareSummary,
             onPressed: () => _shareSummary(context),
           ),
         ],
@@ -249,11 +250,11 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
       if (f.garagingPincode != null) _FieldItem(icon: Icons.location_on_rounded, label: 'Garaging', value: f.garagingPincode!),
       if (f.hypothecation != null) _FieldItem(icon: Icons.account_balance_rounded, label: 'Hypothecation', value: f.hypothecation!),
       if (f.ncbPercent != null) _FieldItem(icon: Icons.discount_rounded, label: 'NCB', value: '${f.ncbPercent!.toStringAsFixed(0)}%'),
-      if (f.idv != null) _FieldItem(icon: Icons.monetization_on_rounded, label: 'IDV', value: _fmt(f.idv!), valueColor: theme.colorScheme.primary),
-      if (f.ownDamagePremium != null) _FieldItem(icon: Icons.payments_rounded, label: 'OD Premium', value: _fmt(f.ownDamagePremium!)),
-      if (f.thirdPartyPremium != null) _FieldItem(icon: Icons.payments_rounded, label: 'TP Premium', value: _fmt(f.thirdPartyPremium!)),
+      if (f.idv != null) _FieldItem(icon: Icons.monetization_on_rounded, label: 'IDV', value: fmt(f.idv!), valueColor: theme.colorScheme.primary),
+      if (f.ownDamagePremium != null) _FieldItem(icon: Icons.payments_rounded, label: 'OD Premium', value: fmt(f.ownDamagePremium!)),
+      if (f.thirdPartyPremium != null) _FieldItem(icon: Icons.payments_rounded, label: 'TP Premium', value: fmt(f.thirdPartyPremium!)),
       if (f.voluntaryDeductible != null) _FieldItem(icon: Icons.money_off_rounded, label: 'Vol. Deductible', value: f.voluntaryDeductible!),
-      if (f.personalAccidentCoverOwner != null) _FieldItem(icon: Icons.person_rounded, label: 'PA Cover', value: _fmt(f.personalAccidentCoverOwner!)),
+      if (f.personalAccidentCoverOwner != null) _FieldItem(icon: Icons.person_rounded, label: 'PA Cover', value: fmt(f.personalAccidentCoverOwner!)),
       if (f.policyTypeDetail != null) _FieldItem(icon: Icons.category_rounded, label: 'Policy Type', value: f.policyTypeDetail!),
       if (f.geographicalLimit != null) _FieldItem(icon: Icons.public_rounded, label: 'Geo. Limit', value: f.geographicalLimit!),
     ];
@@ -275,14 +276,14 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
   Widget _buildLifeSection(LifePolicyFields f, ThemeData theme) {
     final items = <_FieldItem>[
       if (f.lifeAssuredName != null) _FieldItem(icon: Icons.person_rounded, label: 'Life Assured', value: f.lifeAssuredName!),
-      if (f.sumAssured != null) _FieldItem(icon: Icons.shield_rounded, label: 'Sum Assured', value: _fmt(f.sumAssured!), valueColor: theme.colorScheme.primary),
+      if (f.sumAssured != null) _FieldItem(icon: Icons.shield_rounded, label: 'Sum Assured', value: fmt(f.sumAssured!), valueColor: theme.colorScheme.primary),
       if (f.policyTermYears != null) _FieldItem(icon: Icons.timer_rounded, label: 'Policy Term', value: '${f.policyTermYears} years'),
       if (f.premiumPayingTermYears != null) _FieldItem(icon: Icons.payments_rounded, label: 'Premium Term', value: '${f.premiumPayingTermYears} years'),
       if (f.nomineeName != null) _FieldItem(icon: Icons.people_rounded, label: 'Nominee', value: f.nomineeName!),
       if (f.nomineeShare != null) _FieldItem(icon: Icons.pie_chart_rounded, label: 'Nominee Share', value: f.nomineeShare!),
       if (f.maturityDate != null) _FieldItem(icon: Icons.event_rounded, label: 'Maturity', value: f.maturityDate!),
-      if (f.maturityAmount != null) _FieldItem(icon: Icons.savings_rounded, label: 'Maturity Amount', value: _fmt(f.maturityAmount!)),
-      if (f.accidentalDeathBenefit != null) _FieldItem(icon: Icons.warning_rounded, label: 'AD Benefit', value: _fmt(f.accidentalDeathBenefit!)),
+      if (f.maturityAmount != null) _FieldItem(icon: Icons.savings_rounded, label: 'Maturity Amount', value: fmt(f.maturityAmount!)),
+      if (f.accidentalDeathBenefit != null) _FieldItem(icon: Icons.warning_rounded, label: 'AD Benefit', value: fmt(f.accidentalDeathBenefit!)),
       if (f.terminalIllnessBenefit != null) _FieldItem(icon: Icons.health_and_safety_rounded, label: 'TI Benefit', value: f.terminalIllnessBenefit!),
       if (f.deathBenefitType != null) _FieldItem(icon: Icons.info_rounded, label: 'Death Benefit', value: f.deathBenefitType!),
       if (f.policyTypeDetail != null) _FieldItem(icon: Icons.category_rounded, label: 'Policy Type', value: f.policyTypeDetail!),
@@ -309,10 +310,10 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
   Widget _buildHomeSection(HomePolicyFields f, ThemeData theme) {
     final items = <_FieldItem>[
       if (f.propertyAddress != null) _FieldItem(icon: Icons.home_rounded, label: 'Property', value: f.propertyAddress!),
-      if (f.buildingSumInsured != null) _FieldItem(icon: Icons.shield_rounded, label: 'Building SI', value: _fmt(f.buildingSumInsured!), valueColor: theme.colorScheme.primary),
-      if (f.contentsSumInsured != null) _FieldItem(icon: Icons.inventory_rounded, label: 'Contents SI', value: _fmt(f.contentsSumInsured!)),
-      if (f.rebuildCost != null) _FieldItem(icon: Icons.construction_rounded, label: 'Rebuild Cost', value: _fmt(f.rebuildCost!)),
-      if (f.deductible != null) _FieldItem(icon: Icons.money_off_rounded, label: 'Deductible', value: _fmt(f.deductible!)),
+      if (f.buildingSumInsured != null) _FieldItem(icon: Icons.shield_rounded, label: 'Building SI', value: fmt(f.buildingSumInsured!), valueColor: theme.colorScheme.primary),
+      if (f.contentsSumInsured != null) _FieldItem(icon: Icons.inventory_rounded, label: 'Contents SI', value: fmt(f.contentsSumInsured!)),
+      if (f.rebuildCost != null) _FieldItem(icon: Icons.construction_rounded, label: 'Rebuild Cost', value: fmt(f.rebuildCost!)),
+      if (f.deductible != null) _FieldItem(icon: Icons.money_off_rounded, label: 'Deductible', value: fmt(f.deductible!)),
       if (f.structureType != null) _FieldItem(icon: Icons.architecture_rounded, label: 'Structure', value: f.structureType!),
       if (f.occupancyType != null) _FieldItem(icon: Icons.people_rounded, label: 'Occupancy', value: f.occupancyType!),
       if (f.constructionType != null) _FieldItem(icon: Icons.handyman_rounded, label: 'Construction', value: f.constructionType!),
@@ -352,15 +353,15 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
       if (f.tripDurationDays != null) _FieldItem(icon: Icons.timer_rounded, label: 'Duration', value: '${f.tripDurationDays} days'),
       if (f.tripStartDate != null) _FieldItem(icon: Icons.today_rounded, label: 'Trip Start', value: f.tripStartDate!),
       if (f.tripEndDate != null) _FieldItem(icon: Icons.event_rounded, label: 'Trip End', value: f.tripEndDate!),
-      if (f.tripCostCovered != null) _FieldItem(icon: Icons.monetization_on_rounded, label: 'Trip Cost', value: _fmt(f.tripCostCovered!)),
-      if (f.medicalExpensesCover != null) _FieldItem(icon: Icons.local_hospital_rounded, label: 'Medical Expenses', value: _fmt(f.medicalExpensesCover!), valueColor: theme.colorScheme.primary),
-      if (f.medicalEvacuationCover != null) _FieldItem(icon: Icons.emergency_rounded, label: 'Medical Evacuation', value: _fmt(f.medicalEvacuationCover!)),
-      if (f.personalAccidentCover != null) _FieldItem(icon: Icons.person_rounded, label: 'PA Cover', value: _fmt(f.personalAccidentCover!)),
-      if (f.baggageLossCover != null) _FieldItem(icon: Icons.luggage_rounded, label: 'Baggage Loss', value: _fmt(f.baggageLossCover!)),
-      if (f.baggageDelayCover != null) _FieldItem(icon: Icons.schedule_rounded, label: 'Baggage Delay', value: _fmt(f.baggageDelayCover!)),
-      if (f.tripCancellationCover != null) _FieldItem(icon: Icons.cancel_rounded, label: 'Trip Cancellation', value: _fmt(f.tripCancellationCover!)),
-      if (f.flightDelayCover != null) _FieldItem(icon: Icons.flight_rounded, label: 'Flight Delay', value: _fmt(f.flightDelayCover!)),
-      if (f.deductiblePerClaimTravel != null) _FieldItem(icon: Icons.money_off_rounded, label: 'Deductible', value: _fmt(f.deductiblePerClaimTravel!)),
+      if (f.tripCostCovered != null) _FieldItem(icon: Icons.monetization_on_rounded, label: 'Trip Cost', value: fmt(f.tripCostCovered!)),
+      if (f.medicalExpensesCover != null) _FieldItem(icon: Icons.local_hospital_rounded, label: 'Medical Expenses', value: fmt(f.medicalExpensesCover!), valueColor: theme.colorScheme.primary),
+      if (f.medicalEvacuationCover != null) _FieldItem(icon: Icons.emergency_rounded, label: 'Medical Evacuation', value: fmt(f.medicalEvacuationCover!)),
+      if (f.personalAccidentCover != null) _FieldItem(icon: Icons.person_rounded, label: 'PA Cover', value: fmt(f.personalAccidentCover!)),
+      if (f.baggageLossCover != null) _FieldItem(icon: Icons.luggage_rounded, label: 'Baggage Loss', value: fmt(f.baggageLossCover!)),
+      if (f.baggageDelayCover != null) _FieldItem(icon: Icons.schedule_rounded, label: 'Baggage Delay', value: fmt(f.baggageDelayCover!)),
+      if (f.tripCancellationCover != null) _FieldItem(icon: Icons.cancel_rounded, label: 'Trip Cancellation', value: fmt(f.tripCancellationCover!)),
+      if (f.flightDelayCover != null) _FieldItem(icon: Icons.flight_rounded, label: 'Flight Delay', value: fmt(f.flightDelayCover!)),
+      if (f.deductiblePerClaimTravel != null) _FieldItem(icon: Icons.money_off_rounded, label: 'Deductible', value: fmt(f.deductiblePerClaimTravel!)),
       if (f.emergencyAssistancePhone != null) _FieldItem(icon: Icons.phone_rounded, label: 'Emergency', value: f.emergencyAssistancePhone!),
       if (f.geographicalZone != null) _FieldItem(icon: Icons.public_rounded, label: 'Geo. Zone', value: f.geographicalZone!),
       if (f.preexistingConditionWaiver != null) _FieldItem(icon: Icons.health_and_safety_rounded, label: 'Pre-existing Waiver', value: f.preexistingConditionWaiver!),
@@ -387,8 +388,8 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
     final items = <_FieldItem>[
       if (f.roomRentCap != null) _FieldItem(icon: Icons.hotel_rounded, label: 'Room Rent Cap', value: f.roomRentCap!),
       if (f.coPayPercent != null) _FieldItem(icon: Icons.pie_chart_rounded, label: 'Co-pay', value: '${f.coPayPercent!.toStringAsFixed(0)}%'),
-      if (f.deductiblePerClaim != null) _FieldItem(icon: Icons.money_off_rounded, label: 'Deductible', value: _fmt(f.deductiblePerClaim!)),
-      if (f.ambulanceCover != null) _FieldItem(icon: Icons.local_hospital_rounded, label: 'Ambulance', value: _fmt(f.ambulanceCover!), valueColor: theme.colorScheme.primary),
+      if (f.deductiblePerClaim != null) _FieldItem(icon: Icons.money_off_rounded, label: 'Deductible', value: fmt(f.deductiblePerClaim!)),
+      if (f.ambulanceCover != null) _FieldItem(icon: Icons.local_hospital_rounded, label: 'Ambulance', value: fmt(f.ambulanceCover!), valueColor: theme.colorScheme.primary),
       if (f.networkHospitals != null) _FieldItem(icon: Icons.business_rounded, label: 'Network Hospitals', value: f.networkHospitals!),
       if (f.maternityCover != null) _FieldItem(icon: Icons.child_care_rounded, label: 'Maternity', value: f.maternityCover!),
       if (f.dayCareProcedures != null) _FieldItem(icon: Icons.access_time_rounded, label: 'Day Care', value: f.dayCareProcedures!),
@@ -458,13 +459,6 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
   }
 
   /// Formats a numeric amount into a human-readable currency string.
-  static String _fmt(double amount) {
-    if (amount >= 10000000) return '₹${(amount / 10000000).toStringAsFixed(1)} Cr';
-    if (amount >= 100000) return '₹${(amount / 100000).toStringAsFixed(1)} L';
-    if (amount >= 1000) return '₹${(amount / 1000).toStringAsFixed(0)}K';
-    return '₹${amount.toStringAsFixed(0)}';
-  }
-
   Widget _buildExecSummaryContent(BuildContext context, PolicySummary s) {
     final theme = Theme.of(context);
     return Padding(
@@ -493,21 +487,34 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
   }
 
   void _shareSummary(BuildContext context) {
+    final l10n = AppLocalizationsGen.of(context);
     try {
-      final text = _buildShareText();
+      final text = buildCoverageShareText(summary);
       SharePlus.instance.share(ShareParams(
         text: text,
-        subject: S.coverageShareSubject,
+        subject: l10n.coverageShareSubject,
       ));
     } catch (_) {
       if (context.mounted) {
-        CoverWiseSnackBar.error(context, S.coverageShareError);
+        CoverWiseSnackBar.error(context, l10n.coverageShareError);
       }
     }
   }
+}
 
-  /// Builds a formatted plain-text summary of all policy fields for sharing.
-  String _buildShareText() {
+/// Formats a numeric amount into a human-readable currency string.
+String fmt(double amount) {
+  if (amount >= 10000000) return '₹${(amount / 10000000).toStringAsFixed(1)} Cr';
+  if (amount >= 100000) return '₹${(amount / 100000).toStringAsFixed(1)} L';
+  if (amount >= 1000) return '₹${(amount / 1000).toStringAsFixed(0)}K';
+  return '₹${amount.toStringAsFixed(0)}';
+}
+
+/// Builds a formatted plain-text summary of all policy fields for sharing.
+///
+/// Extracted as a top-level function so it can be unit-tested independently
+/// of the Flutter widget tree.
+String buildCoverageShareText(PolicySummary summary) {
     final s = summary;
     final buffer = StringBuffer();
 
@@ -565,7 +572,7 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
         final icon = item.covered ? '✅' : '❌';
         final limitStr = item.limitText != null
             ? ' (${item.limitText})'
-            : (item.limit != null ? ' (${_fmt(item.limit!)})' : '');
+            : (item.limit != null ? ' (${fmt(item.limit!)})' : '');
         buffer.writeln('  $icon ${item.name}$limitStr');
       }
     }
@@ -593,11 +600,11 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
       if (m.cubicCapacity != null) buffer.writeln('  CC: ${m.cubicCapacity}');
       if (m.seatingCapacity != null) buffer.writeln('  Seating: ${m.seatingCapacity}');
       if (m.ncbPercent != null) buffer.writeln('  NCB: ${m.ncbPercent!.toStringAsFixed(0)}%');
-      if (m.idv != null) buffer.writeln('  IDV: ${_fmt(m.idv!)}');
-      if (m.ownDamagePremium != null) buffer.writeln('  OD Premium: ${_fmt(m.ownDamagePremium!)}');
-      if (m.thirdPartyPremium != null) buffer.writeln('  TP Premium: ${_fmt(m.thirdPartyPremium!)}');
+      if (m.idv != null) buffer.writeln('  IDV: ${fmt(m.idv!)}');
+      if (m.ownDamagePremium != null) buffer.writeln('  OD Premium: ${fmt(m.ownDamagePremium!)}');
+      if (m.thirdPartyPremium != null) buffer.writeln('  TP Premium: ${fmt(m.thirdPartyPremium!)}');
       if (m.voluntaryDeductible != null) buffer.writeln('  Vol. Deductible: ${m.voluntaryDeductible}');
-      if (m.personalAccidentCoverOwner != null) buffer.writeln('  PA Cover: ${_fmt(m.personalAccidentCoverOwner!)}');
+      if (m.personalAccidentCoverOwner != null) buffer.writeln('  PA Cover: ${fmt(m.personalAccidentCoverOwner!)}');
       if (m.policyTypeDetail != null) buffer.writeln('  Policy Type: ${m.policyTypeDetail}');
       if (m.geographicalLimit != null) buffer.writeln('  Geo. Limit: ${m.geographicalLimit}');
       if (m.garagingPincode != null) buffer.writeln('  Garaging: ${m.garagingPincode}');
@@ -615,14 +622,14 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
       buffer.writeln('');
       buffer.writeln('👤 Life Insurance:');
       if (l.lifeAssuredName != null) buffer.writeln('  Life Assured: ${l.lifeAssuredName}');
-      if (l.sumAssured != null) buffer.writeln('  Sum Assured: ${_fmt(l.sumAssured!)}');
+      if (l.sumAssured != null) buffer.writeln('  Sum Assured: ${fmt(l.sumAssured!)}');
       if (l.policyTermYears != null) buffer.writeln('  Policy Term: ${l.policyTermYears} years');
       if (l.premiumPayingTermYears != null) buffer.writeln('  Premium Term: ${l.premiumPayingTermYears} years');
       if (l.nomineeName != null) buffer.writeln('  Nominee: ${l.nomineeName}');
       if (l.nomineeShare != null) buffer.writeln('  Nominee Share: ${l.nomineeShare}');
       if (l.maturityDate != null) buffer.writeln('  Maturity: ${l.maturityDate}');
-      if (l.maturityAmount != null) buffer.writeln('  Maturity Amount: ${_fmt(l.maturityAmount!)}');
-      if (l.accidentalDeathBenefit != null) buffer.writeln('  AD Benefit: ${_fmt(l.accidentalDeathBenefit!)}');
+      if (l.maturityAmount != null) buffer.writeln('  Maturity Amount: ${fmt(l.maturityAmount!)}');
+      if (l.accidentalDeathBenefit != null) buffer.writeln('  AD Benefit: ${fmt(l.accidentalDeathBenefit!)}');
       if (l.terminalIllnessBenefit != null) buffer.writeln('  TI Benefit: ${l.terminalIllnessBenefit}');
       if (l.deathBenefitType != null) buffer.writeln('  Death Benefit: ${l.deathBenefitType}');
       if (l.policyTypeDetail != null) buffer.writeln('  Policy Type: ${l.policyTypeDetail}');
@@ -643,10 +650,10 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
       buffer.writeln('');
       buffer.writeln('🏠 Home / Property:');
       if (h.propertyAddress != null) buffer.writeln('  Property: ${h.propertyAddress}');
-      if (h.buildingSumInsured != null) buffer.writeln('  Building SI: ${_fmt(h.buildingSumInsured!)}');
-      if (h.contentsSumInsured != null) buffer.writeln('  Contents SI: ${_fmt(h.contentsSumInsured!)}');
-      if (h.rebuildCost != null) buffer.writeln('  Rebuild Cost: ${_fmt(h.rebuildCost!)}');
-      if (h.deductible != null) buffer.writeln('  Deductible: ${_fmt(h.deductible!)}');
+      if (h.buildingSumInsured != null) buffer.writeln('  Building SI: ${fmt(h.buildingSumInsured!)}');
+      if (h.contentsSumInsured != null) buffer.writeln('  Contents SI: ${fmt(h.contentsSumInsured!)}');
+      if (h.rebuildCost != null) buffer.writeln('  Rebuild Cost: ${fmt(h.rebuildCost!)}');
+      if (h.deductible != null) buffer.writeln('  Deductible: ${fmt(h.deductible!)}');
       if (h.structureType != null) buffer.writeln('  Structure: ${h.structureType}');
       if (h.occupancyType != null) buffer.writeln('  Occupancy: ${h.occupancyType}');
       if (h.constructionType != null) buffer.writeln('  Construction: ${h.constructionType}');
@@ -684,15 +691,15 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
       if (t.tripDurationDays != null) buffer.writeln('  Duration: ${t.tripDurationDays} days');
       if (t.tripStartDate != null) buffer.writeln('  Trip Start: ${t.tripStartDate}');
       if (t.tripEndDate != null) buffer.writeln('  Trip End: ${t.tripEndDate}');
-      if (t.tripCostCovered != null) buffer.writeln('  Trip Cost: ${_fmt(t.tripCostCovered!)}');
-      if (t.medicalExpensesCover != null) buffer.writeln('  Medical Expenses: ${_fmt(t.medicalExpensesCover!)}');
-      if (t.medicalEvacuationCover != null) buffer.writeln('  Medical Evacuation: ${_fmt(t.medicalEvacuationCover!)}');
-      if (t.personalAccidentCover != null) buffer.writeln('  PA Cover: ${_fmt(t.personalAccidentCover!)}');
-      if (t.baggageLossCover != null) buffer.writeln('  Baggage Loss: ${_fmt(t.baggageLossCover!)}');
-      if (t.baggageDelayCover != null) buffer.writeln('  Baggage Delay: ${_fmt(t.baggageDelayCover!)}');
-      if (t.tripCancellationCover != null) buffer.writeln('  Trip Cancellation: ${_fmt(t.tripCancellationCover!)}');
-      if (t.flightDelayCover != null) buffer.writeln('  Flight Delay: ${_fmt(t.flightDelayCover!)}');
-      if (t.deductiblePerClaimTravel != null) buffer.writeln('  Deductible: ${_fmt(t.deductiblePerClaimTravel!)}');
+      if (t.tripCostCovered != null) buffer.writeln('  Trip Cost: ${fmt(t.tripCostCovered!)}');
+      if (t.medicalExpensesCover != null) buffer.writeln('  Medical Expenses: ${fmt(t.medicalExpensesCover!)}');
+      if (t.medicalEvacuationCover != null) buffer.writeln('  Medical Evacuation: ${fmt(t.medicalEvacuationCover!)}');
+      if (t.personalAccidentCover != null) buffer.writeln('  PA Cover: ${fmt(t.personalAccidentCover!)}');
+      if (t.baggageLossCover != null) buffer.writeln('  Baggage Loss: ${fmt(t.baggageLossCover!)}');
+      if (t.baggageDelayCover != null) buffer.writeln('  Baggage Delay: ${fmt(t.baggageDelayCover!)}');
+      if (t.tripCancellationCover != null) buffer.writeln('  Trip Cancellation: ${fmt(t.tripCancellationCover!)}');
+      if (t.flightDelayCover != null) buffer.writeln('  Flight Delay: ${fmt(t.flightDelayCover!)}');
+      if (t.deductiblePerClaimTravel != null) buffer.writeln('  Deductible: ${fmt(t.deductiblePerClaimTravel!)}');
       if (t.emergencyAssistancePhone != null) buffer.writeln('  Emergency: ${t.emergencyAssistancePhone}');
       if (t.geographicalZone != null) buffer.writeln('  Geo. Zone: ${t.geographicalZone}');
       if (t.preexistingConditionWaiver != null) buffer.writeln('  Pre-existing Waiver: ${t.preexistingConditionWaiver}');
@@ -713,8 +720,8 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
       buffer.writeln('🏥 Health Insurance:');
       if (h.roomRentCap != null) buffer.writeln('  Room Rent Cap: ${h.roomRentCap}');
       if (h.coPayPercent != null) buffer.writeln('  Co-pay: ${h.coPayPercent!.toStringAsFixed(0)}%');
-      if (h.deductiblePerClaim != null) buffer.writeln('  Deductible: ${_fmt(h.deductiblePerClaim!)}');
-      if (h.ambulanceCover != null) buffer.writeln('  Ambulance: ${_fmt(h.ambulanceCover!)}');
+      if (h.deductiblePerClaim != null) buffer.writeln('  Deductible: ${fmt(h.deductiblePerClaim!)}');
+      if (h.ambulanceCover != null) buffer.writeln('  Ambulance: ${fmt(h.ambulanceCover!)}');
       if (h.networkHospitals != null) buffer.writeln('  Network Hospitals: ${h.networkHospitals}');
       if (h.maternityCover != null) buffer.writeln('  Maternity: ${h.maternityCover}');
       if (h.dayCareProcedures != null) buffer.writeln('  Day Care: ${h.dayCareProcedures}');
@@ -779,7 +786,6 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
 
     return buffer.toString();
   }
-}
 
 // ── Reusable helpers ──
 

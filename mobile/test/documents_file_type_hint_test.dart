@@ -1,3 +1,4 @@
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/config/app_config.dart';
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/document_providers.dart';
@@ -28,6 +29,9 @@ void main() {
         documentsProvider.overrideWith((ref) async => documents),
       ],
       child: MaterialApp(
+        localizationsDelegates:
+            AppLocalizationsGen.localizationsDelegates,
+        supportedLocales: AppLocalizationsGen.supportedLocales,
         home: DocumentsScreen(
           initialFileName: initialFileName,
         ),
@@ -380,7 +384,7 @@ void main() {
       );
 
       // Verify the saved policies section label
-      expect(find.text('SAVED POLICIES'), findsOneWidget);
+      expect(find.text('Saved policies'), findsOneWidget);
 
       // Verify the "No saved policies yet" message
       expect(find.text('No saved policies yet'), findsOneWidget);

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/main.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +51,9 @@ void main() {
     // Wrap in MaterialApp to provide Directionality required by Material widgets.
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates:
+            AppLocalizationsGen.localizationsDelegates,
+        supportedLocales: AppLocalizationsGen.supportedLocales,
         home: ProviderScope(
           child: InsuranceApp(),
         ),
