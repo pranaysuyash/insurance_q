@@ -8,51 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-
-/// Minimal PolicyExtractionService that returns a fixed list of summaries.
-class _FakeSummariesNotifier extends PolicySummariesNotifier {
-  final List<PolicySummary> _summaries;
-  _FakeSummariesNotifier(this._summaries);
-
-  @override
-  List<PolicySummary> build() => _summaries;
-}
-
-/// Full policy summary with all fields populated.
-PolicySummary _fullSummary() => PolicySummary(
-      documentId: 'doc-1',
-      documentType: 'Health Insurance',
-      insurer: 'ICICI Lombard',
-      policyNumber: 'POL-12345',
-      coverageAmount: 500000,
-      premiumAmount: 12000,
-      deductible: 5000,
-      startDate: DateTime(2026, 1, 1),
-      endDate: DateTime(2027, 1, 1),
-      keyBenefits: ['Room charges up to ₹5,000/day', 'Pre and post hospitalization'],
-      exclusions: ['Cosmetic surgery', 'Self-inflicted injuries'],
-      waitingPeriods: ['30 days for initial diseases', '2 years for pre-existing'],
-      coverageItems: [
-        CoverageItem(name: 'Room & Board', covered: true, limitText: '₹5,000/day'),
-        CoverageItem(name: 'ICU', covered: true, limit: 100000),
-        CoverageItem(name: 'Cosmetic', covered: false),
-      ],
-      extractedAt: DateTime(2026, 7, 10),
-    );
-
-/// Minimal summary — passes hasMinimumViableEvidence with just the
-/// required critical fields (policyNumber, insurer, documentType,
-/// startDate+endDate, coverageAmount).
-PolicySummary _minimalSummary() => PolicySummary(
-      documentId: 'doc-2',
-      documentType: 'Auto Insurance',
-      insurer: 'HDFC Ergo',
-      policyNumber: 'POL-MINIMAL',
-      coverageAmount: 300000,
-      startDate: DateTime(2026, 3, 1),
-      endDate: DateTime(2027, 3, 1),
-      extractedAt: DateTime(2026, 7, 5),
-    );
+import 'helpers/policy_detail_test_helpers.dart';
 
 void main() {
   // Initialize Hive so FieldOverridesStore can open its box during widget tests.
@@ -71,8 +27,8 @@ void main() {
     return ProviderScope(
       overrides: [
         policySummariesProvider.overrideWith(
-          () => _FakeSummariesNotifier(
-            summaries ?? [_fullSummary()],
+          () => FakeSummariesNotifier(
+            summaries ?? [fullSummary()],
           ),
         ),
         documentsProvider.overrideWith((ref) async => documents ?? []),
@@ -268,7 +224,7 @@ void main() {
     testWidgets('renders without crash with minimal fields', (tester) async {
       await tester.pumpWidget(buildPolicyDetail(
         documentId: 'doc-2',
-        summaries: [_minimalSummary()],
+        summaries: [minimalSummary()],
       ));
       await tester.pumpAndSettle();
 
@@ -280,7 +236,7 @@ void main() {
     testWidgets('hides sections with empty lists', (tester) async {
       await tester.pumpWidget(buildPolicyDetail(
         documentId: 'doc-2',
-        summaries: [_minimalSummary()],
+        summaries: [minimalSummary()],
       ));
       await tester.pumpAndSettle();
 
@@ -342,7 +298,7 @@ void main() {
     testWidgets('shows empty state when summary not found', (tester) async {
       await tester.pumpWidget(buildPolicyDetail(
         documentId: 'nonexistent',
-        summaries: [_fullSummary()],
+        summaries: [fullSummary()],
       ));
       await tester.pumpAndSettle();
 
@@ -353,7 +309,7 @@ void main() {
 
   group('buildShareSummaryText', () {
     test('includes all key fields in shareable text', () {
-      final text = buildShareSummaryText(_fullSummary());
+      final text = buildShareSummaryText(fullSummary());
 
       expect(text, contains('Health Insurance'));
       expect(text, contains('ICICI Lombard'));
@@ -367,7 +323,7 @@ void main() {
     });
 
     test('handles minimal summary gracefully', () {
-      final text = buildShareSummaryText(_minimalSummary());
+      final text = buildShareSummaryText(minimalSummary());
 
       expect(text, contains('Auto Insurance'));
       expect(text, contains('HDFC Ergo'));
@@ -376,11 +332,11 @@ void main() {
     });
 
     test('excludes null fields from share text', () {
-      final text = buildShareSummaryText(_minimalSummary());
+      final text = buildShareSummaryText(minimalSummary());
 
-      // policyNumber IS present in _minimalSummary, so 'Policy:' should appear
+      // policyNumber IS present in minimalSummary(), so 'Policy:' should appear
       expect(text, contains('Policy: POL-MINIMAL'));
-      // These fields are absent from _minimalSummary
+      // These fields are absent from minimalSummary()
       expect(text.contains('Premium:'), isFalse);
       expect(text.contains('Deductible:'), isFalse);
       expect(text.contains('Benefits:'), isFalse);

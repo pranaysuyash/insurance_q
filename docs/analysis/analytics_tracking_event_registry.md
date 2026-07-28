@@ -37,6 +37,12 @@
 | `qa_pack_purchase_completed` | active | `pack_type` | Billing + Product | pack conversion completion |
 | `qa_pack_purchase_failed` | active | `pack_type`, `reason` | Billing + Product | billing failure + pack funnel drop-off |
 | `subscription_state_synced` | active | `plan_tier`, `is_active` | Billing + Mobile | retention and active entitlement state |
+| `policy_detail_claim_assist_tapped` | active | `document_id_hash` | Policy UX + Product | claim-assistance CTA engagement from policy detail |
+| `policy_detail_coverage_gap_tapped` | active | `document_id_hash` | Policy UX + Product | coverage-gap entry from policy detail |
+| `policy_detail_opened` | active | `policy_type`, `is_expired`, `has_evidence` | Policy UX + Product | policy detail view depth signal |
+| `policy_detail_section_opened` | active | `section_count`, `sections` | Policy UX + Product | visible section richness per policy type |
+| `policy_detail_shared` | active | `policy_type` | Policy UX + Growth | outbound sharing of policy summaries |
+| `policy_detail_source_preview_opened` | active | `available` | Policy UX + Trust | source document access pattern |
 | `qa_pack_balance_reconciled` | active | `pack_count`, `questions_remaining` | Entitlement + Product | billing reconciliation reliability |
 | `qa_question_blocked_no_budget` | active | `plan_tier`, `subscription_remaining`, `pack_remaining` | Product + UX | budget friction and quota-pressure behavior |
 | `question_submitted` | active | `question_length_bucket` | QA Product | top of QA funnel denominator |

@@ -10,6 +10,7 @@ import 'package:coverwise/utils/ref_state.dart';
 import 'package:coverwise/screens/qa_screen.dart';
 import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/services/local_storage_service.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,8 +47,9 @@ Widget _buildQaScreen({
       questionCategoriesProvider.overrideWith((ref) => const <QuestionCategory>[]),
       standardQuestionsProvider.overrideWith((ref) => const <StandardQuestion>[]),
     ],
-    child: const MaterialApp(
-      home: QaScreen(),
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+      home: const QaScreen(),
     ),
   );
 }

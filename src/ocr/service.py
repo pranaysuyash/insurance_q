@@ -26,14 +26,20 @@ import sys # Make sure sys is imported at the top if not already
 
 # Correct import for Docker and local
 from src.ocr.pipeline import OCRPipeline # Refactored pipeline
+from src.utils.log_config import configure_structlog
+from src.utils.sentry_config import init_sentry
 from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
 
-# Configure logging
+# Configure structured logging via the shared config (JSON output).
+_environment = os.environ.get("ENVIRONMENT", "development").lower()
+configure_structlog(service_name="ocr", environment=_environment)
+
+# Initialise Sentry before any service initialisation (startup event handler
+# covers the FastAPI lifespan; this covers module-level code that may fail
+# before the event loop starts). Silently skipped when SENTRY_DSN is empty.
+init_sentry(service_name="ocr")
+
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "DEBUG").upper(),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 
 app = FastAPI(
     title="Insurance Policy OCR Service (HF API based)",
@@ -302,12 +308,19 @@ async def health_check():
 # Lifecycle events for httpx client (good practice for production)
 @app.on_event("startup")
 async def startup_event():
+    # Initialise Sentry error tracking before any service initialisation so
+    # startup failures are captured. Silently skipped when SENTRY_DSN is empty.
+    from src.utils.sentry_config import init_sentry
+    init_sentry(service_name="ocr")
+
     global http_client
     http_client = httpx.AsyncClient(timeout=30.0)
     logger.info("OCR Service started up, httpx.AsyncClient initialized.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    from src.utils.sentry_config import shutdown_sentry
+    shutdown_sentry()
     await http_client.aclose()
     logger.info("OCR Service shutting down, httpx.AsyncClient closed.")
 

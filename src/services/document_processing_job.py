@@ -10,6 +10,8 @@ import logging
 from datetime import datetime
 from typing import Any, Optional
 
+from src.utils.metrics import DOCUMENTS_PROCESSED, DOCUMENTS_FAILED, _sentry_incr
+
 log = logging.getLogger(__name__)
 
 
@@ -59,18 +61,24 @@ async def run_document_processing_job(
             document.processing_lease_expires_at = None
             if status in {"completed", "completed_no_summary", "completed_summary_partial", "completed_text_partial", "ready_for_qa", "partial", "indexing_failed"}:
                 document.processing_completed_at = datetime.utcnow()
+                DOCUMENTS_PROCESSED.labels(processing_mode=processing_mode).inc()
+                _sentry_incr("documents.processed", {"processing_mode": processing_mode})
             if status == "failed":
                 document.error_message = "Document processing did not complete. Please retry the upload."
+                DOCUMENTS_FAILED.labels(error_class="processing_failure").inc()
+                _sentry_incr("documents.failed", {"error_class": "processing_failure"})
             await _apply_classification(document, result, service, document_id)
             repository.update(document)
         return result
-    except Exception:
+    except Exception as exc:
         log.exception("document_processing_job_failed document_id=%s", document_id)
         document = repository.get(document_id, owner_id)
         if document:
             if terminal_failure_on_exception:
                 document.status = "failed"
                 document.error_message = "Document processing did not complete. Please retry the upload."
+                DOCUMENTS_FAILED.labels(error_class=type(exc).__name__).inc()
+                _sentry_incr("documents.failed", {"error_class": type(exc).__name__})
             else:
                 # The outbox will retry this handler. Returning to `received`
                 # is essential: claim_processing only leases received or

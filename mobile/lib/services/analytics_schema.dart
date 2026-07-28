@@ -285,6 +285,40 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
   'support_intent': {
     'source_surface': AnalyticsPropertyType.string,
   },
+
+  // ── Policy detail events (detail flow matrix, 2026-07-24) ──────────
+  // Fired once per mount when the policy detail screen opens.
+  'policy_detail_opened': {
+    'policy_type': AnalyticsPropertyType.string,
+    'is_expired': AnalyticsPropertyType.boolean,
+    'has_evidence': AnalyticsPropertyType.boolean,
+  },
+
+  // Fired once per mount with a comma-separated list of visible sections.
+  'policy_detail_section_opened': {
+    'section_count': AnalyticsPropertyType.number,
+    'sections': AnalyticsPropertyType.string,
+  },
+
+  // Fired when user taps "What your policy covers" button.
+  'policy_detail_coverage_gap_tapped': {
+    'document_id_hash': AnalyticsPropertyType.string,
+  },
+
+  // Fired when user taps "How to file a claim" button.
+  'policy_detail_claim_assist_tapped': {
+    'document_id_hash': AnalyticsPropertyType.string,
+  },
+
+  // Fired when user opens the source document preview.
+  'policy_detail_source_preview_opened': {
+    'available': AnalyticsPropertyType.boolean,
+  },
+
+  // Fired when user taps "Share policy summary".
+  'policy_detail_shared': {
+    'policy_type': AnalyticsPropertyType.string,
+  },
 };
 
 /// Property types for analytics events.

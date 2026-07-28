@@ -1,0 +1,24 @@
+# CoverWise Prometheus scrape configuration
+# Scrapes the local API /metrics endpoint for business + infrastructure counters.
+# Also monitors itself for operational visibility.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'coverwise-api'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+    metrics_path: /metrics
+    # The /metrics endpoint requires auth. If running locally with
+    # OPERATOR_DASHBOARD_TOKEN configured, uncomment and set these:
+    # authorization:
+    #   type: Bearer
+    #   credentials: '<your-api-token>'
+    # params:
+    #   X-Operator-Token: ['<your-operator-token>']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

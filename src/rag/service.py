@@ -19,6 +19,8 @@ from fastapi import FastAPI, HTTPException, Body, Request
 from pydantic import BaseModel, Field
 
 from src.rag.pipeline import RAGPipeline
+from src.utils.log_config import configure_structlog
+from src.utils.sentry_config import init_sentry, shutdown_sentry
 
 logger = logging.getLogger(__name__)
 
@@ -144,10 +146,13 @@ async def _with_retry(
 
 # ── Logging configuration ───────────────────────────────────────────────────
 
-logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+# Configure structured JSON logging via the shared config. After this call,
+# all logging.getLogger(__name__) calls in this process produce JSON output.
+configure_structlog(service_name="rag", log_level=os.environ.get("LOG_LEVEL", "INFO"))
+
+# Initialise Sentry error tracking before any service initialisation so
+# startup failures are captured. Silently skipped when SENTRY_DSN is empty.
+init_sentry(service_name="rag")
 
 app = FastAPI(
     title="Insurance Policy RAG API (with OpenAI/HF fallback)",
@@ -520,6 +525,10 @@ async def enable_contextual_retrieval(
 
 
 # To run this service directly (e.g., for local testing without docker-compose for this specific service)
+# @app.on_event("shutdown")
+async def shutdown_event():
+    shutdown_sentry()
+
 # if __name__ == "__main__":
 #     uvicorn.run(
 #         "src.rag.service:app", # Or if file is main.py in current dir: "main:app"

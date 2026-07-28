@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:coverwise/models/claim_record.dart';
 import 'package:coverwise/widgets/claims/claim_status_timeline.dart';
 import 'package:coverwise/theme/coverwise_theme.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 
 /// Helper to build the widget with test data inside a MaterialApp.
 Widget _buildTimeline(List<StatusUpdate> statusHistory) {
   return MaterialApp(
+    localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
     theme: CoverWiseTheme.light(),
     home: Scaffold(
       body: SingleChildScrollView(

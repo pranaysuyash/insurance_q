@@ -37,6 +37,7 @@ from src.services.policy_slot_reservation_service import (
     production_policy_slot_reservations_enabled,
 )
 from src.utils.secure_processing_payload import encrypt_processing_inputs
+from src.utils.metrics import DOCUMENTS_UPLOADED, _sentry_incr
 
 logger = logging.getLogger(__name__)
 
@@ -301,6 +302,17 @@ async def upload_document(
             object_reference = document_object_store.put(
                 doc_id, current_user.uid, file.filename or "document", file_content
             )
+            # Bump the upload counter after the source is stored. The
+            # file_type label is derived from the extension, defaulting to
+            # 'pdf' when the filename is missing or has no extension.
+            file_type = (
+                file.filename.rsplit(".", 1)[-1].lower()
+                if file.filename and "." in file.filename
+                else "pdf"
+            )
+            DOCUMENTS_UPLOADED.labels(file_type=file_type).inc()
+            _sentry_incr("documents.uploaded", {"file_type": file_type})
+
             # Persist metadata only after the encrypted/local source write succeeds.
             document = Document(
                 id=doc_id,

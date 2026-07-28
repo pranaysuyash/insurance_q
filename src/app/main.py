@@ -29,6 +29,7 @@ from src.api.document import (
     document_object_store,
     document_repository,
 )
+from src.utils.metrics import PrometheusMiddleware, RAG_QUERIES_TOTAL, metrics_endpoint, _sentry_incr
 from src.utils.runtime_access import require_nonproduction
 from src.utils.runtime_config import (
     allowed_cors_origins,
@@ -47,9 +48,13 @@ import asyncio
 from uuid import UUID, uuid4
 from contextlib import asynccontextmanager
 
-# Set up logging
+# Set up structured JSON logging (all environments).
+# Cloud Run captures stdout/stderr into Google Cloud Logging; JSON lines
+# are parsed automatically for queryable fields.
+from src.utils.log_config import configure_structlog
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
+_environment = os.environ.get("ENVIRONMENT", "development").lower()
+configure_structlog(service_name="api", environment=_environment)
 
 app = FastAPI(title="Insurance Policy Parser & QA API", version="2.0.0")
 
@@ -70,6 +75,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
+app.add_middleware(PrometheusMiddleware)
+
+# Prometheus metrics scrape endpoint (excluded from PrometheusMiddleware)
+app.add_route("/metrics", metrics_endpoint, include_in_schema=False)
 
 # Initialize services
 rag_pipeline = None
@@ -104,6 +113,12 @@ class QueryResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global rag_pipeline, document_processing_service, qa_usage_service
+
+    # P0 analytics: initialise Sentry error tracking before any service
+    # initialisation so startup failures are captured. Silently skipped
+    # when SENTRY_DSN is empty (local dev, early staging).
+    from src.utils.sentry_config import init_sentry, shutdown_sentry
+    init_sentry(service_name="api", app_version=app.version)
 
     is_production = os.environ.get("ENVIRONMENT", "development").lower() == "production"
     configuration_errors = production_configuration_errors(os.environ)
@@ -186,6 +201,12 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("Production document processing initialization failed") from e
         print("⚠️ Document processing init failed; continuing only in development", file=sys.stderr)
     
+    # Analytics retention: periodically purge old events so they don't
+    # accumulate forever. Uses a configurable interval (default 6h) and
+    # retention window (default 90d). Safe for both SQLite and Supabase.
+    loop = asyncio.get_event_loop()
+    loop.create_task(_analytics_cleanup_loop())
+
     # Production recovery belongs exclusively to the durable outbox worker.
     # The API must not scan and execute received documents in-process, or it
     # becomes a second worker outside queue retry/dead-letter observability.
@@ -200,10 +221,38 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        pass
+        # Flush Sentry events before the process exits.
+        shutdown_sentry()
 
 
 app.router.lifespan_context = lifespan
+
+
+async def _analytics_cleanup_loop() -> None:
+    """Periodically purge old analytics events to prevent unbounded growth.
+
+    Runs every ``ANALYTICS_CLEANUP_INTERVAL_SECONDS`` (default 6 hours)
+    and deletes events older than ``ANALYTICS_RETENTION_DAYS`` (default 90
+    days). Safe for both SQLite (development) and Supabase (production).
+
+    This is a fire-and-forget cycle — exceptions are logged but never
+    propagated so a single failed cleanup cannot break the loop.
+    """
+    from src.services.analytics_retention_service import purge_old_analytics_events, default_cleanup_interval_seconds
+
+    interval = default_cleanup_interval_seconds()
+    logger.info("analytics_cleanup_loop_started interval_seconds=%d", interval)
+
+    while True:
+        try:
+            deleted = purge_old_analytics_events()
+            if deleted > 0:
+                logger.info("analytics_cleanup_completed deleted=%d", deleted)
+        except Exception as error:
+            logger.exception(
+                "analytics_cleanup_failed error_type=%s", type(error).__name__,
+            )
+        await asyncio.sleep(interval)
 
 
 async def _recover_durable_document_processing() -> None:
@@ -460,6 +509,8 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
                     current_user.uid[:12],
                     usage.get("reason", "qa_budget_exhausted"),
                 )
+                RAG_QUERIES_TOTAL.labels(result="budget_exhausted").inc()
+                _sentry_incr("rag.queries", {"result": "budget_exhausted"})
                 return QueryResponse(
                     answer="",
                     sources=[],
@@ -649,6 +700,7 @@ async def query_documents_stream(request: QueryRequest, current_user: User = Dep
                     current_user.uid[:12],
                     usage.get("reason", "qa_budget_exhausted"),
                 )
+                RAG_QUERIES_TOTAL.labels(result="budget_exhausted").inc()
                 return StreamingResponse(
                     iter(["data: {\"error\": \"qa_budget_exhausted\"}\n\n"]),
                     media_type="text/event-stream",

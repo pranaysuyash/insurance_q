@@ -1,0 +1,28 @@
+# Grafana datasource provisioning
+# These datasources are auto-created when Grafana starts.
+# The JSON API plugin is installed via GF_INSTALL_PLUGINS env var.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+
+  - name: JSON API
+    type: grafana-json-datasource
+    access: proxy
+    url: http://host.docker.internal:8000
+    isDefault: false
+    editable: true
+    jsonData:
+      # Template variables apiBaseUrl, apiToken, operatorToken
+      # are configured in the dashboard itself as Grafana variables.
+      # The base URL here is only used for datasource health checks.
+      tlsAuth: false
+      tlsAuthWithCACert: false

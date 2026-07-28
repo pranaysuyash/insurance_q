@@ -3,18 +3,11 @@ import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/providers/policy_providers.dart';
 import 'package:coverwise/screens/dashboard_screen.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-class _FakeSummariesNotifier extends PolicySummariesNotifier {
-  final List<PolicySummary> _summaries;
-
-  _FakeSummariesNotifier(this._summaries);
-
-  @override
-  List<PolicySummary> build() => _summaries;
-}
+import 'helpers/policy_detail_test_helpers.dart';
 
 InsuranceDocument _document(String id) => InsuranceDocument(
       id: id,
@@ -39,13 +32,14 @@ Widget _dashboard({
       overrides: [
         documentsProvider.overrideWith((ref) async => documents),
         policySummariesProvider.overrideWith(
-          () => _FakeSummariesNotifier(summaries),
+          () => FakeSummariesNotifier(summaries),
         ),
-      ],
-      child: const MaterialApp(home: DashboardScreen()),
+      ],child: MaterialApp(
+          localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+          home: const DashboardScreen()),
     );
 
-void main() {
+  void main() {
   testWidgets('renders the evidence-bound populated dashboard', (tester) async {
     await tester.pumpWidget(_dashboard(
       documents: [_document('doc-1'), _document('doc-2')],
@@ -149,9 +143,11 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         documentsProvider.overrideWith((ref) async => throw Exception('Network error')),
-        policySummariesProvider.overrideWith(() => _FakeSummariesNotifier(const [])),
+        policySummariesProvider.overrideWith(() => FakeSummariesNotifier(const [])),
       ],
-      child: const MaterialApp(home: DashboardScreen()),
+      child: MaterialApp(
+          localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+          home: const DashboardScreen()),
     ));
     await tester.pumpAndSettle();
 

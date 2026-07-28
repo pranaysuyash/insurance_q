@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers/hive_test_helper.dart';
 import 'package:coverwise/widgets/usage_stats_widget.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 
 /// Tests the _ensureConsent() helper in DocumentsScreen through
 /// widget integration, covering stale consent, healthy consent,
@@ -129,8 +130,9 @@ void main() {
         // is a StreamProvider that may not have emitted yet on frame 1.
         isOnlineProvider.overrideWith((ref) => true),
       ],
-      child: const MaterialApp(
-        home: DocumentsScreen(initialFileName: 'policy.pdf'),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+        home: const DocumentsScreen(initialFileName: 'policy.pdf'),
       ),
     );
   }

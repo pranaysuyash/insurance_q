@@ -1,0 +1,27 @@
+# Android Release Signing Properties
+#
+# After running keytool (see command below), fill in the values and
+# rename this file to key.properties. The .gitignore excludes key.properties
+# (but NOT this .example file) so secrets stay out of version control.
+#
+# ## One-time keystore generation command:
+#
+#   cd mobile/android
+#   keytool -genkey -v -keystore coverwise-upload.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 \
+#     -alias coverwise
+#
+# You will be prompted for:
+#   - Keystore password (remember this!)
+#   - Key password (can be same as keystore)
+#   - Distinguished name fields (name, org, city, state, country)
+#
+# After generating, paste your values below and save as key.properties:
+#
+#   mv key.properties.example key.properties
+#   (edit the values)
+
+storePassword=CHANGE_ME_YOUR_KEYSTORE_PASSWORD
+keyPassword=CHANGE_ME_YOUR_KEY_PASSWORD
+keyAlias=coverwise
+storeFile=coverwise-upload.jks

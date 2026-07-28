@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'helpers/hive_test_helper.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 
 /// Helper to create a test document with named policy holders.
 InsuranceDocument _makeDoc({
@@ -58,7 +59,10 @@ void main() {
               (_, __) async => <String, PolicyHolder>{},
             ),
           ],
-          child: const MaterialApp(home: FamilyScreen()),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+            home: const FamilyScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -103,7 +107,9 @@ void main() {
             (_, __) async => mergedMap,
           ),
         ],
-        child: const MaterialApp(home: FamilyScreen()),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+          home: const FamilyScreen()),
       );
     }
 
@@ -221,7 +227,10 @@ void main() {
               (_, __) async => {'Alice': alice},
             ),
           ],
-          child: const MaterialApp(home: FamilyScreen()),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+            home: const FamilyScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -281,7 +290,9 @@ void main() {
             (_, __) async => mergedMap,
           ),
         ],
-        child: const MaterialApp(home: FamilyScreen()),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+          home: const FamilyScreen()),
       );
     }
 
@@ -348,7 +359,10 @@ void main() {
               (_, __) async => {'Solo Member': solo},
             ),
           ],
-          child: const MaterialApp(home: FamilyScreen()),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+            home: const FamilyScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -380,7 +394,10 @@ void main() {
               (_, __) async => {'Manual Mem': manual},
             ),
           ],
-          child: const MaterialApp(home: FamilyScreen()),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
+            home: const FamilyScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();

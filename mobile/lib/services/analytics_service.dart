@@ -77,6 +77,19 @@ class AnalyticsService {
     return Future.value();
   }
 
+  /// Enable the fallback buffer and return captured events for test assertions.
+  ///
+  /// In widget-test environments the Riverpod [AnalyticsNotifier] is typically
+  /// not instantiated (no [ProviderContainer] reads the notifier), so
+  /// [track] silently drops events. This helper activates the static fallback
+  /// path and returns the captured entries for assertion.
+  @visibleForTesting
+  static List<Map<String, dynamic>> enableFallbackBuffer() {
+    _fallbackConsent = true;
+    _fallbackBuffer.clear();
+    return _fallbackBuffer;
+  }
+
   static void dispose() {
     // Riverpod's Notifier lifecycle handles cleanup via ref.onDispose in
     // the build() method. This explicit call is only used by the test

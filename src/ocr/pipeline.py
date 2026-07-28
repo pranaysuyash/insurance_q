@@ -19,25 +19,11 @@ import numpy as np # For potential doctr input/output
 
 from src.config.settings import settings
 
-# Configure logging
+# Configure structured logging via the shared config (configure_structlog in
+# the entrypoint — ocr/service.py — sets up the root handler). This module
+# only needs to acquire its logger after the config is active.
 import logging
 logger = logging.getLogger(__name__)
-# Ensure this specific logger outputs INFO and DEBUG messages
-# This is more specific than just basicConfig for the root logger
-logger.setLevel(logging.INFO) # Or logging.DEBUG for even more verbosity
-logger.propagate = True # Ensure messages are passed to handlers of ancestor loggers
-
-# Add a handler if one isn't configured already by Uvicorn/FastAPI for this logger
-# This ensures messages go to stderr, which Docker captures
-if not logger.hasHandlers():
-    handler = logging.StreamHandler() # Defaults to sys.stderr
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-# The global basicConfig is still useful for other modules or the root logger if needed,
-# but the settings above are more direct for this specific pipeline logger.
-# logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper())
 
 
 # Helper to convert PIL Image to bytes

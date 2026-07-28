@@ -540,6 +540,94 @@ async def get_analytics_health(
     }
 
 
+@router.delete("/events")
+async def delete_analytics_events(
+    older_than_days: Optional[int] = None,
+    event_name: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    _operator: None = Depends(require_operator),
+):
+    """Delete analytics events. Requires operator auth.
+
+    Supports:
+    - ``DELETE /analytics/events`` — delete ALL events (use with care)
+    - ``DELETE /analytics/events?older_than_days=30`` — delete events older
+      than 30 days
+    - ``DELETE /analytics/events?event_name=global_error`` — delete only
+      specific event type
+    - ``DELETE /analytics/events?older_than_days=7&event_name=global_error``
+      — combined filter
+
+    Parameters are additive: when both are provided, only rows matching
+    BOTH conditions are deleted.
+
+    Returns the count of deleted rows.
+    """
+    canonical_client = _production_analytics_client()
+
+    if canonical_client is not None:
+        query = canonical_client.table("analytics_events").delete()
+        # postgREST requires at least one filter to prevent accidental
+        # mass deletion. When no user-supplied filter is given, use a
+        # catch-all that matches every row to make the intent explicit.
+        if older_than_days is None and event_name is None:
+            query = query.gte("received_at", "1970-01-01T00:00:00Z")
+        if older_than_days is not None:
+            cutoff = datetime.fromtimestamp(
+                datetime.now(timezone.utc).timestamp() - max(older_than_days, 1) * 86400,
+                tz=timezone.utc,
+            ).isoformat()
+            query = query.lt("received_at", cutoff)
+        if event_name is not None:
+            query = query.eq("event_name", event_name)
+        try:
+            result = query.execute()
+            deleted = len(result.data or [])
+        except Exception as error:
+            logger.error("analytics_deletion_failed error_type=%s", type(error).__name__)
+            raise HTTPException(status_code=503, detail="Canonical analytics deletion failed; retry.") from error
+        return {"status": "success", "deleted": deleted, "canonical": "supabase"}
+
+    _init_analytics_table()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        # Build the WHERE clause from optional filters
+        conditions: list[str] = []
+        params: list[Any] = []
+
+        if older_than_days is not None:
+            conditions.append("received_at < datetime('now', ?)")
+            params.append(f"-{max(older_than_days, 1)} days")
+        if event_name is not None:
+            conditions.append("event_name = ?")
+            params.append(event_name)
+
+        where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+        # Count before deletion
+        count_row = conn.execute(
+            f"SELECT COUNT(*) as cnt FROM analytics_events{where_clause}",
+            params,
+        ).fetchone()
+        deleted = count_row[0] if count_row else 0
+
+        # Execute deletion, then commit before VACUUM (VACUUM auto-commits
+        # any pending transaction in SQLite, making a prior .commit() a
+        # no-op but keeping the intent explicit).
+        conn.execute(f"DELETE FROM analytics_events{where_clause}", params)
+        conn.commit()
+        conn.execute("VACUUM")
+    except Exception as error:
+        logger.error("analytics_deletion_failed error_type=%s", type(error).__name__)
+        raise HTTPException(status_code=503, detail="Analytics deletion failed; retry.") from error
+    finally:
+        conn.close()
+
+    logger.info("analytics_events_deleted count=%d older_than_days=%s event_name=%s user=%s",
+                deleted, older_than_days, event_name, current_user.uid[:8])
+    return {"status": "success", "deleted": deleted}
+
+
 @router.get("/errors")
 async def get_error_aggregation(
     days: int = 7,

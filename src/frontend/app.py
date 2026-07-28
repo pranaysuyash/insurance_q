@@ -16,21 +16,15 @@ from typing import Optional
 from pydantic import BaseModel
 import structlog
 import time
+from src.utils.log_config import configure_structlog
 from src.utils.runtime_access import require_nonproduction
 from src.utils.upload_validation import MAX_UPLOAD_BYTES, UploadValidationError, validate_upload_content
 from tools.validate_legal_release_assets import validation_errors as legal_release_errors
 
-# Configure structured logging
+# Configure structured logging via the shared config (JSON output).
+_environment = os.environ.get("ENVIRONMENT", "development").lower()
+configure_structlog(service_name="frontend", environment=_environment)
 logger = structlog.get_logger()
-structlog.configure(
-    processors=[
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.processors.JSONRenderer()
-    ]
-)
 
 class Query(BaseModel):
     query: str
@@ -100,6 +94,11 @@ def _require_complete_legal_assets_for_production() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialise Sentry error tracking before any service initialisation so
+    # startup failures are captured. Silently skipped when SENTRY_DSN is empty.
+    from src.utils.sentry_config import init_sentry, shutdown_sentry
+    init_sentry(service_name="frontend")
+
     global http_client
     _require_complete_legal_assets_for_production()
     http_client = httpx.AsyncClient(timeout=None)
@@ -107,6 +106,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        shutdown_sentry()
         if http_client:
             await http_client.aclose()
         logger.info("Frontend service shutting down, httpx.AsyncClient closed.")
@@ -443,6 +443,50 @@ async def get_documents(_: None = Depends(require_nonproduction)):
         "limit": 10,
         "total_pages": 1
     }
+
+@app.get("/ops", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/ops/", response_class=HTMLResponse, include_in_schema=False)
+async def ops_index(request: Request):
+    """Render the admin/operator landing page with links to all monitoring
+    and debugging tools.
+
+    Lists the analytics dashboard, Prometheus metrics, health probes, and
+    debug endpoints in one place for easier access.
+    """
+    return templates.TemplateResponse(
+        request=request,
+        name="ops_index.html",
+        context={
+            "request": request,
+            "site_name": SITE_NAME,
+            "page_title": "CoverWise Admin Tools",
+            "current_year": date.today().year,
+        },
+    )
+
+
+@app.get("/ops/dashboard", response_class=HTMLResponse, include_in_schema=False)
+async def operator_dashboard(request: Request):
+    """Render the operator analytics dashboard.
+
+    A self-contained HTML dashboard that queries the /analytics/* endpoints
+    via client-side JavaScript. The operator must provide an
+    X-Operator-Token, which is entered on the page and sent with each
+    request. No server-side proxy — data flows directly browser → API.
+
+    Linked from the /ops admin landing page.
+    """
+    return templates.TemplateResponse(
+        request=request,
+        name="ops_dashboard.html",
+        context={
+            "request": request,
+            "site_name": SITE_NAME,
+            "page_title": "CoverWise Operator Dashboard",
+            "current_year": date.today().year,
+        },
+    )
+
 
 # Ensure all necessary imports are at the top, like Request for home(request: Request)
 # Ensure structlog is configured if used.

@@ -29,6 +29,7 @@ from src.models.rag import RAGAnswer, RAGCitation
 from src.services.answer_verifier import verify_answer
 from src.services.supabase_vector_store import SupabaseVectorStore
 from src.utils.runtime_config import supabase_server_key
+from src.utils.metrics import RAG_QUERIES_TOTAL, EMBEDDING_CALLS_TOTAL, _sentry_incr
 
 logger = logging.getLogger(__name__)
 
@@ -470,6 +471,8 @@ class RAGPipeline:
         # 1. Try OpenAI
         try:
             embeddings = await self._generate_openai_embeddings(texts, max_retries)
+            EMBEDDING_CALLS_TOTAL.labels(provider="openai").inc()
+            _sentry_incr("embedding.calls", {"provider": "openai"})
             return self._validate_embedding_contract(embeddings, self.openai_embedding_model)
         except Exception as e:
             logger.warning("OpenAI embedding failed: %s", e)
@@ -492,6 +495,8 @@ class RAGPipeline:
                     self.collection_name = f"{settings.qdrant_collection}_{self.embedding_dimensions}d"
                     logger.warning("Collection dimension mismatch. Creating versioned collection %s to prevent data destruction.", self.collection_name)
                     self._ensure_collection_exists()
+                EMBEDDING_CALLS_TOTAL.labels(provider="ollama").inc()
+                _sentry_incr("embedding.calls", {"provider": "ollama"})
                 return self._validate_embedding_contract(
                     await self._generate_ollama_embeddings(texts), self.ollama_embedding_model
                 )
@@ -509,6 +514,8 @@ class RAGPipeline:
             self.collection_name = f"{settings.qdrant_collection}_{self.embedding_dimensions}d"
             logger.warning("Collection dimension mismatch. Creating versioned collection %s to prevent data destruction.", self.collection_name)
             self._ensure_collection_exists()
+        EMBEDDING_CALLS_TOTAL.labels(provider="fallback").inc()
+        _sentry_incr("embedding.calls", {"provider": "fallback"})
         return self._validate_embedding_contract(
             await self._generate_hf_embeddings(texts), self.hf_embedding_model
         )
@@ -1065,6 +1072,16 @@ class RAGPipeline:
         audit_evidence: list[dict[str, Any]] = []
         
         async def _log_and_return(resp: Dict[str, Any], cache_hit: bool = False):
+            # Bump the RAG query counter for every response path. The
+            # result label reflects the outcome from the caller's perspective.
+            result_label = (
+                "error"
+                if resp.get("status") == "error"
+                else "success"
+            )
+            RAG_QUERIES_TOTAL.labels(result=result_label).inc()
+            _sentry_incr("rag.queries", {"result": result_label})
+
             if resp.get("status") == "success":
                 res = resp.get("result", {})
                 

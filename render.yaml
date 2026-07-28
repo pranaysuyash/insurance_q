@@ -1,0 +1,121 @@
+# Render Blueprint for CoverWise backend.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# This file is Infrastructure-as-Code: `render blueprint apply` (or connecting
+# the repo in the Render dashboard) provisions both services from this spec.
+# See docs/planning/deployment/platform_decision_reassessment_2026-07-28.md
+# for why Render was chosen over AWS App Runner / Cloud Run / Railway / Fly.io.
+#
+# Two services, both from the same Docker image:
+#   1. web (FastAPI API)      — request/response, auto-deploy on push
+#   2. worker (outbox worker) — durable job processor, always-on
+#
+# Render assigns a public URL on first deploy. Set that URL as API_BASE_URL in
+# GitHub Actions secrets and in the mobile --dart-define config once live.
+#
+# All secrets are set in the Render dashboard (Environment tab) or via
+# `render env:set`. They are NOT in this file. Required env vars match
+# src/utils/runtime_config.py:production_configuration_errors.
+
+services:
+  # ── API: the FastAPI application ──────────────────────────────────────────
+  - type: web
+    name: coverwise-api
+    runtime: docker
+    region: singapore  # closest Render region to ap-south1 (India) users; Render has no Mumbai region
+    plan: starter      # $7/mo, 0.5 vCPU / 512 MB, always-on
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # ── Non-secret config (safe to commit) ──
+      - key: ENVIRONMENT
+        value: production
+      - key: DOCUMENT_REPOSITORY_BACKEND
+        value: supabase
+      - key: DOCUMENT_OBJECT_STORE_BACKEND
+        value: supabase
+      - key: RAG_VECTOR_BACKEND
+        value: supabase
+      - key: BILLING_LEDGER_BACKEND
+        value: supabase
+      - key: LOG_LEVEL
+        value: INFO
+      # ── Secrets (set these in the Render dashboard Environment tab) ──
+      # Each references a value you paste in once. They are encrypted at rest
+      # by Render and never appear in logs.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANONYMOUS_AUTH_SIGNING_KEY
+        sync: false
+      - key: PROCESSING_PAYLOAD_ENCRYPTION_KEY
+        sync: false
+      - key: PUBLIC_SITE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: REVENUECAT_WEBHOOK_AUTHORIZATION
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      # Vector DB + cache (Cloud Qdrant / Redis) — paste if using cloud, leave
+      # empty if RAG_VECTOR_BACKEND=supabase (pgvector) makes them unused.
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: "6379"
+
+  # ── Worker: the durable outbox processor ─────────────────────────────────
+  # Same Docker image, different start command. Background Workers are a native
+  # Render service type — always-on, no inbound HTTP, billed like a web service.
+  # The worker brings its own health server on $PORT (Render health-checks it).
+  - type: worker
+    name: coverwise-worker
+    runtime: docker
+    region: singapore
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python -m src.workers.outbox_worker
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DOCUMENT_REPOSITORY_BACKEND
+        value: supabase
+      - key: DOCUMENT_OBJECT_STORE_BACKEND
+        value: supabase
+      - key: RAG_VECTOR_BACKEND
+        value: supabase
+      - key: BILLING_LEDGER_BACKEND
+        value: supabase
+      - key: LOG_LEVEL
+        value: INFO
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANONYMOUS_AUTH_SIGNING_KEY
+        sync: false
+      - key: PROCESSING_PAYLOAD_ENCRYPTION_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: "6379"

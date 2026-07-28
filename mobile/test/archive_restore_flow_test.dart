@@ -14,6 +14,7 @@ import 'package:coverwise/screens/documents_list.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/providers/service_providers.dart';
 import 'package:coverwise/services/app_state_store.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 
 // ── Fake DocumentService for widget tests ─────────────────────────
 
@@ -343,6 +344,7 @@ void main() {
     }) {
       final service = fakeDocService ?? FakeDocumentService();
       return MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: ProviderScope(
           overrides: [
             documentsProvider.overrideWith((_) async => documents),

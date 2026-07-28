@@ -13,7 +13,12 @@ import os
 import sys
 from typing import List, Dict, Any
 
-logging.basicConfig(level=logging.INFO)
+from src.utils.log_config import configure_structlog
+
+# Configure structured JSON logging. After this call, logging.getLogger(__name__)
+# calls in this process produce JSON output.
+configure_structlog(service_name="eval")
+
 logger = logging.getLogger(__name__)
 
 # 20+ eval questions across categories (fallback)

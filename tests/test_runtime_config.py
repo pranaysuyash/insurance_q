@@ -236,7 +236,13 @@ print(client.get('/healthz', headers={'Host': 'api.coverwise.example/forged'}).s
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.splitlines() == ["200", "400"]
+    # Filter out JSON log lines emitted by structlog/Sentry init during startup
+    lines = [
+        line
+        for line in result.stdout.splitlines()
+        if not line.startswith("{")
+    ]
+    assert lines == ["200", "400"]
 
 
 def test_production_parses_explicit_origins():

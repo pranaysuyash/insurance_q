@@ -344,6 +344,165 @@ Integrate these into a cohesive testing strategy.
 - Ensure `npm run build:css` is run after changes to `input.css` or `tailwind.config.js`.
 - Clear browser cache.
 
+## Analytics Operations
+
+The CoverWise analytics system collects anonymized, non-PII product events (48 active schema-enforced events). This section documents the analytics cleanup and retention procedures.
+
+### Retention Policy
+
+Analytics events are retained for **30 days** by default. This is enforced by the canonical fallback in `AnalyticsRetentionService`. Extending the retention period is an explicit privacy-policy decision that requires founder/operator approval and must be set via the `ANALYTICS_RETENTION_DAYS` environment variable.
+
+### How Analytics Events Are Stored
+
+| Environment | Canonical storage | Fallback |
+|-------------|------------------|----------|
+| Production | Supabase Postgres (`analytics_events` table) | None (fail closed) |
+| Development | SQLite (`insurance_app.db` → `analytics_events` table) | Optional dual-write to Supabase (`DUAL_WRITE_ANALYTICS=true`) |
+
+Production ingestion always writes to Supabase via the `POST /analytics/events` endpoint. Development uses SQLite unless dual-write is explicitly configured.
+
+Each event carries a deterministic `event_id` (derived from event name, timestamp, user UID, properties, install/session IDs), making retries and duplicate deliveries safe.
+
+**Idempotency guarantee:** In production (Supabase), the `ON CONFLICT DO NOTHING` constraint prevents duplicates — retrying a failed batch is fully safe. In development (SQLite), there is no unique constraint on `event_id`, so retries may insert duplicates. This is acceptable for local testing where manual cleanup is straightforward (see the SQLite cleanup section below).
+
+### Manual Cleanup: DELETE /analytics/events
+
+The `DELETE /analytics/events` endpoint allows operators to purge analytics events manually. It requires **both** a valid Bearer token and the `X-Operator-Token` header (configured via the `OPERATOR_DASHBOARD_TOKEN` env var).
+
+**Supported invocations:**
+
+```bash
+# Delete ALL analytics events (use with care)
+curl -X DELETE https://<api-url>/analytics/events \
+  -H "Authorization: Bearer <token>" \
+  -H "X-Operator-Token: <operator-token>"
+
+# Delete events older than 30 days (scheduled retention)
+curl -X DELETE 'https://<api-url>/analytics/events?older_than_days=30' \
+  -H "Authorization: Bearer <token>" \
+  -H "X-Operator-Token: <operator-token>"
+
+# Delete only a specific event type (e.g., test events)
+curl -X DELETE 'https://<api-url>/analytics/events?event_name=global_error' \
+  -H "Authorization: Bearer <token>" \
+  -H "X-Operator-Token: <operator-token>"
+
+# Combined filter: delete old errors only
+curl -X DELETE 'https://<api-url>/analytics/events?older_than_days=7&event_name=global_error' \
+  -H "Authorization: Bearer <token>" \
+  -H "X-Operator-Token: <operator-token>"
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `older_than_days` | integer (optional) | Delete events older than N days |
+| `event_name` | string (optional) | Delete only events matching this name |
+
+When both parameters are provided, only rows matching **both** conditions are deleted (additive AND).
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "deleted": 142,
+  "canonical": "supabase"
+}
+```
+
+**Safety mechanisms:**
+
+- Supabase/PostgREST requires at least one filter condition — DELETE without filters is handled via an explicit catch-all (`.gte("received_at", "1970-01-01")`), making the intent clear in the code
+- SQLite runs `VACUUM` after deletion to reclaim disk space
+- Operator auth prevents ordinary users from calling this endpoint
+- The operation is idempotent — retrying is safe
+- In production, the endpoint always targets the canonical Supabase backend; local SQLite is never used as a production durability fallback
+
+### Scheduled Retention: AnalyticsRetentionService
+
+For automated retention, the `AnalyticsRetentionService` (`src/services/analytics_retention_service.py`) runs a configurable purge against the production database:
+
+```python
+from src.services.analytics_retention_service import AnalyticsRetentionService
+
+service = AnalyticsRetentionService.from_env()
+deleted = service.purge_before(cutoff)
+```
+
+**How it works:**
+
+1. Constructs a timezone-aware cutoff date (`datetime.now(timezone.utc) - timedelta(days=30)`)
+2. Calls the Supabase RPC function `purge_analytics_events` with the cutoff
+3. Returns the count of deleted rows
+
+**To invoke from the command line:**
+
+```bash
+# One-off purge of events older than 30 days
+python3 -c "
+from src.services.analytics_retention_service import AnalyticsRetentionService
+from datetime import datetime, timedelta, timezone
+service = AnalyticsRetentionService.from_env()
+deleted = service.purge_before(datetime.now(timezone.utc) - timedelta(days=30))
+print(f'Purged {deleted} events')
+"
+```
+
+**Scheduling:**
+
+The retention command should be scheduled as a cron job or Cloud Scheduler task to run daily. The Supabase migration `001_coverwise_schema.sql` defines the `purge_analytics_events` PostgreSQL function — verify it exists before relying on automated retention.
+
+### Development (SQLite) Cleanup
+
+In local development, analytics are stored in `insurance_app.db`. To wipe them completely:
+
+```bash
+# Option 1: Use the API endpoint (requires running backend)
+curl -X DELETE http://127.0.0.1:8000/analytics/events \
+  -H "Authorization: Bearer $(curl -s -X POST http://127.0.0.1:8000/user/anonymous | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')" \
+  -H "X-Operator-Token: <operator-token>"
+
+# Option 2: Direct SQLite (for quick reset)
+sqlite3 insurance_app.db "DELETE FROM analytics_events; VACUUM;"
+```
+
+### Cleanup After Test Sessions
+
+After running integration tests or synthetic verifiers that generate test events:
+
+1. **Use the no-parameter form to delete all** — `DELETE /analytics/events` (without filters) deletes every row. This uses a catch-all filter internally; there is no risk of an unfiltered mass-delete through the PostgREST API.
+2. **Check the count first** — call `GET /analytics/summary?days=1` to see how many events exist before deleting
+3. **Verify deletion** — re-run the summary check to confirm `total_events` is 0
+
+**Note on `older_than_days`:** The endpoint clamps this parameter to a minimum of 1 day (i.e., `older_than_days=0` or `older_than_days=-1` both behave as `older_than_days=1`). To delete everything regardless of age, omit both query parameters entirely.
+
+### Audit Trail
+
+The `DELETE /analytics/events` endpoint logs every deletion with:
+- Operator UID (truncated, first 8 chars)
+- Delete count
+- Filters used (`older_than_days`, `event_name`)
+
+The log entry pattern:
+```
+analytics_events_deleted count=142 older_than_days=30 event_name=None user=a1b2c3d4
+```
+
+### Related Files
+
+| File | Purpose |
+|------|---------|
+| `src/api/analytics.py` | All analytics endpoints (ingest, summary, health, errors, delete) |
+| `src/services/analytics_retention_service.py` | Server-side retention purge via Supabase RPC |
+| `src/services/analytics_identity.py` | Deterministic event ID computation |
+| `src/utils/runtime_config.py` | `supabase_server_key()` helper |
+| `infra/supabase/001_coverwise_schema.sql` | `purge_analytics_events` RPC function definition |
+| `docs/analysis/analytics_tracking_event_registry.md` | Complete event registry (48 active events) |
+| `docs/review/coverwise_analytics_event_spec.md` | Versioned event specification with governance rules |
+| `docs/analysis/ANALYTICS_LANDSCAPE_EXPLORATION.md` | Full analytics landscape exploration |
+
 ## Flutter Mobile App Development
 
 ### Setting up Flutter Development Environment

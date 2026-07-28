@@ -7,20 +7,14 @@ import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/widgets/shared/coverwise_snackbar.dart';
 import 'package:coverwise/theme/coverwise_theme.dart';
 import 'helpers/hive_test_helper.dart';
-
-// ── Fake Notifier ──
-
-class _FakeSummariesNotifier extends PolicySummariesNotifier {
-  @override
-  List<PolicySummary> build() => const [];
-}
+import 'helpers/policy_detail_test_helpers.dart';
 
 // ── Test Harness ──
 
 Widget _buildTestApp({PolicySummary? preselectedPolicy}) {
   return ProviderScope(
     overrides: [
-      policySummariesProvider.overrideWith(() => _FakeSummariesNotifier()),
+      policySummariesProvider.overrideWith(() => FakeSummariesNotifier()),
     ],
     child: MaterialApp(
       scaffoldMessengerKey: CoverWiseSnackBar.scaffoldMessengerKey,
@@ -353,7 +347,7 @@ void main() {
         ProviderScope(
           overrides: [
             policySummariesProvider
-                .overrideWith(() => _FakeSummariesNotifier()),
+                .overrideWith(() => FakeSummariesNotifier()),
           ],
           child: MaterialApp(
             scaffoldMessengerKey: CoverWiseSnackBar.scaffoldMessengerKey,

@@ -1,0 +1,14 @@
+# Grafana dashboard provisioning
+# Auto-imports the CoverWise monitoring dashboard on startup.
+
+apiVersion: 1
+
+providers:
+  - name: 'CoverWise'
+    orgId: 1
+    folder: 'CoverWise'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: /etc/grafana/provisioning/dashboards

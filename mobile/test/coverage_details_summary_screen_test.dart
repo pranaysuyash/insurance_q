@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/screens/coverage_details_summary_screen.dart';
+import 'package:coverwise/l10n/app_localizations_gen.dart';
 
 void main() {
   group('CoverageDetailsSummaryScreen', () {
@@ -38,6 +39,7 @@ void main() {
     testWidgets('renders page header with policy type and insurer',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(
           summary: basicSummary(),
         ),
@@ -50,6 +52,7 @@ void main() {
 
     testWidgets('renders all collapsible section headers', (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(
           summary: basicSummary(),
         ),
@@ -67,6 +70,7 @@ void main() {
 
     testWidgets('Policy Basics section is expanded by default', (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(
           summary: basicSummary(),
         ),
@@ -82,6 +86,7 @@ void main() {
     testWidgets('tapping section header reveals collapsed content',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(
           summary: basicSummary(),
         ),
@@ -115,6 +120,7 @@ void main() {
 
     testWidgets('renders executive summary items when present', (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(
           summary: basicSummary(),
         ),
@@ -134,6 +140,7 @@ void main() {
     testWidgets('hides Type-Specific Details when no type has fields',
         (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(
           summary: basicSummary(type: 'unknown'),
         ),
@@ -158,6 +165,7 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(summary: summary),
       ));
 
@@ -193,6 +201,7 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(summary: summary),
       ));
 
@@ -232,6 +241,7 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(summary: summary),
       ));
 
@@ -273,6 +283,7 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(summary: summary),
       ));
 
@@ -317,6 +328,7 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(summary: summary),
       ));
 
@@ -366,6 +378,7 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(summary: summary),
       ));
 
@@ -391,6 +404,7 @@ void main() {
 
     testWidgets('renders extraction timestamp footer', (tester) async {
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(
           summary: basicSummary(),
         ),
@@ -421,6 +435,7 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(summary: summary),
       ));
 
@@ -460,6 +475,7 @@ void main() {
       );
 
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
         home: CoverageDetailsSummaryScreen(summary: summary),
       ));
 

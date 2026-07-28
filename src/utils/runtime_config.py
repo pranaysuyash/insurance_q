@@ -12,10 +12,13 @@ _ALLOWED_HOST_PATTERN = re.compile(r"^(?:\*\.)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9
 def supabase_server_key() -> str:
     """Return the server-only Supabase key under either supported name.
 
-    ``SUPABASE_SERVICE_ROLE_KEY`` remains the internal compatibility name;
-    Supabase's current project configuration exposes the same capability as
-    ``SUPABASE_SECRET_KEY``. This helper keeps direct service construction
-    consistent with the application entrypoint normalization.
+    Supabase renamed the server key over time: older projects expose it as the
+    ``service_role`` secret (read via ``SUPABASE_SERVICE_ROLE_KEY``), while
+    current projects expose the same capability as the ``secret`` key (read via
+    ``SUPABASE_SECRET_KEY``, value starts with ``sb_secret_``). Both names refer
+    to the SAME key — operators should set only one. This helper prefers
+    ``SUPABASE_SERVICE_ROLE_KEY`` and falls back to ``SUPABASE_SECRET_KEY`` so
+    the application starts under either convention without code changes.
     """
     import os
 
@@ -132,4 +135,7 @@ def production_configuration_errors(
         errors.append("PROCESSING_PAYLOAD_ENCRYPTION_KEY must be at least 32 bytes")
     if environment.get("LOG_LEVEL", "INFO").upper() == "DEBUG":
         errors.append("LOG_LEVEL cannot be DEBUG in production")
+    dsn = environment.get("SENTRY_DSN", "").strip()
+    if dsn and not dsn.startswith("https://"):
+        errors.append("SENTRY_DSN must start with https://")
     return errors

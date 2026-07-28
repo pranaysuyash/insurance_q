@@ -21,15 +21,17 @@ import os
 import signal
 
 from src.utils.runtime_config import normalize_supabase_environment
+from src.utils.log_config import configure_structlog
+from src.utils.sentry_config import init_sentry, shutdown_sentry
 from src.services.job_dispatcher import JobDispatcher
 from src.services.job_outbox_service import JobOutboxService
 
 normalize_supabase_environment()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+# Configure structured JSON logging via the shared config. After this call,
+# all logging.getLogger(__name__) calls in this process produce JSON output.
+configure_structlog(service_name="worker")
+
 log = logging.getLogger(__name__)
 
 
@@ -115,6 +117,7 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
 
 
 async def _main() -> None:
+    init_sentry(service_name="worker")
     outbox = JobOutboxService.from_env()
     dispatcher = JobDispatcher(outbox)
     _register_handlers(dispatcher)
@@ -145,6 +148,7 @@ async def _main() -> None:
     finally:
         health_server.close()
         await health_server.wait_closed()
+        shutdown_sentry()
     log.info("outbox dispatcher worker exiting cleanly")
 
 

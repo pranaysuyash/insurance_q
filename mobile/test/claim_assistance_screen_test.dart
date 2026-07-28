@@ -1,19 +1,11 @@
 import 'package:coverwise/models/document_model.dart';
-import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/providers/policy_providers.dart';
 import 'package:coverwise/providers/document_providers.dart';
 import 'package:coverwise/screens/claims_assistant_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-/// Fake Notifier that exposes an empty list without needing a real service.
-/// Must implement [PolicySummariesNotifier] because [policySummariesProvider]
-/// is typed as a Notifier for policy summaries.
-class _FakeSummariesNotifier extends PolicySummariesNotifier {
-  @override
-  List<PolicySummary> build() => const [];
-}
+import 'helpers/policy_detail_test_helpers.dart';
 
 /// Minimal InsuranceDocument for tests that need the incident list to render.
 final _dummyDoc = InsuranceDocument(
@@ -26,7 +18,7 @@ final _dummyDoc = InsuranceDocument(
 Widget _harnessEmpty(Widget child, {ThemeMode mode = ThemeMode.light}) {
   return ProviderScope(
     overrides: [
-      policySummariesProvider.overrideWith(() => _FakeSummariesNotifier()),
+      policySummariesProvider.overrideWith(() => FakeSummariesNotifier()),
       documentsProvider
           .overrideWith((ref) async => const <InsuranceDocument>[]),
     ],
@@ -43,7 +35,7 @@ Widget _harnessEmpty(Widget child, {ThemeMode mode = ThemeMode.light}) {
 Widget _harnessWithData(Widget child, {ThemeMode mode = ThemeMode.light}) {
   return ProviderScope(
     overrides: [
-      policySummariesProvider.overrideWith(() => _FakeSummariesNotifier()),
+      policySummariesProvider.overrideWith(() => FakeSummariesNotifier()),
       documentsProvider.overrideWith((ref) async => [_dummyDoc]),
     ],
     child: MaterialApp(

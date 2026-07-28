@@ -73,6 +73,7 @@ aiofiles==23.2.1
 
 # Monitoring and logging
 prometheus-client==0.19.0
+sentry-sdk==2.28.1  # Python SDK for Sentry error tracking (guarded by SENTRY_DSN)
 
 # Frontend templating
 jinja2==3.1.6

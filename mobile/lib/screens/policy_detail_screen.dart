@@ -6,6 +6,7 @@ import '../models/field_citation.dart';
 import '../models/policy_summary.dart';
 import '../providers/document_providers.dart';
 import '../providers/policy_providers.dart';
+import '../services/analytics_service.dart';
 import '../services/evidence_service.dart';
 import '../theme/coverwise_theme.dart';
 import '../utils/policy_type.dart';
@@ -53,6 +54,7 @@ class PolicyDetailScreen extends ConsumerStatefulWidget {
 class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
   final _overridesStore = FieldOverridesStore();
   Map<String, OverrideRecord> _overrides = {};
+  bool _trackedOpened = false;
 
   @override
   void initState() {
@@ -177,6 +179,37 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     }
 
     final policyType = classifyPolicyType(summary.documentType);
+
+    // Track policy_detail_opened once per mount when summary is available.
+    if (!_trackedOpened) {
+      _trackedOpened = true;
+      AnalyticsService.track('policy_detail_opened', {
+        'policy_type': canonicalTypeName(policyType),
+        'is_expired': summary.isExpired,
+        'has_evidence': summary.hasMinimumViableEvidence,
+      });
+      // Fire section tracking once, identifying which sections are present.
+      final sections = <String>[
+        'executive_summary',
+        'policy_actions',
+        'cited_fields',
+        if (summary.motorFields?.hasAnyFields == true) 'vehicle_details',
+        if (summary.lifeFields?.hasAnyFields == true) 'life_details',
+        if (summary.homeFields?.hasAnyFields == true) 'home_details',
+        if (summary.travelFields?.hasAnyFields == true) 'travel_details',
+        if (summary.healthFields?.hasAnyFields == true) 'health_details',
+        if (summary.marineFields?.hasAnyFields == true) 'marine_details',
+        if (summary.keyBenefits.isNotEmpty) 'benefits',
+        if (summary.exclusions.isNotEmpty) 'exclusions',
+        if (summary.waitingPeriods.isNotEmpty) 'waiting_periods',
+        if (summary.coverageItems.isNotEmpty) 'coverage_items',
+        'quick_actions',
+      ];
+      AnalyticsService.track('policy_detail_section_opened', {
+        'section_count': sections.length,
+        'sections': sections.join(','),
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -431,6 +464,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
       {int initialPage = 1}) {
     final documents = ref.read(documentsProvider).asData?.value;
     if (documents == null || documents.isEmpty) {
+      AnalyticsService.track('policy_detail_source_preview_opened', {
+        'available': false,
+      });
       if (!context.mounted) return;
       CoverWiseSnackBar.info(
         context,
@@ -446,6 +482,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
         .firstOrNull;
 
     if (doc == null) {
+      AnalyticsService.track('policy_detail_source_preview_opened', {
+        'available': false,
+      });
       if (!context.mounted) return;
       CoverWiseSnackBar.error(
         context,
@@ -455,6 +494,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
     }
 
     if (doc.localFilePath == null || doc.localFilePath!.isEmpty) {
+      AnalyticsService.track('policy_detail_source_preview_opened', {
+        'available': false,
+      });
       if (!context.mounted) return;
       CoverWiseSnackBar.info(
         context,
@@ -463,6 +505,9 @@ class _PolicyDetailScreenState extends ConsumerState<PolicyDetailScreen> {
       return;
     }
 
+    AnalyticsService.track('policy_detail_source_preview_opened', {
+      'available': true,
+    });
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -3164,6 +3209,9 @@ String buildShareSummaryText(PolicySummary summary) {
 }
 
 void _shareSummary(PolicySummary summary) {
+  AnalyticsService.track('policy_detail_shared', {
+    'policy_type': canonicalTypeName(classifyPolicyType(summary.documentType)),
+  });
   SharePlus.instance.share(ShareParams(text: buildShareSummaryText(summary)));
 }
 
@@ -3468,6 +3516,11 @@ class _PolicyActionsRow extends StatelessWidget {
   }
 
   Future<void> _openCoverageGaps(BuildContext context) async {
+    AnalyticsService.track('policy_detail_coverage_gap_tapped', {
+      'document_id_hash': documentId.length > 12
+          ? documentId.substring(0, 12)
+          : documentId,
+    });
     final service = EvidenceService();
     final citations = await service.getFieldCitations(documentId);
     if (!context.mounted) return;
@@ -3484,6 +3537,11 @@ class _PolicyActionsRow extends StatelessWidget {
   }
 
   Future<void> _openClaimAssistance(BuildContext context) async {
+    AnalyticsService.track('policy_detail_claim_assist_tapped', {
+      'document_id_hash': documentId.length > 12
+          ? documentId.substring(0, 12)
+          : documentId,
+    });
     final service = EvidenceService();
     final citations = await service.getFieldCitations(documentId);
     if (!context.mounted) return;

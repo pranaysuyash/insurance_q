@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:coverwise/screens/emergency_screen.dart';
 import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/providers/policy_providers.dart';
+import 'helpers/policy_detail_test_helpers.dart';
 
 /// Minimal wrapper that provides a [ProviderScope] around the widget under test.
 Widget _wrap(Widget child, {List<PolicySummary>? summaries}) {
@@ -11,21 +12,11 @@ Widget _wrap(Widget child, {List<PolicySummary>? summaries}) {
     overrides: [
       if (summaries != null)
         policySummariesProvider.overrideWith(
-          () => _FakeSummariesNotifier(summaries),
+          () => FakeSummariesNotifier(summaries),
         ),
     ],
     child: MaterialApp(home: child),
   );
-}
-
-/// Minimal Notifier that returns a fixed list of summaries.
-class _FakeSummariesNotifier extends PolicySummariesNotifier {
-  _FakeSummariesNotifier(this._initial);
-
-  final List<PolicySummary> _initial;
-
-  @override
-  List<PolicySummary> build() => _initial;
 }
 
 void main() {

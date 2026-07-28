@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CoverWise — Operator Dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-card: #1c2128;
+      --bg-hover: #21262d;
+      --border: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+      --teal: #56d4dd;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    .container { max-width: 1440px; margin: 0 auto; padding: 20px; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header h1 span { color: var(--teal); }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .header-right select, .header-right input[type="text"] {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+    .header-right input[type="text"] { width: 260px; }
+    .badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .badge.dev { background: var(--yellow); color: #000; }
+    .badge.prod { background: var(--green); color: #000; }
+
+    /* Stat Grid */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .stat-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+    .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* Section */
+    .section {
+      margin-bottom: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .section-header h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+    .section-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .section-body.full { grid-template-columns: 1fr; }
+
+    /* Card */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .card h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 8px 8px 0; color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+    td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    .bar-cell { position: relative; }
+    .bar-bg { position: absolute; top: 0; left: 0; height: 100%; opacity: 0.12; border-radius: 2px; }
+    .num { font-variant-numeric: tabular-nums; text-align: right; }
+
+    /* Pie chart (simple bar-style) */
+    .pie-legend { margin-top: 8px; }
+    .pie-item { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0; }
+    .pie-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .pie-label { flex: 1; color: var(--text-secondary); }
+    .pie-val { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+    /* Trend chart */
+    .trend-chart { position: relative; height: 160px; margin-top: 8px; }
+    .trend-bars { display: flex; align-items: flex-end; height: 100%; gap: 2px; }
+    .trend-bar { flex: 1; min-width: 4px; border-radius: 2px 2px 0 0; position: relative; cursor: pointer; }
+    .trend-bar:hover { opacity: 0.8; }
+    .trend-bar:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    /* Status indicators */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .status-up { background: var(--green); }
+    .status-down { background: var(--red); }
+    .status-warn { background: var(--yellow); }
+
+    /* Loading & Error */
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+    .loading::after { content: ''; display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.6s linear infinite; margin-left: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-state { background: var(--bg-card); border: 1px solid var(--red); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 12px; font-size: 13px; color: var(--red); display: none; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+    .empty-state .icon { font-size: 32px; margin-bottom: 8px; }
+    .empty-state p { font-size: 13px; }
+
+    /* Auth prompt */
+    .auth-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg-primary);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .auth-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    .auth-box h2 { font-size: 18px; margin-bottom: 8px; }
+    .auth-box p { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+    .auth-box input {
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    .auth-box button {
+      width: 100%;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .auth-box button:hover { opacity: 0.9; }
+    .auth-box .hint { font-size: 11px; color: var(--text-muted); margin-top: 12px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .section-body { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* Health table */
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .health-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-primary);
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Auth overlay -->
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-box">
+      <h2>🔐 Operator Dashboard</h2>
+      <p>The analytics endpoints require <strong>two</strong> credentials. Enter both below.</p>
+      <div style="text-align:left;margin-bottom:16px;">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">API Bearer Token</label>
+        <input type="password" id="apiTokenInput" placeholder="API Bearer token (JWT)…" autocomplete="off" style="font-size:12px;">
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">The Bearer token from <code>/user/anonymous</code> or Supabase Auth session.</div>
+      </div>
+      <div style="text-align:left;margin-bottom:16px;">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">Operator Token</label>
+        <input type="password" id="operatorTokenInput" placeholder="Operator dashboard token…" autocomplete="off" style="font-size:12px;">
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">The <code>OPERATOR_DASHBOARD_TOKEN</code> configured on the server.</div>
+      </div>
+      <button onclick="connect()">Connect</button>
+      <div class="hint">Credentials stay in memory only — not stored or persisted.</div>
+    </div>
+  </div>
+
+  <div class="container" style="display:none" id="dashboard">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h1>CoverWise <span>Analytics</span></h1>
+      </div>
+      <div class="header-right">
+        <span class="badge dev" id="envBadge">dev</span>
+        <select id="daysSelect" onchange="refreshAll()">
+          <option value="1">Last 24h</option>
+          <option value="7" selected>Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
+        <button onclick="refreshAll()" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary);padding:8px 14px;border-radius:var(--radius);cursor:pointer;font-size:13px;">⟳ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Error display -->
+    <div class="error-state" id="errorBar"></div>
+
+    <!-- Stat cards -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card"><div class="stat-label">Total Events</div><div class="stat-value" id="statEvents">—</div><div class="stat-sub" id="statEventsSub">loading...</div></div>
+      <div class="stat-card"><div class="stat-label">Unique Users</div><div class="stat-value" id="statUsers">—</div><div class="stat-sub" id="statUsersSub">loading...</div></div>
+      <div class="stat-card"><div class="stat-label">Total Errors</div><div class="stat-value" id="statErrors">—</div><div class="stat-sub" id="statErrorsSub">loading...</div></div>
+      <div class="stat-card"><div class="stat-label">Recovery Rate</div><div class="stat-value" id="statRecovery">—</div><div class="stat-sub" id="statRecoverySub">loading...</div></div>
+    </div>
+
+    <!-- Business Metrics (cumulative counters) -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Business Metrics</h2>
+        <span style="font-size:11px;color:var(--text-muted);">cumulative totals</span>
+      </div>
+      <div class="stats-row" id="businessStatsRow">
+        <div class="stat-card" style="border-left:3px solid var(--blue);">
+          <div class="stat-label">📄 Documents Uploaded</div>
+          <div class="stat-value" id="bizDocsUploaded">—</div>
+          <div class="stat-sub" id="bizDocsUploadedSub">all time</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--green);">
+          <div class="stat-label">✅ Documents Processed</div>
+          <div class="stat-value" id="bizDocsProcessed">—</div>
+          <div class="stat-sub" id="bizDocsProcessedSub">successfully extracted</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--red);">
+          <div class="stat-label">❌ Documents Failed</div>
+          <div class="stat-value" id="bizDocsFailed">—</div>
+          <div class="stat-sub" id="bizDocsFailedSub">processing errors</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--purple);">
+          <div class="stat-label">🔍 RAG Queries</div>
+          <div class="stat-value" id="bizRagQueries">—</div>
+          <div class="stat-sub" id="bizRagQueriesSub">questions asked</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--teal);">
+          <div class="stat-label">🧠 Embedding Calls</div>
+          <div class="stat-value" id="bizEmbeddingCalls">—</div>
+          <div class="stat-sub" id="bizEmbeddingCallsSub">model activity</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prometheus Infrastructure Metrics -->
+    <div class="section">
+      <div class="section-header"><h2>Infrastructure Metrics (Prometheus)</h2></div>
+      <div class="stats-row" id="promStatsRow">
+        <div class="stat-card"><div class="stat-label">Request Rate</div><div class="stat-value" id="promReqRate">—</div><div class="stat-sub">req/s (5m avg)</div></div>
+        <div class="stat-card"><div class="stat-label">Error Rate</div><div class="stat-value" id="promErrRate">—</div><div class="stat-sub">err/s (5m avg)</div></div>
+        <div class="stat-card"><div class="stat-label">In-Flight</div><div class="stat-value" id="promInFlight">—</div><div class="stat-sub">current requests</div></div>
+        <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-value" id="promUptime">—</div><div class="stat-sub">process uptime</div></div>
+        <div class="stat-card"><div class="stat-label">RAG Rate</div><div class="stat-value" id="promRagRate">—</div><div class="stat-sub">q/s (5m avg)</div></div>
+        <div class="stat-card"><div class="stat-label">Embed Rate</div><div class="stat-value" id="promEmbedRate">—</div><div class="stat-sub">calls/s (5m avg)</div></div>
+      </div>
+      <div class="section-body">
+        <div class="card">
+          <h3>Errors by Endpoint</h3>
+          <div id="promErrorsEndpoint"><div class="empty-state"><div class="icon">📊</div><p>No data</p></div></div>
+        </div>
+        <div class="card">
+          <h3>Document Processing</h3>
+          <div id="promDocMetrics"><div class="empty-state"><div class="icon">📄</div><p>No data</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health -->
+    <div class="section">
+      <div class="section-header"><h2>System Health</h2></div>
+      <div class="health-grid" id="healthGrid">
+        <div class="health-item"><span class="status-dot status-warn"></span>Table: <span id="healthTable">—</span></div>
+        <div class="health-item"><span class="status-dot status-warn"></span>Row Count: <span id="healthRows">—</span></div>
+        <div class="health-item"><span class="status-dot status-warn"></span>Events (24h): <span id="healthRecent">—</span></div>
+        <div class="health-item"><span class="status-dot status-warn"></span>Indexes: <span id="healthIndexes">—</span></div>
+      </div>
+    </div>
+
+    <!-- Errors row -->
+    <div class="section">
+      <div class="section-header"><h2>Error Tracking</h2></div>
+      <div class="section-body">
+        <div class="card">
+          <h3>Error Trend (24h hourly)</h3>
+          <div id="trendChart"><div class="empty-state"><div class="icon">📊</div><p>No error data</p></div></div>
+        </div>
+        <div class="card">
+          <h3>Errors by Type</h3>
+          <div id="errorTypes"><div class="empty-state"><div class="icon">📋</div><p>No error data</p></div></div>
+        </div>
+        <div class="card">
+          <h3>Top Error Messages</h3>
+          <div id="topErrors"><div class="empty-state"><div class="icon">📝</div><p>No error data</p></div></div>
+        </div>
+        <div class="card">
+          <h3>Errors by Library</h3>
+          <div id="errorLibraries"><div class="empty-state"><div class="icon">📦</div><p>No error data</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event Summary -->
+    <div class="section">
+      <div class="section-header"><h2>Event Summary</h2></div>
+      <div class="section-body full">
+        <div class="card">
+          <h3>Events by Name</h3>
+          <div id="eventsTable"><div class="empty-state"><div class="icon">📊</div><p>No event data</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event Cleanup -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Event Cleanup</h2>
+        <span style="font-size:11px;color:var(--text-muted);">Requires operator token</span>
+      </div>
+      <div class="section-body full">
+        <div class="card">
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
+            <div style="flex:1;min-width:160px;">
+              <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">Event Name (optional)</label>
+              <input type="text" id="deleteEventName" placeholder="e.g. global_error" style="width:100%;background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);padding:8px 12px;border-radius:var(--radius);font-size:13px;">
+            </div>
+            <div style="flex:1;min-width:120px;">
+              <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">Older than (days)</label>
+              <input type="number" id="deleteDays" placeholder="30" min="1" style="width:100%;background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);padding:8px 12px;border-radius:var(--radius);font-size:13px;">
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="confirmDeleteEvents()" style="background:var(--red);color:#fff;border:none;padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;">🗑 Delete Events</button>
+              <button onclick="confirmDeleteAllEvents()" style="background:var(--bg-card);color:var(--red);border:1px solid var(--red);padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;">⚠ Delete ALL Events</button>
+            </div>
+          </div>
+          <div id="deleteResult" style="display:none;margin-top:12px;padding:10px 14px;border-radius:var(--radius);font-size:13px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let operatorToken = '';
+    let apiToken = '';
+    const COLORS = ['#3fb950','#58a6ff','#d29922','#f85149','#bc8cff','#56d4dd','#f0883e','#79c0ff','#ff7b72','#a5d6ff','#7ee787','#d2a8ff','#ffa657','#ffc169'];
+
+    function connect() {
+      apiToken = document.getElementById('apiTokenInput').value.trim();
+      operatorToken = document.getElementById('operatorTokenInput').value.trim();
+      if (!apiToken || !operatorToken) return;
+      document.getElementById('authOverlay').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      refreshAll();
+    }
+
+    async function apiFetch(path) {
+      const days = document.getElementById('daysSelect').value;
+      const url = path.includes('?') ? `${path}&days=${days}` : `${path}?days=${days}`;
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'X-Operator-Token': operatorToken,
+          'Accept': 'application/json',
+        },
+      });
+      if (res.status === 401 || res.status === 403) {
+        document.getElementById('authOverlay').style.display = 'flex';
+        document.getElementById('dashboard').style.display = 'none';
+        showError('Credentials rejected. Check your API Bearer token and operator token.');
+        apiToken = '';
+        operatorToken = '';
+        return null;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      return res.json();
+    }
+
+    function showError(msg) {
+      const bar = document.getElementById('errorBar');
+      bar.textContent = msg;
+      bar.style.display = 'block';
+      setTimeout(() => { bar.style.display = 'none'; }, 8000);
+    }
+
+    async function refreshAll() {
+      document.getElementById('deleteResult').style.display = 'none';
+      await Promise.all([refreshSummary(), refreshErrors(), refreshHealth(), refreshPromMetrics()]);
+    }
+
+    async function refreshSummary() {
+      try {
+        const data = await apiFetch('/analytics/summary');
+        if (!data) return;
+        const total = data.total_events || 0;
+        const users = data.unique_users || 0;
+
+        document.getElementById('statEvents').textContent = total.toLocaleString();
+        document.getElementById('statEventsSub').textContent = `over ${data.days || 7} days`;
+        document.getElementById('statUsers').textContent = users.toLocaleString();
+        document.getElementById('statUsersSub').textContent = `unique users`;
+
+        // Events by name table
+        const container = document.getElementById('eventsTable');
+        const entries = Object.entries(data.events_by_name || {}).sort((a, b) => b[1] - a[1]);
+        if (entries.length === 0) {
+          container.innerHTML = `<div class="empty-state"><div class="icon">📊</div><p>No event data yet. Events appear after users perform actions.</p></div>`;
+          return;
+        }
+        const maxCount = entries[0][1];
+        let html = `<table><thead><tr><th>Event</th><th>Count</th><th>%</th></tr></thead><tbody>`;
+        for (const [name, count] of entries) {
+          const pct = ((count / total) * 100).toFixed(1);
+          html += `<tr><td class="bar-cell"><div class="bar-bg" style="width:${(count / maxCount) * 100}%;background:var(--blue);"></div>${name}</td><td class="num">${count.toLocaleString()}</td><td class="num" style="color:var(--text-muted)">${pct}%</td></tr>`;
+        }
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+      } catch (e) {
+        showError(`Summary: ${e.message}`);
+      }
+    }
+
+    async function refreshErrors() {
+      try {
+        const data = await apiFetch('/analytics/errors');
+        if (!data) return;
+        const total = data.total_errors || 0;
+        const recoveries = data.total_recoveries || 0;
+        const rate = data.recovery_rate_percent;
+
+        document.getElementById('statErrors').textContent = total.toLocaleString();
+        document.getElementById('statErrorsSub').textContent = `${recoveries} recovered`;
+        document.getElementById('statRecovery').textContent = rate !== null && rate !== undefined ? `${rate}%` : '—';
+        document.getElementById('statRecoverySub').textContent = rate !== null ? 'recovery rate' : 'no errors';
+
+        // Color the recovery stat based on rate
+        const recoveryEl = document.getElementById('statRecovery');
+        if (rate !== null) {
+          recoveryEl.style.color = rate >= 80 ? 'var(--green)' : rate >= 50 ? 'var(--yellow)' : 'var(--red)';
+        }
+
+        // Trend chart
+        renderTrend(data.trend);
+
+        // Error types pie
+        renderPie('errorTypes', data.error_types || {}, 'error_type');
+
+        // Error libraries pie
+        renderPie('errorLibraries', data.error_libraries || {}, 'library');
+
+        // Top error messages
+        renderTopMessages(data.top_error_messages || []);
+      } catch (e) {
+        showError(`Errors: ${e.message}`);
+      }
+    }
+
+    async function refreshHealth() {
+      try {
+        const data = await apiFetch('/analytics/health');
+        if (!data) return;
+        document.getElementById('healthTable').textContent = data.table_exists ? '✅' : '❌';
+        document.getElementById('healthTable').parentElement.querySelector('.status-dot').className = `status-dot ${data.table_exists ? 'status-up' : 'status-down'}`;
+        document.getElementById('healthRows').textContent = (data.row_count || 0).toLocaleString();
+        document.getElementById('healthRecent').textContent = (data.recent_events_24h || 0).toLocaleString();
+        document.getElementById('healthIndexes').textContent = (data.indexes || []).length;
+
+        // Update env badge
+        if (data.canonical === 'supabase') {
+          document.getElementById('envBadge').textContent = 'prod';
+          document.getElementById('envBadge').className = 'badge prod';
+        }
+      } catch (e) {
+        showError(`Health: ${e.message}`);
+      }
+    }
+
+    async function refreshPromMetrics() {
+      try {
+        const res = await fetch('/metrics', {
+          headers: { 'Authorization': `Bearer ${apiToken}`, 'X-Operator-Token': operatorToken },
+        });
+        if (!res.ok) {
+          document.getElementById('promReqRate').textContent = '—';
+          document.getElementById('promErrRate').textContent = '—';
+          document.getElementById('promInFlight').textContent = '—';
+          document.getElementById('promUptime').textContent = '—';
+          document.getElementById('promRagRate').textContent = '—';
+          document.getElementById('promEmbedRate').textContent = '—';
+          document.getElementById('promErrorsEndpoint').innerHTML = `<div class="empty-state"><div class="icon">🔌</div><p>Prometheus endpoint unreachable (HTTP ${res.status})</p></div>`;
+          return;
+        }
+        const text = await res.text();
+
+        // Parse Prometheus exposition format into { metric_name: { labels: value } }
+        const metrics = {};
+        for (const line of text.split('\n')) {
+          if (line.startsWith('#') || line.trim() === '' || line.startsWith('go_') || line.startsWith('process_')) continue;
+          // Parse: metric_name{label="val",...} value
+          const braceIdx = line.indexOf('{');
+          const spaceBeforeValue = braceIdx >= 0 ? line.indexOf(' ', braceIdx) : line.lastIndexOf(' ');
+          if (spaceBeforeValue < 0) continue;
+          const namePart = braceIdx >= 0 ? line.substring(0, braceIdx) : line.substring(0, spaceBeforeValue);
+          const valueStr = line.substring(spaceBeforeValue + 1).trim();
+          const value = parseFloat(valueStr);
+          if (isNaN(value)) continue;
+
+          // Extract labels
+          const labels = {};
+          if (braceIdx >= 0) {
+            const closeIdx = line.indexOf('}', braceIdx);
+            if (closeIdx < 0) continue;
+            const labelStr = line.substring(braceIdx + 1, closeIdx);
+            for (const pair of labelStr.split(',')) {
+              const eqIdx = pair.indexOf('=');
+              if (eqIdx < 0) continue;
+              const key = pair.substring(0, eqIdx).trim();
+              const val = pair.substring(eqIdx + 1).replace(/"/g, '').trim();
+              labels[key] = val;
+            }
+          }
+
+          if (!metrics[namePart]) metrics[namePart] = [];
+          metrics[namePart].push({ labels, value });
+        }
+
+        // ── Stat cards ──
+
+        // Rate window: use uptime if available, fall back to 300s for fresh processes
+        const uptime = metrics['process_uptime_seconds'] || [];
+        const uptimeVal = uptime.length > 0 ? uptime[0].value : 0;
+        const rateWindow = Math.max(uptimeVal, 300);
+
+        // Request rate (counter sum / rate window)
+        const reqTotal = metrics['http_requests_total'] || [];
+        const totalReqs = reqTotal.reduce((s, m) => s + m.value, 0);
+        const reqRate = totalReqs / rateWindow;
+        document.getElementById('promReqRate').textContent = reqRate.toFixed(2);
+
+        // Error rate
+        const errTotal = metrics['http_errors_total'] || [];
+        const totalErrs = errTotal.reduce((s, m) => s + m.value, 0);
+        const errRate = totalErrs / rateWindow;
+        document.getElementById('promErrRate').textContent = errRate.toFixed(2);
+
+        // In-flight requests (gauge — show raw current value)
+        const inFlight = metrics['http_in_flight_requests'] || [];
+        const inFlightVal = inFlight.length > 0 ? inFlight.reduce((s, m) => s + m.value, 0) : 0;
+        document.getElementById('promInFlight').textContent = inFlightVal.toFixed(0);
+
+        // Uptime
+        const uptimeDisplay = uptimeVal >= 86400
+          ? `${(uptimeVal / 86400).toFixed(1)}d`
+          : uptimeVal >= 3600
+          ? `${(uptimeVal / 3600).toFixed(1)}h`
+          : `${(uptimeVal / 60).toFixed(0)}m`;
+        document.getElementById('promUptime').textContent = uptimeDisplay;
+
+        // RAG query rate
+        const ragTotal = metrics['rag_queries_total'] || [];
+        const totalRag = ragTotal.reduce((s, m) => s + m.value, 0);
+        document.getElementById('promRagRate').textContent = (totalRag / rateWindow).toFixed(2);
+
+        // Embedding calls rate
+        const embedTotal = metrics['embedding_calls_total'] || [];
+        const totalEmbed = embedTotal.reduce((s, m) => s + m.value, 0);
+        document.getElementById('promEmbedRate').textContent = (totalEmbed / rateWindow).toFixed(2);
+
+        // ── Business Metrics (cumulative totals) ──
+        // Cumulative totals (sum across all label combinations) — use Biz suffix to avoid const redeclaration
+        const uploadedBiz = metrics['documents_uploaded_total'] || [];
+        const processedBiz = metrics['documents_processed_total'] || [];
+        const failedBiz = metrics['documents_failed_total'] || [];
+        const ragBiz = metrics['rag_queries_total'] || [];
+        const embedBiz = metrics['embedding_calls_total'] || [];
+        const totalUploaded = uploadedBiz.reduce((s, m) => s + m.value, 0);
+        const totalProcessed = processedBiz.reduce((s, m) => s + m.value, 0);
+        const totalFailed = failedBiz.reduce((s, m) => s + m.value, 0);
+        const totalRagBiz = ragBiz.reduce((s, m) => s + m.value, 0);
+        const totalEmbedBiz = embedBiz.reduce((s, m) => s + m.value, 0);
+
+        document.getElementById('bizDocsUploaded').textContent = totalUploaded.toLocaleString();
+        document.getElementById('bizDocsUploadedSub').textContent = totalUploaded > 0 ? 'have been uploaded' : 'no uploads yet';
+        document.getElementById('bizDocsProcessed').textContent = totalProcessed.toLocaleString();
+        document.getElementById('bizDocsProcessedSub').textContent = totalProcessed > 0 ? 'successfully extracted' : 'none processed yet';
+        document.getElementById('bizDocsFailed').textContent = totalFailed.toLocaleString();
+        document.getElementById('bizDocsFailedSub').textContent = totalFailed > 0 ? `${(totalFailed / Math.max(totalUploaded, 1) * 100).toFixed(1)}% failure rate` : 'no failures';
+
+        const failRateEl = document.getElementById('bizDocsFailedSub');
+        const failPct = totalFailed / Math.max(totalUploaded, 1) * 100;
+        if (totalFailed > 0) {
+          failRateEl.style.color = failPct >= 10 ? 'var(--red)' : failPct >= 3 ? 'var(--yellow)' : 'var(--green)';
+        } else {
+          failRateEl.style.color = 'var(--green)';
+        }
+
+        document.getElementById('bizRagQueries').textContent = totalRagBiz.toLocaleString();
+        document.getElementById('bizRagQueriesSub').textContent = totalRagBiz > 0 ? `${(totalRagBiz / Math.max(rateWindow, 1)).toFixed(1)}/s average` : 'no queries yet';
+        document.getElementById('bizEmbeddingCalls').textContent = totalEmbedBiz.toLocaleString();
+        document.getElementById('bizEmbeddingCallsSub').textContent = totalEmbedBiz > 0 ? `${(totalEmbedBiz / Math.max(rateWindow, 1)).toFixed(1)}/s average` : 'no calls yet';
+
+        // ── Errors by endpoint ──
+        const errorsByPath = {};
+        for (const m of errTotal) {
+          const path = m.labels.path || 'unknown';
+          errorsByPath[path] = (errorsByPath[path] || 0) + m.value;
+        }
+        const errEntries = Object.entries(errorsByPath).sort((a, b) => b[1] - a[1]);
+        const errContainer = document.getElementById('promErrorsEndpoint');
+        if (errEntries.length === 0) {
+          errContainer.innerHTML = `<div class="empty-state"><div class="icon">✅</div><p>No errors recorded</p></div>`;
+        } else {
+          const maxErr = errEntries[0][1];
+          let html = `<table><thead><tr><th>Endpoint</th><th>Errors</th></tr></thead><tbody>`;
+          for (const [path, count] of errEntries) {
+            html += `<tr><td class="bar-cell"><div class="bar-bg" style="width:${(count / maxErr) * 100}%;background:var(--red);"></div>${path}</td><td class="num">${count.toLocaleString()}</td></tr>`;
+          }
+          html += `</tbody></table>`;
+          errContainer.innerHTML = html;
+        }
+
+        // ── Document processing metrics ──
+        const docProcessed = metrics['documents_processed_total'] || [];
+        const docFailed = metrics['documents_failed_total'] || [];
+        const docUploaded = metrics['documents_uploaded_total'] || [];
+        const docContainer = document.getElementById('promDocMetrics');
+        if (docUploaded.length === 0 && docProcessed.length === 0 && docFailed.length === 0) {
+          docContainer.innerHTML = `<div class="empty-state"><div class="icon">📄</div><p>No document processing data</p></div>`;
+        } else {
+          let html = `<table><thead><tr><th>Metric</th><th>Label</th><th>Count</th></tr></thead><tbody>`;
+          for (const m of docUploaded) {
+            html += `<tr><td>Uploaded</td><td>${m.labels.file_type || ''}</td><td class="num">${m.value.toLocaleString()}</td></tr>`;
+          }
+          for (const m of docProcessed) {
+            html += `<tr><td>Processed</td><td>${m.labels.processing_mode || ''}</td><td class="num">${m.value.toLocaleString()}</td></tr>`;
+          }
+          for (const m of docFailed) {
+            html += `<tr><td style="color:var(--red)">Failed</td><td>${m.labels.error_class || ''}</td><td class="num" style="color:var(--red)">${m.value.toLocaleString()}</td></tr>`;
+          }
+          html += `</tbody></table>`;
+          docContainer.innerHTML = html;
+        }
+      } catch (e) {
+        showError(`Prometheus: ${e.message}`);
+      }
+    }
+
+    function renderTrend(trend) {
+      const container = document.getElementById('trendChart');
+      if (!trend) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">📊</div><p>No trend data</p></div>`;
+        return;
+      }
+
+      // Prefer hourly, fall back to daily
+      let points = (trend.hourly || []).length > 0 ? trend.hourly : (trend.daily || []);
+      if (points.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">📊</div><p>No trend data</p></div>`;
+        return;
+      }
+
+      const counts = points.map(p => p.count);
+      const max = Math.max(...counts, 1);
+      const labelKey = points[0].hour ? 'hour' : 'day';
+
+      let html = `<div class="trend-chart"><div class="trend-bars">`;
+      for (const p of points) {
+        const h = (p.count / max) * 100;
+        const label = p[labelKey] || '';
+        const shortLabel = labelKey === 'hour' ? label.slice(11, 16) : label.slice(5);
+        html += `<div class="trend-bar" style="height:${Math.max(h, 2)}%;background:var(--blue);" data-tooltip="${label}: ${p.count} errors" title="${label}: ${p.count}"></div>`;
+      }
+      html += `</div></div>`;
+      html += `<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px;">`;
+      // Show first, middle, last labels
+      const first = points[0][labelKey] || '';
+      const mid = points[Math.floor(points.length / 2)]?.[labelKey] || '';
+      const last = points[points.length - 1][labelKey] || '';
+      html += `<span>${labelKey === 'hour' ? first.slice(11, 16) : first.slice(5)}</span>`;
+      html += `<span>${labelKey === 'hour' ? mid.slice(11, 16) : mid.slice(5)}</span>`;
+      html += `<span>${labelKey === 'hour' ? last.slice(11, 16) : last.slice(5)}</span>`;
+      html += `</div>`;
+
+      container.innerHTML = html;
+    }
+
+    function renderPie(containerId, data, label) {
+      const container = document.getElementById(containerId);
+      const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
+      if (entries.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>No ${label} data</p></div>`;
+        return;
+      }
+      const total = entries.reduce((s, [, v]) => s + v, 0);
+      let html = `<div class="pie-legend">`;
+      for (const [name, count] of entries) {
+        const pct = ((count / total) * 100).toFixed(1);
+        const color = COLORS[entries.indexOf([name, count]) % COLORS.length];
+        html += `<div class="pie-item"><span class="pie-dot" style="background:${color}"></span><span class="pie-label">${name}</span><span class="pie-val">${count.toLocaleString()}</span><span style="color:var(--text-muted);font-size:11px;width:40px;text-align:right;">${pct}%</span></div>`;
+        html += `<div style="height:4px;background:var(--bg-primary);border-radius:2px;margin-bottom:4px;"><div style="height:100%;width:${pct}%;background:${color};border-radius:2px;"></div></div>`;
+      }
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function renderTopMessages(messages) {
+      const container = document.getElementById('topErrors');
+      if (messages.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="icon">📝</div><p>No error messages</p></div>`;
+        return;
+      }
+      const maxCount = messages[0][1];
+      let html = `<table><thead><tr><th>Message</th><th>Count</th></tr></thead><tbody>`;
+      for (const [msg, count] of messages) {
+        const truncated = msg.length > 100 ? msg.slice(0, 97) + '...' : msg;
+        html += `<tr><td class="bar-cell"><div class="bar-bg" style="width:${(count / maxCount) * 100}%;background:var(--red);"></div>${truncated}</td><td class="num">${count.toLocaleString()}</td></tr>`;
+      }
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    // ── Event Cleanup ──
+
+    async function deleteEvents(olderThanDays, eventName) {
+      const resultEl = document.getElementById('deleteResult');
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '<span style="color:var(--text-muted)">Deleting...</span>';
+
+      let url = '/analytics/events';
+      const params = [];
+      if (olderThanDays) params.push(`older_than_days=${olderThanDays}`);
+      if (eventName) params.push(`event_name=${encodeURIComponent(eventName)}`);
+      if (params.length > 0) url += '?' + params.join('&');
+
+      try {
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'X-Operator-Token': operatorToken,
+            'Accept': 'application/json',
+          },
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          document.getElementById('authOverlay').style.display = 'flex';
+          document.getElementById('dashboard').style.display = 'none';
+          showError('Credentials rejected. Check your tokens.');
+          apiToken = '';
+          operatorToken = '';
+          return;
+        }
+
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(`HTTP ${res.status}: ${body}`);
+        }
+
+        const data = await res.json();
+        const deleted = data.deleted || 0;
+        const canonical = data.canonical || 'sqlite';
+
+        resultEl.innerHTML = `<span style="color:var(--green);font-weight:600;">✅ Deleted ${deleted.toLocaleString()} events</span>` +
+          `<span style="color:var(--text-muted);margin-left:8px;">(backend: ${canonical})</span>`;
+        resultEl.style.border = '1px solid var(--green)';
+
+        // Refresh the dashboard after deletion
+        setTimeout(() => refreshAll(), 1000);
+      } catch (e) {
+        resultEl.innerHTML = `<span style="color:var(--red);font-weight:600;">❌ ${e.message}</span>`;
+        resultEl.style.border = '1px solid var(--red)';
+      }
+    }
+
+    function confirmDeleteEvents() {
+      const eventName = document.getElementById('deleteEventName').value.trim();
+      const days = document.getElementById('deleteDays').value.trim();
+
+      let msg = 'Delete analytics events?';
+      const details = [];
+      if (days) details.push(`older than ${days} days`);
+      if (eventName) details.push(`event name: "${eventName}"`);
+      if (details.length > 0) msg += ` (${details.join(', ')})`;
+
+      if (!confirm(msg)) return;
+      deleteEvents(days || null, eventName || null);
+    }
+
+    function confirmDeleteAllEvents() {
+      if (!confirm('⚠️ This will DELETE ALL analytics events. This action cannot be undone.')) return;
+      if (!confirm('Are you absolutely sure? All event data will be permanently removed.')) return;
+      deleteEvents(null, null);
+    }
+
+    // Enter key on token inputs
+    document.getElementById('operatorTokenInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') connect();
+    });
+    document.getElementById('apiTokenInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('operatorTokenInput').focus();
+    });
+  </script>
+</body>
+</html>
