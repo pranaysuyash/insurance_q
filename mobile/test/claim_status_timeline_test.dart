@@ -43,11 +43,11 @@ void main() {
         StatusUpdate(status: ClaimStatus.filed, timestamp: _baseDate),
       ]));
 
-      expect(find.text('Recorded as filed'), findsOneWidget);
+      expect(find.text('Self-recorded: filed'), findsOneWidget);
       expect(find.text('Current record'), findsOneWidget);
-      expect(find.text('Recorded as in review'), findsOneWidget);
-      expect(find.text('Recorded as approved'), findsOneWidget);
-      expect(find.text('Recorded as paid'), findsOneWidget);
+      expect(find.text('Self-recorded: in review'), findsOneWidget);
+      expect(find.text('Self-recorded: approved'), findsOneWidget);
+      expect(find.text('Self-recorded: paid'), findsOneWidget);
     });
 
     testWidgets('claim in review shows the recorded review status as current',
@@ -60,10 +60,10 @@ void main() {
       ]));
 
       // The current-record badge appears only on the recorded review state.
-      expect(find.text('Recorded as filed'), findsOneWidget);
-      expect(find.text('Recorded as in review'), findsOneWidget);
-      expect(find.text('Recorded as approved'), findsOneWidget);
-      expect(find.text('Recorded as paid'), findsOneWidget);
+      expect(find.text('Self-recorded: filed'), findsOneWidget);
+      expect(find.text('Self-recorded: in review'), findsOneWidget);
+      expect(find.text('Self-recorded: approved'), findsOneWidget);
+      expect(find.text('Self-recorded: paid'), findsOneWidget);
 
       expect(find.text('Current record'), findsOneWidget);
     });
@@ -83,12 +83,12 @@ void main() {
             timestamp: _baseDate.add(const Duration(days: 15))),
       ]));
 
-      expect(find.text('Recorded as paid'), findsOneWidget);
+      expect(find.text('Self-recorded: paid'), findsOneWidget);
       expect(find.text('Current record'), findsOneWidget);
       // All status labels still appear
-      expect(find.text('Recorded as filed'), findsOneWidget);
-      expect(find.text('Recorded as in review'), findsOneWidget);
-      expect(find.text('Recorded as approved'), findsOneWidget);
+      expect(find.text('Self-recorded: filed'), findsOneWidget);
+      expect(find.text('Self-recorded: in review'), findsOneWidget);
+      expect(find.text('Self-recorded: approved'), findsOneWidget);
     });
   });
 
@@ -105,13 +105,13 @@ void main() {
             timestamp: _baseDate.add(const Duration(days: 7))),
       ]));
 
-      expect(find.text('Recorded as filed'), findsOneWidget);
-      expect(find.text('Recorded as in review'), findsOneWidget);
-      expect(find.text('Recorded as rejected'), findsOneWidget);
+      expect(find.text('Self-recorded: filed'), findsOneWidget);
+      expect(find.text('Self-recorded: in review'), findsOneWidget);
+      expect(find.text('Self-recorded: rejected'), findsOneWidget);
       expect(find.text('Current record'), findsOneWidget);
 
-      expect(find.text('Recorded as paid'), findsNothing);
-      expect(find.text('Recorded as approved'), findsNothing);
+      expect(find.text('Self-recorded: paid'), findsNothing);
+      expect(find.text('Self-recorded: approved'), findsNothing);
     });
   });
 
@@ -193,11 +193,11 @@ void main() {
       ]));
 
       // All four status labels should render
-      expect(find.text('Recorded as filed'), findsOneWidget);
-      expect(find.text('Recorded as in review'), findsOneWidget);
-      expect(find.text('Recorded as approved'), findsOneWidget);
-      expect(find.text('Recorded as paid'), findsOneWidget);
-      expect(find.text('Recorded as rejected'), findsNothing);
+      expect(find.text('Self-recorded: filed'), findsOneWidget);
+      expect(find.text('Self-recorded: in review'), findsOneWidget);
+      expect(find.text('Self-recorded: approved'), findsOneWidget);
+      expect(find.text('Self-recorded: paid'), findsOneWidget);
+      expect(find.text('Self-recorded: rejected'), findsNothing);
     });
   });
 
@@ -206,7 +206,7 @@ void main() {
       await tester.pumpWidget(_buildTimeline([]));
 
       expect(find.text('Your recorded status history'), findsOneWidget);
-      expect(find.text('Recorded as filed'), findsOneWidget);
+      expect(find.text('Self-recorded: filed'), findsOneWidget);
       expect(find.text('Current record'), findsOneWidget);
     });
 
@@ -223,9 +223,9 @@ void main() {
             timestamp: _baseDate.add(const Duration(days: 10))),
       ]));
 
-      expect(find.text('Recorded as paid'), findsOneWidget);
+      expect(find.text('Self-recorded: paid'), findsOneWidget);
       expect(find.text('Current record'), findsOneWidget);
-      expect(find.text('Recorded as approved'), findsOneWidget);
+      expect(find.text('Self-recorded: approved'), findsOneWidget);
     });
   });
 }

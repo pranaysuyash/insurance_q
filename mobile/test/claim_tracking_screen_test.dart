@@ -121,7 +121,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Your claim notes'), findsOneWidget);
-      expect(find.text('LOGGED CLAIMS'), findsOneWidget);
+      expect(find.text('Logged claims'), findsOneWidget);
     });
   });
 
@@ -225,15 +225,15 @@ void main() {
       await tester.pumpWidget(_buildTestApp());
       await tester.pump();
 
-      expect(find.text('Recorded as filed'), findsWidgets);
+      expect(find.text('Self-recorded: filed'), findsWidgets);
 
-      await tester.tap(find.text('Recorded as filed').first);
+      await tester.tap(find.text('Self-recorded: filed').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Recorded as in review'), findsWidgets);
-      expect(find.text('Recorded as approved'), findsWidgets);
-      expect(find.text('Recorded as rejected'), findsWidgets);
-      expect(find.text('Recorded as paid'), findsWidgets);
+      expect(find.text('Self-recorded: in review'), findsWidgets);
+      expect(find.text('Self-recorded: approved'), findsWidgets);
+      expect(find.text('Self-recorded: rejected'), findsWidgets);
+      expect(find.text('Self-recorded: paid'), findsWidgets);
     });
   });
 

@@ -20,7 +20,7 @@ from prometheus_client import (
     Histogram,
     generate_latest,
 )
-from prometheus_client.openmetrics.exposition import CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response

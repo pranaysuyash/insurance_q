@@ -4,6 +4,8 @@ Based on the detailed app review from May 2025, this document tracks actionable 
 
 ## Addendum (2026-07-24) — buyer-readiness status supersedes historical completion marks
 
+— *Updated 2026-07-28: BR-04 and BR-05 are now **RESOLVED** with 11/11 verifier checks passed against remote Supabase (Tier 2 evidence). BR-06 through BR-14 remain open and require founder/owner action.*
+
 This document preserves implementation history. Its earlier `DONE`, `ALL DONE`,
 and checked-box entries mean only that a local implementation task was recorded
 as finished at that time; they are not current proof of production readiness,
@@ -16,10 +18,12 @@ For the live execution sequence and current blocker state, use
 For the latest step-by-step completion log, use
 [BUYER_READINESS_LIVE_TODO_2026-07-24.md](BUYER_READINESS_LIVE_TODO_2026-07-24.md) (Progress log section).
 
-- Production readiness is **not** complete: BR-04 through BR-14 include
-  authenticated/runtime, founder-owned policy wording, provider, deployment,
+- Production readiness is **not** complete: BR-06 through BR-14 include
+  founder-owned policy wording, provider, deployment,
   store, commercial, and transfer evidence that is still open or blocked on
   an account or runtime the founder controls.
+- BR-04/BR-05 identity and tenant isolation are **RESOLVED**: 11/11 checks passed
+  against remote Supabase (2026-07-28, Tier 2 evidence).
 - The historical agent/advisor connection and partner-lead workflow is
   deliberately withdrawn from active navigation. It must not be marketed,
   re-enabled, or treated as a feature without an approved partner, privacy and

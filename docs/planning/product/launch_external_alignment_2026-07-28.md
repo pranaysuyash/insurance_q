@@ -18,9 +18,11 @@ The mobile app already enforces this via fail-closed release validation (`app_co
 
 ## 1. Dependency on the rename
 
-Every external surface below carries the brand name. **Nothing in §2–§6 should be executed until the rename decision (§1 of `rename_strategy_and_inventory_2026-07-28.md`) is settled.** Registering `coverwise.app` resources now, then renaming, means double work and abandoned URLs.
+Every external surface below carries the brand name. **Nothing in §2–§6 should be executed until the rename decision (§0 of `rename_strategy_and_inventory_2026-07-28.md`) is settled.** Registering `coverwise.app` resources now, then renaming, means double work and abandoned URLs.
 
-**Exception:** the backend deployment (Render) and Supabase are name-agnostic infrastructure — those can proceed regardless of brand.
+**The rename is no longer optional.** The independent Name Clearance & Brand Risk Report (`CoverWise_Name_Clearance_and_Brand_Risk_Report_2026-07-28.docx`, verdict RED/90+) establishes that CoverWise must not be launched publicly — the conflict set includes a live exact-name iOS app, a multinational Coverwise insurance brand, an Indian coverwise.co.in site, and critically, CoverSure (500K+ downloads, same feature set, IRDAI-registered). The report's six-point release gate (clearance → counsel search → filing strategy → domains/handles → mobile+auth migration → store+legal metadata) is the canonical launch gate for any public-facing release. See `rename_strategy_and_inventory_2026-07-28.md` §0 for the full evidence summary.
+
+**Exception:** the backend deployment (Render) and Supabase are name-agnostic infrastructure — those can proceed regardless of brand. RC product IDs can be created under `coverwise_*` now and renamed freely (no paying customers yet), OR created under the new name once chosen — either is safe pre-launch.
 
 ---
 

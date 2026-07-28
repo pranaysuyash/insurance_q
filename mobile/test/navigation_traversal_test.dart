@@ -9,9 +9,19 @@ import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/providers/policy_providers.dart';
 import 'package:riverpod/riverpod.dart';
 
-class _EmptyPolicySummaries extends PolicySummariesNotifier {
+PolicySummary _sampleSummary() => PolicySummary(
+      documentId: 'doc-1',
+      documentType: 'Health Insurance',
+      policyNumber: 'POL-001',
+      insurer: 'Sample Insurer',
+      startDate: DateTime(2026, 1, 1),
+      endDate: DateTime(2027, 1, 1),
+      extractedAt: DateTime(2026, 1, 1),
+    );
+
+class _SamplePolicySummaries extends PolicySummariesNotifier {
   @override
-  List<PolicySummary> build() => [];
+  List<PolicySummary> build() => [_sampleSummary()];
 }
 
 void main() {
@@ -19,7 +29,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          policySummariesProvider.overrideWith(() => _EmptyPolicySummaries()),
+          policySummariesProvider.overrideWith(() => _SamplePolicySummaries()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: InsightsScreen()),
@@ -37,7 +47,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          policySummariesProvider.overrideWith(() => _EmptyPolicySummaries()),
+          policySummariesProvider.overrideWith(() => _SamplePolicySummaries()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: WhatIfCalculatorScreen()),

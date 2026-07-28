@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "status": "SKELETON — expected values not yet filled in",
+
+  "meta": {
+    "policy_document": "assets/demo/policy.pdf",
+    "policy_type": "health",
+    "insurer": "ICICI Lombard",
+    "description": "ICICI Lombard Complete Health Insurance policy document",
+    "added_by": "CoverWise team",
+    "added_date": "2026-07-28",
+    "notes": "SKELETON — review the policy PDF and fill in real expected extraction values. Until then, the verifier will skip all null fields and only check insurer + document_type."
+  },
+
+  "expected_extraction": {
+    "policy_number": null,
+    "insurer": "ICICI Lombard",
+    "insurer_helpline": null,
+    "insurer_email": null,
+    "document_type": "health",
+    "coverage_amount": null,
+    "deductible": null,
+    "premium_amount": null,
+    "premium_frequency": null,
+    "effective_date": null,
+    "expiration_date": null,
+    "key_benefits": [],
+    "exclusions": [],
+    "waiting_periods": [],
+    "coverage_items": [],
+    "executive_summary": [],
+
+    "type_specific": {
+      "health": {
+        "room_rent_cap": null,
+        "pre_existing_diseases": [],
+        "co_pay_percent": null,
+        "network_hospitals": null,
+        "maternity_cover": null,
+        "deductible_per_claim": null,
+        "cumulative_bonus": null,
+        "day_care_procedures": null,
+        "consumables_cover": null,
+        "ambulance_cover": null,
+        "health_checkup_cover": null,
+        "pre_post_hospitalization_days": null,
+        "restoration_benefit": null,
+        "critical_illness_list": [],
+        "modern_treatment_cover": null,
+        "moratorium_period": null,
+        "pre_auth_time_limit": null,
+        "domiciliary_hospitalization": null,
+        "sub_limits": [],
+        "no_claim_bonus_percent": null
+      }
+    }
+  },
+
+  "expected_questions": {
+    "known_answers": [
+      {
+        "question": "What insurance company is this policy from?",
+        "expected_answer_contains": "ICICI Lombard",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What type of insurance is this?",
+        "expected_answer_contains": "health",
+        "verification_status": "fully_backed"
+      }
+    ],
+    "known_fields_not_present": []
+  },
+
+  "expected_badges": {
+    "policy_detail": "fully_backed",
+    "question_answer": {
+      "typical": "fully_backed"
+    }
+  }
+}

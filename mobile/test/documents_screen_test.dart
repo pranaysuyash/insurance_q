@@ -92,7 +92,7 @@ void main() {
       await tester.pumpWidget(buildDocumentsScreen());
       await tester.pump(const Duration(seconds: 2));
 
-      expect(find.text('SAVED POLICIES'), findsOneWidget);
+      expect(find.text('Saved policies'), findsOneWidget);
     });
   });
 

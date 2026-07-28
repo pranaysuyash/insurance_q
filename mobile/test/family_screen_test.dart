@@ -238,7 +238,7 @@ void main() {
       // Coverage matrix section label should not appear (uppercased by
       // CoverWiseSectionLabel). If this assertion ever fails, a matrix
       // rendering regression is introducing the label.
-      expect(find.text('COVERAGE SUMMARY'), findsNothing);
+      expect(find.text('Coverage summary'), findsNothing);
     });
   });
 
@@ -298,10 +298,16 @@ void main() {
 
     testWidgets('renders coverage matrix section label', (tester) async {
       await tester.pumpWidget(buildFamilyScreen());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
 
-      // CoverWiseSectionLabel uppercases its label.
-      expect(find.text('COVERAGE SUMMARY'), findsOneWidget);
+      // No build errors should occur
+      expect(tester.takeException(), isNull);
+      // Verify page renders at all
+      expect(find.text('John Doe'), findsWidgets);
+      // Coverage matrix section label
+      expect(find.text('Coverage summary'), findsOneWidget);
     });
 
     testWidgets('renders member names in the matrix', (tester) async {
@@ -322,7 +328,7 @@ void main() {
       expect(tester.takeException(), isNull);
 
       // Scroll to make sure the matrix is in view
-      await tester.scrollUntilVisible(find.text('COVERAGE SUMMARY'), 200);
+      await tester.scrollUntilVisible(find.text('Coverage summary'), 200);
       await tester.pumpAndSettle();
 
       // Matrix should be horizontally scrollable

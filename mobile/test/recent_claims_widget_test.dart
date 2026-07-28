@@ -53,7 +53,7 @@ void main() {
       ));
       await tester.pump();
 
-      expect(find.text('RECENT CLAIMS'), findsOneWidget);
+      expect(find.text('Recent Claims'), findsOneWidget);
       expect(find.text('Test Insurer'), findsOneWidget);
       expect(find.textContaining('Accident'), findsOneWidget);
     });
@@ -101,11 +101,11 @@ void main() {
 
   group('RecentClaims — status chip rendering', () {
     for (final entry in [
-      (status: ClaimStatus.filed, label: 'Recorded as filed'),
-      (status: ClaimStatus.inReview, label: 'Recorded as in review'),
-      (status: ClaimStatus.approved, label: 'Recorded as approved'),
-      (status: ClaimStatus.rejected, label: 'Recorded as rejected'),
-      (status: ClaimStatus.paid, label: 'Recorded as paid'),
+      (status: ClaimStatus.filed, label: 'Self-recorded: filed'),
+      (status: ClaimStatus.inReview, label: 'Self-recorded: in review'),
+      (status: ClaimStatus.approved, label: 'Self-recorded: approved'),
+      (status: ClaimStatus.rejected, label: 'Self-recorded: rejected'),
+      (status: ClaimStatus.paid, label: 'Self-recorded: paid'),
     ]) {
       testWidgets('${entry.label} status renders correct chip label',
           (tester) async {
@@ -182,8 +182,8 @@ void main() {
       ));
       await tester.pump();
 
-      expect(find.text('Recorded as filed'), findsOneWidget);
-      expect(find.text('Recorded as approved'), findsOneWidget);
+      expect(find.text('Self-recorded: filed'), findsOneWidget);
+      expect(find.text('Self-recorded: approved'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

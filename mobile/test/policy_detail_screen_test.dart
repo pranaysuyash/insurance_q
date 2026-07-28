@@ -178,11 +178,11 @@ void main() {
       await tester.pumpWidget(buildPolicyDetail(documentId: 'doc-1'));
       await tester.pumpAndSettle();
 
-      // CoverWiseSectionLabel renders label.toUpperCase(); scroll to below-fold content
-      await tester.scrollUntilVisible(find.text('NEXT STEPS'), 200);
-      expect(find.text('NEXT STEPS'), findsOneWidget);
+      // Scroll to below-fold content
+      await tester.scrollUntilVisible(find.text('Ask about this policy'), 200);
       expect(find.text('Ask about this policy'), findsOneWidget);
       expect(find.text('Share policy summary'), findsOneWidget);
+      expect(find.text('Next steps'), findsOneWidget);
     });
 
     testWidgets('renders extraction disclaimer at bottom', (tester) async {

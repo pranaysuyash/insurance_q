@@ -90,9 +90,8 @@ def init_sentry(
         traces_sample_rate=traces_sample_rate,
         profiles_sample_rate=profiles_sample_rate,
         send_default_pii=True,
-        log_level=logging.WARNING,
-        tags={"service": service_name},
     )
+    sentry_sdk.set_tag("service", service_name)
     logger.info("Sentry SDK initialised for service=%s env=%s", service_name, environment)
 
 

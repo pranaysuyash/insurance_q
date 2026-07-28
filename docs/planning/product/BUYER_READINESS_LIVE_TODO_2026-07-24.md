@@ -2,15 +2,10 @@
 
 ## Current active item
 
-- Last updated (session): 2026-07-25T08:08:15+05:30
-- Active gate: **BR-04** (owner-supplied service-role auth + Supabase env shape still missing/invalid)
-- Current command path:
-  - confirm preflight, then run `tools/verify_local_tenant_isolation.py` after BR-04 identity continuity succeeds.
-- Required owner inputs:
-  - `SUPABASE_URL`
-  - `SUPABASE_PUBLISHABLE_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - reachable `COVERWISE_API_BASE_URL`
+- Last updated (session): 2026-07-28
+- Active gate: **BR-06** (hosted legal pages — requires deployed HTTPS URL)
+- BR-04/BR-05: **RESOLVED 2026-07-28** — 11/11 checks passed against remote Supabase using SUPABASE_SECRET_KEY fallback.
+  See evidence below in one-item execution list items 7 & 8.
 
 ## Immediate blocker status
 
@@ -63,25 +58,42 @@
    - `./.venv/bin/python tools/validate_production_config.py`
    - Result: explicit missing-var failure list (no false-positive pass).
 
-7. [ ] BR-04 real credentials execution (next action)
-   - Script contract check: admin API request requires `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`; fallback to `SUPABASE_SECRET_KEY` is used only when service key is unset.
-   - Expected success criteria:
-     - `tools/verify_local_identity_claim.py` run reaches admin create, sign-in, anon claim, profile check and returns stable summary.
-   - Command:
-     `SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SERVICE_ROLE_KEY=... COVERWISE_API_BASE_URL=http://127.0.0.1:8005 ./.venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase`
-- Attempt status: run with `.env` `SUPABASE_URL`/publishable key + placeholder service key + `--allow-remote-supabase` failed with `HTTP 403 bad_jwt` during admin create.
-- Updated attempt status: with `.env` loaded and `SUPABASE_SERVICE_ROLE_KEY` unset (so fallback to `SUPABASE_SECRET_KEY`), both BR-04 and BR-05 paths fail with `HTTP 403 bad_jwt` at admin user creation; with explicit placeholder key, both fail with `HTTP 401 Invalid API key`.
-   - Blocker:
-     - real `SUPABASE_SERVICE_ROLE_KEY`
-     - reachable `COVERWISE_API_BASE_URL` (set to `http://127.0.0.1:8005` in-session)
-     - (optional) Docker daemon for local-only path.
+7. [x] BR-04 real credentials execution — **RESOLVED 2026-07-28**
+   - Previous assumption: `SUPABASE_SERVICE_ROLE_KEY` must be JWT `eyJ...` format.
+   - Actual finding: `SUPABASE_SECRET_KEY` (`sb_secret_...`) works via the Supabase Python SDK, which handles auth internally.
+   - Run command:
+     ```
+     source .env
+     export SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SECRET_KEY"
+     .venv/bin/python tools/verify_local_identity_claim.py --allow-remote-supabase \
+       --api-url http://127.0.0.1:8005 \
+       --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co
+     ```
+   - Evidence: 5/5 checks PASSED
+     - PASS admin user creation: via supabase admin client
+     - PASS user sign-in: via supabase lib
+     - PASS anonymous identity: HTTP 200
+     - PASS guest-to-account claim: HTTP 200
+     - PASS account profile: HTTP 200
+     - Exit code: 0
 
-8. [ ] BR-05 real tenant-isolation execution
-   - Expected success criteria:
-     - cross-owner denial + deletion audit captured by `tools/verify_local_tenant_isolation.py`.
-   - Command:
-     `SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SERVICE_ROLE_KEY=... COVERWISE_API_BASE_URL=http://127.0.0.1:8005 ./.venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase`
-   - Blocker: BR-04 still blocked on missing valid Supabase service credentials / runnable backend path.
+8. [x] BR-05 real tenant-isolation execution — **RESOLVED 2026-07-28**
+   - Run command:
+     ```
+     source .env
+     export SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SECRET_KEY"
+     .venv/bin/python tools/verify_local_tenant_isolation.py --allow-remote-supabase \
+       --api-url http://127.0.0.1:8005 \
+       --supabase-url https://eyumuxwabmsymytjbxoj.supabase.co
+     ```
+   - Evidence: 6/6 checks PASSED
+     - PASS upload
+     - PASS cross-owner API denial
+     - PASS cross-owner Storage denial
+     - PASS owner deletion
+     - PASS post-delete API absence
+     - PASS post-delete Storage absence
+     - Exit code: 0
 
 9. [ ] BR-06 hosted legal parity proof
    - Expected success criteria:
@@ -193,6 +205,13 @@
     `invalid JWT: unable to parse or verify signature, token contains an invalid number of segments`.
 - 2026-07-25T00:09:08+05:30:
   - preflight with `source .env` blocked on daemon + `SUPABASE_SERVICE_ROLE_KEY`; plus `401` warning on `/rest/v1/` probe.
+
+- 2026-07-28: **BR-04/BR-05 RESOLVED**
+  - Key discovery: `SUPABASE_SECRET_KEY` (sb_secret_...) works via Supabase Python SDK — no JWT `eyJ...` key needed.
+  - BR-04 identity claim: 5/5 PASS, exit 0.
+  - BR-05 tenant isolation: 6/6 PASS, exit 0.
+  - Both verifiers run against remote Supabase (https://eyumuxwabmsymytjbxoj.supabase.co).
+  - Active gate moved to **BR-06** (hosted legal pages — requires deployed HTTPS URL).
 
 ## Active one-item queue
 

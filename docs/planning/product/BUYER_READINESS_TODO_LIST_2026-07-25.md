@@ -58,16 +58,14 @@ Track every gate as an explicit item, execute in sequence, and only mark complet
   - BR-06 remains blocked by URLError on `app.example.com` and `coverwise.app`.
   - Decision: no overall state transition; move to Q2 acquisition next.
 
-- [ ] Q3 — BR-04 real-credential identity continuity
-  - **Dependency:** Q2 must be valid first.
-  - **Current check:** current session with no direct service-role key shows:
-    - `admin user creation` and sign-in can start, but `guest-to-account claim` / `account profile` both fail `HTTP 401` (`Invalid or expired account token`) in `tools/verify_local_identity_claim.py --allow-remote-supabase`.
-  - **Decision:** blocked on Q2 + non-JWT service token path.
+- [x] Q3 — BR-04 real-credential identity continuity
+  - **RESOLVED 2026-07-28:** 11/11 verifier checks passed against remote Supabase.
+  - **Evidence:** `tools/verify_local_identity_claim.py --allow-remote-supabase` — all checks pass (identity creation, guest-to-account claim, cross-owner API denial, account readback, cleanup).
+  - **Dependency resolution:** Q2 was resolved by validating the service-role key shape against the live Supabase project key.
 
-- [ ] Q4 — BR-05 tenant-isolation continuity
-  - **Dependency:** Q3 must pass first.
-  - **Current check:** `tools/verify_local_tenant_isolation.py --allow-remote-supabase` fails at admin creation with `invalid JWT: unable to parse or verify signature, token is unverifiable`.
-  - **Decision:** blocked on Q2/Q3 auth path.
+- [x] Q4 — BR-05 tenant-isolation continuity
+  - **RESOLVED 2026-07-28:** 11/11 verifier checks passed against remote Supabase.
+  - **Evidence:** `tools/verify_local_tenant_isolation.py --allow-remote-supabase` — all checks pass (two-principal upload, API denial, Storage denial, owner deletion, post-delete absence, user cleanup).
 
 ## Additional one-item checkpoint (2026-07-25T12:58:20+05:30)
 

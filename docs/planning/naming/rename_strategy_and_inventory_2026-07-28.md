@@ -1,10 +1,71 @@
 # Product Naming Strategy & Comprehensive Rename Inventory
 
 **Date:** 2026-07-28
-**Status:** DECISION PENDING — awaiting founder's new name. This doc is the strategy + inventory; execution is blocked on the name choice.
+**Status:** RENAME DECIDED. Execution blocked only on the founder's choice of replacement name.
 **Decision owner:** Pranay
-**Doctrine:** `motto_v4.md` — §0 (bold long-term), §0.0.1 (whole-answer), §0.1.1 (anything else?), §0.2 (confidence honesty)
-**Evidence tier:** Tier 1 (full-repo static audit) + Tier 0 (naming strategy reasoning — no external verification of trademark availability)
+**Doctrine:** `motto_v4.md` — §0 (bold long-term), §0.0.1 (whole-answer), §0.1.1 (anything else?), §0.2 (confidence honesty), §0.5 (evidence tiers)
+**Evidence tier:** Tier 1 (full-repo static audit) + Tier 1 (third-party name-clearance report with 25 cited sources) + Tier 0 (naming strategy reasoning — no direct registry verification yet)
+**Governing decision:** `CoverWise_Name_Clearance_and_Brand_Risk_Report_2026-07-28.docx` — verdict RED/90+, **RENAME BEFORE PUBLIC LAUNCH**.
+
+---
+
+## 0. The rename is settled — evidence summary
+
+The independent Name Clearance & Brand Risk Report (28 July 2026, 25 cited sources) reaches an unambiguous verdict: **CoverWise must be renamed before any public store submission, domain launch, partnership, or trademark filing.** This is no longer a question of preference; it is a question of clearance, defensibility, and avoidance of a permanent confusion tax.
+
+### The conflict set (decisive, not marginal)
+
+| Collision | Severity | Source |
+|---|---|---|
+| **CoverSure** — Indian insurance app, 500K+ Play downloads, near-identical feature set, IRDAI corporate agent CA0894 | **CRITICAL** | S2–S5 |
+| "Coverwise — Life Insurance" — live on India App Store, Finance category, exact word | HIGH | S1 |
+| Coverwise Limited — UK/Europe/global, travel insurance, regulated intermediary | HIGH | S6–S7 |
+| coverwise.co.in — India health/travel/life services | HIGH | S8 |
+| CoverWise REI (Australia), CoverWise Financial Services (SA), CoverWise Insurance Solutions (US) | MEDIUM–MEDIUM-HIGH | S9–S12 |
+
+**The decisive collision is CoverSure, not the small iOS app.** Same country (India), same category, near-homophone sound ("CoverWise" / "CoverSure"), near-identical features (policy portfolio, coverage gaps, claims support, family access, renewal reminders). Even a narrow legal clearance would leave a permanent confusion cost across search, store discovery, referrals, partnerships, and support.
+
+### Decision score from the report: 10/100
+
+The report scores CoverWise on five independent brand-asset gates:
+
+| Gate | Weight | Score | Weighted |
+|---|---|---|---|
+| Ownability / clearance | 25% | 1/5 | 5/100 |
+| Distinctiveness | 20% | 1/5 | 4/100 |
+| Search & app-store discovery | 20% | 0/5 | 0/100 |
+| Category confusion | 25% | 0/5 | 0/100 |
+| Expansion headroom | 10% | 1/5 | 1/100 |
+
+CoverWise fails every gate. The exact score matters less than the failure across all five independent dimensions.
+
+### What does NOT cure the collision
+
+Per the report, these are explicitly rejected:
+- Changing capitalization (Coverwise, CoverWise, COVERWISE) — same word mark.
+- Adding a weak suffix (CoverWise AI, CoverWise App, CoverWise India) — dominant word remains.
+- Different logo/color palette retaining the word — confusion persists.
+- Arguing "it's software, not insurance" — category context, features, and marketing language still overlap (§1 Trade Marks Act, India).
+
+### Naming territories to AVOID (from the report's design brief)
+
+The "Cover + adjective" family is crowded in the insurance category: CoverSure, CoverWise, Coverfox, Cover360. The replacement name should be a **coined or unexpected word with no insurance-industry meaning**, distinctive enough to create legal and search leverage.
+
+### Release gate (the report's hard stop)
+
+Per the report's §7, **do not publish until all six are true:**
+1. Final candidate cleared
+2. Counsel trademark search completed (Classes 9, 36, 42 — India; plus target foreign jurisdictions before expansion)
+3. Word-mark filing strategy agreed
+4. Domains + core handles secured
+5. Mobile + auth identities migrated
+6. Store metadata + legal pages contain ONLY the new brand
+
+**This release gate is now the canonical launch gate for any public-facing release.** It supersedes any earlier "ship under CoverWise" assumption.
+
+### Limitations acknowledged
+
+The report is a preliminary commercial/legal-risk clearance, not a formal legal opinion. India's IP India registry is interactive and was not directly queryable through the research environment; UK/EU records surfaced via secondary databases (TrademarkElite) and must be rechecked at UKIPO/EUIPO. The strong rename recommendation stands regardless, because the business case does not depend on a single registry outcome.
 
 ---
 
@@ -12,11 +73,12 @@
 
 The founder stated: *"CoverWise is a set of different products, same and different markets, same industry, so I am working on the naming and we will have to refactor so many things — start making that list."*
 
-This document:
-1. Frames the naming decision first-principles (company vs product vs app layering).
-2. Inventories **every** occurrence of the current brand so the refactor is complete, not partial.
-3. Defines the dependency order so nothing breaks during the rename.
-4. Does NOT pick a name — that is the founder's decision. It prepares the ground so that once the name is chosen, execution is mechanical.
+Combined with the independent clearance report's verdict, this document:
+1. Records the rename decision and its evidence base (§0 above).
+2. Frames the naming decision first-principles (company vs product vs app layering).
+3. Inventories **every** occurrence of the current brand so the refactor is complete, not partial.
+4. Defines the dependency order so nothing breaks during the rename.
+5. Does NOT pick a name — that is the founder's decision, bounded by the report's design brief and clearance funnel. It prepares the ground so that once the name is chosen, execution is mechanical.
 
 ---
 
@@ -53,27 +115,38 @@ PSRS Technologies (entity — fixed, legal)
 
 ---
 
-## 2. Naming criteria (first-principles)
+## 2. Naming criteria (first-principles, informed by the clearance report)
 
 A good name for this product portfolio must satisfy, in priority order:
 
-1. **Legally available** — trademark search in India (and target markets) + domain availability. This is the hard gate; nothing else matters if the name is taken.
-2. **Domain available** — `.app`, `.in`, `.com` at minimum. `.app` is the modern default for apps and is HTTPS-enforced.
-3. **Does not imply regulated activity** — consistent with the permanent non-regulated boundary (`docs/audits/coverwise_product_strategy...2026-07-18.md` §1). Avoid words like *advise, broker, agent, counsel, insure, claim-filing*.
-4. **Survives across products and markets** — since the vision is multi-product, the portfolio name can't be so specific to insurance that it blocks a future product. (Insurance-specific words like *Cover*, *Policy* are risky for this reason — they may be the very thing the founder wants to escape.)
-5. **Pronounceable and short in English, Hindi, and romanized regional languages** — the app ships with en/hi/ta/gu/mr localization.
-6. **Not a near-collision with an existing app in the same store category** — store search confusion kills organic discovery.
-7. **Package-ID-safe** — must form a valid reverse-DNS identifier (lowercase, no hyphens in the Java/Kotlin package segments, valid DNS).
+1. **Legally clearable** — official trademark search in India (IP India, Classes 9 + 36 + 42) plus target foreign jurisdictions before any expansion. This is the hard gate; nothing else matters if the name is blocked. The report explicitly warns that India's registry must be queried directly (exact, phonetic, contains, proprietor, device-mark), not via secondary aggregators.
+2. **Not a collision or near-collision** — must not be exact, phonetic, semantic, or visually confusable with any existing finance/insurance product, especially in India. CoverSure/CoverWise is the cautionary case.
+3. **Coined or unexpected** (from the report's design brief) — a word with no insurance-industry meaning creates legal and search leverage. **Avoid the "Cover + adjective" family entirely** (CoverSure, CoverWise, Coverfox, Cover360 — all crowded [S2, S21, S22]). Avoid "Policy + generic noun," "Insure + adjective," "Claim + helper" unless genuinely distinctive.
+4. **Does not imply regulated activity** — consistent with the permanent non-regulated boundary (`docs/audits/coverwise_product_strategy...2026-07-18.md` §1). Avoid *advise, broker, agent, counsel, insure, claim-filing*.
+5. **Survives across products and markets** — the portfolio name can't be so specific to insurance that it blocks a future product. This is exactly why "Cover" is the wrong root.
+6. **Survives spoken referral** — must remain unambiguous when spoken in Indian English, Hindi, and major regional accents. The report flags this explicitly; "CoverWise" vs "CoverSure" fails it.
+7. **Domain + handles available** — `.app`, `.in`, `.com` plus core social handles. Treated as a **secondary** signal per the report: select on trademark clearance + market collision + store uniqueness + memorability *together*, not domain availability alone.
+8. **Package-ID-safe** — must form a valid reverse-DNS identifier (lowercase, no hyphens in Java/Kotlin package segments, valid DNS).
 
-This doc does **not** recommend a name. It establishes the criteria so the founder can evaluate candidates.
+### Candidate clearance funnel (from the report's §6)
+
+1. Generate 30–50 candidates across at least three naming territories.
+2. Reject exact, phonetic, semantic, and visual collisions via web + app-store searches.
+3. Check domains and social handles (secondary signal).
+4. Run **official** trademark searches (IP India, Classes 9/36/42) for exact + phonetic variants; add foreign jurisdictions before expansion.
+5. Have Indian trademark counsel review the final 3–5 candidates + goods/services descriptions.
+6. Secure word mark, domains, core handles, and production app identity before any public announcement.
+
+This doc does **not** recommend a name. It establishes the criteria so the founder can evaluate candidates through the funnel above.
 
 ---
 
-## 3. What this rename is NOT
+## 3. What this rename is NOT — and what it now IS
 
 - **Not a re-architecture.** No code behavior changes. Pure identifier + string surgery.
-- **Not urgent enough to block launch.** The current `coverwise` identifiers work. The rename can happen before first public release (ideal, so users never see the old name) OR after (costs a marketing reset but no technical debt). The founder decides timing.
-- **Not all-or-nothing.** The soft layer (docs, UI strings) can be renamed in a later pass. Only the hard layer (package ID, storage bucket, RC products, domain) must be coherent at a given release.
+- **No longer optional.** The clearance report upgrades this from "founder preference" to "release gate." The report's verdict is RED/90+; keeping CoverWise publicly is REJECT. The only acceptable use of "CoverWise" going forward is as a **temporary internal codename** (repo/project label) until the migration completes, then it disappears from all user-facing identity.
+- **Time-pressured, not leisurely.** The rename cost is LOW *now* (no public launch, no paying customers, no filed trademarks). It becomes HIGH-to-permanent after first store submission. RC product IDs and the package ID cannot be renamed once a paying customer or published listing exists. This is the cheapest point in the product's life to rename.
+- **Not all-or-nothing for internal continuity.** The soft layer (docs, UI strings) can be renamed in a later pass. But the hard layer (package ID, RC products, domain, store listing) MUST be coherent and cleared before any public release per the report's §7 release gate.
 
 ---
 
@@ -239,17 +312,22 @@ This is important: the infra layer never adopted the brand.
 Sequenced so nothing breaks. Each step is a gated commit (motto §0.0.1).
 
 ### Stage 0 — Decide (BLOCKER, founder only)
-1. Pick portfolio name, app name, domain.
-2. Trademark + domain availability confirmed.
-3. Decide package-ID scheme: `com.<app>` (simple) vs `com.<portfolio>.<app>` (multi-product-ready).
+1. Run the candidate clearance funnel (§2) — generate 30–50 candidates, reject collisions.
+2. Pick portfolio name + app name + domain.
+3. **Official trademark search** (IP India, Classes 9 + 36 + 42) for the final 3–5 candidates — exact + phonetic variants. This is non-negotiable per the clearance report.
+4. Indian trademark counsel reviews the chosen name + goods/services descriptions.
+5. Decide package-ID scheme: `com.<app>` (simple) vs `com.<portfolio>.<app>` (multi-product-ready).
+6. Agree word-mark filing strategy.
 
 ### Stage 1 — External systems first (founder + agent)
 These must exist before code can reference them:
 1. Register domain + DNS.
-2. Apple App ID + Google Play app record (new application ID).
-3. RevenueCat project + product IDs (new scheme).
-4. Supabase: decide bucket (keep `coverwise-documents` internally, or migrate).
-5. DockerHub / ECR new repo names (if aligning infra).
+2. File/secure the word mark per counsel's strategy.
+3. Secure core social handles.
+4. Apple App ID + Google Play app record (new application ID).
+5. RevenueCat project + product IDs (new scheme).
+6. Supabase: decide bucket (keep `coverwise-documents` internally, or migrate).
+7. DockerHub / ECR new repo names (if aligning infra).
 
 ### Stage 2 — Hard internal linkages (one PR, atomic)
 Must change together or the build breaks:
@@ -266,17 +344,19 @@ Must change together or the build breaks:
 1. UI strings / localization body text.
 2. Backend log strings, ISSUER/AUDIENCE, parser_version (verify lineage first).
 3. Docs (260 files) — can be done in batches; historical audit filenames left as-is.
-4. Legal docs — legal review + version bump.
+4. Legal docs — legal review + version bump + re-host.
 5. Grafana / Prometheus labels.
 6. Frontend HTML/SEO.
 
-### Stage 4 — Verification
+### Stage 4 — Verification + release gate
 1. `flutter analyze` clean.
 2. `flutter test` green.
 3. Backend tests green.
 4. Fresh release build installs without conflict with old app (different application ID).
 5. Deep links resolve under new scheme.
 6. RevenueCat purchase flow works with new product IDs in sandbox.
+7. **The clearance report's six-point release gate (§0) is satisfied before any public submission:**
+   (a) final candidate cleared; (b) counsel search completed; (c) word-mark filing strategy agreed; (d) domains + core handles secured; (e) mobile + auth identities migrated; (f) store metadata + legal pages contain ONLY the new brand. **No public release until all six are true.**
 
 ---
 
@@ -284,39 +364,53 @@ Must change together or the build breaks:
 
 | Risk | Severity | Mitigation |
 |---|---|---|
+| **Shipping publicly as CoverWise at all** | **CRITICAL** | Per clearance report: RED/90+. Rename before any public store listing. Keeping is REJECT, not a viable option. |
+| **CoverSure confusion** (near-homophone, same category, IRDAI-registered) | **CRITICAL** | Pick a coined name outside the "Cover-*" family; report §6 design brief. |
+| **Trademark complaint from Coverwise Limited (UK) or other exact-name users** | High | Official registry search + counsel review before committing; report sources S6–S12. |
 | Renaming RC product IDs after first paying customer | **Permanent** | Rename before launch (now) — this is the strongest time-pressure argument |
 | Partial package-ID change bricks installs | High | Atomic Stage-2 PR; test install on clean device |
 | Bucket rename loses production documents | High | Keep bucket name internal; don't rename |
 | Missed env var reader → silent empty value | Medium | Grep + CI smoke test that asserts required envs non-empty |
-| Trademark collision discovered post-launch | High (legal) | Trademark search BEFORE committing to a name |
+| Trademark collision discovered post-launch | High (legal) | Official IP India search (Classes 9/36/42) BEFORE committing to the replacement name |
 | `parser_version` rename breaks model lineage | Medium | Verify against `model_lineage` table; keep version tag stable if referenced |
 | Old deep-link scheme breaks existing shared links | Low (pre-launch) | No users yet — free to change |
+| **Suffix "fix" (CoverWise AI / App / India) mistaken for a cure** | High | Explicitly rejected by report §4 — does not cure the dominant-word collision |
 
 ---
 
 ## 7. Anything else? (motto §0.1.1)
 
-**Yes — three cross-cutting items the per-section analysis didn't cover:**
+**Yes — cross-cutting items the per-section analysis didn't cover:**
 
-1. **The `medpiper` parent path.** The repo lives at `medpiper/insurance_app`. Is "medpiper" the portfolio brand, or a parent entity? If medpiper is meant to be the portfolio umbrella, the naming strategy changes — the app should be `medpiper/<app>`, not a fresh portfolio name. **Founder must clarify medpiper's role.**
+1. **The clearance report is preliminary, not a legal opinion.** Its strong rename recommendation stands on the business case (permanent confusion tax) and does not depend on a single registry outcome. But the formal clearance of the *replacement* name requires direct IP India registry search (exact, phonetic, contains, proprietor, device-mark) plus counsel review — secondary aggregators are not sufficient. Budget for counsel time on the final 3–5 candidates.
 
-2. **Store publisher name.** Google Play "Developer name" and Apple "Developer name" are visible to every user. Currently this would be an individual name or PSRS Technologies. The publisher name is part of the brand perception and should be decided alongside the product name.
+2. **The competitor (CoverSure) is IRDAI-registered (corporate agent CA0894, valid through 9 Jan 2027).** This matters strategically, not just legally: a regulated entity has more incentive and standing to police look-alike names. The rename removes that exposure entirely.
 
-3. **Localization of the brand name itself.** Should the app name be translated in hi/ta/gu/mr, or kept in English across all locales? Most Indian apps keep the brand in English. Confirm policy so the ARB files are consistent. (Current code keeps "CoverWise" untranslated in all ARBs — correct default.)
+3. **Store publisher name.** Google Play "Developer name" and Apple "Developer name" are visible to every user. Currently this would be an individual name or PSRS Technologies. The publisher name is part of the brand perception and should be decided alongside the product name.
 
-4. **The slogan / motto_v4 reference.** `motto_v4.md` itself is the engineering doctrine, not a product artifact — it should NOT be renamed even if the product is. Confirm it stays as the canonical engineering doctrine regardless of product name.
+4. **Localization of the brand name itself.** Should the app name be translated in hi/ta/gu/mr, or kept in English across all locales? Most Indian apps keep the brand in English. Confirm policy so the ARB files are consistent. (Current code keeps "CoverWise" untranslated in all ARBs — correct default, carry forward to the new name.)
+
+5. **The slogan / motto_v4 reference.** `motto_v4.md` itself is the engineering doctrine, not a product artifact — it should NOT be renamed even if the product is. It stays as the canonical engineering doctrine regardless of product name.
+
+6. **The `medpiper` parent path is RESOLVED.** Per founder directive (§9), medpiper is eliminated entirely; the project goes under Pranay's personal portfolio. The on-disk repo path `medpiper/insurance_app` can be renamed when convenient — no code depends on it as a literal.
 
 ---
 
 ## 8. What I need from the founder to unblock execution
 
-1. **Portfolio vs app naming scheme** (and medpiper's role).
-2. **The chosen names** (after trademark/domain check).
-3. **Domain** (which TLD).
-4. **Timing:** rename-before-launch vs rename-after-launch.
-5. **Infra alignment:** should Docker/AWS move from `insurance_app` to the new name?
+1. **The chosen names** (portfolio + app), after running the candidate clearance funnel (§2) — generate 30–50 candidates, reject collisions, shortlist 3–5.
+2. **Official trademark search result** for the shortlisted names (IP India, Classes 9/36/42) — ideally via counsel.
+3. **Domain** (which TLD, after name is chosen).
+4. **Package-ID scheme:** `com.<app>` (simple) vs `com.<portfolio>.<app>` (multi-product-ready).
+5. **Store publisher name** (individual vs entity).
+6. **Infra alignment:** should Docker/AWS move from `insurance_app` to the new name? (Recommended yes, since `insurance_app` will be wrong the moment a second product ships.)
 
-Once 1–5 are answered, the execution is mechanical and I can run Stages 2–4 as gated commits.
+**Already decided (no longer open):**
+- Timing: rename **before** public launch (per clearance report — not optional).
+- medpiper: eliminated (§9).
+- "CoverWise" may remain only as a temporary internal codename until migration completes.
+
+Once 1–6 are answered, the execution is mechanical and I can run Stages 2–4 as gated commits.
 
 ---
 
@@ -348,3 +442,4 @@ PSRS Technologies Pvt Ltd remains the legal entity for billing/store purposes (p
 
 - 2026-07-28: created. Full-repo audit (Tier 1) + naming strategy. Awaiting founder name decision.
 - 2026-07-28: appended §9 — medpiper elimination directive. 135 soft references, zero in code. Purge joins rename Stage 3.
+- 2026-07-28: integrated `CoverWise_Name_Clearance_and_Brand_Risk_Report_2026-07-28.docx`. Status upgraded from "decision pending" to "rename decided (RED/90+)." Added §0 (evidence summary + release gate), rewrote §2 (criteria informed by the report's design brief + candidate funnel), rewrote §3 (rename is now mandatory, not optional), updated §5 (Stage 0/4 incorporate official registry search + six-point release gate), expanded §6 risk register (CoverSure IRDAI status, suffix-rejection), restructured §7/§8 (medpiper resolved, timing decided). The report's §7 release gate is now the canonical launch gate for any public release.

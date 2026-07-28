@@ -69,7 +69,7 @@ void main() {
       ),
     );
 
-    expect(find.text('SAVED POLICIES'), findsOneWidget);
+    expect(find.text('Saved policies'), findsOneWidget);
     expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
   });
 
