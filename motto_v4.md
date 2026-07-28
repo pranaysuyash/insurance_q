@@ -1,8 +1,11 @@
 # Engineering Motto / Agent Operating Rules v4
 
-Version 4 keeps all v3 rules and adds, from the 2026-07-19 CoverWise decision-record session: (1) agent time-frame honesty — do not frame work in human-time units (weeks/days/sprints); frame in commit-units and decision-units; (2) whole-answer mandate — do the whole right answer, not the small sprint; do not pre-cut work into "next session" as a way to bound effort; (3) decision records are appends, not edits (Update Log rule); (4) the "anything else?" standing review prompt; (5) the ADR-first process for load-bearing decisions; (6) pattern families (substrate extension, privacy policy per surface, data-handling policy per third-party integration); (7) the launch-claim registry for marketing claims; (8) cut/keep/finish anchored to long-term product shape; (9) the one-canonical-motto rule — v4 replaces v2 and v3; old copies are retired across all projects on the next agent-start run.
+Version 4 keeps prior rules and adds, from the 2026-07-19 CoverWise decision-record session: (1) agent time-frame honesty — do not frame work in human-time units (weeks/days/sprints); frame in commit-units and decision-units; (2) whole-answer mandate — do the whole right answer, not the small sprint; do not pre-cut work into "next session" as a way to bound effort; (3) decision records are appends, not edits (Update Log rule); (4) the "anything else?" standing review prompt; (5) the ADR-first process for load-bearing decisions; (6) pattern families (substrate extension, privacy policy per surface, data-handling policy per third-party integration); (7) the launch-claim registry for marketing claims; (8) cut/keep/finish anchored to long-term product shape; (9) the one-canonical-motto rule — v4 replaces legacy editions, with old copies retired across all projects on the next agent-start run. Added 2026-07-28: (10) §0.3.1 "Everything Is a Documentation Candidate" — every discussion, decision, analysis, exploration, audit, redirect, and process insight is a documentation candidate; chat is ephemeral, the repo is the durable memory; record redirects verbatim because paraphrase erases decision logic.
 
-For this workspace, v4 is the ONLY canonical doctrine source. `motto_v2.md` and `motto_v3.md` are retired filenames; they must not exist in any project's working tree after the next agent-start run. Git history preserves them; the working tree carries only `motto_v4.md`.
+For this workspace, v4 is the ONLY canonical doctrine source. Retired legacy
+filenames (including `motto_v2.md` and earlier versions) are not permitted in any
+project's working tree after the next agent-start run. Git history preserves them;
+the working tree carries only `motto_v4.md`.
 
 Before making changes, perform a complete status, architecture, and context review.
 
@@ -75,6 +78,39 @@ The goal is also not to pretend the work is larger than it is. Frame work in com
 - Treat exploration/research maps as living systems: append new findings, reclassify stale assumptions, and link findings to concrete code paths or files where possible.
 - If documentation was skipped due to urgency, create an explicit documentation debt item with owner, scope, and closure criteria before marking done.
 - Prefer repo-local canonical locations for all notes, explorations, discussions, reviews, investigations, decisions, and maps; avoid scattering durable knowledge in ephemeral chat only.
+
+### 0.3.1 "Everything Is a Documentation Candidate" (Required) (v4)
+
+Chat is ephemeral; the repo is the durable memory of the project. A session ends and the conversation vanishes, but a decision, an analysis, a redirect, or an audit survives only if it was written to a durable doc. The default posture is: **if it was worth saying, it is worth documenting.** Treat every substantive exchange as a documentation candidate until proven otherwise.
+
+**Mandatory documentation candidates (write these to durable repo docs, not only to chat):**
+
+- **Discussions** — any back-and-forth that clarified the problem, surfaced a constraint, or changed the direction. The *arc* of a discussion (what was proposed, what was rejected, why) is often more valuable than the conclusion; the redirects and rejections are the decision logic.
+- **Decisions** — every load-bearing choice, including the decision *not* to do something. Record the options considered, the rejection reasons, and what would change the decision. (See §0.12 / §0.12.1 ADR rules.)
+- **Analyses** — any structured evaluation (comparisons, trade studies, scoring, pros/cons, failure-mode analysis). Record the method and the raw inputs, not only the winner.
+- **Explorations** — research, spikes, feasibility checks, "what if" investigations. Record what was looked at, what was found, and what remains unknown. Negative results (this did not work) are documentation candidates too.
+- **Audits and reviews** — code review, security review, readiness review, naming/brand review. Record the findings, the evidence tier, and the closure state of each item.
+- **Redirects and rejections** — when the operator or a reviewer rejects a direction, record the rejection *verbatim* (their words, not a paraphrase) and the consequence. A rejected direction that is not recorded will be re-proposed by the next agent.
+- **Process insights** — lessons about *how* the work was done (what brief was wrong, what method failed, what convergence was misleading). These compound across sessions and are the highest-leverage documentation of all.
+- **Bugs, fixes, and root causes** — not only the fix, but why the bug existed and why the fix is correct.
+- **External findings** — anything discovered about third-party services, registries, pricing, APIs, or market state, with the date and source.
+
+**Depth guidance:**
+
+- **Decision-grade depth** — for any choice that future work depends on: the options, the selection, the rejection reasons, the evidence tier, what would change the decision, and an update-log entry when it changes.
+- **Analysis-grade depth** — for any evaluation: the method, the full candidate set (not only the winner), the criteria, and the raw per-candidate assessment.
+- **Transcript-grade depth** — for any redirect or rejection: the operator's verbatim words (blockquoted) plus the consequence. Paraphrase erases the decision logic; verbatim preserves it.
+- **Skim-grade depth** — for minor observations: a one-line note in the relevant map/log. Not everything needs a dedicated doc; but everything worth saying needs *somewhere* durable.
+
+**Where to document:**
+
+- Prefer repo-local canonical locations (`docs/`, project maps, decision logs). Avoid scattering durable knowledge in tool outputs, shell logs, or chat that will not survive the session.
+- One artifact per logical unit (a decision, an analysis, an audit) — do not collapse unrelated work into a single sprawling doc, and do not fragment one decision across many files.
+- Cross-link related docs; a naming decision should link to the brand audit that motivated it and the rename inventory that will execute it.
+
+**The test:** before ending a session or marking work done, ask — *if this conversation vanished tomorrow, would the next agent be able to reconstruct why we are where we are?* If the answer is no, documentation is incomplete. The goal is not to document everything said; it is to ensure no load-bearing reasoning is lost to chat ephemerality.
+
+**Evidence that this rule is needed:** in the 2026-07-28 CoverWise naming process, the founder's three redirects (commentary-not-comprehension; no-regulatory-signal; generic-RAG-not-India-insurance) did more to sharpen the answer than a 10-role brainstorm panel. Had those redirects lived only in chat, a future agent would have read the panel's Indic-rooted shortlist (Tippani, Amanat, Kosha) and concluded the project landed there — when in fact those directions were all killed by the founder's three sentences. The redirects were captured verbatim to `docs/planning/naming/founder_redirect_transcript_2026-07-28.md` precisely because the operator insisted "every discussion that happens should be a documentation candidate." This clause generalizes that insistence into standing doctrine.
 
 
 ### 0.4 Acceptance Contract Before "Done"
@@ -583,8 +619,12 @@ Never continue implementation from stale generated instruction surfaces in paral
 
 ### 0.17 One Canonical Motto Rule (v4)
 
-- There is exactly one canonical motto in the workspace at any time. `motto_v4.md` replaces `motto_v3.md` and `motto_v2.md` everywhere.
-- On the next `agent-start` run after a motto version change, every project under the workspace root: (a) receives the new motto file, (b) has the old motto files (`motto_v2.md`, `motto_v3.md`) removed from the working tree, and (c) has its managed git hooks re-installed to reference the new motto filename.
+- There is exactly one canonical motto in the workspace at any time. `motto_v4.md`
+  replaces all legacy motto filenames (`motto_v2.md` and earlier) everywhere.
+- On the next `agent-start` run after a motto version change, every project under
+  the workspace root: (a) receives the new motto file, (b) has legacy motto
+  files removed from the working tree, and (c) has its managed git hooks
+  re-installed to reference the new motto filename.
 - Git history preserves retired motto versions; the working tree must not carry them. A project that needs the historical text reads it from git history, not from a stale file on disk.
 - When the motto content changes, its SHA256 changes; every repo's attestation must be refreshed (`attest_motto.py`) before the next commit, and the commit trailers (`Motto-SHA256`) reference the new digest.
 - No project may pin to an old motto version. If a project believes it needs an older rule, that is a conflict to surface in the project's own decision records — not a reason to keep a stale motto file around.
@@ -1341,3 +1381,44 @@ Linters (ruff, eslint, etc.), type checkers (mypy, pyright, tsc), formatters, se
 **Relationship to rule 14 (Validation Rules) and rule 1.1:** those rules require checks to pass and typecheck to be clean. This rule does not weaken them — it sharpens them: "passing" means the check is satisfied by correct code or by a reasoned, recorded deviation, never by silent suppression or by degrading the design.
 
 **Relationship to rule 21 (Code Is Evidence, Not a Boundary):** rule 21 says decision-driven refactors are not optional; this rule says tool-driven downgrades are not acceptable. Together: refactor when a decision changes (rule 21); never refactor *downward* just because a tool complained (rule 22).
+
+---
+
+## 23. Parallel-Authoring, Long-Term Continuity, and Contested Runtime Boundaries
+
+- Never treat a contested runtime file as a permission to skip; maintain a first-principles continuation plan and recheck file state before moving forward.
+- Preserve parallel work by default: if a file is being actively edited elsewhere, do not directly patch it.
+- The correct stop condition is explicit: pause, leave a dated handoff note in canonical docs/worklog, and recheck until the file is stable.
+- No boundary drift: if a contract change is decided, update docs and code contracts in the same decision gate; avoid naming or owner mismatches.
+- Keep the progress united: if a task is blocked by overlap, resume at the next explicit recheck point instead of switching to unrelated edits.
+- Use explicit conflict escalation: document what blocked progress, what is required to continue, and the exact trigger that resumes the task.
+- Do not perform logic deletions under uncertainty; prefer contract-alignment and comment-level sync first, then structural edits only with explicit release confidence.
+
+Implementation addendum for this protocol:
+
+- `vehicleAnimationSystem`-style ownership boundaries are treated as long-term contracts, not temporary refactor targets.
+- **A boundary's mechanism is not protected by the boundary's status.** Treating an ownership contract as long-term protects *which layer owns a truth*. It never immunizes *how that layer computes it* from first-principles correction. When a named owner would re-derive a value the authoritative layer already owns, the mechanism is wrong even though the boundary is right; correct the mechanism and supersede the record (rule 7), do not implement the record literally.
+- **Implementation claims must name their falsifier.** A decision record that asserts implementation — "wired", "delegated", "in the live path", "current checkout shows" — must name the command or check that would fail if the claim stopped being true, and that check must have been run. "Reading the source suggests it" is not implementation evidence. A module that cannot be reached from a shipped entry point is not implemented, regardless of its tests, its types, or its documentation.
+- **Unreachable code cannot be trusted to be correct.** Nothing forces an unimported module to stay consistent with the runtime it describes, so it can hold an arbitrarily wrong design indefinitely without any check failing. Before wiring dormant code, re-derive its correctness against the current authoritative layers rather than assuming its tests imply fitness.
+- Decision-driven refactors are mandatory in the same gate that changes ownership or interfaces.
+- Diff-first verification is mandatory before any cross-tool symlink or startup-script handoff.
+- Use commit-unit progress and decision-unit progress reporting, not human-calendar framing.
+
+---
+
+## Addendum (2026-07-28): Parallel-editor hold and resync protocol
+
+- If a file, route, or decision-boundary is known to be actively updated by another agent, treat it as contested:
+  - do not apply further edits to that same path in the same gate;
+  - do not clear gate blockers tied to that path without a recheck;
+  - do not move the workstream forward by handwaving the blocker as "pre-existing".
+- Required pause action: snapshot current state, append the explicit handoff, and schedule a recheck when the contested stream is stable or ownership is explicitly transferred.
+- Resume condition: state is revalidated against live files and context, then proceed with either canonical acceptance or a documented follow-up scope.
+- This protocol applies even to scoped or small edits when the path owns a shared runtime or cross-agent contract.
+
+## Addendum (2026-07-28): Canonical Motto Refresh and Handoff Integrity
+
+- Before any agent-start handoff or startup-script symlink refresh, always complete a diff check and verification pass of `motto_v4.md` against current live state.
+- If any file in the active workstream is still contested, do not proceed to startup-script integration until that stream is revalidated and stable.
+- If a claim is contested or unclear, the safe state is: stop, hand off with explicit assumptions, recheck later, and only resume when the latest runtime state is verifiable.
+- "Waiting for parallel edits" is not a blocker label; it is an explicit recheck requirement tied to evidence quality and continuity.

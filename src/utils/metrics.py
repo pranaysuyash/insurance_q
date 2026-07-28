@@ -213,11 +213,14 @@ def _sentry_incr(key: str, tags: dict | None = None) -> None:
 
     Safe to call unconditionally — silently no-ops when the Sentry SDK
     has not been initialised (e.g. local development without SENTRY_DSN).
+
+    Uses ``sentry_sdk.metrics.count()`` — the replacement for the
+    removed ``metrics.incr()`` API in sentry-sdk >= 2.0.
     """
     try:
         import sentry_sdk
 
-        sentry_sdk.metrics.incr(key=key, value=1.0, tags=tags or {})
+        sentry_sdk.metrics.count(key=key, value=1.0, tags=tags or {})
     except Exception:
         pass
 
