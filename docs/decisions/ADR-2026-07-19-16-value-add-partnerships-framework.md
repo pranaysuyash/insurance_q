@@ -268,3 +268,30 @@ The pattern is reusable: any third-party integration that handles user data gets
   - `mobile/lib/services/consent_ledger.dart` (the Flutter consent ledger)
   - `supabase/migrations/` (the Supabase migrations; the partner registry is a new migration)
 - **Motto v3 alignment:** §0.4 (acceptance contract; the opt-in is the contract), §0.5 (evidence tiers; the no-share boundary is enforced by a launch-claim registry test), §0.7 (AI output boundary; the framework does not share user data with partners), §0.11 (customer-facing claims; the partner-vetting policy is a customer right), §0.12 (this document).
+
+---
+
+## Update Log
+
+| Date | Entry | Trigger |
+|------|-------|---------|
+| 2026-07-29 | **Reaffirmed + launch-gate clarification per [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) §7 and constitution Principle 10.** The partnerships framework remains disabled by default. Inclusion in the widened wedge does not authorize any partner/referral/offer surface for launch. Any partner path requires a separate accepted ADR, explicit opt-in, purpose-specific consent, no default sharing of uploaded documents, compensation disclosure, and launch-claim coverage. Original reasoning preserved. | Operator direction: layered doctrine stack. |
+
+
+---
+
+## Doctrine reconciliation note (2026-07-29)
+
+> Append-only note added 2026-07-29. This section does not modify any prior
+> content in this ADR; the original decision, reasoning, and existing update
+> logs above remain intact and authoritative for their date.
+
+- **Date:** 2026-07-29
+- **Governing ADR:** [ADR-2026-07-29-02 (doctrine stack reconciliation)](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md)
+- **What changed:** [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) establishes a layered doctrine stack. The [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) (`docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md`) now sits above feature ADRs, with a five-gate stack (Gates A-E: Outcome, Truth, Product role, Lifecycle, Strategy/commercial). Reaffirmed + launch-gate clarification: partnerships framework remains disabled by default. Inclusion in the widened wedge does not authorize any partner/referral/offer surface for launch. Any partner path requires a separate accepted ADR, explicit opt-in, purpose-specific consent, no default document sharing, compensation disclosure, launch-claim coverage.
+- **Why:** Operator direction to unify two competing uncommitted first-principles documents into one layered stack before any boundary-shaped code changes.
+- **What triggered it:** Discovery that the repository held conflicting uncommitted doctrine (Principles vs Wedge) and that ADR-2026-07-29-01 self-declared "Accepted" without sign-off evidence.
+- **What original reasoning remains valid:** All prior reasoning in this ADR is preserved unchanged. This note only constrains surface semantics where they intersect the constitution's gates.
+- **Status change for this ADR:** None (this ADR's own status is unchanged by this note).
+- **Operator sign-off:** None required for this note; it records the reconciliation linkage. The reconciliation ADR itself remains Proposed pending operator sign-off.
+- **Code authorization:** None. No code, route, entitlement, pricing, comparison, claims, renewal, camera, demo, or onboarding change is authorized by this note.

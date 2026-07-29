@@ -298,15 +298,16 @@ void main() {
 
     testWidgets('renders coverage matrix section label', (tester) async {
       await tester.pumpWidget(buildFamilyScreen());
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // No build errors should occur
       expect(tester.takeException(), isNull);
       // Verify page renders at all
       expect(find.text('John Doe'), findsWidgets);
-      // Coverage matrix section label
+
+      // Coverage matrix is below the fold; scroll to make it visible
+      await tester.scrollUntilVisible(find.text('Coverage summary'), 200);
+      await tester.pumpAndSettle();
       expect(find.text('Coverage summary'), findsOneWidget);
     });
 

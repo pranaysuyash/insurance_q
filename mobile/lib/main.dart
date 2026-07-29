@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:app_links/app_links.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'l10n/app_localizations_gen.dart';
+import 'utils/deep_link_policy.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +23,8 @@ import 'screens/claims_assistant_screen.dart';
 import 'screens/renewal_calendar_screen.dart';
 import 'screens/coverage_gap_screen.dart';
 import 'models/field_citation.dart';
+import 'models/policy_summary.dart';
+import 'models/reset_password_args.dart';
 import 'screens/policy_comparison_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/help_support_screen.dart';
@@ -80,7 +82,7 @@ void main() async {
       await SentryFlutter.init(
         (options) {
           options.dsn = AppConfig.sentryDsn;
-          options.environment = AppConfig.environment;
+          options.environment = AppConfig.environment.name;
           options.release = AppConfig.appVersion;
           options.tracesSampleRate = AppConfig.isProduction ? 0.1 : 1.0;
         },
@@ -95,7 +97,11 @@ void main() async {
       await _startup();
     }
   }, (error, stackTrace) {
-    // Catch zone errors that escape the framework
+    // Catch zone errors that escape the framework.
+    // Always report to Sentry when available; in debug also print locally.
+    if (AppConfig.hasSentryConfig) {
+      Sentry.captureException(error, stackTrace: stackTrace);
+    }
     if (kDebugMode) {
       debugPrint('=== ZONE ERROR ===');
       debugPrint('Error: $error');
@@ -138,7 +144,8 @@ Future<void> _startup() async {
   if (AuthService.hasAccountSession) {
     // For authenticated sessions, use the account user ID
     final currentUser = Supabase.instance.client.auth.currentUser;
-    principalId = currentUser?.id ?? 'anonymous';
+    principalId =
+        currentUser?.id ?? 'local-only-${InstallService.getInstallId()}';
   } else if (AppConfig.hasSupabaseAuthConfig) {
     // For anonymous sessions, use the Supabase anonymous user ID when the
     // project enables anonymous sign-ins. Some production projects disable
@@ -148,7 +155,8 @@ Future<void> _startup() async {
     try {
       final anonSession =
           await Supabase.instance.client.auth.signInAnonymously();
-      principalId = anonSession.user?.id ?? 'anonymous';
+      principalId =
+          anonSession.user?.id ?? 'local-only-${InstallService.getInstallId()}';
     } catch (error) {
       debugPrint(
         'Anonymous Supabase auth unavailable; using local principal: $error',
@@ -242,10 +250,25 @@ Future<void> _migrateLegacyHiveBoxes() async {
       }
     }
 
-    // Clear the legacy device-key from secure storage after migration
-    final secureStorage = FlutterSecureStorage();
-    await secureStorage.delete(key: PrincipalKeyService.oldDeviceKeyStorageKey);
-    debugPrint('Legacy device-key cleared from secure storage');
+    // Verify all boxes migrated before clearing the legacy device key.
+    // If any box failed, the key must remain so migration can retry
+    // on the next launch.
+    bool allMigrated = true;
+    for (final boxName in boxesToMigrate) {
+      if (!await principalKeys.hasMigrationRun(boxName)) {
+        debugPrint('Migration incomplete for $boxName — retaining legacy key');
+        allMigrated = false;
+        break;
+      }
+    }
+    if (allMigrated) {
+      final secureStorage = FlutterSecureStorage();
+      await secureStorage.delete(
+          key: PrincipalKeyService.oldDeviceKeyStorageKey);
+      debugPrint('Legacy device-key cleared from secure storage');
+    } else {
+      debugPrint('Legacy device-key retained — some boxes did not migrate');
+    }
   } catch (e) {
     debugPrint('Error during Hive box migration: $e');
     // Do not open the new-key workspace after a failed migration: doing so
@@ -278,7 +301,14 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   ProviderSubscription<AsyncValue<AuthState>>? _authSubscription;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  bool _workspaceTransitionInProgress = false;
+
+  /// The principal ID that is currently being transitioned to. Used to
+  /// detect stale transitions and serialize concurrent auth events.
+  String? _desiredPrincipalId;
+
+  /// Monotonically increasing epoch for each principal change. Used to
+  /// discard stale reconciliation results after a newer transition.
+  int _principalEpoch = 0;
 
   @override
   void initState() {
@@ -292,24 +322,43 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
     _authSubscription = ref.listenManual<AsyncValue<AuthState>>(
       authStateProvider,
       (_, next) {
-        final principalId = next.asData?.value.session?.user.id;
-        if (principalId != null) {
-          // Clear session-expired banner when a new valid session arrives.
-          // This handles normal sign-in (email/password/OAuth) which goes
-          // through Supabase auth state changes, not the Dio interceptor.
+        final session = next.asData?.value.session;
+        if (session != null) {
+          // Authenticated session arrived — transition workspace.
+          final principalId = session.user.id;
           ref.read(authServiceProvider.notifier).updateSessionExpired(false);
 
           final preserveWorkspace =
               AuthService.consumeAnonymousWorkspaceClaim();
+          _desiredPrincipalId = principalId;
+          _principalEpoch++;
+          final epoch = _principalEpoch;
+
           unawaited(_handleAuthenticatedSessionTransition(
             principalId,
             preserveCurrentWorkspace: preserveWorkspace,
-          ).then((_) => _retryPendingUploads()));
-          unawaited(_syncClaims());
+            principalEpoch: epoch,
+          ).then((_) => _retryPendingUploads(epoch: epoch)));
+          unawaited(_syncClaims(epoch: epoch));
           if (AppConfig.hasRevenueCatConfig) {
             unawaited(
                 ref.read(billingAdapterProvider).identifyAccount(principalId));
           }
+        } else {
+          // Session became null — user signed out or session expired.
+          // Transition to local-only workspace and clear the old principal's
+          // encryption key from memory.
+          PrincipalKeyService().clearKey();
+          final localPrincipal = 'local-only-${InstallService.getInstallId()}';
+          _desiredPrincipalId = localPrincipal;
+          _principalEpoch++;
+          final epoch = _principalEpoch;
+
+          unawaited(_handleAuthenticatedSessionTransition(
+            localPrincipal,
+            preserveCurrentWorkspace: false,
+            principalEpoch: epoch,
+          ));
         }
       },
     );
@@ -333,11 +382,18 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
     super.dispose();
   }
 
-  Future<void> _retryPendingUploads() async {
+  /// Epoch-gated upload reconciliation. Stale requests are discarded
+  /// both before and after the work to prevent cross-principal data
+  /// corruption.
+  Future<void> _retryPendingUploads({int? epoch}) async {
+    final e = epoch ?? _principalEpoch;
+    // Discard stale requests early — do not execute work for a
+    // principal that is no longer desired.
+    if (e != _principalEpoch) return;
     try {
       await DocumentService(DocumentService.authenticatedDio)
           .retryPendingUploads();
-      if (mounted) {
+      if (mounted && e == _principalEpoch) {
         ref.invalidate(documentsProvider);
       }
     } catch (error) {
@@ -345,12 +401,13 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
     }
   }
 
-  /// Sync local claims with the backend (best-effort, fire-and-forget).
-  /// Called on startup, connectivity restore, and auth session transitions.
-  Future<void> _syncClaims() async {
+  /// Epoch-gated claims sync. Stale requests are discarded both
+  /// before and after the work.
+  Future<void> _syncClaims({int? epoch}) async {
+    final e = epoch ?? _principalEpoch;
+    if (e != _principalEpoch) return;
     try {
-      final syncService =
-          ClaimsSyncService(ClaimsSyncService.authenticatedDio);
+      final syncService = ClaimsSyncService(ClaimsSyncService.authenticatedDio);
       final result = await syncService.fullSync();
       if (result.errorMessage != null) {
         debugPrint('Claims sync failed: ${result.errorMessage}');
@@ -363,12 +420,36 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   Future<void> _handleAuthenticatedSessionTransition(
     String principalId, {
     bool preserveCurrentWorkspace = false,
+    required int principalEpoch,
   }) async {
-    await _reopenWorkspaceForPrincipal(
-      principalId,
-      preserveCurrentWorkspace: preserveCurrentWorkspace,
-    );
+    // If a newer transition has been requested since this one started,
+    // skip the workspace reopen — the newer request will handle it.
+    if (principalEpoch != _principalEpoch ||
+        _desiredPrincipalId != principalId) {
+      return;
+    }
+
+    try {
+      await _reopenWorkspaceForPrincipal(
+        principalId,
+        preserveCurrentWorkspace: preserveCurrentWorkspace,
+      );
+    } catch (error) {
+      // Workspace transition failure is logged and observed but does not
+      // propagate to the zone handler via rethrow. The caller (unawaited)
+      // cannot catch zone-level exceptions. The workspace remains in its
+      // previous state and the user sees stale or empty data until retry.
+      debugPrint('Workspace transition failed (epoch $principalEpoch): $error');
+      return;
+    }
+
     if (!preserveCurrentWorkspace) return;
+
+    // Only claim anonymous data if this is still the desired principal.
+    if (principalEpoch != _principalEpoch ||
+        _desiredPrincipalId != principalId) {
+      return;
+    }
     try {
       await AuthService.claimAnonymousData();
     } catch (error) {
@@ -381,24 +462,15 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
     String principalId, {
     bool preserveCurrentWorkspace = false,
   }) async {
-    if (_workspaceTransitionInProgress ||
-        PrincipalKeyService().principalId == principalId) {
+    if (PrincipalKeyService().principalId == principalId) {
       return;
     }
-    _workspaceTransitionInProgress = true;
-    try {
-      // Do not carry account A's buffered analytics into account B's session.
-      ref.read(analyticsServiceProvider.notifier).resetForWorkspace();
-      await HiveWorkspaceService.resetForPrincipal(
-        principalId,
-        preserveCurrentWorkspace: preserveCurrentWorkspace,
-      );
-    } catch (error, stackTrace) {
-      debugPrint('Workspace principal transition failed: $error');
-      debugPrint('$stackTrace');
-    } finally {
-      _workspaceTransitionInProgress = false;
-    }
+    // Do not carry account A's buffered analytics into account B's session.
+    ref.read(analyticsServiceProvider.notifier).resetForWorkspace();
+    await HiveWorkspaceService.resetForPrincipal(
+      principalId,
+      preserveCurrentWorkspace: preserveCurrentWorkspace,
+    );
   }
 
   void _initDeepLinks() {
@@ -419,9 +491,15 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   void _handleDeepLink(Uri uri) {
     final nav = _navigatorKey.currentState;
     if (nav == null) return;
-    // Custom-scheme links such as io.coverwise://emergency place the route in
-    // the URI host, while universal links place it in the path.
-    final path = uri.path.isNotEmpty ? uri.path : '/${uri.host}';
+
+    // Validate the deep link against the security policy before routing.
+    final validation = DeepLinkPolicy.validate(uri);
+    if (!validation.isValid) {
+      debugPrint('Deep link rejected: ${validation.error}');
+      return;
+    }
+
+    final path = validation.path!;
 
     switch (path) {
       case '/emergency':
@@ -431,23 +509,14 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       case '/renewals':
         nav.pushNamed('/renewals');
       case '/coverage-gaps':
+        // Only accept a bounded documentId identifier from the URL.
+        // Citations, extracted text, confidence values, and other evidence
+        // must NEVER come from deep links — they are loaded from the
+        // authenticated backend or verified local workspace.
         final docId = uri.queryParameters['documentId'] ?? '';
-        final citationsJson = uri.queryParameters['citations'];
-        List<Map<String, dynamic>> citations = [];
-        if (citationsJson != null && citationsJson.isNotEmpty) {
-          try {
-            final decoded = Uri.decodeComponent(citationsJson);
-            final parsed = jsonDecode(decoded);
-            if (parsed is List) {
-              citations = parsed.cast<Map<String, dynamic>>();
-            }
-          } catch (_) {
-            // Malformed citations — render empty
-          }
-        }
         nav.pushNamed('/coverage-gaps', arguments: {
           'documentId': docId,
-          'citations': citations,
+          // Citations are fetched from the backend by CoverageGapScreen.
         });
       case '/compare':
         nav.pushNamed('/compare');
@@ -458,8 +527,12 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         nav.pushNamed('/qa', arguments: docId);
       case '/reset-callback':
         // Password reset redirect from Supabase email link.
-        // The access_token and refresh_token are in the fragment (#) for PKCE flow.
-        nav.pushNamed('/reset-password', arguments: uri.toString());
+        // Supabase handles the token exchange internally via the deep link.
+        // Do NOT pass the raw URI — it may contain auth material in the
+        // fragment that would leak through route settings, crash breadcrumbs,
+        // and debug logs. ResetPasswordScreen calls Supabase auth.updateUser()
+        // directly and does not need the redirect URL.
+        nav.pushNamed('/reset-password', arguments: const ResetPasswordArgs());
       case '/login-callback':
         // Google Sign-In redirect — Supabase handles token exchange.
         // The session is established automatically by the Supabase client.
@@ -487,12 +560,6 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
     // Watch locale changes — rebuilds MaterialApp when user changes language.
     ref.watch(localeTagProvider);
 
-    // Kick off RevenueCat billing init + entitlement sync.
-    // The FutureProvider auto-runs once; its result is cached.
-    if (AppConfig.hasRevenueCatConfig) {
-      ref.watch(billingInitProvider);
-    }
-
     return MaterialApp(
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: CoverWiseSnackBar.scaffoldMessengerKey,
@@ -500,8 +567,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
       theme: CoverWiseTheme.light(),
       darkTheme: CoverWiseTheme.dark(),
       themeMode: _getThemeMode(),
-      localizationsDelegates:
-          AppLocalizationsGen.localizationsDelegates,
+      localizationsDelegates: AppLocalizationsGen.localizationsDelegates,
       supportedLocales: AppLocalizationsGen.supportedLocales,
       locale: ref.watch(activeLocaleProvider),
       home: AnimatedSwitcher(
@@ -660,14 +726,10 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
               screenName: 'account',
               child: AccountScreen(),
             ),
-        '/reset-password': (context) {
-          final redirectUrl =
-              ModalRoute.of(context)?.settings.arguments as String? ?? '';
-          return ScreenErrorBoundary(
-            screenName: 'reset-password',
-            child: ResetPasswordScreen(redirectUrl: redirectUrl),
-          );
-        },
+        '/reset-password': (context) => const ScreenErrorBoundary(
+              screenName: 'reset-password',
+              child: ResetPasswordScreen(),
+            ),
         '/family': (context) => const ScreenErrorBoundary(
               screenName: 'family',
               child: FamilyScreen(),
@@ -776,16 +838,18 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       _visitedTabs.add(1);
       _scheduleDemoNavigation();
     }
+    _initBilling();
   }
 
   @override
   Widget build(BuildContext context) {
     // Schedule renewal reminders when summaries are loaded (once per session).
-    final summaries = ref.watch(policySummariesProvider);
-    if (!_notificationsScheduled && summaries.isNotEmpty) {
-      _notificationsScheduled = true;
-      NotificationService.scheduleRenewalReminders(summaries);
-    }
+    // Side effects must not run inside build(); use a listener instead.
+    ref.listen(policySummariesProvider, (prev, next) {
+      if (next.isNotEmpty) {
+        _scheduleRenewalReminders(next);
+      }
+    });
 
     return Scaffold(
       body: Column(
@@ -868,5 +932,19 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         _visitedTabs.add(1);
       });
     });
+  }
+
+  void _scheduleRenewalReminders(List<PolicySummary> summaries) {
+    if (_notificationsScheduled || summaries.isEmpty) return;
+    _notificationsScheduled = true;
+    // Schedule asynchronously — never inside build().
+    unawaited(NotificationService.scheduleRenewalReminders(summaries));
+  }
+
+  void _initBilling() {
+    if (!AppConfig.hasRevenueCatConfig) return;
+    // Kick off RevenueCat billing init + entitlement sync.
+    // Use ref.read to trigger the FutureProvider's auto-run exactly once.
+    ref.read(billingInitProvider);
   }
 }

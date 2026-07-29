@@ -4,6 +4,7 @@
 **Version:** 1.0 baseline, 2026-07-21
 **Owner / next reviewer:** Pranay
 **Evidence boundary:** This document separates static code evidence, targeted-test evidence, runtime/manual evidence, product decisions, and future exploration. A journey marked “current” means the path exists in the present codebase; it does not mean the whole journey has passed real-device end-to-end validation.
+**Product doctrine:** every journey in this map must conform to the [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) (Proposed, per [ADR-2026-07-29-02](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md)). The boundary in §1 below is governed by the constitution's five-gate stack; where this map's older wording implies advice, ranking, claim management, or renewal transactions, the constitution narrows it.
 
 ## 0. Why this document exists
 

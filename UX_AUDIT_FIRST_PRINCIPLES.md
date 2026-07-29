@@ -400,3 +400,61 @@ gantt
 ---
 
 *End of audit. Ready to execute P0 when aligned.*
+
+---
+
+## ⚠️ Supersession Notice (2026-07-29)
+
+This audit (2026-07-23) predates the layered doctrine stack established by [ADR-2026-07-29-02](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md). Several P0/P1 recommendations are either superseded or narrowed by the Product Constitution and the First-Principles Wedge.
+
+### Recommendations that are superseded
+- **Demo policy** (P0-02): Rejected as default onboarding. A read-only marketing-site example remains an experiment. See ADR-2026-07-29-02 §4.10.
+- **Camera-first upload** (P0-04): Rejected as default path; optional fallback allowed. See ADR-2026-07-29-02 §4.9.
+- **What-if calculator** (P2): Constitutional rejection (Gate C — speculative, implies underwriting authority). See constitution Principle 4.
+- **Advisor marketplace / "connect with an agent"** (P3): Outside the wedge (Gate C — implies brokering).
+- **Insurance literacy quiz / content feed** (P3): Outside the wedge (education ≠ comprehension of own policies).
+- **Claim assistant beyond process/contacts** (P3b): Narrowed — policy-stated process + contacts only (Gate C). No guided filing, denial strategy, or escalation workflow. See ADR-2026-07-29-02 §4.4.
+
+### Findings that remain valid
+- Upload friction / comprehension-delay analysis
+- Streamed Q&A requirement
+- Coverage-summary-first UX direction
+- Evidence/citation badge importance
+- Multi-language support direction
+- Offline-first architecture
+- Retention and engagement diagnosis
+
+### Governing documents
+
+| Layer | Document |
+|-------|----------|
+| Product constitution | [`docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md`](docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md) |
+| Strategy & wedge | [`docs/architecture/FIRST_PRINCIPLES_WEDGE.md`](docs/architecture/FIRST_PRINCIPLES_WEDGE.md) |
+| Commercial boundary | [`docs/architecture/FREE_VS_PAID_BOUNDARY.md`](docs/architecture/FREE_VS_PAID_BOUNDARY.md) |
+| Reconciliation | [`docs/decisions/ADR-2026-07-29-02`](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md) |
+
+This supersession notice is append-only. Original audit text preserved unchanged. Added 2026-07-29 per ADR-2026-07-29-02 Phase 7.
+---
+
+## Addendum (2026-07-29): Supersession status per recommendation
+
+> This addendum is append-only. The original audit (2026-07-23) is preserved unchanged as a historical record. This section classifies its recommendations against the now-proposed layered doctrine stack ([ADR-2026-07-29-02](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md); [Product Constitution](docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md)). The audit's UX/engineering observations (god-object screens, motion gaps, IA critique) remain useful; several of its product-direction recommendations are superseded.
+
+### Superseded recommendations
+
+| Audit recommendation | Status | Governing doctrine |
+|----------------------|--------|--------------------|
+| **Demo policy** (§3.1, "surface bundled demo as 'Try with sample policy'") | **Rejected for launch.** A read-only marketing-site/onboarding-preview example remains an experiment, not a constitutional violation. | [ADR-2026-07-29-02 §4.10](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md) |
+| **Direct-to-camera onboarding** (P0 §9, §3.1) | **Superseded as default.** Strategy decision; direct digital import preferred, camera optional fallback. | [ADR-2026-07-29-02 §4.9](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md) |
+| **What-if calculator integration** (P2 §9, §3.5) | **Cut.** Speculative, implies underwriting authority. (Gate C rejection; reaffirmed by [ADR-2026-07-19-13](docs/decisions/ADR-2026-07-19-13-what-if-premium-refused-as-product-capability.md).) | [Product Constitution Principle 4](docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md) |
+| **Advisor marketplace** ("Talk to a human", P3 §9) | **Outside the wedge.** Implies brokering/referral. | [Product Constitution Principle 4, 10](docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md) |
+| **Claim assistant — guided incident capture → insurer submit** (P3 §9) | **Outside by default.** Guided filing/representation/insurer-submit is claims consultancy, not policy-stated process info. Inside scope = policy-stated process + contacts only. | [ADR-2026-07-29-02 §4.4](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md) |
+| **Policy health score** ("87/100", §3.5, P3) | **Outside.** A suitability/protection score is an adequacy judgement (Gate C). | [Product Constitution Principle 4](docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md) |
+| **"Coverage gap: No term life" expansion insight** (§3.5) | **Reframed.** Must be "coverage facts and verification prompts" with evidence-state wording; never "you have no X" from absence. | [ADR-2026-07-29-02 §4.3](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md) |
+| **Executive summary card / streaming QA / dynamic More screen / nav restructure** | **Valid UX direction**, subject to the gate stack (must not introduce advisory surfaces). | [Product Constitution Gates A-E](docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md) |
+
+### Note on framing
+
+The audit's opening framing — "CoverWise should be an insurance intelligence agent... what-if modeling, claim guidance" — describes a *different, regulated product*. Under the now-proposed constitution, those activities are out of scope by default. The audit's *engineering* findings (refactor god-objects, add streaming, fix motion) remain valid; its *product-expansion* recommendations do not.
+
+This audit must not be cited as authorization for demo policy, camera-first, what-if calculator, advisor marketplace, or guided claim filing.

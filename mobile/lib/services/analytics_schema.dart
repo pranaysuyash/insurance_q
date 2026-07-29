@@ -286,6 +286,32 @@ const Map<String, Map<String, AnalyticsPropertyType>> kEventSchemas = {
     'source_surface': AnalyticsPropertyType.string,
   },
 
+  // ── Upload→Q&A funnel events (2026-07-28) ────────────────────────────
+  // Fired the very first time a user submits a question across all installs.
+  // Uses SharedPreferences has_ever_asked_question flag for dedup. This
+  // is the final step in the upload→Q&A→first-question funnel, enabling
+  // measurement of "of all users who uploaded a document, what % asked
+  // at least 1 question?"
+  'first_question_asked': {
+    'question_length_bucket': AnalyticsPropertyType.string,
+  },
+
+  // ── Onboarding funnel events (2026-07-28) ────────────────────────────
+  // Fired when the user first opens the onboarding screen.
+  'onboarding_started': {},
+
+  // Fired every time the user swipes to a new onboarding page.
+  'onboarding_step_viewed': {
+    'step': AnalyticsPropertyType.number,
+    'total_steps': AnalyticsPropertyType.number,
+  },
+
+  // Fired when the user completes onboarding (taps "Add my first policy").
+  'onboarding_completed': {
+    'analytics_consent': AnalyticsPropertyType.boolean,
+    'total_steps': AnalyticsPropertyType.number,
+  },
+
   // ── Policy detail events (detail flow matrix, 2026-07-24) ──────────
   // Fired once per mount when the policy detail screen opens.
   'policy_detail_opened': {

@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/policy_summary.dart';
+import '../providers/entitlement_provider.dart';
 import '../theme/coverwise_theme.dart';
 import '../utils/policy_type.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 import '../l10n/app_localizations_gen.dart';
 
-class CoverageDetailsSummaryScreen extends StatelessWidget {
+class CoverageDetailsSummaryScreen extends ConsumerWidget {
   final PolicySummary summary;
 
   const CoverageDetailsSummaryScreen({super.key, required this.summary});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizationsGen.of(context);
     final theme = Theme.of(context);
     final policyType = classifyPolicyType(summary.documentType);
@@ -25,7 +27,7 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.ios_share_rounded),
             tooltip: l10n.coverageShareSummary,
-            onPressed: () => _shareSummary(context),
+            onPressed: () => _shareSummary(context, ref),
           ),
         ],
       ),
@@ -486,8 +488,23 @@ class CoverageDetailsSummaryScreen extends StatelessWidget {
     );
   }
 
-  void _shareSummary(BuildContext context) {
+  void _shareSummary(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizationsGen.of(context);
+
+    // Gate G1: export is a convenience feature, not comprehension.
+    // Free users can view the summary in-app but cannot export/share.
+    // Uses checkAction() to also handle expired-subscription cases.
+    final gateReason = ref.read(entitlementProvider.notifier).checkAction('export');
+    if (gateReason != null) {
+      CoverWiseSnackBar.warning(
+        context,
+        gateReason,
+        actionLabel: 'Upgrade',
+        onAction: () => Navigator.pushNamed(context, '/plans'),
+      );
+      return;
+    }
+
     try {
       final text = buildCoverageShareText(summary);
       SharePlus.instance.share(ShareParams(

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/qa_models.dart';
 import '../models/document_model.dart';
 import '../config/app_config.dart';
@@ -50,6 +51,7 @@ class QaScreenState extends ConsumerState<QaScreen>
   late TabController _tabController;
   final TextEditingController _customQuestionController =
       TextEditingController();
+  final FocusNode _customQuestionFocusNode = FocusNode();
   bool _demoSequenceStarted = false;
   int _demoSequenceGeneration = 0;
   bool _questionRequestInFlight = false;
@@ -66,6 +68,21 @@ class QaScreenState extends ConsumerState<QaScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // Track screen view
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.track('screen_viewed', {'screen_name': 'qa'});
+    });
+
+    // When Q&A opens with a document pre-selected (e.g. after first
+    // upload), switch to the custom question tab and auto-focus the
+    // input so the user can start typing immediately.
+    if (widget.initialDocumentId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tabController.animateTo(1);
+        _focusQuestionInput();
+      });
+    }
     _maybeStartDemoSequence();
   }
 
@@ -135,6 +152,18 @@ class QaScreenState extends ConsumerState<QaScreen>
     }
   }
 
+  void _focusQuestionInput() {
+    // Request focus on the custom question TextField. The keyboard
+    // appears so the user can start typing immediately.
+    // We use a post-frame callback because the tab switch to the
+    // custom question tab needs to complete first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.isActive) {
+        FocusScope.of(context).requestFocus(_customQuestionFocusNode);
+      }
+    });
+  }
+
   void _showDocumentSelectionDialog() {
     final documents = ref.read(documentsProvider).asData?.value ?? [];
     showDialog(
@@ -157,6 +186,7 @@ class QaScreenState extends ConsumerState<QaScreen>
     _onDeviceInference.dispose();
     _tabController.dispose();
     _customQuestionController.dispose();
+    _customQuestionFocusNode.dispose();
     super.dispose();
   }
 
@@ -232,6 +262,9 @@ class QaScreenState extends ConsumerState<QaScreen>
               ? 'medium'
               : 'long',
     });
+
+    // Fire first_question_asked once per install
+    _trackFirstQuestionIfNeeded(question);
 
     try {
       String formattedQuestion = question;
@@ -449,6 +482,9 @@ class QaScreenState extends ConsumerState<QaScreen>
               ? 'medium'
               : 'long',
     });
+
+    // Fire first_question_asked once per install
+    _trackFirstQuestionIfNeeded(question);
 
     try {
       String formattedQuestion = question;
@@ -685,6 +721,30 @@ class QaScreenState extends ConsumerState<QaScreen>
     return null;
   }
 
+  /// Fire [first_question_asked] once per install. Uses SharedPreferences
+  /// to deduplicate across app launches and sessions. The flag is never
+  /// cleared — once a user has asked a question, it's recorded permanently.
+  Future<void> _trackFirstQuestionIfNeeded(String question) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('has_ever_asked_question') == true) return;
+      await prefs.setBool('has_ever_asked_question', true);
+      final bucket = question.length < 30
+          ? 'short'
+          : question.length < 80
+              ? 'medium'
+              : 'long';
+      AnalyticsService.track(
+        'first_question_asked',
+        {
+          'question_length_bucket': bucket,
+        },
+      );
+    } catch (e) {
+      debugPrint('Analytics: failed to track first_question_asked: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizationsGen.of(context);
@@ -740,6 +800,7 @@ class QaScreenState extends ConsumerState<QaScreen>
                 ),
                 _CustomQuestionTab(
                   controller: _customQuestionController,
+                  focusNode: _customQuestionFocusNode,
                   isLoading: isLoading,
                   currentAnswer: currentAnswer,
                   onAskQuestion: _askQuestion,
@@ -1106,6 +1167,7 @@ class _StandardQuestionsTab extends StatelessWidget {
 
 class _CustomQuestionTab extends StatelessWidget {
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final bool isLoading;
   final QaAnswer? currentAnswer;
   final Future<void> Function(String) onAskQuestion;
@@ -1113,6 +1175,7 @@ class _CustomQuestionTab extends StatelessWidget {
 
   const _CustomQuestionTab({
     required this.controller,
+    this.focusNode,
     required this.isLoading,
     required this.currentAnswer,
     required this.onAskQuestion,
@@ -1137,6 +1200,7 @@ class _CustomQuestionTab extends StatelessWidget {
           const SizedBox(height: 16),
           TextField(
             controller: controller,
+            focusNode: focusNode,
             decoration: InputDecoration(
               hintText: l10n.qaHintText,
               suffixIcon: IconButton(

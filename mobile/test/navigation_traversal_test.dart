@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:coverwise/screens/insights_screen.dart';
-import 'package:coverwise/screens/dashboard_screen.dart';
 import 'package:coverwise/screens/what_if_calculator_screen.dart';
 import 'package:coverwise/l10n/app_localizations_gen.dart';
 import 'package:coverwise/models/policy_summary.dart';
 import 'package:coverwise/providers/policy_providers.dart';
-import 'package:riverpod/riverpod.dart';
 
 PolicySummary _sampleSummary() => PolicySummary(
       documentId: 'doc-1',
@@ -25,7 +23,9 @@ class _SamplePolicySummaries extends PolicySummariesNotifier {
 }
 
 void main() {
-  testWidgets('Insights screen coverage overview passes Map arguments to /coverage-gaps', (tester) async {
+  testWidgets(
+      'Insights screen coverage overview passes Map arguments to /coverage-gaps',
+      (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -43,7 +43,9 @@ void main() {
     expect(find.text('Coverage overview'), findsOneWidget);
   });
 
-  testWidgets('WhatIfCalculatorScreen renders cleanly when registered on /what-if route', (tester) async {
+  testWidgets(
+      'WhatIfCalculatorScreen renders cleanly when registered on /what-if route',
+      (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

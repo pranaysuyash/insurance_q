@@ -7,6 +7,8 @@ or UI copy unless its highest verified evidence tier is at least Tier 3 for
 high-risk claims (privacy, security, billing, health) or Tier 2 for
 medium/low-risk claims.
 
+> **Product doctrine:** every claim must also pass the [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) gate stack (Proposed, per [ADR-2026-07-29-02](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md)). A claim that asserts recommendation, quoting, underwriting, ranking, claim representation, or transaction facilitation fails Gate C and may not ship regardless of evidence tier. Pricing claims ("PPP-adjusted", specific ₹ figures) require a sourced benchmark per [ADR-2026-07-29-02 §4.7](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md); until sourced they are experiments, not claims.
+
 ## Registry entries
 
 | # | Claim | Registry file | Evidence tier | Status |

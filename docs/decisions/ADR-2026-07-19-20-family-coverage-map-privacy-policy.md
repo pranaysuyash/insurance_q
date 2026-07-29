@@ -111,3 +111,30 @@ The "privacy policy per surface" pattern (per ADR-15) is now well-established. T
 All three follow the same minimum-viable privacy stance: no-share + principal encryption + user's right to export/delete. The formal consent purpose, retention enforcement, per-document encryption, support-operator access rules, and export-as-PDF are deferred to a future revisit, following the ADR-15 pattern.
 
 The full set of privacy ADRs (ADR-15, ADR-20, plus the future Coverage Check-in and Coverage Adequacy privacy ADRs) is the privacy workstream. The workstream is a future exploration (per the operator's "I don't want my solo product to be bogged down because of these extra regulatory stuff"). The minimum-viable privacy stance is the launch state for each surface.
+
+---
+
+## Update Log
+
+| Date | Entry | Trigger |
+|------|-------|---------|
+| 2026-07-29 | **Reaffirmed per [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md).** Privacy policy remains valid. Surface semantics constrained by constitution Principle 4 (organises members and cited policy relationships; does not declare household sufficiency). Original reasoning preserved. | Operator direction: layered doctrine stack. |
+
+
+---
+
+## Doctrine reconciliation note (2026-07-29)
+
+> Append-only note added 2026-07-29. This section does not modify any prior
+> content in this ADR; the original decision, reasoning, and existing update
+> logs above remain intact and authoritative for their date.
+
+- **Date:** 2026-07-29
+- **Governing ADR:** [ADR-2026-07-29-02 (doctrine stack reconciliation)](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md)
+- **What changed:** [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) establishes a layered doctrine stack. The [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) (`docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md`) now sits above feature ADRs, with a five-gate stack (Gates A-E: Outcome, Truth, Product role, Lifecycle, Strategy/commercial). Reaffirmed: privacy policy remains valid. Surface semantics constrained (organises members and cited policy relationships; does not declare household sufficiency - Gate C).
+- **Why:** Operator direction to unify two competing uncommitted first-principles documents into one layered stack before any boundary-shaped code changes.
+- **What triggered it:** Discovery that the repository held conflicting uncommitted doctrine (Principles vs Wedge) and that ADR-2026-07-29-01 self-declared "Accepted" without sign-off evidence.
+- **What original reasoning remains valid:** All prior reasoning in this ADR is preserved unchanged. This note only constrains surface semantics where they intersect the constitution's gates.
+- **Status change for this ADR:** None (this ADR's own status is unchanged by this note).
+- **Operator sign-off:** None required for this note; it records the reconciliation linkage. The reconciliation ADR itself remains Proposed pending operator sign-off.
+- **Code authorization:** None. No code, route, entitlement, pricing, comparison, claims, renewal, camera, demo, or onboarding change is authorized by this note.

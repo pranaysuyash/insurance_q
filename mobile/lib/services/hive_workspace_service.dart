@@ -63,10 +63,16 @@ class HiveWorkspaceService {
   /// Ordinary principal switches discard the previous workspace. An explicit
   /// anonymous-to-account claim may set [preserveCurrentWorkspace] to carry
   /// the local documents and metadata into the newly encrypted workspace.
+  ///
+  /// If the operation fails after closing the old boxes but before
+  /// successfully opening the new ones, the workspace is left in an
+  /// unusable state. The caller should catch this and surface it to the
+  /// user (e.g., a "workspace error, please restart" screen).
   static Future<void> resetForPrincipal(
     String principalId, {
     bool preserveCurrentWorkspace = false,
   }) async {
+    // Step 1: Back up entries from the current workspace before closing.
     final workspaceEntries = <String, Map<dynamic, dynamic>>{};
     if (preserveCurrentWorkspace) {
       for (final boxName in _claimPreservedBoxNames) {
@@ -94,15 +100,25 @@ class HiveWorkspaceService {
         }
       }
     }
+
+    // Step 2: Clear session and close all boxes.
     if (Hive.isBoxOpen(AppStateStore.boxName)) {
       await SessionService.clearSession();
     }
     await Hive.close();
+
+    // Step 3: Delete old boxes from disk.
     for (final boxName in boxNames) {
       await Hive.deleteBoxFromDisk(boxName);
     }
+
+    // Step 4: Initialize the new principal's encryption key.
     await PrincipalKeyService().initForPrincipal(principalId);
+
+    // Step 5: Open fresh boxes with the new key.
     await openForActivePrincipal();
+
+    // Step 6: Restore backed-up entries into the new workspace.
     if (preserveCurrentWorkspace) {
       for (final entry in workspaceEntries.entries) {
         for (final record in entry.value.entries) {

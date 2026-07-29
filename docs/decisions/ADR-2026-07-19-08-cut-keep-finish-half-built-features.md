@@ -521,3 +521,30 @@ The launch happens after the launch playbook's Step 8 (real-device end-to-end) v
   - `mobile/lib/screens/dashboard_screen.dart`
   - `src/api/document.py:611-658`
 - **Motto v3 alignment:** §0.1 (no parallel paths; the old claims assistant cut is the canonical example), §0.4 (acceptance contract; a feature that cannot pass the "user is not deceived" test is not shipped, and a feature that is core to the wedge is built honestly even if it takes weeks), §0.7 (AI output boundary; the LLM-derived Insurance Health Score and What-If numbers are exactly the kind of output that needs a source), §0.11 (customer-facing claims; the relabel + scope-down are the customer-facing application of this ADR), §0.12 (this document), §0.13 (scope control; the cuts are a deliberate narrowing to the wedge, not a reactive triage).
+
+---
+
+## Update Log
+
+| Date | Entry | Trigger |
+|------|-------|---------|
+| 2026-07-29 | **Widened-wedge clarification per [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md).** The widened-wedge items classified here as keep/finish (Coverage Check-in, Coverage Adequacy, Family Coverage Map, Claim Document Vault, partnerships framework) remain a valid **exploration inventory**, but product inclusion now requires passing the five-gate stack (Gates A–E) in the [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md). Inclusion in this ADR's keep/finish list does not by itself authorize a surface for launch. The original cut/keep/finish reasoning is preserved. | Operator direction: layered doctrine stack; ADR-2026-07-29-02 reconciliation. |
+
+
+---
+
+## Doctrine reconciliation note (2026-07-29)
+
+> Append-only note added 2026-07-29. This section does not modify any prior
+> content in this ADR; the original decision, reasoning, and existing update
+> logs above remain intact and authoritative for their date.
+
+- **Date:** 2026-07-29
+- **Governing ADR:** [ADR-2026-07-29-02 (doctrine stack reconciliation)](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md)
+- **What changed:** [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) establishes a layered doctrine stack. The [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) (`docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md`) now sits above feature ADRs, with a five-gate stack (Gates A-E: Outcome, Truth, Product role, Lifecycle, Strategy/commercial). Widened-wedge clarification: the keep/finish items here remain a valid exploration inventory, but product inclusion now requires passing the five-gate stack (Gates A-E) in the Product Constitution. Inclusion in this ADR's list does not by itself authorize a surface for launch.
+- **Why:** Operator direction to unify two competing uncommitted first-principles documents into one layered stack before any boundary-shaped code changes.
+- **What triggered it:** Discovery that the repository held conflicting uncommitted doctrine (Principles vs Wedge) and that ADR-2026-07-29-01 self-declared "Accepted" without sign-off evidence.
+- **What original reasoning remains valid:** All prior reasoning in this ADR is preserved unchanged. This note only constrains surface semantics where they intersect the constitution's gates.
+- **Status change for this ADR:** None (this ADR's own status is unchanged by this note).
+- **Operator sign-off:** None required for this note; it records the reconciliation linkage. The reconciliation ADR itself remains Proposed pending operator sign-off.
+- **Code authorization:** None. No code, route, entitlement, pricing, comparison, claims, renewal, camera, demo, or onboarding change is authorized by this note.

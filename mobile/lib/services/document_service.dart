@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 import '../models/document_model.dart';
+import 'analytics_service.dart';
 import 'auth_service.dart';
 import 'local_storage_service.dart';
 import 'session_service.dart';
@@ -952,6 +953,12 @@ class DocumentService {
       final deleted = await _localStorageService.deleteDocument(documentId);
       if (deleted) {
         await AppStateRepository.addRecentlyDeletedDocument(document.filename);
+        AnalyticsService.track(
+          'document_deleted',
+          {
+            'document_type': document.documentType ?? 'unknown',
+          },
+        );
       }
       return deleted;
     } catch (e) {

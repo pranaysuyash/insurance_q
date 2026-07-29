@@ -4,6 +4,7 @@
 **Last updated:** 2026-07-24 (added §6 four-face evidence-backed contract, all 4 faces implemented + tested)
 **Maintainer:** Pranay (operator) + every agent/engineer who changes the system
 **Decision record:** [ADR-2026-07-19-05](../decisions/ADR-2026-07-19-05-canonical-architecture-doc-location.md)
+**Product doctrine:** this architecture serves the [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) (Proposed, per [ADR-2026-07-29-02](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md)). Where any architectural choice touches the product boundary, the constitution's five-gate stack governs.
 
 This is the canonical architecture for CoverWise. It is the **map of the system**, not the territory. The territory is the code; the map is this document. If they disagree, the code is right; this doc is updated in the next commit.
 

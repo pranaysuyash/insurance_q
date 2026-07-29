@@ -66,3 +66,30 @@ These 4 directly answer "is your coverage keeping up with your life?" A future A
 **Anything else flagged:** The "substrate extension" pattern is now well-established. The 3 substrate extensions (Family, Coverage Adequacy, Coverage Check-in) together with the Claim Document Vault substrate extension form the substrate's per-scenario, per-life-event, per-document coverage.
 
 **The privacy policy for the Coverage Check-in tool:** The user's life events (new baby, new diagnosis, etc.) are sensitive personal data. The privacy policy: the events are stored locally on the device, encrypted with the principal encryption, never shared with anyone. The future ADR "Coverage Check-in privacy policy" will formalize this. The pattern is the same as ADR-15: consent + retention + encryption + access rules + user's right to export/delete + no-share.
+
+---
+
+## Update Log
+
+| Date | Entry | Trigger |
+|------|-------|---------|
+| 2026-07-29 | **Semantics narrowed per [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) §4 and constitution Principle 4.** Coverage Check-in surfaces life changes, stale policy data, and questions to verify. It does **not** produce actuarial or financial adequacy verdicts or suitability scoring (Gate C). Original substrate-extension reasoning preserved; semantics constrained. | Operator direction: layered doctrine stack. |
+
+
+---
+
+## Doctrine reconciliation note (2026-07-29)
+
+> Append-only note added 2026-07-29. This section does not modify any prior
+> content in this ADR; the original decision, reasoning, and existing update
+> logs above remain intact and authoritative for their date.
+
+- **Date:** 2026-07-29
+- **Governing ADR:** [ADR-2026-07-29-02 (doctrine stack reconciliation)](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md)
+- **What changed:** [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) establishes a layered doctrine stack. The [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) (`docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md`) now sits above feature ADRs, with a five-gate stack (Gates A-E: Outcome, Truth, Product role, Lifecycle, Strategy/commercial). Semantics narrowed: surfaces life changes, stale policy data, and questions to verify; does NOT produce actuarial/financial adequacy verdicts or suitability scoring (Gate C).
+- **Why:** Operator direction to unify two competing uncommitted first-principles documents into one layered stack before any boundary-shaped code changes.
+- **What triggered it:** Discovery that the repository held conflicting uncommitted doctrine (Principles vs Wedge) and that ADR-2026-07-29-01 self-declared "Accepted" without sign-off evidence.
+- **What original reasoning remains valid:** All prior reasoning in this ADR is preserved unchanged. This note only constrains surface semantics where they intersect the constitution's gates.
+- **Status change for this ADR:** None (this ADR's own status is unchanged by this note).
+- **Operator sign-off:** None required for this note; it records the reconciliation linkage. The reconciliation ADR itself remains Proposed pending operator sign-off.
+- **Code authorization:** None. No code, route, entitlement, pricing, comparison, claims, renewal, camera, demo, or onboarding change is authorized by this note.

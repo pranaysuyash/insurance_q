@@ -8,6 +8,7 @@ void main() {
       'dashboard_emergency_shortcut_tapped',
       'dashboard_first_upload_cta_tapped',
       'dashboard_preventive_tips_dismiss_all',
+      'onboarding_started',
       'phone_capture_dismissed',
     };
 

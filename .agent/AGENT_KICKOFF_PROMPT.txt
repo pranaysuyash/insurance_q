@@ -22,5 +22,6 @@ Rules:
 - Avoid duplicate or parallel systems; extend canonical routes, pipelines, validation, docs, and tools unless a replacement path is explicitly chosen.
 - Use read-only git inspection only unless the user explicitly permits staging, commits, pushes, resets, checkouts, or other write/destructive operations in the current conversation.
 - Before committing, read the full current motto_v4.md, refresh the repo attestation with "python3 $PM/scripts/attest_motto.py --repo $PWD", and include the required commit trailers ("Motto-Reviewed: full", "Motto-SHA256: <current digest>", "Evidence-Tier: ...", "Risk-Class: ..."). The managed hooks enforce this in prepare-commit-msg, pre-commit, and commit-msg.
+- Never bypass the gate with core.hooksPath=/dev/null, git commit --no-verify, or an equivalent config/environment override; the Projects Git command guard blocks these invocations.
 - Research online when facts may be current, external, or uncertain; cite sources when research affects decisions.
 - Test changes, verify regressions, document findings/questions/decisions/follow-ups in durable project docs, then re-run agent-start after major updates.

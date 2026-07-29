@@ -199,3 +199,30 @@ If the thin slice turns out to be the wrong shape (e.g. the user wanted a single
   - `mobile/lib/widgets/field_citations_card.dart` (the existing substrate-grounded widget pattern that the thin slice reuses)
   - `mobile/lib/screens/policy_detail_screen.dart` (the policy detail screen that the two new screens are linked from)
 - **Motto v3 alignment:** §0.1 (no parallel paths; the thin slice reuses the existing `FieldCitationsCard` pattern), §0.4 (acceptance contract; the thin slice's "not yet extracted" section is the honest contract), §0.5 (evidence tiers; the thin slice is T2-verifiable via widget tests; the full features are T0-verifiable via the launch playbook's Step 8), §0.7 (AI output boundary; the thin slice does not claim what the substrate does not know), §0.10 (observability is delivery; the "not yet extracted" section makes the substrate's limits visible at the UI layer), §0.12 (this document).
+
+---
+
+## Update Log
+
+| Date | Entry | Trigger |
+|------|-------|---------|
+| 2026-07-29 | **Claims-scope clarification per [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) §4.4.** The claim-assistance thin slice must be reframed: inside the product = policy-stated claim process (with citations), insurer contacts found in the policy/sourced reference dataset, user-authored claim records, neutral document checklist grounded in the user's policy, static external public-resource links. Outside by default = guided claim filing, personalised incident advice, claim-denial strategy, personalised IRDAI/Ombudsman escalation, claim representation, insurer-status assertions, adjudication, filing on the user's behalf. "What to do when something happens" means find the policy-stated process/evidence/contacts — not that CoverWise directs or manages the claim. Original thin-slice reasoning preserved; scope narrowed. | Operator direction: layered doctrine stack. |
+
+
+---
+
+## Doctrine reconciliation note (2026-07-29)
+
+> Append-only note added 2026-07-29. This section does not modify any prior
+> content in this ADR; the original decision, reasoning, and existing update
+> logs above remain intact and authoritative for their date.
+
+- **Date:** 2026-07-29
+- **Governing ADR:** [ADR-2026-07-29-02 (doctrine stack reconciliation)](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md)
+- **What changed:** [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) establishes a layered doctrine stack. The [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) (`docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md`) now sits above feature ADRs, with a five-gate stack (Gates A-E: Outcome, Truth, Product role, Lifecycle, Strategy/commercial). Claims-scope clarification (§4.4): inside = policy-stated claim process (cited), insurer contacts, user-authored records, neutral checklist grounded in the user's policy, static external links; outside by default = guided filing, personalised advice, denial strategy, escalation workflow, representation, insurer-status assertions, adjudication, filing on behalf.
+- **Why:** Operator direction to unify two competing uncommitted first-principles documents into one layered stack before any boundary-shaped code changes.
+- **What triggered it:** Discovery that the repository held conflicting uncommitted doctrine (Principles vs Wedge) and that ADR-2026-07-29-01 self-declared "Accepted" without sign-off evidence.
+- **What original reasoning remains valid:** All prior reasoning in this ADR is preserved unchanged. This note only constrains surface semantics where they intersect the constitution's gates.
+- **Status change for this ADR:** None (this ADR's own status is unchanged by this note).
+- **Operator sign-off:** None required for this note; it records the reconciliation linkage. The reconciliation ADR itself remains Proposed pending operator sign-off.
+- **Code authorization:** None. No code, route, entitlement, pricing, comparison, claims, renewal, camera, demo, or onboarding change is authorized by this note.

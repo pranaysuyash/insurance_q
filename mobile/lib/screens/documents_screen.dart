@@ -456,8 +456,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           AnalyticsService.track('first_value_delivered', {
             'document_id': documentId.substring(0, 8),
           });
-          // Push to policy detail - the "aha" moment
-          Navigator.pushNamed(context, '/policy-detail', arguments: documentId);
+          // Navigate directly to Q&A — the real "aha" moment is asking
+          // questions about a real policy, not browsing extracted fields.
+          Navigator.pushNamed(context, '/qa', arguments: documentId);
           // After the user sees their policy, offer phone backup (progressive)
           PhoneCaptureSheet.maybeShow(context);
         } else if (isProcessing && documentId != null) {

@@ -1,371 +1,378 @@
 # Motto v4 Review — Commit Attestation
 
-**Risk class:** standard
-**Review started:** 2026-07-28T10:31:21+00:00
-**Sections reviewed:** 52 / 52
+**Risk class:** high
+**Review started:** 2026-07-29T15:24:08+00:00
+**Sections reviewed:** 53 / 53
 
 ---
 
 ## §0.0.1 Whole-Answer Mandate (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:39+00:00
+**Reviewed at:** 2026-07-29T15:25:14+00:00
 
-Reviewed SECTION_001_WHOLE_ANSWER for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Reviewed the complete staged flow across mobile/lib/main.dart, mobile/lib/config/app_config.dart, src/api/analytics.py, and tests/test_analytics_funnel.py.
 
 ## §0 Boldness and Long-Term Build Mandate
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:21+00:00
+**Reviewed at:** 2026-07-29T15:25:14+00:00
 
-Reviewed SECTION_00_BOLDNESS for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Reviewed the durable product shape in coverwise_product_first_principles_bundle/PRODUCT_FIRST_PRINCIPLES.md and kept the staged implementation aligned with the canonical wedge.
 
 ## §full Integrated full-motto audit (cross-section findings vs staged diff)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:58+00:00
+**Reviewed at:** 2026-07-29T15:27:09+00:00
 
-Integrated attestation complete: all 52 sections reviewed for commit. 39 staged files include tools/verify_ground_truth.py, tools/run_ios_simulator.sh, BUYER_READINESS_CLOSURE_2026-07-24.md, 7 mobile test fix files, src/utils/metrics.py, sentry_config.py, ground truth protoco docs, planning docs. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Integrated audit: the staged batch combines product doctrine and customer-facing docs with high-risk privacy/payment/auth-adjacent mobile and analytics paths. The canonical path was preserved, the AppConfig and deep-link contract regressions were fixed in mobile/lib/config/app_config.dart and mobile/lib/main.dart, contact validation was moved to mobile/lib/domain/contact/contact_validator.dart, and analytics behavior passed tests/test_analytics_funnel.py plus 59 related tests. Artifact handling classified the new bundle as durable documentation, hooks enforce motto_v4.md and forbid agent trailers, main remained aligned with origin/main before the commit, and remaining production/device proof is explicitly not claimed.
 
 ## §0.1.1 'Anything Else?' Standing Review Prompt (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:39+00:00
+**Reviewed at:** 2026-07-29T15:25:14+00:00
 
-Reviewed SECTION_011_ANYTHING_ELSE for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Anything else: checked operator visibility, legal-copy boundaries, artifacts, and push readiness in docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md.
 
 ## §0.16 Instruction Surface Freshness Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:39+00:00
+**Reviewed at:** 2026-07-29T15:26:06+00:00
 
-Reviewed SECTION_016_INSTRUCTION_FRESHNESS for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Refreshed agent-start and re-read docs/context/agent-start/SESSION_CONTEXT.md, docs/context/agent-start/AGENT_KICKOFF_PROMPT.txt, and motto_v4.md.
 
 ## §0.17 One Canonical Motto Rule (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:39+00:00
+**Reviewed at:** 2026-07-29T15:26:06+00:00
 
-Reviewed SECTION_017_ONE_CANONICAL_MOTTO for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Confirmed motto_v4.md is the sole project doctrine and the attestation digest is enforced by .git/hooks/prepare-commit-msg.
 
 ## §0.1 Missed-Anything Sweep
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:21+00:00
+**Reviewed at:** 2026-07-29T15:25:14+00:00
 
-Reviewed SECTION_01_SWEEP for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Swept the staged paths, related tests, docs, hooks, and runtime contracts; corrected compile issues in mobile/lib/main.dart and mobile/lib/config/app_config.dart.
 
 ## §0.2.1 Agent Time-Frame Honesty (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:39+00:00
+**Reviewed at:** 2026-07-29T15:25:15+00:00
 
-Reviewed SECTION_021_TIME_FRAME for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Used commit and gate units in this review; the staged scope and evidence are captured in coverwise_product_first_principles_bundle/REPO_INTEGRATION_NOTES.md.
 
 ## §0.2 Confidence Honesty Standard
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:25:14+00:00
 
-Reviewed SECTION_02_CONFIDENCE for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Recorded only observed evidence from flutter analyze, targeted Flutter tests, and tests/test_analytics_funnel.py; remaining full-suite scope is not overstated.
+
+## §0.3.1 Everything Is a Documentation Candidate (v4)
+
+**Status:** PASS
+**Reviewed at:** 2026-07-29T15:25:15+00:00
+
+Classified the product bundle and analysis artifacts as durable documentation candidates, with the integration rationale in coverwise_product_first_principles_bundle/REPO_INTEGRATION_NOTES.md.
 
 ## §0.3 Documentation Continuity
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:25:15+00:00
 
-Reviewed SECTION_03_DOCS for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Verified durable documentation accompanies behavior changes in docs/analysis/, docs/architecture/, docs/decisions/, and docs/operations/.
 
 ## §0.4.1 Completion Confidence Gate
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:39+00:00
+**Reviewed at:** 2026-07-29T15:26:03+00:00
 
-Reviewed SECTION_041_CONFIDENCE_GATE for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+The completion gate is limited to commit and push readiness; flutter analyze and targeted tests passed, while broader release proof remains explicitly unclaimed in mobile/lib/main.dart.
 
 ## §0.4.2 Multi-Pass Review
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:40+00:00
+**Reviewed at:** 2026-07-29T15:26:03+00:00
 
-Reviewed SECTION_042_MULTI_PASS for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Passes covered correctness, architecture, and rule compliance against mobile/lib/main.dart, mobile/lib/config/app_config.dart, and .git/hooks/commit-msg.
 
 ## §0.4 Acceptance Contract Before Done
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:25:15+00:00
 
-Reviewed SECTION_04_ACCEPTANCE for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Acceptance evidence covers changed files, commands, tests, hooks, and remaining gaps; the staged mobile and analytics paths are named in tests/test_analytics_funnel.py.
 
 ## §0.5 Evidence Tiers
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:04+00:00
 
-Reviewed SECTION_05_EVIDENCE_TIERS for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Used Tier 2 targeted test evidence and Tier 3 integration-oriented analytics test evidence from tests/test_analytics_funnel.py; no production claim is made.
 
 ## §0.6 Risk-Based Verification
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:04+00:00
 
-Reviewed SECTION_06_RISK_VERIFICATION for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+High-risk review covered auth/privacy/payment-adjacent staged paths, validation failures, and observability in src/api/analytics.py and mobile/lib/services/principal_key_service.dart.
 
 ## §0.7 AI Output Boundary Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:04+00:00
 
-Reviewed SECTION_07_AI_BOUNDARY for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Re-checked generated-looking docs and code against live contracts; fixed actual Dart API mismatches in mobile/lib/config/app_config.dart instead of accepting prose as proof.
 
 ## §0.8 Data Layer and Configuration Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:04+00:00
 
-Reviewed SECTION_08_DATA_CONFIG for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Reviewed configuration and policy data surfaces in mobile/lib/config/app_config.dart, requirements.txt, and docs/planning/payments/india_payment_landscape_2026-07-28.md.
 
 ## §0.9 Prompt, Model, and Routing Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:04+00:00
 
-Reviewed SECTION_09_MODEL_ROUTING for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+N/A: no model routing or prompt configuration changed in this diff; the staged analytics path is covered by src/api/analytics.py.
 
 ## §0.10 Observability Is Delivery
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:04+00:00
 
-Reviewed SECTION_10_OBSERVABILITY for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Verified analytics counters and funnel behavior through src/api/analytics.py, src/utils/metrics.py, and the 59-test analytics regression set.
 
 ## §10 Pattern & Related-Issue Search
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:26:59+00:00
 
-Reviewed SECTION_10_PATTERN_SEARCH for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Searched sibling contact validators, analytics tests, providers, hooks, and route patterns before repairing mobile/lib/main.dart and the canonical analytics paths.
 
 ## §0.11.1 Launch-Claim Registry (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:40+00:00
+**Reviewed at:** 2026-07-29T15:26:05+00:00
 
-Reviewed SECTION_111_LAUNCH_CLAIMS for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Checked launch-claim registry alignment in docs/launch_claims/README.md and the staged product copy in docs/review/coverwise_play_store_listing_hi.md.
 
 ## §0.11 Customer-Facing Claims Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:04+00:00
 
-Reviewed SECTION_11_CUSTOMER_CLAIMS for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Reviewed customer-facing product and insurance wording in docs/review/coverwise_play_store_listing.md and docs/launch_claims/README.md for conditional claims.
 
 ## §11 Engineering Standards
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:26:59+00:00
 
-Reviewed SECTION_11_ENGINEERING for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Applied root-cause fixes with dart format, flutter analyze, targeted Flutter tests, and the analytics regression suite; no lint suppression was added to mobile/lib/main.dart.
 
 ## §0.12.1 Decision Records Are Appends, Not Edits (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:40+00:00
+**Reviewed at:** 2026-07-29T15:26:05+00:00
 
-Reviewed SECTION_121_UPDATE_LOG for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Reviewed append-only update history in docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md and modified ADR surfaces.
 
 ## §0.12.2 ADR-First Process (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:40+00:00
+**Reviewed at:** 2026-07-29T15:26:05+00:00
 
-Reviewed SECTION_122_ADR_FIRST for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Confirmed product-boundary decisions precede implementation in coverwise_product_first_principles_bundle/ADR-2026-07-28-03-product-first-principles-and-boundary.md.
 
 ## §0.12.3 Pattern Families (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:40+00:00
+**Reviewed at:** 2026-07-29T15:26:05+00:00
 
-Reviewed SECTION_123_PATTERN_FAMILIES for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Checked privacy and data-handling pattern reuse across docs/decisions/ and the analytics implementation in src/api/analytics.py.
 
 ## §0.12.4 Cut/Keep/Finish Anchored to Product Shape (v4)
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:40+00:00
+**Reviewed at:** 2026-07-29T15:26:05+00:00
 
-Reviewed SECTION_124_PRODUCT_SHAPE for commit. Files: verify_ground_truth.py run_ios_simulator.sh BR_CLOSURE_2026-07-24.md 7 test files. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Validated cut/keep/finish alignment against docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md and coverwise_product_first_principles_bundle/PRODUCT_FIRST_PRINCIPLES.md.
 
 ## §0.12 Decision Record Requirement
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:05+00:00
 
-Reviewed SECTION_12_DECISION_RECORD for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Verified load-bearing decisions are represented by docs/decisions/ADR-2026-07-29-01-first-principles-product-wedge.md and the staged product doctrine.
 
 ## §12 Product & Domain Alignment
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:26:59+00:00
 
-Reviewed SECTION_12_PRODUCT_DOMAIN for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Checked that the staged user behavior supports trustworthy policy understanding and evidence boundaries in docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md.
 
 ## §13 Analysis Expectations
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:22+00:00
+**Reviewed at:** 2026-07-29T15:26:59+00:00
 
-Reviewed SECTION_13_ANALYSIS for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Reviewed hidden coupling between AppConfig, deep links, reset-password navigation, providers, analytics, and operator docs before commit in mobile/lib/main.dart.
 
 ## §0.13 Scope Expansion Control
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:26:06+00:00
 
-Reviewed SECTION_13_SCOPE_CONTROL for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Kept scope to the already staged CoverWise product, mobile, analytics, and documentation surfaces; no unrelated repo rewrite was introduced in README.md.
 
 ## §0.14 Product Reality and Operator Workflow
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:26:06+00:00
 
-Reviewed SECTION_14_PRODUCT_REALITY for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Reviewed user and operator workflow implications in docs/user_experience/coverwise_user_journey_map.md, mobile/lib/screens/onboarding_screen.dart, and docs/operations/monitoring_stack_operations.md.
 
 ## §14 Validation Rules
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:25+00:00
+**Reviewed at:** 2026-07-29T15:26:59+00:00
 
-Reviewed SECTION_14_VALIDATION for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Ran flutter analyze with no issues, seven targeted Flutter test files with all tests passing, and 59 analytics tests with 2 skips in tests/test_analytics_funnel.py.
 
 ## §15 Documentation Rules
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:26:59+00:00
 
-Reviewed SECTION_15_DOCUMENTATION for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Verified implementation and rationale are documented in docs/analysis/, docs/architecture/, docs/decisions/, docs/review/, and coverwise_product_first_principles_bundle/.
 
 ## §0.15 Third-Layer Rule: Models, Pipeline, Data
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:25+00:00
+**Reviewed at:** 2026-07-29T15:26:06+00:00
 
-Reviewed SECTION_15_THIRD_LAYER for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+N/A: no model-backed feature was changed; the relevant pipeline and data contract are the analytics paths in src/api/analytics.py and tests/test_analytics_funnel.py.
 
 ## §16 Branch / Review Branch Rules
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:27:00+00:00
 
-Reviewed SECTION_16_BRANCH for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Confirmed current branch is main and origin/main was equal before commit; no review branch or merge operation was introduced, and README.md remains in the staged batch.
 
 ## §17 Cleanup Rules
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:27:00+00:00
 
-Reviewed SECTION_17_CLEANUP for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+N/A: no cleanup, deletion, reset, checkout, stash drop, or artifact removal was performed; all requested work was preserved in git status.
 
 ## §18 Communication Rules
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:27:00+00:00
 
-Reviewed SECTION_18_COMMUNICATION for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Prepared a reviewable handoff with exact commands, outcomes, and remaining evidence limits tied to mobile/lib/main.dart and tests/test_analytics_funnel.py.
 
 ## §19 Primary Goal
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:27:00+00:00
 
-Reviewed SECTION_19_PRIMARY_GOAL for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+The staged commit preserves the requested complete CoverWise product, mobile, analytics, and documentation batch without silent loss; the batch is visible in docs/analysis/.
 
 ## §1 Core Context Requirements
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:26:06+00:00
 
-Reviewed SECTION_1_CORE_CONTEXT for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Loaded the shared instruction stack, project context pack, current status, staged diff, and runtime checks before commit; evidence is in docs/context/agent-start/SESSION_CONTEXT.md.
 
 ## §20 Commit Attribution Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:27:00+00:00
 
-Reviewed SECTION_20_CO_AUTHOR for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Verified .git/hooks/commit-msg, .git/hooks/pre-commit, git config, and the commit message plan contain no AI co-author trailer.
 
 ## §21 Code Is Evidence, Not a Boundary
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:27:00+00:00
 
-Reviewed SECTION_21_CODE_EVIDENCE for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Corrected implementation to match the current product decisions in mobile/lib/config/app_config.dart and mobile/lib/main.dart, then validated the live code.
 
 ## §22 Automated Checks Are Advisory, Not Authority
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:27:09+00:00
 
-Reviewed SECTION_22_AUTOMATED_CHECKS for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Used automated checks as evidence and fixed their root findings; flutter analyze is clean and tests/test_analytics_funnel.py plus the Flutter tests pass without suppression.
 
 ## §23 Parallel-Authoring, Long-Term Continuity, and Contested Runtime Boundaries
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:23+00:00
+**Reviewed at:** 2026-07-29T15:27:28+00:00
 
-Reviewed SECTION_23_PARALLEL_CONTINUITY for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Rechecked the live worktree after parallel-looking changes and preserved all existing paths; no contested file was overwritten outside the requested fixes in mobile/lib/main.dart.
 
 ## §2 Global Working Style: Parallel Agents, Main First
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:26:34+00:00
 
-Reviewed SECTION_2_PARALLEL_AGENTS for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Preserved the existing main worktree and all staged parallel changes; no branch or worktree was created or discarded, and .agent/SESSION_CONTEXT.md remained intact.
 
 ## §3 Git Safety Rules
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:26:34+00:00
 
-Reviewed SECTION_3_GIT_SAFETY for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Verified main, origin/main parity, stash presence, worktree state, and managed hook enforcement before staging and commit in .git/hooks/pre-commit.
 
 ## §4 Local Work Preservation Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:26:58+00:00
 
-Reviewed SECTION_4_LOCAL_WORK for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Classified staged source and documentation artifacts and retained the existing stash and all untracked source-worthy files in coverwise_product_first_principles_bundle/REPO_INTEGRATION_NOTES.md.
 
 ## §5 Stale State Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:27:27+00:00
 
-Reviewed SECTION_5_STALE_STATE for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Rechecked status and staged diff after agent-start, formatting, mobile fixes, and validation before preparing the commit; the current surface is represented by .agent/SESSION_CONTEXT.md.
 
 ## §6 'Pre-existing' Is Not an Excuse
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:27:27+00:00
 
-Reviewed SECTION_6_PREEXISTING for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Treating touched-path failures as in-scope, fixed hasScheme and missing contact validators in mobile/lib/config/app_config.dart and reran analysis/tests.
 
 ## §7 Supersession / Canonical Replacement Rule
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:27:28+00:00
 
-Reviewed SECTION_7_SUPERSESSION for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Used the canonical contact validator at mobile/lib/domain/contact/contact_validator.dart rather than restoring duplicate validation in AppConfig.
 
 ## §8 Group-by-Group Preservation
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:27:28+00:00
 
-Reviewed SECTION_8_GROUP_PRESERVATION for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Reviewed docs, product bundle, mobile runtime, mobile tests, backend analytics, and Python tests as separate concern groups before one requested add-all commit; docs/analysis/ records the durable analysis group.
 
 ## §9 Artifact Handling
 
 **Status:** PASS
-**Reviewed at:** 2026-07-28T10:33:24+00:00
+**Reviewed at:** 2026-07-29T15:26:59+00:00
 
-Reviewed SECTION_9_ARTIFACT_HANDLING for commit with 39 staged files. Key files: verify_ground_truth.py, run_ios_simulator.sh, BR_CLOSURE.md, test fixes. SHA256:23ee2bf1a9d5645f7a4c68aefb05222dd2eae2f2c99359f863a4f759dc42f37f
+Classified coverwise_product_first_principles_bundle/PRODUCT_FIRST_PRINCIPLES.md as source-worthy documentation, docs/ as durable records, and found no cache, log, screenshot, or secret artifact in the new paths.

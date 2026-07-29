@@ -163,6 +163,8 @@ class EntitlementNotifier extends Notifier<Entitlement> {
         return ent.limits.allowAnnualReview ? null : 'Annual coverage review is available on the Family plan.';
       case 'advanced_search':
         return ent.limits.allowAdvancedSearch ? null : 'Advanced search is available on Plus and Family plans.';
+      case 'export':
+        return ent.limits.allowExport ? null : 'Export is available on Plus and Family plans.';
       default:
         return null;
     }

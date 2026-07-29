@@ -7,9 +7,7 @@ import '../widgets/shared/coverwise_components.dart';
 /// Supabase handles the token exchange when the deep link arrives.
 /// This screen lets the user set a new password.
 class ResetPasswordScreen extends StatefulWidget {
-  final String redirectUrl;
-
-  const ResetPasswordScreen({super.key, required this.redirectUrl});
+  const ResetPasswordScreen({super.key});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();

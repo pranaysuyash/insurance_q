@@ -3,16 +3,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/policy_summary.dart';
 import '../providers/policy_providers.dart';
 import '../providers/document_providers.dart';
+import '../services/analytics_service.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/error_widget.dart';
 import '../screens/coverage_details_summary_screen.dart';
 import '../screens/documents_screen.dart';
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  bool _didTrackScreenView = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_didTrackScreenView && mounted) {
+        _didTrackScreenView = true;
+        AnalyticsService.track('screen_viewed', {'screen_name': 'dashboard'});
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final documentsAsync = ref.watch(documentsProvider);
     final policySummaries = ref.watch(policySummariesProvider);
 

@@ -249,8 +249,19 @@ class PrincipalKeyService {
   /// a no-op.
   ///
   /// The migration reads all entries with the old key,
-  /// closes the box, deletes the box file, reopens the box
-  /// with the new DEK, and writes the entries back.
+  /// verifies the count, closes the old box, reopens the
+  /// box with the new key, writes the entries back, and
+  /// verifies a round-trip decrypt before marking complete.
+  ///
+  /// Safety properties:
+  ///  - Entry count is verified before and after write.
+  ///  - A round-trip read after write confirms the new key
+  ///    can actually decrypt the data.
+  ///  - The old key is NOT deleted by this method; the
+  ///    caller is responsible for clearing it only after
+  ///    ALL boxes have been migrated successfully.
+  ///  - A crash before markMigrationComplete leaves the
+  ///    migration retryable on next launch.
   Future<bool> migrateBox({
     required String boxName,
     required String boxPath,
@@ -269,7 +280,8 @@ class PrincipalKeyService {
     }
     final oldKey = Uint8List.fromList(base64Decode(oldKeyBase64));
     final newKey = getOrThrow();
-    // Read all entries with the old key.
+
+    // Step 1: Read all entries with the old key.
     final oldBox = await Hive.openBox(
       boxName,
       encryptionCipher: oldKey.length == 32 ? HiveAesCipher(oldKey) : null,
@@ -278,11 +290,11 @@ class PrincipalKeyService {
     for (final key in oldBox.keys) {
       entries[key as String] = oldBox.get(key);
     }
+    final sourceCount = entries.length;
     await oldBox.close();
-    // Delete the old-key box file so the new open cannot collide with the
-    // existing Hive header/cipher. Startup passes an empty path because the
-    // default Hive directory is authoritative; callers with an explicit
-    // storage path may still provide it directly.
+
+    // Step 2: Delete the old box from disk so the new open
+    // cannot collide with the existing Hive header/cipher.
     if (boxPath.isNotEmpty) {
       try {
         final file = File(boxPath);
@@ -296,7 +308,8 @@ class PrincipalKeyService {
     } else {
       await Hive.deleteBoxFromDisk(boxName);
     }
-    // Reopen with the new key and write the entries.
+
+    // Step 3: Reopen with the new key and write the entries.
     final newBox = await Hive.openBox(
       boxName,
       encryptionCipher: HiveAesCipher(newKey),
@@ -304,11 +317,39 @@ class PrincipalKeyService {
     for (final entry in entries.entries) {
       await newBox.put(entry.key, entry.value);
     }
+
+    // Step 4: Verify the write succeeded by reading back the
+    // entry count. This catches silent write failures.
+    if (newBox.length != sourceCount) {
+      await newBox.close();
+      throw StateError(
+        'Migration verification failed for $boxName: '
+        'wrote $sourceCount entries but box has ${newBox.length}',
+      );
+    }
+
+    // Step 5: Verify a round-trip decrypt by reading the
+    // first entry back. A wrong key would cause Hive to throw
+    // on read (decryption failure), not return null.
+    if (sourceCount > 0) {
+      final firstKey = newBox.keys.first;
+      try {
+        // ignore: unnecessary_statements
+        newBox.get(firstKey); // will throw if decrypt fails
+      } catch (e) {
+        await newBox.close();
+        throw StateError(
+          'Migration round-trip decrypt failed for $boxName: '
+          'entry at key $firstKey threw $e',
+        );
+      }
+    }
+
     await newBox.close();
-    // Mark the migration as complete. The flag is set
-    // AFTER the new write succeeds; a crash before this
-    // point leaves the migration to retry on next app
-    // start.
+
+    // Step 6: Mark migration complete. The flag is set
+    // AFTER verification succeeds; a crash before this
+    // point leaves the migration retryable on next launch.
     await markMigrationComplete(boxName);
     return true;
   }

@@ -3,6 +3,16 @@
 An insurance companion that reads your policy documents, surfaces the details that matter,
 and answers grounded questions in plain language.
 
+## Product doctrine (Proposed, awaiting sign-off)
+
+Product decisions follow a layered doctrine stack:
+
+- **Constitution:** [`docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md`](docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md) — what the product is and refuses to be.
+- **Wedge & strategy:** [`docs/architecture/FIRST_PRINCIPLES_WEDGE.md`](docs/architecture/FIRST_PRINCIPLES_WEDGE.md)
+- **Commercial boundary:** [`docs/architecture/FREE_VS_PAID_BOUNDARY.md`](docs/architecture/FREE_VS_PAID_BOUNDARY.md) (all prices Proposed)
+- **Reconciliation ADR:** [`docs/decisions/ADR-2026-07-29-02`](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md)
+- **Quick navigation:** [`docs/planning/product/DOCTRINE_INDEX.md`](docs/planning/product/DOCTRINE_INDEX.md)
+
 ## CoverWise launch positioning
 
 - Core promise: help people understand the insurance policy they already own.
@@ -11,6 +21,20 @@ and answers grounded questions in plain language.
   the insurer for binding decisions.
 - Launch copy reference: [`docs/review/coverwise_play_store_listing.md`](docs/review/coverwise_play_store_listing.md)
 - Launch assets reference: [`docs/review/coverwise_play_store_launch_assets.md`](docs/review/coverwise_play_store_launch_assets.md)
+
+## Doctrine stack (product boundary hierarchy)
+
+Product decisions follow a layered doctrine stack. See [the decision index](docs/decisions/README.md)
+for precedence and [ADR-2026-07-29-02](docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md)
+for the full reconciliation.
+
+| Layer | Document | Status |
+|-------|----------|--------|
+| Product constitution | [`docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md`](docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md) | Proposed (requires sign-off) |
+| Strategy & wedge | [`docs/architecture/FIRST_PRINCIPLES_WEDGE.md`](docs/architecture/FIRST_PRINCIPLES_WEDGE.md) | Proposed |
+| Commercial boundary | [`docs/architecture/FREE_VS_PAID_BOUNDARY.md`](docs/architecture/FREE_VS_PAID_BOUNDARY.md) | Proposed |
+
+---
 
 ## Current deployment source of truth
 

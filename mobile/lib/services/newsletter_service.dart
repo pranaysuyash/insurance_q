@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'consent_ledger.dart';
 import '../config/app_config.dart';
+import '../domain/contact/contact_validator.dart';
 
 /// Manages newsletter subscription state on-device.
 ///
@@ -31,7 +32,7 @@ class NewsletterService {
   /// Records consent via [ConsentLedger] with `ConsentPurpose.marketingEmails`
   /// and persists the email locally. Returns `true` on success.
   Future<bool> subscribe(String email) async {
-    if (!AppConfig.isValidEmail(email)) return false;
+    if (!ContactValidator.isValidEmail(email)) return false;
 
     try {
       await _box?.put(_emailKey, email.trim().toLowerCase());

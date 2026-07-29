@@ -34,6 +34,7 @@ class PlanLimits {
   final bool allowEmergencyAccess;
   final bool allowAnnualReview;
   final bool allowAdvancedSearch;
+  final bool allowExport;
   final String priceMonthly;
   final String priceYearly;
 
@@ -46,6 +47,7 @@ class PlanLimits {
     required this.allowEmergencyAccess,
     required this.allowAnnualReview,
     required this.allowAdvancedSearch,
+    required this.allowExport,
     required this.priceMonthly,
     required this.priceYearly,
   });
@@ -62,6 +64,7 @@ const Map<PlanTier, PlanLimits> planLimits = {
     allowEmergencyAccess: false,
     allowAnnualReview: false,
     allowAdvancedSearch: false,
+    allowExport: false,
     priceMonthly: 'Free',
     priceYearly: 'Free',
   ),
@@ -74,6 +77,7 @@ const Map<PlanTier, PlanLimits> planLimits = {
     allowEmergencyAccess: false,
     allowAnnualReview: false,
     allowAdvancedSearch: true,
+    allowExport: true,
     priceMonthly: '₹149/mo',
     priceYearly: '₹999/yr',
   ),
@@ -86,6 +90,7 @@ const Map<PlanTier, PlanLimits> planLimits = {
     allowEmergencyAccess: true,
     allowAnnualReview: true,
     allowAdvancedSearch: true,
+    allowExport: true,
     priceMonthly: '₹249/mo',
     priceYearly: '₹1,799/yr',
   ),

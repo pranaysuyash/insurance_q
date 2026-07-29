@@ -52,6 +52,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    AnalyticsService.track('onboarding_started');
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -65,6 +71,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await _recordConsentState();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_complete', true);
+    AnalyticsService.track(
+      'onboarding_completed',
+      {
+        'analytics_consent': _analyticsConsent,
+        'total_steps': _pages.length,
+      },
+    );
     if (mounted) {
       widget.onComplete(openFilePicker: openFilePicker);
     }
@@ -167,7 +180,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: PageView.builder(
                 controller: _controller,
                 itemCount: _pages.length,
-                onPageChanged: (index) => setState(() => _currentPage = index),
+                onPageChanged: (index) {
+                  setState(() => _currentPage = index);
+                  AnalyticsService.track(
+                    'onboarding_step_viewed',
+                    {
+                      'step': index + 1,
+                      'total_steps': _pages.length,
+                    },
+                  );
+                },
                 itemBuilder: (_, index) => _OnboardingPage(data: _pages[index]),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
+import '../domain/contact/contact_validator.dart';
 import '../services/consent_ledger.dart';
 import 'shared/coverwise_components.dart';
 
@@ -47,8 +48,8 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
       return 'Email is required';
     }
     if (value != null && value.isNotEmpty) {
-      if (!AppConfig.isValidEmail(value)) {
-        if (AppConfig.isDisposableEmail(value)) {
+      if (!ContactValidator.isValidEmail(value)) {
+        if (ContactValidator.isDisposableEmail(value)) {
           return 'Disposable email addresses are not allowed';
         }
         return 'Please enter a valid email address';
@@ -59,7 +60,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
 
   String? _validatePhone(String? value) {
     if (value != null && value.isNotEmpty) {
-      if (!AppConfig.isValidPhone(value)) {
+      if (!ContactValidator.isValidPhone(value)) {
         return 'Please enter a valid phone number';
       }
     }
@@ -224,7 +225,8 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               // Record lead capture consent if contact info is provided.
               final hasContact = _emailController.text.trim().isNotEmpty ||
                   _phoneController.text.trim().isNotEmpty;
-              if (hasContact && !ledger.hasConsent(ConsentPurpose.marketingEmails)) {
+              if (hasContact &&
+                  !ledger.hasConsent(ConsentPurpose.marketingEmails)) {
                 ledger.recordConsent(
                   purpose: ConsentPurpose.marketingEmails,
                   version: AppConfig.privacyPolicyVersion,

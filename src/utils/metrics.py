@@ -220,7 +220,7 @@ def _sentry_incr(key: str, tags: dict | None = None) -> None:
     try:
         import sentry_sdk
 
-        sentry_sdk.metrics.count(key=key, value=1.0, tags=tags or {})
+        sentry_sdk.metrics.count(name=key, value=1.0, attributes=tags or {})
     except Exception:
         pass
 

@@ -1,5 +1,27 @@
 # Decision Records Index
 
+## Doctrine Stack (precedence hierarchy)
+
+```text
+motto_v4.md                                  (operating rules; always top)
+  └─ Product Constitution                    (PRODUCT_FIRST_PRINCIPLES.md)
+      └─ First-Principles Wedge & Strategy   (FIRST_PRINCIPLES_WEDGE.md)
+          └─ Free vs Paid Commercial Boundary (FREE_VS_PAID_BOUNDARY.md)
+              └─ Feature ADRs                 (docs/decisions/ADR-*)
+                  └─ Architecture, code, tests, ops, launch claims
+```
+
+A lower layer may not contradict a higher layer. For the full reconciliation, see [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) (Proposed, awaiting operator sign-off).
+
+| Layer | Governing Document | Status |
+|-------|-------------------|--------|
+| Product constitution | [`PRODUCT_FIRST_PRINCIPLES.md`](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) | Proposed (awaiting sign-off on ADR-2026-07-29-02) |
+| Strategy & wedge | [`FIRST_PRINCIPLES_WEDGE.md`](../architecture/FIRST_PRINCIPLES_WEDGE.md) | Proposed (subordinate to constitution) |
+| Commercial boundary | [`FREE_VS_PAID_BOUNDARY.md`](../architecture/FREE_VS_PAID_BOUNDARY.md) | Proposed (experiment record) |
+| Stack reconciliation | [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) | **Proposed — operator sign-off required** |
+
+Before making a product-boundary decision, read the constitution first, then the wedge, then the commercial layer. No single document is sufficient.
+
 - [ADR-2026-07-21-06 — Deployed launch health gate](ADR-2026-07-21-06-deployed-launch-health-gate.md)
 - [ADR-2026-07-21-07 — Remote Supabase migration-ledger reconciliation](ADR-2026-07-21-07-remote-supabase-migration-ledger-reconciliation.md)
 - [ADR-2026-07-22-02 — Riverpod for all service dependency injection](ADR-2026-07-22-02-service-dependency-injection-riverpod.md)
@@ -13,6 +35,10 @@
 - [ADR-2026-07-24-05 — Intentional API entrypoint import order](ADR-2026-07-24-05-entrypoint-bootstrap-import-order.md)
 - [ADR-2026-07-24-06 — FastAPI and Starlette security baseline](ADR-2026-07-24-06-fastapi-starlette-security-baseline.md)
 - [ADR-2026-07-24-07 — RevenueCat refund-reversal entitlement semantics](ADR-2026-07-24-07-revenuecat-refund-reversal-semantics.md)
+- [ADR-2026-07-28 — Reject demo/sample policy mode for launch](ADR-2026-07-28-reject-demo-mode.md) (camera reclassified as strategy per ADR-2026-07-29-02 §4.9)
+- [ADR-2026-07-29-01 — First-principles product wedge](ADR-2026-07-29-01-first-principles-product-wedge.md) — **Proposed** (self-declared Accepted had no sign-off evidence; superseded in part by ADR-2026-07-29-02)
+- [ADR-2026-07-29-02 — Doctrine stack reconciliation](ADR-2026-07-29-02-doctrine-stack-reconciliation.md) — **Proposed — operator sign-off required** (establishes the layered constitution/wedge/commercial stack and resolves 13 conflicts)
+- [ADR-2026-07-28-03 (bundle) — Canonical product first principles and boundary](../../coverwise_product_first_principles_bundle/ADR-2026-07-28-03-product-first-principles-and-boundary.md) — Proposed; subsumed by ADR-2026-07-29-02
 
 This file lists every architectural, product, integration, data-pipeline, payment, customer-facing, or operational decision made in CoverWise, with a link to the full decision record. Records follow the `motto_v4.md` decision-record schema (decision, date, context, options, chosen path, why, tradeoffs, assumptions, risks, validation, rollback, revisit triggers, links).
 

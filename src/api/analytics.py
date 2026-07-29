@@ -342,14 +342,9 @@ async def ingest_events(
     }
 
 
-# Security audit P0-08 (2026-07-18): the analytics read endpoints
-# previously required only an ordinary bearer token, so any signed-in
-# user could read global product metrics. The audit requires explicit
-# operator authorization. The Phase 0 minimum is a shared-secret
-# operator token checked against the `OPERATOR_DASHBOARD_TOKEN` env
-# var. Security Phase 1 will replace this with a server-side
-# principal model that includes an `operator` role on the verified
-# JWT, with the shared secret as a transitional fallback.
+# ── Auth helpers ──────────────────────────────────────────────────────
+
+
 def _check_operator_token(x_operator_token: str | None) -> None:
     """Verify the request carries a valid operator token.
 
@@ -390,6 +385,253 @@ def require_operator(
     this is the Phase 0 minimum.
     """
     _check_operator_token(x_operator_token)
+
+
+# ── Onboarding Funnel ─────────────────────────────────────────────────
+
+
+@router.get("/funnel")
+async def get_funnel(
+    days: int = 30,
+    current_user: User = Depends(get_current_user),
+    _operator: None = Depends(require_operator),
+):
+    """Compute the onboarding funnel for the specified lookback window.
+
+    Stages:
+    1. Install — app_session_started with days_since_install = 0
+    2. Onboarded — onboarding_completed
+    3. Uploaded — first_upload_started (first policy upload started)
+    4. Processed — document_processing_succeeded (first upload completed)
+    5. First Q&A — first_question_asked
+    6. Returned (engaged) — app_session_started with days_since_install >= 1
+       among users who also uploaded (stage 3+)
+
+    Returns absolute counts (unique install_ids per stage) and stage-to-stage
+    conversion rates as percentages.
+    """
+
+    def _query_funnel_sqlite() -> dict:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            # Cohort: install_ids whose FIRST session was within the window.
+            # We filter to days_since_install = 0 to exclude returning users
+            # whose first session was outside the window.
+            cohort = conn.execute("""
+                SELECT DISTINCT install_id
+                FROM analytics_events
+                WHERE event_name = 'app_session_started'
+                  AND COALESCE(install_id, '') != ''
+                  AND json_extract(properties, '$.days_since_install') = 0
+                  AND received_at >= datetime('now', ?)
+            """, (f"-{max(days, 1)} days",)).fetchall()
+
+            install_ids = [r["install_id"] for r in cohort if r["install_id"]]
+            if not install_ids:
+                return {
+                    "stages": {
+                        "install": 0,
+                        "onboarded": 0,
+                        "uploaded": 0,
+                        "processed": 0,
+                        "first_question": 0,
+                        "returned_engaged": 0,
+                    },
+                    "conversion": {},
+                    "days": days,
+                    "source": "sqlite",
+                }
+
+            placeholders = ",".join("?" for _ in install_ids)
+
+            # Stage 1: install itself (all members of the cohort)
+            install_count = len(install_ids)
+
+            # Stage 2: onboarding_completed
+            onboarded = conn.execute(f"""
+                SELECT DISTINCT install_id
+                FROM analytics_events
+                WHERE event_name = 'onboarding_completed'
+                  AND install_id IN ({placeholders})
+            """, install_ids).fetchall()
+            onboarded_ids = {r["install_id"] for r in onboarded}
+
+            # Stage 3: first_upload_started
+            uploaded = conn.execute(f"""
+                SELECT DISTINCT install_id
+                FROM analytics_events
+                WHERE event_name = 'first_upload_started'
+                  AND install_id IN ({placeholders})
+            """, install_ids).fetchall()
+            uploaded_ids = {r["install_id"] for r in uploaded}
+
+            # Stage 4: document_processing_succeeded
+            processed = conn.execute(f"""
+                SELECT DISTINCT install_id
+                FROM analytics_events
+                WHERE event_name = 'document_processing_succeeded'
+                  AND install_id IN ({placeholders})
+            """, install_ids).fetchall()
+            processed_ids = {r["install_id"] for r in processed}
+
+            # Stage 5: first_question_asked
+            asked = conn.execute(f"""
+                SELECT DISTINCT install_id
+                FROM analytics_events
+                WHERE event_name = 'first_question_asked'
+                  AND install_id IN ({placeholders})
+            """, install_ids).fetchall()
+            asked_ids = {r["install_id"] for r in asked}
+
+            # Stage 6: returned (app_session_started with days_since_install >= 1,
+            # among users who reached at least first_upload_started)
+            returned = conn.execute(f"""
+                SELECT DISTINCT e.install_id
+                FROM analytics_events e
+                WHERE e.event_name = 'app_session_started'
+                  AND e.install_id IN ({placeholders})
+                  AND json_extract(e.properties, '$.days_since_install') >= 1
+            """, install_ids).fetchall()
+            returned_ids = {r["install_id"] for r in returned}
+
+            # Intersect returned with users who uploaded (stage 3+)
+            returned_engaged = returned_ids & uploaded_ids
+
+            stages = {
+                "install": install_count,
+                "onboarded": len(onboarded_ids),
+                "uploaded": len(uploaded_ids),
+                "processed": len(processed_ids),
+                "first_question": len(asked_ids),
+                "returned_engaged": len(returned_engaged),
+            }
+
+            conversion = {}
+            if install_count > 0:
+                conversion["install_to_onboarded_pct"] = round(
+                    len(onboarded_ids) / install_count * 100, 1)
+            if len(onboarded_ids) > 0:
+                conversion["onboarded_to_uploaded_pct"] = round(
+                    len(uploaded_ids) / len(onboarded_ids) * 100, 1)
+            if len(uploaded_ids) > 0:
+                conversion["uploaded_to_processed_pct"] = round(
+                    len(processed_ids) / len(uploaded_ids) * 100, 1)
+            if len(processed_ids) > 0:
+                conversion["processed_to_first_question_pct"] = round(
+                    len(asked_ids) / len(processed_ids) * 100, 1)
+            if len(uploaded_ids) > 0:
+                conversion["uploaded_to_returned_pct"] = round(
+                    len(returned_engaged) / len(uploaded_ids) * 100, 1)
+
+            return {
+                "stages": stages,
+                "conversion": conversion,
+                "days": days,
+                "source": "sqlite",
+            }
+        finally:
+            conn.close()
+
+    # ── Production path (Supabase) ──
+    canonical_client = _production_analytics_client()
+    if canonical_client is not None:
+        try:
+            cutoff = datetime.now(timezone.utc).timestamp() - max(days, 1) * 86400
+            response = (
+                canonical_client.table("analytics_events")
+                .select("event_name,install_id,properties")
+                .gte("received_at", datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat())
+                .in_("event_name", [
+                    "app_session_started",
+                    "onboarding_completed",
+                    "first_upload_started",
+                    "document_processing_succeeded",
+                    "first_question_asked",
+                ])
+                .execute()
+            )
+            rows = list(response.data or [])
+
+            # Collect unique install_ids per event
+            installs: set[str] = set()
+            onboarded_ids_supabase: set[str] = set()
+            uploaded_ids_supabase: set[str] = set()
+            processed_ids_supabase: set[str] = set()
+            asked_ids_supabase: set[str] = set()
+            returned_ids_supabase: set[str] = set()
+
+            for row in rows:
+                install_id = (row.get("install_id") or "").strip()
+                if not install_id:
+                    continue
+                event_name = row.get("event_name", "")
+                if event_name == "app_session_started":
+                    props = row.get("properties") or {}
+                    if isinstance(props, str):
+                        try:
+                            props = json.loads(props)
+                        except (json.JSONDecodeError, TypeError):
+                            props = {}
+                    dsi = props.get("days_since_install", 0)
+                    if isinstance(dsi, (int, float)) and dsi == 0:
+                        installs.add(install_id)
+                    if isinstance(dsi, (int, float)) and dsi >= 1:
+                        returned_ids_supabase.add(install_id)
+                elif event_name == "onboarding_completed":
+                    onboarded_ids_supabase.add(install_id)
+                elif event_name == "first_upload_started":
+                    uploaded_ids_supabase.add(install_id)
+                elif event_name == "document_processing_succeeded":
+                    processed_ids_supabase.add(install_id)
+                elif event_name == "first_question_asked":
+                    asked_ids_supabase.add(install_id)
+
+            # Returned: only count users who also uploaded
+            returned_engaged_supabase = returned_ids_supabase & uploaded_ids_supabase
+
+            stages = {
+                "install": len(installs),
+                "onboarded": len(onboarded_ids_supabase),
+                "uploaded": len(uploaded_ids_supabase),
+                "processed": len(processed_ids_supabase),
+                "first_question": len(asked_ids_supabase),
+                "returned_engaged": len(returned_engaged_supabase),
+            }
+
+            conversion = {}
+            install_count = len(installs)
+            onboarded_count = len(onboarded_ids_supabase)
+            uploaded_count = len(uploaded_ids_supabase)
+            processed_count = len(processed_ids_supabase)
+            if install_count > 0:
+                conversion["install_to_onboarded_pct"] = round(onboarded_count / install_count * 100, 1)
+            if onboarded_count > 0:
+                conversion["onboarded_to_uploaded_pct"] = round(uploaded_count / onboarded_count * 100, 1)
+            if uploaded_count > 0:
+                conversion["uploaded_to_processed_pct"] = round(processed_count / uploaded_count * 100, 1)
+            if processed_count > 0:
+                conversion["processed_to_first_question_pct"] = round(len(asked_ids_supabase) / processed_count * 100, 1)
+            if uploaded_count > 0:
+                conversion["uploaded_to_returned_pct"] = round(len(returned_engaged_supabase) / uploaded_count * 100, 1)
+
+            return {
+                "stages": stages,
+                "conversion": conversion,
+                "days": days,
+                "source": "supabase",
+            }
+        except Exception as error:
+            raise HTTPException(
+                status_code=503,
+                detail="Funnel query failed on canonical storage.",
+            ) from error
+
+    # ── Development path (SQLite) ──
+    return _query_funnel_sqlite()
+
+
+# ── Operator-gated read endpoints ─────────────────────────────────────
 
 
 @router.get("/summary")
@@ -721,9 +963,9 @@ async def get_error_aggregation(
     """, (time_filter,)).fetchall()
 
     # Parse the combined results into separate dicts
-    error_types: Dict[str, int] = {}
-    error_libraries: Dict[str, int] = {}
-    top_messages: list = []
+    error_types = {}
+    error_libraries = {}
+    top_messages = []
 
     for row in aggregation_rows:
         dim = row["dimension"]

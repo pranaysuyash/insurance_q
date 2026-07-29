@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../config/app_config.dart';
+import '../../domain/contact/contact_validator.dart';
 import '../../services/newsletter_service.dart';
 import 'coverwise_snackbar.dart';
 
@@ -57,8 +57,8 @@ class _NewsletterSignupSheetState extends State<NewsletterSignupSheet> {
       setState(() => _error = 'Please enter your email address.');
       return;
     }
-    if (!AppConfig.isValidEmail(email)) {
-      setState(() => _error = AppConfig.isDisposableEmail(email)
+    if (!ContactValidator.isValidEmail(email)) {
+      setState(() => _error = ContactValidator.isDisposableEmail(email)
           ? 'Disposable email addresses are not allowed.'
           : 'Please enter a valid email address.');
       return;
@@ -192,8 +192,7 @@ class _NewsletterSignupSheetState extends State<NewsletterSignupSheet> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () =>
-                        setState(() => _confirmed = !_confirmed),
+                    onTap: () => setState(() => _confirmed = !_confirmed),
                     child: Text(
                       'I agree to receive emails and understand I can unsubscribe at any time.',
                       style: theme.textTheme.bodySmall?.copyWith(

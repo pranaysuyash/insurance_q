@@ -4370,3 +4370,26 @@ proves the same: pdfplumber spatial KV v2 (deterministic, 3s) beats Docling
 (192s) and DeepSeek-OCR (30s, VLM) at both accuracy and speed. The VLMs
 hallucinate (DeepSeek-OCR repeated the sum insured section 3 times) while
 deterministic parsers are exact.
+
+---
+
+## Addendum (2026-07-29): Doctrine reconciliation linkage
+
+> Append-only. This exploration map's technical/engineering content (parsers, chunking, VLM benchmarks, outbox, sync) is unchanged and remains a living research artifact. This addendum only links the product-boundary portions of this map to the now-proposed layered doctrine stack.
+
+### Product-boundary items in this map — governing doctrine
+
+Earlier entries in this map discuss product-boundary surfaces (what-if calculator removal at line ~311, "Start renewal" neutralization at ~312, comparison pipeline at ~328, claim-assistance framing at ~1298). Those product-boundary interpretations are now governed by:
+
+- **[ADR-2026-07-29-02](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md)** — doctrine stack reconciliation (Proposed).
+- **[Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md)** — the five-gate stack (Gates A-E) and Principle 4 boundary test.
+- **[FIRST_PRINCIPLES_WEDGE.md](../architecture/FIRST_PRINCIPLES_WEDGE.md)** — corrected: neutral owned-policy comparison is IN; shopping comparison is OUT; "gap alerts" reframed as "coverage facts and verification prompts".
+
+### Specific reconciliations
+
+- **What-if calculator removal (line ~311):** reaffirmed. Gate C rejection.
+- **"Start renewal" → neutral reminder (line ~312):** reaffirmed. [ADR-2026-07-29-02 §4.5](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md).
+- **Comparison pipeline (line ~328):** the map's description ("normalize price frequency, taxes, riders, cite source clauses, expose missing fields, render only dimension-specific conclusions") is consistent with neutral owned-policy comparison (IN). Any shopping/recommendation comparison remains OUT. [ADR-2026-07-29-02 §4.1](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md).
+- **Claim assistance framing (line ~1298):** must mean policy-stated process/contacts, not consultancy. [ADR-2026-07-29-02 §4.4](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md).
+
+Future product-boundary exploration in this map must cite the constitution's gate stack. Engineering/research exploration (parsers, embeddings, infra) is unaffected by this addendum.
