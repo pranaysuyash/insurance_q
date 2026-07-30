@@ -12,11 +12,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 
 import 'package:coverwise/l10n/app_localizations_gen.dart';
-import 'package:coverwise/main.dart';
+import 'package:coverwise/app.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:coverwise/services/local_storage_service.dart';
 import 'package:coverwise/services/app_state_store.dart';
+import 'package:coverwise/widgets/usage_stats_widget.dart';
 
 void main() {
   setUpAll(() async {
@@ -55,6 +56,22 @@ void main() {
             AppLocalizationsGen.localizationsDelegates,
         supportedLocales: AppLocalizationsGen.supportedLocales,
         home: ProviderScope(
+          overrides: [
+            // Prevent the dashboard's UsageStatsWidget from making a real
+            // HTTP call via QueryService.getUsageStats during the test
+            // pump. The test framework returns 400 for all HTTP requests,
+            // but Dio creates a zero-duration timer that stays pending
+            // after the widget tree is disposed, causing an assertion
+            // failure. Return mock fallback data instead.
+            usageStatsProvider.overrideWith((ref) async {
+              return {
+                'session_uploads': 0,
+                'session_limit': 5,
+                'ip_uploads': 0,
+                'ip_limit': 10,
+              };
+            }),
+          ],
           child: InsuranceApp(),
         ),
       ),

@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/qa_models.dart';
 import '../models/document_model.dart';
 import '../config/app_config.dart';
+import '../providers/capabilities_provider.dart';
 import '../providers/questions_provider.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
@@ -2193,17 +2194,21 @@ class FollowUpChips extends ConsumerWidget {
 /// answers. Until a real benchmark calibrates confidence, the badge  /// must NOT show high/medium/low colours — it must be hidden entirely
 /// or show a neutral indicator.
 ///
-/// When [AppConfig.confidenceCalibrated] is false (the default), the
-/// badge returns a SizedBox.shrink() so users never see an internal
-/// confidence label. When true, it shows the legacy high/medium/low
-/// chip behaviour.
+/// When the server-reported [CapabilitiesResponse.confidenceCalibrated] is
+/// false (the default), the badge returns a SizedBox.shrink() so users
+/// never see an internal confidence label. When true, it shows the legacy
+/// high/medium/low chip behaviour.
+///
+/// A1-P0.3: Confidence calibration state is now a server-provided runtime
+/// capability, not a compile-time constant. A stale binary may disagree
+/// with the deployed backend.
 class ConfidenceBadge extends StatelessWidget {
   final double confidence;
   const ConfidenceBadge({super.key, required this.confidence});
 
   @override
   Widget build(BuildContext context) {
-    if (!AppConfig.confidenceCalibrated) {
+    if (!capabilitiesService.latest.confidenceCalibrated) {
       // Hide the badge entirely rather than showing 'uncalibrated' —
       // users have no context for that internal label.
       return const SizedBox.shrink();

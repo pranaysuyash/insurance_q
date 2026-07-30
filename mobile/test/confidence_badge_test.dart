@@ -4,12 +4,14 @@ import 'package:coverwise/screens/qa_screen.dart';
 
 /// Tests for the ConfidenceBadge widget.
 ///
-/// The ConfidenceBadge checks AppConfig.confidenceCalibrated (compile-time const).
-/// When false (the default), it is hidden entirely — per the trust audit's
-/// NO-GO verdict that confidence is not yet calibrated against a real benchmark.
+/// The ConfidenceBadge checks CapabilitiesResponse.confidenceCalibrated
+/// (server-provided runtime capability). When false (the default), the
+/// badge is hidden entirely — per the trust audit's NO-GO verdict that
+/// confidence is not yet calibrated against a real benchmark.
 ///
-/// The High/Medium/Low threshold tests are only valid when
-/// CONFIDENCE_CALIBRATED=true is passed via --dart-define at build time.
+/// A1-P0.3: Confidence calibration state is now server-provided, not a
+/// compile-time constant. The High/Medium/Low threshold tests are only
+/// valid when the server reports confidenceCalibrated=true.
 void main() {
   Widget buildTestApp(Widget child) {
     return MaterialApp(
@@ -108,9 +110,9 @@ void main() {
     });
   });
 
-  // NOTE: The following tests are ONLY valid when confidenceCalibrated is true.
-  // To run them, build with: flutter test --dart-define=CONFIDENCE_CALIBRATED=true
-  // They are skipped by default because the compile-time const defaults to false.
+  // NOTE: The following tests are ONLY valid when the server reports
+  // confidenceCalibrated=true in GET /capabilities. They are skipped by
+  // default because the CapabilitiesResponse default is false.
   //
   // group('Boundary conditions (calibrated only)', () {
   //   testWidgets('0.69 is Medium, 0.70 is High', (tester) async { ... });

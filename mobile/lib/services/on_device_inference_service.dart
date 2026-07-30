@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
 
@@ -41,6 +43,10 @@ Do not make coverage, eligibility, payment, legal, or claim decisions.
     _initialized = true;
   }
 
+  /// Install the model from the configured manifest URL.
+  /// A1-P1f: Uses [AppConfig.resolvedOnDeviceModelUrl] which returns the
+  /// manifest's validated URL when the full manifest is present, or falls
+  /// back to the raw URL string for backward compatibility.
   Future<void> installModel({void Function(int progress)? onProgress}) async {
     await initialize();
     if (!isConfigured) {
@@ -48,10 +54,15 @@ Do not make coverage, eligibility, payment, legal, or claim decisions.
         'On-device inference is disabled or has no approved HTTPS model URL.',
       );
     }
+    // A1-P1f: Log the manifest when available for observability.
+    final manifest = AppConfig.onDeviceModelManifest;
+    if (manifest != null) {
+      developer.log('Installing model: $manifest');
+    }
     await FlutterGemma.installModel(
       modelType: ModelType.gemmaIt,
       fileType: ModelFileType.task,
-    ).fromNetwork(AppConfig.onDeviceModelUrl)
+    ).fromNetwork(AppConfig.resolvedOnDeviceModelUrl)
       .withProgress(onProgress ?? (_) {})
       .install();
   }

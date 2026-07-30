@@ -73,18 +73,20 @@ void main() {
   });
 
   test('anonymous claim intent flag is single-use', () async {
-    await AuthService.prepareAnonymousWorkspaceClaim();
-    expect(AuthService.consumeAnonymousWorkspaceClaim(), isFalse);
+    final notifier = container.read(authServiceProvider.notifier);
+    await notifier.prepareAnonymousWorkspaceClaim();
+    expect(notifier.consumeAnonymousWorkspaceClaim(), isFalse);
 
     _secureStorage['anonymous_auth_token'] = 'token-abc';
-    await AuthService.prepareAnonymousWorkspaceClaim();
-    expect(AuthService.consumeAnonymousWorkspaceClaim(), isTrue);
-    expect(AuthService.consumeAnonymousWorkspaceClaim(), isFalse);
+    await notifier.prepareAnonymousWorkspaceClaim();
+    expect(notifier.consumeAnonymousWorkspaceClaim(), isTrue);
+    expect(notifier.consumeAnonymousWorkspaceClaim(), isFalse);
   });
 
   test('anonymous claim intent remains false when no token exists', () async {
     _secureStorage = {};
-    await AuthService.prepareAnonymousWorkspaceClaim();
-    expect(AuthService.consumeAnonymousWorkspaceClaim(), isFalse);
+    final notifier = container.read(authServiceProvider.notifier);
+    await notifier.prepareAnonymousWorkspaceClaim();
+    expect(notifier.consumeAnonymousWorkspaceClaim(), isFalse);
   });
 }

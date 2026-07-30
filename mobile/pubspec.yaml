@@ -66,6 +66,10 @@ dependencies:
   purchases_flutter: ^10.4.2
   flutter_native_splash: ^2.4.6
   sentry_flutter: ^8.12.0
+  # Runtime package information (version, build number) — replaces the
+  # hardcoded appVersion string that drifts from pubspec.yaml.
+  package_info_plus: ^8.0.0
+
   # Optional mobile on-device inference seam. The feature remains disabled
   # unless an approved .task model URL is supplied at build time.
   flutter_gemma: ^1.3.1

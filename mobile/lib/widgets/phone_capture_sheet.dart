@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../services/analytics_service.dart';
 import '../services/app_state_store.dart';
@@ -22,7 +23,7 @@ import '../theme/coverwise_motion.dart';
 /// - Analytics at every step
 ///
 /// Call [maybeShow] after a successful upload. It handles the re-prompt logic.
-class PhoneCaptureSheet extends StatefulWidget {
+class PhoneCaptureSheet extends ConsumerStatefulWidget {
   const PhoneCaptureSheet({super.key});
 
   /// Shows the phone capture sheet if the re-prompt logic allows.
@@ -59,10 +60,10 @@ class PhoneCaptureSheet extends StatefulWidget {
   }
 
   @override
-  State<PhoneCaptureSheet> createState() => _PhoneCaptureSheetState();
+  ConsumerState<PhoneCaptureSheet> createState() => _PhoneCaptureSheetState();
 }
 
-class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
+class _PhoneCaptureSheetState extends ConsumerState<PhoneCaptureSheet> {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
   bool _isValidPhone = false;
@@ -92,11 +93,12 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
     final phone = '+91${_phoneController.text.replaceAll(RegExp(r'[^0-9]'), '')}';
 
     try {
-      if (AuthService.isClientReady) {
-        if (AuthService.hasAccountSession) {
-          await AuthService.updateUserPhone(phone);
+      final notifier = ref.read(authServiceProvider.notifier);
+      if (notifier.isClientReady) {
+        if (notifier.hasAccountSession) {
+          await notifier.updateUserPhone(phone);
         } else {
-          await AuthService.signInWithPhoneOtp(phone);
+          await notifier.signInWithPhoneOtp(phone);
         }
       }
       final box = Hive.box(AppStateStore.boxName);
@@ -122,8 +124,10 @@ class _PhoneCaptureSheetState extends State<PhoneCaptureSheet> {
     final code = _otpController.text.trim();
 
     try {
-      if (AuthService.isClientReady) {
-        await AuthService.verifyPhoneOtp(phone, code);
+      if (ref.read(authServiceProvider.notifier).isClientReady) {
+        await ref
+            .read(authServiceProvider.notifier)
+            .verifyPhoneOtp(phone, code);
       }
       AnalyticsService.track('phone_otp_verified', {'otp_channel': 'sms'});
 

@@ -174,3 +174,164 @@
 - Modified trust gate in `policy_detail_screen.dart` to show executive summary even when `!hasMinimumViableEvidence` (derived data, not extracted)
 
 **Total effort:** ~2 hours
+
+---
+
+## Decision 7: Coverage Details Summary Share-Gate Verification — Verified, No Code Change Required
+
+**Date:** 2026-07-30
+**Status:** ✅ Verified — Tier 1 + Tier 2 + Tier 3 evidence obtained; no production code changed
+
+### Context
+
+The IDE surfaced `mobile/test/coverage_details_summary_screen_test.dart` for a verification workstream. The user explicitly framed the work as "the full thing, not just Part 0," which the agent interpreted as verification-first execution of the approved plan. The plan's preferred outcome was "Default — no change. Run the test. If it passes, document. If it fails, apply the smallest coherent delta."
+
+### Update log (per motto §0.12.1 — append, do not edit)
+
+- **2026-07-30 (initial pause):** WS-1 verification surfaced a `createdAt` type-mismatch compile error inside an in-flight parallel-agent refactor on `mobile/lib/services/auth_service.dart` (lines 302→303, comment shifted between polls — confirming live editing). Per motto §23 addendum (2026-07-28 — Parallel-editor hold and resync protocol), the agent paused rather than patching the contested file. Operator chose "Wait + poll for compile to clear" as the resolution path.
+- **2026-07-30 (resolution):** During the time the discovery bundle was being authored, the parallel agent landed the defensive `DateTime.tryParse` form on `auth_service.dart:303`. Final WS-1 run: 6/6 share-gate tests pass in 27 seconds. Regression run: 32/32 tests pass (`entitlement_test` + `coverage_share_text_test`) in 7 seconds. `flutter analyze` on the trio (`CoverageDetailsSummaryScreen`, `EntitlementNotifier`, `Entitlement` model, the test file, `HiveTestHelper`): No issues found. Status flipped from "paused" to "verified, no code change required."
+
+### Decision
+
+**No code change.** The 6 share-gate test contracts were already correct; the production wiring was already correct; the gate-reason copy at `mobile/lib/providers/entitlement_provider.dart:checkAction('export')` is the single canonical source of truth. Tier 2 + Tier 3 evidence confirms both ends match.
+
+### Evidence tier achieved
+
+| Tier | Source | Outcome |
+|---|---|---|
+| 1 — static inspection | `04-current-state-architecture.md` §G (state flow analysis) | Aligned by manual trace |
+| 1 — static analyzer | `flutter analyze <trio>` | No issues found |
+| 2 — targeted test | `flutter test test/coverage_details_summary_screen_test.dart` | 6/6 pass in 27s |
+| 3 — regression | `flutter test test/entitlement_test.dart test/coverage_share_text_test.dart` | 32/32 pass in 7s |
+| 4 — runtime/manual | (debug APK) | Out of scope (no APK device available) |
+| 5 — production | (deployment) | Out of scope (not deployed) |
+
+### Rationale
+
+1. **motto §23 / 2026-07-28 Addendum** — contested files were paused, not patched; that discipline held.
+2. **motto §13 (Scope Expansion Control)** — patching `auth_service.dart` would have been unapproved scope expansion into the parallel-agent's auth refactor.
+3. **Constitution §8 (One canonical path per truth)** — the gate-reason copy has exactly one source location; fragmenting it would be a regression.
+4. **Verification-first discipline** — better to document evidence than invent unjustified code changes.
+
+### Files / artefacts produced (this workstream)
+
+- `docs/planning/discovery/2026-07-30-coverage-details-summary-share-gating/MANIFEST.md` (outcome + WS-1 evidence + re-resolution)
+- `docs/planning/discovery/2026-07-30-coverage-details-summary-share-gating/01-instruction-applicability-map.md` through `09-anything-else.md` (Documents A–I per the system-prompt Part 0 template; motto §0.3.1 "Everything Is a Documentation Candidate" honored)
+- This Decision 7 entry (canonical append)
+- Plan file: `~/.commandcode/plans/coverwise-coverage-details-summary-share-gating.md` (pre-approval contract, distinct role)
+
+### Files NOT touched (out of scope, blast-radius-clean)
+
+- `mobile/lib/main.dart`, `mobile/lib/services/auth_service.dart`, `mobile/lib/services/principal_key_service.dart`, `mobile/lib/services/hive_workspace_service.dart`, `mobile/lib/providers/auth_provider.dart`, `mobile/lib/config/app_config.dart`, `mobile/lib/screens/coverage_gap_screen.dart`, `mobile/test/widget_test.dart`, `mobile/pubspec.yaml`, `mobile/pubspec.lock` — all 10 modified files in `mobile/` were pre-existing parallel-agent work. Verified via `git status -s` and `git diff --stat docs/` (no diff outside the new bundle directory).
+- `mobile/lib/screens/coverage_details_summary_screen.dart`, `mobile/lib/providers/entitlement_provider.dart`, `mobile/lib/models/entitlement.dart`, `mobile/test/coverage_details_summary_screen_test.dart`, `mobile/test/helpers/hive_test_helper.dart` — all canonical and unchanged.
+
+### Trade-offs accepted
+
+- The 935-line god-object status of `CoverageDetailsSummaryScreen` is acknowledged and out of scope (motto §0.13).
+- The substring assertion in test 1 is by-design flexibility (allows copy tweaks without test churn) but undocumented; flagged for follow-up at G-4 in `05-gap-analysis.md`.
+- The `_shareSummary` analytics gap (no `share_gate_displayed` or `share_completed` events) is flagged for follow-up at G-7.
+- No `AGENTS.md` exists at the repo root; flagged for hygiene follow-up.
+
+### Anything else? (motto §0.1.1)
+
+The discovery bundle under `docs/planning/discovery/2026-07-30-coverage-details-summary-share-gating/` carries Documents A–I, the WS-1 evidence (compile-error traces and the parallel-refactor resolution), and the gap/open-question/risk registers for future sessions. The pause-then-resolve execution pattern is documented inline so future operators can adopt or refine it. The constitution's doctrine hierarchy was treated as *Proposed* throughout; if `ADR-2026-07-29-02-doctrine-stack-reconciliation.md` later flips to Accepted, downstream workstreams should re-classify this bundle's gate verdicts.
+
+### Total effort (this workstream)
+
+Verification + 10-file discovery bundle + canonical DECISION_LOG append + plan file. ~2 hours of agent time, no human-time blocking.
+
+---
+
+## Decision 8: Project-Wide Part 0 + Part 1 Discovery Bundle Authored (No Code Change)
+
+**Date:** 2026-07-30
+**Status:** ✅ Bundle authored (`docs/planning/discovery/2026-07-30-project-wide-recon/`); no production code changed
+
+### Context
+
+Operator requested "the full thing" — full system prompt Part 0–16 execution at project scope. After workstream-scope Decision 7, the operator clarified project scope. This Decision 8 records the project-wide Part 0 + Part 1 effort.
+
+### Implementation summary
+
+- Authored 12 files (MANIFEST + 11 numbered docs) under `docs/planning/discovery/2026-07-30-project-wide-recon/`.
+- Coverage: doctrine stack (motto_v4, constitution, wedge, commercial, ADR-2026-07-29-02), audit corpus (Buffy's strategic assessment, content audit, legal-risk audit, doctrinal decisions), project reconstruction A–I categories, gap matrix (18 project-scope gaps), open questions (16), risks (20), "Anything else?" standing prompt (12 items), mission restatement, Parts 2-16 planning skeleton.
+- No production code changed. No commit performed (operator handles commits separately per session-end direction).
+
+### Rationale
+
+1. **motto §0.13 (scope expansion control)** — project-wide Part 0 was complete-able in a single session; Parts 8-16 require operator-authorised implementation work which is multi-session scope.
+2. **Documentation-first (constitution §8, motto §0.3.1)** — durable documents belong before speculative execution.
+3. **Authority discipline (motto §3 + ADR-2026-07-29-02)** — operator sign-off required for project-wide directives; this Decision is positioned for that review.
+
+### Total effort
+
+12 files, 2,075 lines, single session of agent time.
+
+---
+
+## Decision 9: Six "Dismissed" Tests Are Actually Passing — Retract Buffy §2.2
+
+**Date:** 2026-07-30
+**Status:** ✅ Re-evaluation complete; no source code change required; `docs/strategic_assessment_2026-07-17.md` §2.2 superseded
+
+### Context
+
+`docs/strategic_assessment_2026-07-17.md` (Buffy's strategic assessment) §2.2 listed six Flutter test failures as "dismissed" with diagnoses ("gapId import issue", "Dart compiler crash", "Missing MaterialApp", three "timeouts"), and §3 P0 #1 named them as a launch blocker. The 2026-07-30 project-wide Part 0 re-validation of G-2 in the discovery bundle (`docs/planning/discovery/2026-07-30-project-wide-recon/05-gap-analysis.md`) actually ran each test and revealed the diagnoses were wrong.
+
+### Implementation summary
+
+Ran each of the 6 dismissed tests in isolation:
+
+| Test | Per-file outcome (no source change) | Buffy's stated diagnosis |
+|---|---|---|
+| `coverage_gap_tracking_test.dart` | **23/23 pass** | "gapId import issue" — **not real** |
+| `confidence_badge_test.dart` | **10/10 pass** | "Dart compiler crash" — **not real** |
+| `policy_type_test.dart` | **2/2 pass** | "timeout" — **not real** |
+| `global_error_boundary_test.dart` | **3/3 pass** | "timeout" — **not real** |
+| `service_test.dart` | **11/11 pass** | "timeout" — **not real** |
+| `widget_test.dart` | **1/1 pass** when run with `--dart-define-from-file=.dartdefine.env` | "Missing MaterialApp" — **not real** (the actual cause was `AppConfig.baseUri` throwing `StateError: API_BASE_URL is required`; the env flag in `.github/workflows/ci.yml:74` provides it) |
+
+Then ran all 6 together with the same CI flags (`flutter test --concurrency=1 --dart-define-from-file=.dartdefine.env`): **50 cases, 0 failures, ~4 seconds**.
+
+### Real cause of the local-machine dismissals
+
+Local `flutter test test/foo.dart` runs without `--dart-define-from-file=.dartdefine.env`. In that mode:
+- `widget_test.dart` calls `InsuranceApp()` → `_startup()` → `AppConfig.isProduction` returns true (default) → `baseUri` throws `StateError`. The test never reaches the assertions.
+- Running many tests in parallel causes a Flutter test-runner `stream_channel` cascade that masks the actual signal.
+
+CI runs without these problems because CI has the flag and `--concurrency=1`.
+
+### Decision
+
+Retract Buffy §2.2's "dismissed failures" diagnoses. The six tests are not failures. **No source-code change is required.**
+
+### Update log (per motto §0.12.1)
+
+- **2026-07-30:** Original §2.2 assessments retracted; this entry supersedes.
+
+### Files affected
+
+- `docs/strategic_assessment_2026-07-17.md` §2.2 — appended dated supersession note (see Decision 9 appendix below).
+- `docs/planning/discovery/2026-07-30-project-wide-recon/05-gap-analysis.md` G-2 — re-evaluated with this evidence.
+- `DECISION_LOG.md` — Decision 9 entry (this file).
+
+### Rationale
+
+1. **motto §0.7 (AI Output Boundary)** — re-verifying diagnoses against current state is required before accepting any claim.
+2. **motto §5 (Stale State)** — the dismissal predates the `--dart-define-from-file` flag being added to CI.
+3. **motto §0.3 (Documentation Continuity)** — durable knowledge survives in this entry; the §2.2 addendum preserves original text + records the supersession.
+
+### Trade-offs
+
+- **Cost:** ~5 minutes of test runs.
+- **Net:** launch-blocker claim "all 6 tests must be fixed" is retracted. CI is unaffected. Future agents reading §2.2 will see the dated addendum and not re-derive the wrong diagnosis.
+
+### Total effort
+
+5 minutes of verification + 3 file edits (Decision 9 entry, §2.2 addendum, G-2 re-evaluation).
+
+---
+
+### Decision 9 Appendix — supersession text to add to `docs/strategic_assessment_2026-07-17.md` §2.2
+
+> **Addendum (2026-07-30):** §2.2's six "dismissed failures" diagnoses are **superseded** per `DECISION_LOG.md` Decision 9. Re-running each of the six tests in isolation against current `main` (commit `f941f13`) with the same flags as CI (`flutter test --concurrency=1 --dart-define-from-file=.dartdefine.env`) shows all 50 individual test cases pass, in ~4 seconds. The original diagnoses were based on local `flutter test` runs that lacked `--dart-define-from-file=.dartdefine.env`; in that mode `widget_test.dart` fails because `AppConfig.baseUri` throws `StateError: API_BASE_URL is required`. CI includes the env flag (`mobile/.github/workflows/ci.yml`), so CI does not exhibit the failure. **No source-code change was required.** Per motto §0.12.1, this supersession is recorded as Decision 9 in `DECISION_LOG.md`. Original §2.2 text preserved as historical record.

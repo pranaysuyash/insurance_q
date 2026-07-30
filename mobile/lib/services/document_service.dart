@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
+import 'auth_service.dart';
 import '../config/app_config.dart';
+import '../providers/capabilities_provider.dart';
 import '../models/document_model.dart';
 import 'analytics_service.dart';
-import 'auth_service.dart';
 import 'local_storage_service.dart';
 import 'session_service.dart';
 import 'app_state_repository.dart';
@@ -22,13 +24,20 @@ class DocumentService {
 
   /// Returns the authenticated Dio instance, creating it lazily if needed.
   /// This ensures all API calls go through the AuthInterceptor.
+  /// Returns the authenticated Dio instance, creating it lazily if needed.
+  ///
+  /// A1-P1b: Timeouts are sourced from [capabilitiesService] (server-backed
+  /// with AppConfig fallback) rather than hardcoded AppConfig constants.
+  /// The Dio instance is created once; timeout changes from the server take
+  /// effect on the next app launch, not mid-session.
   static Dio get authenticatedDio {
     if (_authenticatedDio == null) {
+      final caps = capabilitiesService.latest;
       _authenticatedDio = Dio(
         BaseOptions(
           baseUrl: AppConfig.baseUrl,
-          connectTimeout: Duration(seconds: AppConfig.connectTimeoutSeconds),
-          receiveTimeout: Duration(seconds: AppConfig.receiveTimeoutSeconds),
+          connectTimeout: Duration(seconds: caps.connectTimeoutSeconds),
+          receiveTimeout: Duration(seconds: caps.receiveTimeoutSeconds),
         ),
       );
       _authenticatedDio!.interceptors.add(AuthInterceptor(_authenticatedDio!));
@@ -606,7 +615,15 @@ class DocumentService {
   Future<List<InsuranceDocument>> getDocuments() async {
     try {
       var documents = await _localStorageService.getDocuments();
-      if (AuthService.hasAccountSession) {
+      // Gracefully skip account reconciliation when Supabase is not
+      // initialized (e.g. unit tests) or when there is no active session.
+      bool hasSession = false;
+      try {
+        hasSession = Supabase.instance.client.auth.currentSession != null;
+      } catch (_) {
+        // Supabase not initialized — stay local-only.
+      }
+      if (hasSession) {
         try {
           documents = await syncAccountDocuments();
         } catch (error) {

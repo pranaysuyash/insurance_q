@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import '../config/app_config.dart';
+import '../providers/capabilities_provider.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
 import '../providers/connectivity_provider.dart';
@@ -184,7 +185,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           setState(() => _uploadError = l10n.fileTypeUnsupported);
           return;
         }
-        if (picked.bytes.length > AppConfig.maxUploadFileSizeBytes) {
+        if (picked.bytes.length > capabilitiesService.latest.maxUploadFileSizeBytes) {
           setState(() => _uploadError =
               'This file is too large (${_formatFileSize(picked.bytes.length)}). ${l10n.fileTypeMaxSize}.');
           return;
@@ -213,7 +214,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       // Validate file size before proceeding.
       final size = await File(file.path).length();
       if (!mounted) return;
-      if (size > AppConfig.maxUploadFileSizeBytes) {
+      if (size > capabilitiesService.latest.maxUploadFileSizeBytes) {
         setState(() => _uploadError =
             'This file is too large (${_formatFileSize(size)}). ${l10n.fileTypeMaxSize}.');
         return;
@@ -510,7 +511,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         setState(() => _uploadError = l10n.fileTypeUnsupported);
         return;
       }
-      if (file.size > AppConfig.maxUploadFileSizeBytes) {
+      if (file.size > capabilitiesService.latest.maxUploadFileSizeBytes) {
         if (!mounted) return;
         setState(() => _uploadError =
             'This file is too large (${_formatFileSize(file.size)}). ${l10n.fileTypeMaxSize}.');
@@ -541,13 +542,13 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         ));
         continue;
       }
-      if (file.size > AppConfig.maxUploadFileSizeBytes) {
+      if (file.size > capabilitiesService.latest.maxUploadFileSizeBytes) {
         entries.add(BatchUploadEntry(
           fileName: file.name,
           fileSizeBytes: file.size,
           isWebFile: true,
           state: BatchUploadState.skipped,
-          errorMessage: l10n.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+          errorMessage: l10n.batchFileTooLargeMB(capabilitiesService.latest.maxUploadFileSizeBytes ~/ (1024 * 1024)),
         ));
         continue;
       }
@@ -678,13 +679,13 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           ));
           continue;
         }
-        if (file.bytes.length > AppConfig.maxUploadFileSizeBytes) {
+        if (file.bytes.length > capabilitiesService.latest.maxUploadFileSizeBytes) {
           entries.add(BatchUploadEntry(
             fileName: file.name,
             fileSizeBytes: file.bytes.length,
             isWebFile: true,
             state: BatchUploadState.skipped,
-            errorMessage: l10n.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+            errorMessage: l10n.batchFileTooLargeMB(capabilitiesService.latest.maxUploadFileSizeBytes ~/ (1024 * 1024)),
           ));
           continue;
         }
@@ -727,12 +728,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       try {
         final size = await File(xFile.path).length();
         if (!mounted) return;
-        if (size > AppConfig.maxUploadFileSizeBytes) {
+        if (size > capabilitiesService.latest.maxUploadFileSizeBytes) {
           entries.add(BatchUploadEntry(
             fileName: xFile.path.split('/').last,
             fileSizeBytes: size,
             state: BatchUploadState.skipped,
-            errorMessage: l10n.batchFileTooLargeMB(AppConfig.maxUploadFileSizeMB),
+            errorMessage: l10n.batchFileTooLargeMB(capabilitiesService.latest.maxUploadFileSizeBytes ~/ (1024 * 1024)),
           ));
           continue;
         }
@@ -1154,18 +1155,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                                                       .primary,
                                                 ),
                                                 const SizedBox(width: 8),
-                                                Text(
-                                                  _isReadingOnDevice
-                                                      ? 'Reading pages on this device…'
-                                                      : 'Uploading to CoverWise…',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyMedium
-                                                      ?.copyWith(
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurfaceVariant,
-                                                      ),
+                                                Expanded(
+                                                  child: Text(
+                                                    _isReadingOnDevice
+                                                        ? 'Reading pages on this device…'
+                                                        : 'Uploading to CoverWise…',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
+                                                        ),
+                                                  ),
                                                 ),
                                               ],
                                             ),

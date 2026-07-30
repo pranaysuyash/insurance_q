@@ -127,9 +127,13 @@ jobs:
       working-directory: mobile
       run: flutter analyze --no-fatal-infos
 
+    - name: Verify .dartdefine.env exists
+      working-directory: mobile
+      run: test -f .dartdefine.env || { echo 'ERROR: .dartdefine.env not found — create it from the template and check it into CI'; exit 1; }
+
     - name: Run Flutter tests
       working-directory: mobile
-      run: flutter test --concurrency=1
+      run: flutter test --concurrency=1 --dart-define-from-file=.dartdefine.env
 
     - name: Compile non-distributable CI release artifact
       working-directory: mobile

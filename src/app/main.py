@@ -20,6 +20,7 @@ from src.api.subscription import router as subscription_router
 from src.api.evidence import router as evidence_router
 from src.api.claims import router as claims_router
 from src.api.report_router import router as report_router
+from src.api.capabilities import router as capabilities_router
 from src.models.user import User
 from src.api.document import (
     router as document_router,
@@ -373,6 +374,7 @@ app.include_router(consent_router)
 app.include_router(subscription_router)
 app.include_router(claims_router)
 app.include_router(report_router)
+app.include_router(capabilities_router)
 
 @app.get("/healthz")
 async def liveness_check():

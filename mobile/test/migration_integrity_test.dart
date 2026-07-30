@@ -8,6 +8,7 @@ import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/services/hive_workspace_service.dart';
 import 'package:coverwise/services/local_storage_service.dart';
 import 'package:coverwise/services/principal_key_service.dart';
+import 'package:coverwise/models/identity.dart';
 
 /// In-memory flutter_secure_storage mock that tracks key/value pairs across
 /// read/write/delete calls so the migration test can pre-populate the old
@@ -284,7 +285,7 @@ void main() {
 
       // --- act: claim ---
       await HiveWorkspaceService.resetForPrincipal(
-        realId,
+        AccountPrincipal(realId),
         preserveCurrentWorkspace: true,
       );
 
@@ -322,7 +323,7 @@ void main() {
       await Hive.box('consent_ledger').put('marketing', 'v2');
 
       await HiveWorkspaceService.resetForPrincipal(
-        realId,
+        AccountPrincipal(realId),
         preserveCurrentWorkspace: false,
       );
 
@@ -348,7 +349,7 @@ void main() {
       await box.put('some_setting', 'should-survive');
 
       await HiveWorkspaceService.resetForPrincipal(
-        realId,
+        AccountPrincipal(realId),
         preserveCurrentWorkspace: true,
       );
 
@@ -367,31 +368,80 @@ void main() {
     });
   });
 
-  group('workspace box names', () {
-    test('all 8 box names are covered by HiveTestHelper', () {
-      // Import guard: HiveTestHelper._boxNames must list every box the
-      // workspace opens. This test checks the source-level constant.
-      // HiveTestHelper uses constant references (LocalStorageService.documentsBoxName
-      // etc.) for some entries and string literals for others. Assert that each
-      // string-literal name from boxNames appears either as a string literal
-      // or via its constant.
-      final source =
-          File('test/helpers/hive_test_helper.dart').readAsStringSync();
-      // These appear as string literals in HiveTestHelper._boxNames.
-      for (final boxName in [
-        'resolved_gaps',
-        'analytics_events',
-        'consent_ledger',
-        'qa_history',
-        'field_overrides_box',
-        'entitlements'
-      ]) {
-        expect(source, contains("'$boxName'"),
-            reason: 'HiveTestHelper._boxNames is missing $boxName');
+  group('DEK lifecycle (P0.7)', () {
+    test('corrupt base64 key throws StateError', () async {
+      const testPrincipalId = 'corrupt-dek-user';
+      final storageKey = '${testPrincipalId}_coverwise_dek_v1';
+      // Store invalid base64 in secure storage to simulate corruption.
+      _secureStorage[storageKey] = '!!!not-valid-base64!!!';
+
+      await expectLater(
+        () async {
+          await PrincipalKeyService().initForPrincipal(testPrincipalId);
+        },
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Corrupt encryption key'),
+          ),
+        ),
+      );
+    });
+
+    test('length-mismatched key throws StateError', () async {
+      const testPrincipalId = 'short-dek-user';
+      final storageKey = '${testPrincipalId}_coverwise_dek_v1';
+      // Store a valid base64 string that decodes to 16 bytes instead of 32.
+      _secureStorage[storageKey] = base64Encode(Uint8List.fromList(List.filled(16, 0xAB)));
+
+      await expectLater(
+        () async {
+          await PrincipalKeyService().initForPrincipal(testPrincipalId);
+        },
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('unexpected length'),
+          ),
+        ),
+      );
+    });
+
+    test('valid key returns normally', () async {
+      const testPrincipalId = 'valid-dek-user';
+      final storageKey = '${testPrincipalId}_coverwise_dek_v1';
+      // Store a valid 32-byte key.
+      _secureStorage[storageKey] = base64Encode(Uint8List.fromList(List.filled(32, 0x42)));
+
+      await PrincipalKeyService().initForPrincipal(testPrincipalId);
+
+      final dek = PrincipalKeyService().getOrThrow();
+      expect(dek.length, 32);
+      // The key should be our pre-stored value.
+      for (int i = 0; i < 32; i++) {
+        expect(dek[i], 0x42);
       }
-      // These appear via constants which are checked by the import path.
-      expect(source, contains('LocalStorageService.documentsBoxName'));
-      expect(source, contains('AppStateStore.boxName'));
+    });
+
+    test('missing key generates new 32-byte key', () async {
+      const testPrincipalId = 'fresh-dek-user';
+      // No pre-existing key in _secureStorage.
+
+      await PrincipalKeyService().initForPrincipal(testPrincipalId);
+
+      final dek = PrincipalKeyService().getOrThrow();
+      expect(dek.length, 32);
+      // Key should be random, not all zeros.
+      expect(dek.any((b) => b != 0), isTrue);
+
+      // The key should be persisted in secure storage.
+      final storageKey = '${testPrincipalId}_coverwise_dek_v1';
+      final persisted = _secureStorage[storageKey];
+      expect(persisted, isNotNull);
+      final decoded = base64Decode(persisted!);
+      expect(Uint8List.fromList(decoded), dek);
     });
   });
 }

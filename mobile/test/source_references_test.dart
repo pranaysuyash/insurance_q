@@ -395,7 +395,7 @@ void main() {
   });
 
   group('ConfidenceBadge — rendering', () {
-    testWidgets('hidden when AppConfig.confidenceCalibrated is false',
+    testWidgets('hidden when CapabilitiesResponse.confidenceCalibrated is false',
         (tester) async {
       final answer = _answer(
         text: 'Answer with confidence',
@@ -410,7 +410,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Confidence badge should be hidden (confidenceCalibrated = false by default)
+      // Confidence badge should be hidden (server default is false)
       expect(find.text('High confidence'), findsNothing);
       expect(find.text('Medium confidence'), findsNothing);
       expect(find.text('Low confidence'), findsNothing);

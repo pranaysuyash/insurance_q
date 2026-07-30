@@ -24,7 +24,7 @@ class CoverageGapScreen extends StatelessWidget {
   const CoverageGapScreen({
     super.key,
     required this.documentId,
-    required this.citations,
+    this.citations = const [],
   });
 
   /// The list of fields the substrate does NOT yet extract.

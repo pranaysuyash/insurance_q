@@ -204,7 +204,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ConsentLedger().clear();
 
       // 7. Clear the auth token
-      await AuthService.clearToken();
+      await ref.read(authServiceProvider.notifier).clearToken();
 
       if (!mounted) return;
       CoverWiseSnackBar.success(context, l10n.settingsClearDataSuccess);

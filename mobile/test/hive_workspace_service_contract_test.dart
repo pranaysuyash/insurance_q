@@ -14,7 +14,14 @@ void main() {
     expect(source, contains('_sessionKeys'));
     expect(source, contains("'analytics_events'"));
     expect(source, contains("'entitlements'"));
-    expect(source, contains('await Hive.deleteBoxFromDisk(boxName);'));
+    // P0.5: Boxes are NOT deleted from disk on resetForPrincipal.
+    // They remain at their namespaced path so old principal data is
+    // recoverable if the user signs back in.
+    expect(source, isNot(contains('await Hive.deleteBoxFromDisk(boxName);')));
+    // Hive.close() is required because per-box close (box.close()) does
+    // NOT fully deregister box names in Hive 2.x, causing HiveError on
+    // reopen. Plugin-owned boxes are lightweight and reopen when needed.
+    expect(source, contains('await Hive.close();'));
     expect(source, isNot(contains('catch (_)')));
   });
 }

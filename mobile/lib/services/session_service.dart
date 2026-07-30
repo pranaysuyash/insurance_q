@@ -1,7 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../config/app_config.dart';
+import '../providers/capabilities_provider.dart';
 import 'app_state_store.dart';
 
 const Uuid _uuid = Uuid();
@@ -73,7 +73,7 @@ class SessionService {
     final box = Hive.box(AppStateStore.boxName);
     final existingSessionId = box.get(AppStateStore.sessionIdKey) as String?;
     final sessionCreated = box.get(AppStateStore.sessionCreatedKey) as int?;
-    final sessionDurationMs = AppConfig.sessionDuration.inMilliseconds;
+    final sessionDurationMs = Duration(seconds: capabilitiesService.latest.sessionDurationSeconds).inMilliseconds;
     final now = DateTime.now().millisecondsSinceEpoch;
 
     if (existingSessionId != null &&
@@ -100,7 +100,7 @@ class SessionService {
     final box = Hive.box(AppStateStore.boxName);
     final sessionCreated = box.get(AppStateStore.sessionCreatedKey) as int?;
     if (sessionCreated == null) return true;
-    final sessionDurationMs = AppConfig.sessionDuration.inMilliseconds;
+    final sessionDurationMs = Duration(seconds: capabilitiesService.latest.sessionDurationSeconds).inMilliseconds;
     final now = DateTime.now().millisecondsSinceEpoch;
     return (now - sessionCreated) >= sessionDurationMs;
   }
@@ -124,7 +124,7 @@ class SessionNotifier extends Notifier<SessionState> {
   String? _loadSessionId() {
     final sessionId = _box.get(AppStateStore.sessionIdKey) as String?;
     final sessionCreated = _box.get(AppStateStore.sessionCreatedKey) as int?;
-    final sessionDurationMs = AppConfig.sessionDuration.inMilliseconds;
+    final sessionDurationMs = Duration(seconds: capabilitiesService.latest.sessionDurationSeconds).inMilliseconds;
     final now = DateTime.now().millisecondsSinceEpoch;
 
     if (sessionId != null &&
@@ -174,7 +174,7 @@ class SessionNotifier extends Notifier<SessionState> {
   Future<bool> isSessionExpired() async {
     final created = state.createdAt;
     if (created == null) return true;
-    final sessionDurationMs = AppConfig.sessionDuration.inMilliseconds;
+    final sessionDurationMs = Duration(seconds: capabilitiesService.latest.sessionDurationSeconds).inMilliseconds;
     final now = DateTime.now().millisecondsSinceEpoch;
     return (now - created.millisecondsSinceEpoch) >= sessionDurationMs;
   }

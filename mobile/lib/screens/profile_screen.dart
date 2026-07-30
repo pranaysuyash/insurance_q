@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../l10n/app_localizations_gen.dart';
 import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
+import '../models/identity.dart';
 import '../services/analytics_service.dart';
 import '../services/contact_service.dart';
 import '../services/install_service.dart';
@@ -95,6 +97,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   DeletionStatus? _deletionStatus;
   bool _loadingDeletionStatus = false;
 
+  /// I3-P1e: Periodic poller for in-progress account deletions.
+  /// When deleteAccount() returns a 202 (async in progress), this timer
+  /// checks the backend every 30 seconds until deletion completes or fails.
+  Timer? _deletionPoller;
+
   @override
   void initState() {
     super.initState();
@@ -102,16 +109,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         .addPostFrameCallback((_) => _refreshDeletionStatus());
   }
 
+  @override
+  void dispose() {
+    _deletionPoller?.cancel();
+    super.dispose();
+  }
+
   Future<void> _refreshDeletionStatus() async {
-    if (!mounted || !AuthService.hasAccountSession) return;
+    final auth = ref.read(authServiceProvider.notifier);
+    if (!mounted || !auth.hasAccountSession) return;
     setState(() => _loadingDeletionStatus = true);
     try {
-      final status = await AuthService.getDeletionStatus();
-      if (mounted) setState(() => _deletionStatus = status);
+      final status = await auth.getDeletionStatus();
+      if (!mounted) return;
+      setState(() => _deletionStatus = status);
+      // I3-P1e: Start or stop the periodic poller based on deletion state.
+      _updateDeletionPoller(status);
     } catch (_) {
       if (mounted) setState(() => _deletionStatus = null);
     } finally {
       if (mounted) setState(() => _loadingDeletionStatus = false);
+    }
+  }
+
+  /// I3-P1e: Manage the periodic deletion poller.
+  /// Starts polling when deletion is in progress (pending/running/failed);
+  /// stops polling when deletion completes or the status becomes non-actionable.
+  void _updateDeletionPoller(DeletionStatus status) {
+    if (status.isActionable) {
+      _deletionPoller ??= Timer.periodic(
+        const Duration(seconds: 30),
+        (_) => _refreshDeletionStatus(),
+      );
+    } else {
+      _deletionPoller?.cancel();
+      _deletionPoller = null;
     }
   }
 
@@ -130,7 +162,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _signOut() async {
     try {
-      await AuthService.signOut();
+      await ref.read(authServiceProvider.notifier).signOut();
     } finally {
       await _clearWorkspaceData();
     }
@@ -144,7 +176,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ref.read(analyticsServiceProvider.notifier).resetForWorkspace();
       await ContactService.clearSavedContact();
       await HiveWorkspaceService.resetForPrincipal(
-        'local-only-${InstallService.getInstallId()}',
+        LocalPrincipal(InstallService.getInstallId()),
       );
       debugPrint('Workspace data cleared on sign-out');
     } catch (e) {
@@ -221,7 +253,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       if (!mounted) return;
       CoverWiseSnackBar.info(this.context, l10n.profileDeletingAccount);
-      final result = await AuthService.deleteAccount();
+      final result = await ref.read(authServiceProvider.notifier).deleteAccount();
       if (!mounted) return;
       final String snackMessage;
       if (result.isComplete) {
@@ -240,6 +272,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             duration: const Duration(seconds: 8));
       }
       setState(() {});
+      // I3-P1e: For async deletions (202), immediately fetch the deletion
+      // status so the status banner appears without waiting for the next
+      // screen mount or poller tick.
+      if (!result.isComplete && mounted) {
+        _refreshDeletionStatus();
+      }
     } catch (e) {
       if (!mounted) return;
       CoverWiseSnackBar.error(this.context,
@@ -250,7 +288,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _exportAccountData(BuildContext context) async {
     final l10n = AppLocalizationsGen.of(context);
-    if (!AuthService.hasAccountSession) {
+    if (!ref.read(authServiceProvider.notifier).hasAccountSession) {
       CoverWiseSnackBar.info(context, l10n.profileCreateAccountFirst);
       return;
     }
@@ -279,7 +317,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
-      final export = await AuthService.exportAccount();
+      final export = await ref.read(authServiceProvider.notifier).exportAccount();
       final json = const JsonEncoder.withIndent('  ').convert(export);
       if (!mounted) return;
       await SharePlus.instance.share(

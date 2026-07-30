@@ -213,10 +213,15 @@ tools/run_backend_tests.sh tests/ -v
 # API tests
 ./scripts/test_azure_apis.sh
 
-# Flutter tests
+# Flutter tests (mobile/ directory)
    cd mobile
-flutter test
+flutter test --dart-define-from-file=.dartdefine.env
 ```
+
+The `.dartdefine.env` file provides `API_BASE_URL` (and optional overrides) so that
+`AppConfig.baseUri` does not throw `StateError` in the default production environment.
+See `mobile/.dartdefine.env` for details and available overrides.
+
 
 ## 🚀 Deployment
 

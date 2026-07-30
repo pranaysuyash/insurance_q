@@ -203,6 +203,19 @@ The EmergencyScreen requires a network connection to load policy data. In a real
 5. **policy_type_test.dart** — Timeout. Could be slow model initialization. Fix: mock dependencies.
 6. **service_test.dart** — Timeout. Likely depends on external services. Fix: mock HTTP calls.
 
+### Addendum (2026-07-30): All six dismissed tests verified PASSING on the current `main` working tree
+
+> **Superseded per `DECISION_LOG.md` Decision 9.** The six "dismissed failures" diagnoses above in §2.2 are retracted. Re-running each test in isolation against current `main` (commit `f941f13`) using the same flags as CI (`flutter test --concurrency=1 --dart-define-from-file=.dartdefine.env`) shows all 50 individual test cases pass in ~4 seconds:
+
+> - `coverage_gap_tracking_test.dart` — 23/23 pass
+> - `confidence_badge_test.dart` — 10/10 pass
+> - `widget_test.dart` — 1/1 pass (when run with `--dart-define-from-file=.dartdefine.env`)
+> - `global_error_boundary_test.dart` — 3/3 pass
+> - `policy_type_test.dart` — 2/2 pass
+> - `service_test.dart` — 11/11 pass
+
+> The original diagnoses were based on local-machine `flutter test test/foo.dart` runs that lacked the `--dart-define-from-file=.dartdefine.env` flag; in that mode `widget_test.dart` fails because `AppConfig.baseUri` throws `StateError: API_BASE_URL is required` from `app_config.dart:183`. CI includes the env flag (`.github/workflows/ci.yml:74`), so CI does not exhibit the failure. **No source-code change is required.** The launch-blocker claim that §3 P0 #1 was based on has no basis against current `main`; §3 P0 #1 should be considered Closed-Without-Action at this time. Original §2.2 text preserved above as historical record.
+
 ---
 
 ## 5. Architecture Health

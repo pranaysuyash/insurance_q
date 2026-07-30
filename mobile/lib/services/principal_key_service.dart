@@ -160,17 +160,33 @@ class PrincipalKeyService {
     final storageKey = '$principalId$_dekStorageKeySuffix';
     final existing = await _secureStorage.read(key: storageKey);
     if (existing != null) {
+      Uint8List? decoded;
       try {
-        final bytes = base64Decode(existing);
-        if (bytes.length == _keyLengthBytes) {
-          return Uint8List.fromList(bytes);
-        }
+        final raw = base64Decode(existing);
+        decoded = Uint8List.fromList(raw);
       } on FormatException {
-        // Corrupt: fall through to generate a new one.
+        // P0.7: A corrupt DEK must throw, not silently replace.
+        // Silently generating a new key would make the old encrypted Hive
+        // boxes permanently unreadable, losing the user's data without
+        // warning. Instead, let the caller surface the error so the user
+        // can be informed and given a recovery path.
+        throw StateError(
+          'Corrupt encryption key for principal $principalId. '
+          'The stored DEK is not valid base64 and cannot be decoded. '
+          'Local data may be unrecoverable.',
+        );
       }
-      // Length mismatch: the DEK was written by an older
-      // version. Generate a new one; the migration path
-      // will handle the data loss.
+      if (decoded.length == _keyLengthBytes) {
+        return decoded;
+      }
+      // Length mismatch: the DEK was written by an incompatible version.
+      // This is also unrecoverable — throwing avoids silent data loss.
+      throw StateError(
+        'Encryption key for principal $principalId has unexpected length '
+        '(${decoded.length} bytes, expected $_keyLengthBytes). '
+        'The key format may be from an incompatible version. '
+        'Local data may be unrecoverable.',
+      );
     }
     final newDek = _generateRandomBytes(_keyLengthBytes);
     await _secureStorage.write(
@@ -243,15 +259,51 @@ class PrincipalKeyService {
     );
   }
 
+  /// The secure storage key suffix for the migration journal checkpoint.
+  /// Written BEFORE the old box is deleted, cleared AFTER verification.
+  /// A stale checkpoint on startup means the migration was interrupted
+  /// and should be retried.
+  static const String _migrationJournalKeySuffix =
+      '_coverwise_migration_journal_v1';
+
+  /// Check if a migration journal checkpoint exists for any box.
+  /// If true, a previous migration attempt was interrupted (process crash,
+  /// app kill) between deleting the old box and completing verification.
+  /// The caller should retry the migration for the journaled box.
+  Future<String?> readMigrationJournal() async {
+    if (_principalId == null) return null;
+    return _secureStorage.read(
+      key: '$_principalId$_migrationJournalKeySuffix',
+    );
+  }
+
+  /// Clear the migration journal checkpoint.
+  Future<void> clearMigrationJournal() async {
+    if (_principalId == null) return;
+    await _secureStorage.delete(
+      key: '$_principalId$_migrationJournalKeySuffix',
+    );
+  }
+
   /// Migrate a Hive box from the old per-device key to the
   /// new principal-scoped DEK. The migration is idempotent:
   /// if it has already run for this box, the second call is
   /// a no-op.
   ///
-  /// The migration reads all entries with the old key,
-  /// verifies the count, closes the old box, reopens the
-  /// box with the new key, writes the entries back, and
-  /// verifies a round-trip decrypt before marking complete.
+  /// P0.8 safety improvements:
+  ///  - Writes a migration journal checkpoint BEFORE deleting the old
+  ///    box, so a process crash between delete and verification can be
+  ///    detected on next startup via [readMigrationJournal].
+  ///  - Handles non-string Hive keys gracefully (skips them with a
+  ///    warning instead of crashing the entire migration).
+  ///  - Retains existing safety: entry count verification, round-trip
+  ///    decrypt check, per-box completion flags, and old key retention.
+  ///
+  /// P0.5: Accepts an optional [targetPath] for principal-namespaced storage.
+  /// When provided, the migrated data is written to `<targetPath>/` instead
+  /// of the default Hive path. The old box (at the default or [boxPath])
+  /// is NOT deleted — it remains on disk as a legacy source since it lives
+  /// at a different location.
   ///
   /// Safety properties:
   ///  - Entry count is verified before and after write.
@@ -265,6 +317,7 @@ class PrincipalKeyService {
   Future<bool> migrateBox({
     required String boxName,
     required String boxPath,
+    String? targetPath, // P0.5: optional namespaced target path
   }) async {
     if (await hasMigrationRun(boxName)) {
       return false;
@@ -281,54 +334,80 @@ class PrincipalKeyService {
     final oldKey = Uint8List.fromList(base64Decode(oldKeyBase64));
     final newKey = getOrThrow();
 
-    // Step 1: Read all entries with the old key.
+    // Step 1: Write migration journal BEFORE any destructive operation.
+    await _secureStorage.write(
+      key: '$_principalId$_migrationJournalKeySuffix',
+      value: boxName,
+    );
+
+    // Step 2: Read all entries with the old key.
     final oldBox = await Hive.openBox(
       boxName,
       encryptionCipher: oldKey.length == 32 ? HiveAesCipher(oldKey) : null,
     );
     final entries = <String, dynamic>{};
+    int skippedNonStringKeys = 0;
     for (final key in oldBox.keys) {
-      entries[key as String] = oldBox.get(key);
+      if (key is String) {
+        entries[key] = oldBox.get(key);
+      } else {
+        skippedNonStringKeys++;
+      }
     }
     final sourceCount = entries.length;
     await oldBox.close();
 
-    // Step 2: Delete the old box from disk so the new open
-    // cannot collide with the existing Hive header/cipher.
-    if (boxPath.isNotEmpty) {
-      try {
-        final file = File(boxPath);
-        if (await file.exists()) {
-          await file.delete();
-        }
-      } catch (e) {
-        debugPrint('migrateBox: failed to delete $boxPath: $e');
-        rethrow;
-      }
-    } else {
-      await Hive.deleteBoxFromDisk(boxName);
+    if (skippedNonStringKeys > 0) {
+      debugPrint(
+        'migrateBox: skipped $skippedNonStringKeys non-string key(s) '
+        'in box "$boxName" during migration',
+      );
     }
 
-    // Step 3: Reopen with the new key and write the entries.
+    // Step 3: Delete the old box from disk ONLY when targetPath is NOT
+    // provided (legacy flat-path migration). When targetPath IS provided
+    // (P0.5 namespaced storage), the old box lives at a different path and
+    // should NOT be deleted — it remains as a legacy source.
+    if (targetPath == null) {
+      if (boxPath.isNotEmpty) {
+        try {
+          final file = File(boxPath);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (e) {
+          debugPrint('migrateBox: failed to delete $boxPath: $e');
+          await clearMigrationJournal();
+          rethrow;
+        }
+      } else {
+        await Hive.deleteBoxFromDisk(boxName);
+      }
+    }
+
+    // Step 4: Reopen with the new key at the target path (or default path
+    // if no targetPath is given).
     final newBox = await Hive.openBox(
       boxName,
+      path: targetPath, // P0.5: write to namespaced path, or null = default
       encryptionCipher: HiveAesCipher(newKey),
     );
     for (final entry in entries.entries) {
       await newBox.put(entry.key, entry.value);
     }
 
-    // Step 4: Verify the write succeeded by reading back the
+    // Step 5: Verify the write succeeded by reading back the
     // entry count. This catches silent write failures.
     if (newBox.length != sourceCount) {
       await newBox.close();
+      await clearMigrationJournal();
       throw StateError(
         'Migration verification failed for $boxName: '
         'wrote $sourceCount entries but box has ${newBox.length}',
       );
     }
 
-    // Step 5: Verify a round-trip decrypt by reading the
+    // Step 6: Verify a round-trip decrypt by reading the
     // first entry back. A wrong key would cause Hive to throw
     // on read (decryption failure), not return null.
     if (sourceCount > 0) {
@@ -338,6 +417,7 @@ class PrincipalKeyService {
         newBox.get(firstKey); // will throw if decrypt fails
       } catch (e) {
         await newBox.close();
+        await clearMigrationJournal();
         throw StateError(
           'Migration round-trip decrypt failed for $boxName: '
           'entry at key $firstKey threw $e',
@@ -347,10 +427,16 @@ class PrincipalKeyService {
 
     await newBox.close();
 
-    // Step 6: Mark migration complete. The flag is set
-    // AFTER verification succeeds; a crash before this
-    // point leaves the migration retryable on next launch.
+    // Step 7: Mark complete first, then clear the migration journal.
+    // P0.8: Order matters — the completion flag must be written BEFORE the
+    // journal is cleared. If the process crashes between these two writes:
+    //  - Completion flag IS set → migrateBox returns early via hasMigrationRun()
+    //  - Stale journal is present but harmless (no-op on retry)
+    // If we cleared the journal first and crashed before markComplete, both
+    // the journal AND the completion flag would be absent, causing a retry
+    // with the wrong decryption key.
     await markMigrationComplete(boxName);
+    await clearMigrationJournal();
     return true;
   }
 }

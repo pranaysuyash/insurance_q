@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 import '../models/entitlement.dart';
 import '../models/qa_pack.dart';
 import 'analytics_service.dart';
-import 'auth_service.dart';
 import 'document_service.dart';
 import 'entitlement_service.dart';
 
@@ -58,7 +58,7 @@ class BillingAdapter {
       kDebugMode ? LogLevel.debug : LogLevel.info,
     );
     final configuration = PurchasesConfiguration(apiKey)
-      ..appUserID = AuthService.accountUserId;
+      ..appUserID = Supabase.instance.client.auth.currentUser?.id;
     await Purchases.configure(configuration);
     _initialized = true;
     debugPrint('BillingAdapter: RevenueCat initialized');

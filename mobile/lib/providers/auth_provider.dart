@@ -8,12 +8,14 @@ import '../services/auth_service.dart';
 /// Wraps Supabase's `onAuthStateChange` stream into a Riverpod provider.
 /// Falls back to a value-based provider when Supabase is not configured.
 final authStateProvider = StreamProvider<AuthState>((ref) {
-  if (!AppConfig.hasSupabaseAuthConfig || !AuthService.isClientReady) {
+  if (!AppConfig.hasSupabaseAuthConfig) {
     // No Supabase configured — emit a single "no session" state.
     return Stream.value(
       const AuthState(AuthChangeEvent.initialSession, null),
     );
   }
+  // Supabase is initialized at bootstrap (main.dart _startup), so the
+  // client is always ready at this point. Subscribe to auth state changes.
   return Supabase.instance.client.auth.onAuthStateChange;
 });
 

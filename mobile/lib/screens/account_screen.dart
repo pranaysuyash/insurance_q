@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
 import '../widgets/shared/coverwise_snackbar.dart';
 
-class AccountScreen extends StatefulWidget {
+class AccountScreen extends ConsumerStatefulWidget {
   const AccountScreen({super.key});
 
   @override
-  State<AccountScreen> createState() => _AccountScreenState();
+  ConsumerState<AccountScreen> createState() => _AccountScreenState();
 }
 
-class _AccountScreenState extends State<AccountScreen> {
+class _AccountScreenState extends ConsumerState<AccountScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _name = TextEditingController();
@@ -48,10 +49,11 @@ class _AccountScreenState extends State<AccountScreen> {
     final navigator = Navigator.of(context);
     setState(() => _busy = true);
     try {
-      await AuthService.prepareAnonymousWorkspaceClaim();
+      await ref.read(authServiceProvider.notifier).prepareAnonymousWorkspaceClaim();
+      final notifier = ref.read(authServiceProvider.notifier);
       final response = _signUp
-          ? await AuthService.signUp(_email.text, _password.text, _name.text)
-          : await AuthService.signIn(_email.text, _password.text);
+          ? await notifier.signUp(_email.text, _password.text, _name.text)
+          : await notifier.signIn(_email.text, _password.text);
       if (!context.mounted) return;
       if (response.session == null) {
         _message('Check your email to confirm the account, then sign in.',
@@ -88,7 +90,7 @@ class _AccountScreenState extends State<AccountScreen> {
     }
     setState(() => _busy = true);
     try {
-      await AuthService.resetPassword(_email.text);
+      await ref.read(authServiceProvider.notifier).resetPassword(_email.text);
       if (!mounted) return;
       _message('Password reset email sent. Check your inbox.', isError: false);
     } catch (error) {
@@ -114,10 +116,10 @@ class _AccountScreenState extends State<AccountScreen> {
     }
     setState(() => _busy = true);
     try {
-      await AuthService.prepareAnonymousWorkspaceClaim();
+      await ref.read(authServiceProvider.notifier).prepareAnonymousWorkspaceClaim();
       // Opens browser for Google OAuth. Session is established via
       // deep link callback → authStateProvider triggers workspace + claim path.
-      await AuthService.signInWithGoogle();
+      await ref.read(authServiceProvider.notifier).signInWithGoogle();
       if (!mounted) return;
       // Pop back — authStateProvider will rebuild ProfileScreen with the new user.
       Navigator.of(context).pop(true);
@@ -139,7 +141,7 @@ class _AccountScreenState extends State<AccountScreen> {
       _showResendVerification = false; // Hide banner after successful resend
     });
     try {
-      await AuthService.resendEmailVerification(_email.text);
+      await ref.read(authServiceProvider.notifier).resendEmailVerification(_email.text);
       if (!mounted) return;
       _message('Verification email sent. Check your inbox.', isError: false);
     } catch (error) {

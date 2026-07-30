@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_state_store.dart';
-import 'auth_service.dart';
 import 'consent_ledger.dart';
 import 'server_consent_service.dart';
 import 'session_service.dart';
@@ -37,8 +37,14 @@ class ConsentSyncService {
 
   Future<int> _syncAll() async {
     final box = Hive.box(AppStateStore.boxName);
-    final principal =
-        AuthService.accountUserId ?? await SessionService.getSessionId();
+    // Gracefully degrade when Supabase is not initialized (e.g. unit tests).
+    String principal;
+    try {
+      principal = Supabase.instance.client.auth.currentUser?.id ??
+          await SessionService.getSessionId();
+    } catch (_) {
+      principal = await SessionService.getSessionId();
+    }
     final ledger = ConsentLedger();
     final candidates = <({
       String serverType,
