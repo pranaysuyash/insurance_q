@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -75,17 +76,35 @@ class ConsentSyncService {
       final cacheKey = 'server_consent_sync:$principal:${candidate.serverType}';
       if (box.get(cacheKey) == signature) continue;
       try {
-        final id = await server
+        final result = await server
             .recordConsent(
               consentType: candidate.serverType,
               granted: record.granted,
               policyVersion: record.version,
             )
             .timeout(const Duration(seconds: 5));
-        if (id != null) {
+        // P0.13: Only cache the signature on explicit server success.
+        // ConsentTypeRejected means the type was invalid — do not cache.
+        // ConsentAuthenticationRequired means re-auth needed — do not cache.
+        // ConsentServiceUnavailable / ConsentNetworkError — retry next time.
+        if (result is ConsentRecorded) {
           await box.put(cacheKey, signature);
           synced++;
+        } else if (result is ConsentTypeRejected) {
+          // ConsentTypeRejected indicates a programming bug: the sync
+          // service is trying to push a consent type that the server
+          // does not recognize. Log explicitly so this surfaces during
+          // development rather than being silently swallowed.
+          debugPrint(
+            'ConsentSyncService BUG: tried to push unknown type '
+            '"${result.consentType}" — check the add() calls in '
+            'ConsentSyncService._syncAll and '
+            'ServerConsentRecord.knownConsentTypes.',
+          );
         }
+        // ConsentAuthenticationRequired, ConsentRejected,
+        // ConsentServiceUnavailable, ConsentNetworkError: leave the
+        // signature absent so the next startup/upload retries it.
       } catch (_) {
         // Leave the signature absent. The next startup/upload retries it.
       }

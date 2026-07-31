@@ -3,6 +3,103 @@ import 'package:flutter/foundation.dart';
 
 import 'document_service.dart';
 
+// ---------------------------------------------------------------------------
+// Typed result classes for consent operations
+// ---------------------------------------------------------------------------
+
+/// Audit 5 P0.13: Typed result for consent write operations.
+///
+/// Previously, `recordConsent` returned `String?` — null for 503, 404, 401,
+/// validation failure, network error, malformed response, parsing error, and
+/// programming error. These are not equivalent and callers could not
+/// distinguish "offline deferral" from "wrong credentials" from "bad payload".
+sealed class ConsentWriteResult {
+  const ConsentWriteResult();
+}
+
+/// The server accepted and persisted the consent record.
+class ConsentRecorded extends ConsentWriteResult {
+  final String serverRecordId;
+  const ConsentRecorded(this.serverRecordId);
+}
+
+/// The consent type was not in [ServerConsentRecord.knownConsentTypes].
+/// The request was never sent to the server.
+class ConsentTypeRejected extends ConsentWriteResult {
+  final String consentType;
+  const ConsentTypeRejected(this.consentType);
+}
+
+/// The server returned 401 — the user is not authenticated or the token
+/// is expired. The caller should re-authenticate before retrying.
+class ConsentAuthenticationRequired extends ConsentWriteResult {
+  const ConsentAuthenticationRequired();
+}
+
+/// The server returned 404 — the consent endpoint does not exist on this
+/// backend deployment. The caller should not retry.
+class ConsentEndpointNotFound extends ConsentWriteResult {
+  const ConsentEndpointNotFound();
+}
+
+/// The server returned 422 or another 4xx — the consent payload was
+/// rejected (e.g. unknown consent_type, missing fields, invalid
+/// policy_version). The caller should not retry without fixing the payload.
+class ConsentRejected extends ConsentWriteResult {
+  final int statusCode;
+  final String? detail;
+  const ConsentRejected(this.statusCode, {this.detail});
+}
+
+/// The server returned 503 or another 5xx — the server is temporarily
+/// unavailable. The local cache remains valid; the caller may retry
+/// later.
+class ConsentServiceUnavailable extends ConsentWriteResult {
+  final int? statusCode;
+  const ConsentServiceUnavailable({this.statusCode});
+}
+
+/// A network or transport-level failure prevented the request from
+/// reaching the server. The local cache remains valid.
+class ConsentNetworkError extends ConsentWriteResult {
+  final Object error;
+  const ConsentNetworkError(this.error);
+}
+
+/// Audit 5 P0.13: Typed result for consent read operations.
+///
+/// Previously, `getCurrentConsentAll` returned `List<ServerConsentRecord>?`
+/// where null meant "unreachable" and an empty list could mean either
+/// "no consents" or "malformed response".
+sealed class ConsentReadResult {
+  const ConsentReadResult();
+}
+
+/// The server returned a valid list of consent records (possibly empty).
+/// An empty list here means the user genuinely has no server-side consent
+/// records — this is distinct from "unreachable" or "malformed".
+class ConsentSnapshotLoaded extends ConsentReadResult {
+  final List<ServerConsentRecord> records;
+  const ConsentSnapshotLoaded(this.records);
+}
+
+/// The server is unreachable (503, 401, 404, network error). The caller
+/// should keep the local cache.
+class ConsentSnapshotUnavailable extends ConsentReadResult {
+  const ConsentSnapshotUnavailable();
+}
+
+/// The server returned a response that could not be parsed as a valid
+/// consent list. The caller should keep the local cache and log the
+/// anomaly.
+class ConsentSnapshotInvalid extends ConsentReadResult {
+  const ConsentSnapshotInvalid();
+}
+
+// ---------------------------------------------------------------------------
+// Server consent service
+// ---------------------------------------------------------------------------
+
 /// Server-side consent ledger client (Security Phase 2).
 ///
 /// Per docs/decisions/ADR-2026-07-19-07-...md, the consent
@@ -26,15 +123,28 @@ class ServerConsentService {
   /// to prevent spoofing. The Flutter app sends the consent
   /// type, the granted bool, and the policy_version.
   ///
-  /// Returns the new consent record's id on success.
-  /// Returns null on 503 (server not configured) or 401
-  /// (unauthenticated) — the caller should keep the local
-  /// cache and show a 'last verified at' timestamp.
-  Future<String?> recordConsent({
+  /// Audit 5 P0.13: Returns a typed [ConsentWriteResult] so callers can
+  /// distinguish every failure mode. Callers MUST switch on the result type
+  /// rather than testing for null.
+  ///
+  /// Audit 5 P0.14: Validates [consentType] against [ServerConsentRecord.knownConsentTypes]
+  /// before sending. Returns [ConsentTypeRejected] for unknown types.
+  Future<ConsentWriteResult> recordConsent({
     required String consentType,
     required bool granted,
     required String policyVersion,
   }) async {
+    // P0.14: Validate consent type before sending to prevent typos like
+    // 'document_processsing' or 'analytic' from creating divergent local
+    // and server ledgers.
+    if (!ServerConsentRecord.knownConsentTypes.contains(consentType)) {
+      debugPrint(
+        'consent record rejected: unknown type "$consentType" '
+        '(valid: ${ServerConsentRecord.knownConsentTypes})',
+      );
+      return ConsentTypeRejected(consentType);
+    }
+
     try {
       final response = await _dio.post(
         '/consent',
@@ -45,21 +155,54 @@ class ServerConsentService {
         },
       );
       if (response.statusCode == 201 && response.data is Map) {
-        return (response.data as Map)['id'] as String?;
+        final id = (response.data as Map)['id'] as String?;
+        if (id != null) {
+          return ConsentRecorded(id);
+        }
+        // Server returned 201 but no id — treat as service error.
+        return const ConsentServiceUnavailable();
       }
-      return null;
+      // Unexpected status code on a nominally successful request.
+      return ConsentRejected(
+        response.statusCode ?? 0,
+        detail: 'Unexpected status code on consent record',
+      );
     } on DioException catch (e) {
       final status = e.response?.statusCode;
-      if (status == 503 || status == 401 || status == 404) {
-        debugPrint('consent record failed: $status (cache will be used)');
-        return null;
+      if (status == 401) {
+        return const ConsentAuthenticationRequired();
       }
-      debugPrint('consent record unexpected error: $e');
-      return null;
+      if (status == 404) {
+        return const ConsentEndpointNotFound();
+      }
+      if (status != null && status >= 400 && status < 500) {
+        return ConsentRejected(status, detail: e.message);
+      }
+      if (status == 503 || (status != null && status >= 500)) {
+        return ConsentServiceUnavailable(statusCode: status);
+      }
+      // Network-level failure (timeout, connection refused, etc.).
+      return ConsentNetworkError(e);
     } catch (e) {
-      debugPrint('consent record unexpected error: $e');
-      return null;
+      return ConsentNetworkError(e);
     }
+  }
+
+  /// Parse a raw JSON list from the server into [ServerConsentRecord]
+  /// instances, quarantining any malformed entries. Used by both
+  /// [getCurrentConsentAll] and [getConsentHistory].
+  List<ServerConsentRecord> _parseServerRecords(dynamic data) {
+    final records = <ServerConsentRecord>[];
+    for (final item in data as List) {
+      if (item is Map<String, dynamic>) {
+        try {
+          records.add(ServerConsentRecord.fromJson(item));
+        } catch (e) {
+          debugPrint('consent read: skipping malformed record: $e');
+        }
+      }
+    }
+    return records;
   }
 
   /// Read the current consent state for the authenticated
@@ -67,66 +210,63 @@ class ServerConsentService {
   /// record). The Flutter app calls this on app start to
   /// populate the local cache.
   ///
-  /// Returns null on 503 (server not configured), 401
-  /// (unauthenticated), or transport-level failure. The
-  /// caller keeps the local cache in that case.
-  Future<List<ServerConsentRecord>?> getCurrentConsentAll() async {
+  /// Audit 5 P0.13/P0.15: Returns a typed [ConsentReadResult] so callers
+  /// can distinguish "authoritative empty" from "unreachable" from
+  /// "malformed response". Callers MUST switch on the result type.
+  Future<ConsentReadResult> getCurrentConsentAll() async {
     try {
       final response = await _dio.get('/consent/current');
       if (response.statusCode == 200 && response.data is List) {
-        return (response.data as List)
-            .map((item) => ServerConsentRecord.fromJson(
-                  (item as Map).cast<String, dynamic>(),
-                ))
-            .toList();
+        return ConsentSnapshotLoaded(_parseServerRecords(response.data));
       }
-      return const [];
+      // Non-200 status that wasn't caught as DioException — treat as
+      // invalid response rather than empty consent.
+      return const ConsentSnapshotInvalid();
     } on DioException catch (e) {
       final status = e.response?.statusCode;
-      if (status == 503 || status == 401 || status == 404) {
-        debugPrint('consent read failed: $status (cache will be used)');
-        return null;
+      if (status == 401 || status == 404 || status == 503) {
+        return const ConsentSnapshotUnavailable();
       }
-      debugPrint('consent read unexpected error: $e');
-      return null;
+      // Other Dio errors (timeout, connection refused, etc.).
+      return const ConsentSnapshotUnavailable();
     } catch (e) {
+      // Parsing error or unexpected exception — response is invalid.
       debugPrint('consent read unexpected error: $e');
-      return null;
+      return const ConsentSnapshotInvalid();
     }
   }
 
   /// Read the append-only consent activity for the authenticated user.
   ///
-  /// A null result means the authoritative ledger could not be reached;
-  /// callers must not present the local cache as the complete account history.
-  Future<List<ServerConsentRecord>?> getConsentHistory({
+  /// Audit 5 P0.13/P0.15: Returns a typed [ConsentReadResult].
+  /// A [ConsentSnapshotUnavailable] means the authoritative ledger could
+  /// not be reached; callers must not present the local cache as the
+  /// complete account history.
+  Future<ConsentReadResult> getConsentHistory({
     int limit = 100,
   }) async {
-    assert(limit > 0);
+    // Runtime validation (not assert) so validation works in release builds.
+    if (limit < 1 || limit > 500) {
+      throw ArgumentError.value(limit, 'limit', 'Must be between 1 and 500');
+    }
     try {
       final response = await _dio.get(
         '/consent/history',
         queryParameters: {'limit': limit},
       );
       if (response.statusCode == 200 && response.data is List) {
-        return (response.data as List)
-            .map((item) => ServerConsentRecord.fromJson(
-                  (item as Map).cast<String, dynamic>(),
-                ))
-            .toList();
+        return ConsentSnapshotLoaded(_parseServerRecords(response.data));
       }
-      return const [];
+      return const ConsentSnapshotInvalid();
     } on DioException catch (e) {
       final status = e.response?.statusCode;
-      if (status == 503 || status == 401 || status == 404) {
-        debugPrint('consent history read failed: $status');
-        return null;
+      if (status == 401 || status == 404 || status == 503) {
+        return const ConsentSnapshotUnavailable();
       }
-      debugPrint('consent history read unexpected error: $e');
-      return null;
+      return const ConsentSnapshotUnavailable();
     } catch (e) {
       debugPrint('consent history read unexpected error: $e');
-      return null;
+      return const ConsentSnapshotInvalid();
     }
   }
 }

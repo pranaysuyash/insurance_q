@@ -74,8 +74,9 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
         version: 'analytics-v1',
         granted: value,
       );
-      // Refresh the analytics service cache so track() respects the new state.
-      AnalyticsService.refreshConsentCache();
+      // Audit 5 P1.3: Manual refreshConsentCache() removed —
+      // AnalyticsNotifier subscribes to ConsentLedger.consentChanges
+      // and picks up this change automatically.
       if (value) {
         // Re-grant: track a re-enable event for audit.
         AnalyticsService.track('analytics_consent_re_enabled');

@@ -40,7 +40,7 @@ class DemoService {
         normalized.contains('who are covered')) {
       return {
         'answer':
-            'The insured individuals are Pranay Suyash, Diksha Sinha, and Advay Sinha.',
+            'The insured individuals are Aarav Mehta, Priya Mehta, and Anika Mehta.',
         'sources': sources,
       };
     }

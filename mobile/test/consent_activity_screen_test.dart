@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeConsentService extends ServerConsentService {
-  final List<ServerConsentRecord>? result;
+  final ConsentReadResult result;
 
   _FakeConsentService(this.result) : super(dio: Dio());
 
   @override
-  Future<List<ServerConsentRecord>?> getConsentHistory({
+  Future<ConsentReadResult> getConsentHistory({
     int limit = 100,
   }) async =>
       result;
@@ -49,9 +49,8 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(
-      _app(
-        _FakeConsentService([
+    await tester.pumpWidget(        _app(
+        _FakeConsentService(ConsentSnapshotLoaded([
           _record(
             type: 'analytics',
             granted: false,
@@ -64,7 +63,7 @@ void main() {
             version: 'processing-v2',
             createdAt: DateTime.utc(2026, 7, 24, 8, 30),
           ),
-        ]),
+        ])),
       ),
     );
     await tester.pumpAndSettle();
@@ -80,7 +79,7 @@ void main() {
 
   testWidgets('shows an honest unavailable state instead of partial history',
       (tester) async {
-    await tester.pumpWidget(_app(_FakeConsentService(null)));
+    await tester.pumpWidget(_app(_FakeConsentService(const ConsentSnapshotUnavailable())));
     await tester.pumpAndSettle();
 
     expect(find.text('Consent history unavailable'), findsOneWidget);
@@ -89,7 +88,7 @@ void main() {
   });
 
   testWidgets('shows a teaching empty state', (tester) async {
-    await tester.pumpWidget(_app(_FakeConsentService(const [])));
+    await tester.pumpWidget(_app(_FakeConsentService(const ConsentSnapshotLoaded([]))));
     await tester.pumpAndSettle();
 
     expect(find.text('No consent activity yet'), findsOneWidget);
@@ -115,14 +114,14 @@ void main() {
           child: child!,
         ),
         home: ConsentActivityScreen(
-          service: _FakeConsentService([
+          service: _FakeConsentService(ConsentSnapshotLoaded([
             _record(
               type: 'document_processing',
               granted: true,
               version: 'processing-v2',
               createdAt: DateTime.utc(2026, 7, 24, 8, 30),
             ),
-          ]),
+          ])),
         ),
       ),
     );

@@ -141,23 +141,108 @@ void main() {
   });
 
   group('ServerConsentService type signature', () {
-    test('recordConsent returns Future<String?>', () async {
+    test('recordConsent returns ConsentNetworkError when request is cancelled',
+        () async {
       final svc = ServerConsentService(dio: testDio());
-      final future = svc.recordConsent(
+      final result = await svc.recordConsent(
         consentType: 'analytics',
         granted: true,
         policyVersion: 'v1.0',
       );
-      expect(future, isA<Future<String?>>());
-      expect(await future, isNull);
+      expect(result, isA<ConsentNetworkError>());
     });
 
-    test('getCurrentConsentAll returns Future<List<ServerConsentRecord>?>',
+    test('recordConsent returns ConsentTypeRejected for unknown type',
         () async {
       final svc = ServerConsentService(dio: testDio());
-      final future = svc.getCurrentConsentAll();
-      expect(future, isA<Future<List<ServerConsentRecord>?>>());
-      expect(await future, isNull);
+      final result = await svc.recordConsent(
+        consentType: 'totally_unknown_type',
+        granted: true,
+        policyVersion: 'v1.0',
+      );
+      expect(result, isA<ConsentTypeRejected>());
+    });
+
+    test(
+        'recordConsent returns ConsentTypeRejected for typo "analytic" (missing s)',
+        () async {
+      final svc = ServerConsentService(dio: testDio());
+      final result = await svc.recordConsent(
+        consentType: 'analytic',
+        granted: true,
+        policyVersion: 'v1.0',
+      );
+      expect(result, isA<ConsentTypeRejected>());
+    });
+
+    test(
+        'recordConsent returns ConsentTypeRejected for typo "document_processsing" (triple s)',
+        () async {
+      final svc = ServerConsentService(dio: testDio());
+      final result = await svc.recordConsent(
+        consentType: 'document_processsing',
+        granted: true,
+        policyVersion: 'v1.0',
+      );
+      expect(result, isA<ConsentTypeRejected>());
+    });
+
+    test('recordConsent returns ConsentTypeRejected for empty string',
+        () async {
+      final svc = ServerConsentService(dio: testDio());
+      final result = await svc.recordConsent(
+        consentType: '',
+        granted: true,
+        policyVersion: 'v1.0',
+      );
+      expect(result, isA<ConsentTypeRejected>());
+    });
+
+    test('recordConsent returns ConsentTypeRejected for whitespace-only type',
+        () async {
+      final svc = ServerConsentService(dio: testDio());
+      final result = await svc.recordConsent(
+        consentType: '  ',
+        granted: true,
+        policyVersion: 'v1.0',
+      );
+      expect(result, isA<ConsentTypeRejected>());
+    });
+
+    test(
+        'recordConsent returns ConsentRecorded for all 7 known types',
+        () async {
+      // Use responseDio to simulate server acceptance (201).
+      final svc = ServerConsentService(
+        dio: responseDio(
+          {
+            'id': '00000000-0000-0000-0000-000000000099',
+            'consent_type': 'analytics',
+          },
+          statusCode: 201,
+        ),
+      );
+      final knownTypes = ServerConsentRecord.knownConsentTypes.toList();
+      expect(knownTypes, hasLength(7));
+      for (final type in knownTypes) {
+        final result = await svc.recordConsent(
+          consentType: type,
+          granted: true,
+          policyVersion: 'v1.0',
+        );
+        expect(
+          result,
+          isA<ConsentRecorded>(),
+          reason: 'Expected ConsentRecorded for known type "$type"',
+        );
+      }
+    });
+
+    test('getCurrentConsentAll returns ConsentSnapshotUnavailable on cancel',
+        () async {
+      final svc = ServerConsentService(dio: testDio());
+      final result = await svc.getCurrentConsentAll();
+      expect(result, isA<ConsentSnapshotUnavailable>());
     });
 
     test('getConsentHistory reads typed newest-first ledger entries', () async {
@@ -186,19 +271,22 @@ void main() {
         ]),
       );
 
-      final history = await svc.getConsentHistory(limit: 20);
+      final result = await svc.getConsentHistory(limit: 20);
 
-      expect(history, hasLength(2));
-      expect(history!.first.consentType, 'analytics');
-      expect(history.first.granted, isFalse);
-      expect(history.last.policyVersion, '1.2');
+      expect(result, isA<ConsentSnapshotLoaded>());
+      final records = (result as ConsentSnapshotLoaded).records;
+      expect(records, hasLength(2));
+      expect(records.first.consentType, 'analytics');
+      expect(records.first.granted, isFalse);
+      expect(records.last.policyVersion, '1.2');
     });
 
-    test('getConsentHistory returns null when the ledger is unavailable',
+    test('getConsentHistory returns ConsentSnapshotUnavailable when ledger is unavailable',
         () async {
       final svc = ServerConsentService(dio: testDio());
 
-      expect(await svc.getConsentHistory(), isNull);
+      final result = await svc.getConsentHistory();
+      expect(result, isA<ConsentSnapshotUnavailable>());
     });
   });
 }

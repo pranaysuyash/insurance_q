@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:coverwise/services/app_state_store.dart';
+import 'package:coverwise/services/consent_ledger.dart';
 import 'package:coverwise/services/document_service.dart';
 import 'package:coverwise/services/local_storage_service.dart';
 
@@ -23,6 +24,15 @@ void main() {
     await Hive.initFlutter(testDirectory.path);
     await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     await Hive.openBox(AppStateStore.boxName);
+    // P0.1 (Audit 5): Open the consent ledger box and record document-
+    // processing consent so upload/retry paths are not blocked by the
+    // new consent gate.
+    await Hive.openBox('consent_ledger');
+    await ConsentLedger().recordConsent(
+      purpose: ConsentPurpose.documentProcessing,
+      version: 'test',
+      granted: true,
+    );
   });
 
   tearDownAll(() async {
@@ -302,6 +312,72 @@ void main() {
       expect(await storage.getDocumentById(saved.id), isNotNull);
     } finally {
       if (!gate.isCompleted) gate.complete();
+      if (await source.exists()) await source.delete();
+      await storage.deleteDocument(saved.id);
+    }
+  });
+
+  // --- Audit 5 P0.1: consent-gate path ---
+
+  test('uploadFile returns consent_required when processing consent is revoked',
+      () async {
+    // Revoke document-processing consent.
+    await ConsentLedger().revokeConsent(ConsentPurpose.documentProcessing);
+
+    final file = File(
+      '${testDirectory.path}/coverwise-consent-denied-${DateTime.now().microsecondsSinceEpoch}.pdf',
+    );
+    await file.writeAsBytes(<int>[99, 100, 101]);
+
+    try {
+      final result = await DocumentService(Dio()).uploadFile(
+        file,
+        processingConsentVersion: 'processing-v12',
+      );
+
+      expect(result['error'], 'consent_required');
+      expect(result['consent_required'], isTrue);
+      expect(result['message'], contains('consent'));
+    } finally {
+      // Re-grant consent so other tests remain unaffected.
+      await ConsentLedger().recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: 'test',
+        granted: true,
+      );
+      if (await file.exists()) await file.delete();
+    }
+  });
+
+  test('pending upload retry returns failed when consent is revoked', () async {
+    final storage = LocalStorageService();
+    final source = File(
+      '${testDirectory.path}/coverwise-consent-retry-${DateTime.now().microsecondsSinceEpoch}.pdf',
+    );
+    await source.writeAsBytes(<int>[110, 111, 112]);
+    final saved = await storage.saveDocument(
+      source,
+      syncState: 'pending_upload',
+      processingState: 'pending',
+      processingConsentVersion: 'processing-v13',
+      status: 'pending',
+    );
+
+    // Revoke consent so the retry path is blocked.
+    await ConsentLedger().revokeConsent(ConsentPurpose.documentProcessing);
+
+    try {
+      final result = await DocumentService(Dio()).retryPendingUploads();
+      expect(result['failed'], 1);
+      final doc = await storage.getDocumentById(saved.id);
+      expect(doc?.syncState, 'failed');
+    } finally {
+      // Re-grant consent so other tests remain unaffected.
+      await ConsentLedger().recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: 'test',
+        granted: true,
+      );
       if (await source.exists()) await source.delete();
       await storage.deleteDocument(saved.id);
     }

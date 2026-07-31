@@ -106,7 +106,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         version: 'analytics-v1',
         granted: _analyticsConsent,
       );
-      AnalyticsService.refreshConsentCache();
+      // Audit 5 P1.3: Manual refreshConsentCache() removed —
+      // AnalyticsNotifier now subscribes to ConsentLedger.consentChanges
+      // and picks up this change automatically.
 
       // The local ledger is the immediate offline cache. The server append
       // below is attempted separately so an unavailable backend does not

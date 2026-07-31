@@ -122,12 +122,34 @@ void main() {
       expect(record.revokedAt, isNull);
     });
 
-    test('fromJson handles missing fields with defaults', () {
-      final record = ConsentRecord.fromJson({});
-      expect(record.purpose, ConsentPurpose.documentProcessing);
-      expect(record.version, 'unknown');
-      expect(record.granted, isFalse);
-      expect(record.revokedAt, isNull);
+    test('fromJson throws FormatException on empty map (P0.15 strict decoding)', () {
+      expect(
+        () => ConsentRecord.fromJson({}),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('fromJson throws FormatException on unknown purpose', () {
+      expect(
+        () => ConsentRecord.fromJson({
+          'purpose': 'unknown_purpose',
+          'version': 'v1',
+          'granted': true,
+          'timestamp': '2026-07-15T00:00:00.000',
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('fromJson throws FormatException on missing timestamp', () {
+      expect(
+        () => ConsentRecord.fromJson({
+          'purpose': 'analytics',
+          'version': 'v1',
+          'granted': true,
+        }),
+        throwsA(isA<FormatException>()),
+      );
     });
 
     test('fromJson handles revoked_at', () {

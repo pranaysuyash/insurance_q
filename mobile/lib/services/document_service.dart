@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
-import 'auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show Supabase, User;
+import 'auth_service.dart'; // AuthInterceptor + AuthNotifier
 import '../config/app_config.dart';
 import '../providers/capabilities_provider.dart';
 import '../models/document_model.dart';
 import 'analytics_service.dart';
+import 'consent_ledger.dart';
 import 'local_storage_service.dart';
 import 'session_service.dart';
 import 'app_state_repository.dart';
@@ -20,7 +21,17 @@ class DocumentService {
   /// The singleton authenticated Dio instance. All API calls should use this
   /// instead of creating ad-hoc Dio instances without auth tokens.
   static Dio? _authenticatedDio;
+
+  /// Audit 5 P0.4: Track the epoch alongside the pending-upload future so
+  /// that a principal transition can invalidate any in-flight sync from a
+  /// previous principal. The sync loop checks [_pendingUploadEpoch]
+  /// before processing each document and aborts on mismatch.
   static Future<Map<String, int>>? _pendingUploadSyncFuture;
+  static int _pendingUploadEpoch = -1;
+
+  /// Audit 5 P0.13: Expose the current pending-upload epoch so
+  /// ClaimsSyncService can verify it hasn't changed during a sync cycle.
+  static int get pendingUploadEpoch => _pendingUploadEpoch;
 
   /// Returns the authenticated Dio instance, creating it lazily if needed.
   /// This ensures all API calls go through the AuthInterceptor.
@@ -33,11 +44,16 @@ class DocumentService {
   static Dio get authenticatedDio {
     if (_authenticatedDio == null) {
       final caps = capabilitiesService.latest;
+      // Audit 5 P1.8: Clamp server-provided timeouts to safe hard bounds.
+      // A malicious or misconfigured backend must not be able to set
+      // zero-second or multi-hour timeouts that break the client UX.
+      final connectSeconds = caps.connectTimeoutSeconds.clamp(3, 30);
+      final receiveSeconds = caps.receiveTimeoutSeconds.clamp(10, 180);
       _authenticatedDio = Dio(
         BaseOptions(
           baseUrl: AppConfig.baseUrl,
-          connectTimeout: Duration(seconds: caps.connectTimeoutSeconds),
-          receiveTimeout: Duration(seconds: caps.receiveTimeoutSeconds),
+          connectTimeout: Duration(seconds: connectSeconds),
+          receiveTimeout: Duration(seconds: receiveSeconds),
         ),
       );
       _authenticatedDio!.interceptors.add(AuthInterceptor(_authenticatedDio!));
@@ -70,7 +86,12 @@ class DocumentService {
       options: Options(responseType: ResponseType.bytes),
     );
     final bytes = Uint8List.fromList(download.data ?? const <int>[]);
-    if (bytes.isEmpty || bytes.length > 50 * 1024 * 1024) {
+    // Audit 5 P1.5: Cap source downloads to the same 20 MiB upload limit.
+    // A 50 MiB download cap was inconsistent with the 20 MiB upload
+    // limit — a document that cannot be uploaded should not be downloaded.
+    // The check also rejects empty downloads to prevent storing zero-byte
+    // cached sources that would silently fail on re-read.
+    if (bytes.isEmpty || bytes.length > 20 * 1024 * 1024) {
       throw StateError(
           'Downloaded source document is outside the safe size limit');
     }
@@ -82,14 +103,67 @@ class DocumentService {
     return _localStorageService.cacheRemoteSource(document, bytes);
   }
 
+  /// Checks the local consent ledger for document-processing consent.
+  ///
+  /// P0.1 (Audit 5): No document bytes may be transmitted to the backend
+  /// without active documentProcessing consent recorded in the ledger.
+  ///
+  /// [ConsentLedger.hasConsent] already returns `false` when the Hive box
+  /// is unavailable, so no extra error handling is needed here.
+  bool _hasDocumentProcessingConsent() {
+    return ConsentLedger().hasConsent(ConsentPurpose.documentProcessing);
+  }
+
+  /// Returns a user-facing error map when processing consent is missing.
+  Map<String, dynamic> _consentDeniedError() {
+    return {
+      'error': 'consent_required',
+      'message':
+          'Document processing consent is required before uploading. '
+          'Please accept the data processing terms first.',
+      'consent_required': true,
+    };
+  }
+
+  /// Audit 5 P0.5: Generate a stable idempotency key for upload requests.
+  /// The key is derived from the filename and file size, ensuring that
+  /// retries of the same upload use the same key and the server deduplicates.
+  ///
+  /// The key is sent as the `X-Idempotency-Key` header. The server MUST
+  /// implement idempotency handling for this to prevent orphans:
+  /// - On duplicate key, return the existing document ID (200/209)
+  /// - Do NOT create a new document for the same idempotency key
+  ///
+  /// Uses the filename (not hashCode) for stability across Dart VM versions.
+  /// Includes file size to avoid collisions between different files with
+  /// the same filename.
+  String _uploadIdempotencyKey(String filePath, int fileSize) {
+    final fileName = filePath.split('/').last;
+    return 'upload_${Uri.encodeComponent(fileName)}_${fileSize}';
+  }
+
   Future<Map<String, dynamic>> uploadFile(File file,
       {String? email,
       String? phone,
       String? pdfPassword,
       String? onDeviceOcrText,
       required String processingConsentVersion}) async {
+    // P0.1 (Audit 5): Enforce consent at every data-egress boundary.
+    // Refuse transmission when the local ledger does not record active
+    // document-processing consent.
+    if (!_hasDocumentProcessingConsent()) {
+      return _consentDeniedError();
+    }
+
     try {
       final sessionId = await SessionService.getSessionId();
+
+      // Audit 5 P0.5: Generate a stable idempotency key from filename+size.
+      // This key is reused by _retryOnePendingUpload for the same file.
+      // Uses file.length() instead of readAsBytes() to avoid reading the
+      // entire file into memory just for size (large PDFs can be 50MB+).
+      final fileSize = await file.length();
+      final idempotencyKey = _uploadIdempotencyKey(file.path, fileSize);
 
       try {
         final formData = FormData.fromMap({
@@ -107,7 +181,11 @@ class DocumentService {
           '/documents/upload',
           data: formData,
           options: Options(
-            headers: {'X-Session-ID': sessionId},
+            headers: {
+              'X-Session-ID': sessionId,
+              // Audit 5 P0.5: Idempotency key prevents server orphans on retry.
+              'X-Idempotency-Key': idempotencyKey,
+            },
             contentType: 'multipart/form-data',
           ),
         );
@@ -126,6 +204,25 @@ class DocumentService {
 
           final documentId = firstDoc?['id'] ?? firstDoc?['processing_id'];
 
+          // Audit 5 P0.6: A success response without a canonical document
+          // ID is a protocol violation — the server accepted the upload but
+          // the client cannot reconcile, delete, or status-check the
+          // document. Treat it as a failure to prevent orphaned "synced"
+          // records with no server identity.
+          if (documentId == null ||
+              documentId.toString().trim().isEmpty) {
+            debugPrint(
+              'Upload succeeded but server returned no document ID; '
+              'treating as protocol failure.',
+            );
+            return {
+              'error': 'upload_protocol_error',
+              'message':
+                  'The server accepted the upload but did not return a document ID. '
+                  'Please contact support if this persists.',
+            };
+          }
+
           if (firstDoc?['document_type'] != null) {
             documentType = firstDoc!['document_type'];
           }
@@ -138,7 +235,7 @@ class DocumentService {
           final savedDocument = await _localStorageService.saveDocument(
             file,
             additionalMetadata: baseDocument,
-            remoteId: documentId?.toString(),
+            remoteId: documentId.toString(),
             syncState: 'synced',
             processingState: firstDoc?['status']?.toString() ?? 'ready',
             processingConsentVersion: processingConsentVersion,
@@ -329,11 +426,17 @@ class DocumentService {
   /// Reconciles locally persisted uploads without creating a second local
   /// document. Transport failures leave the item pending; missing local
   /// artifacts become an explicit terminal failure requiring user action.
-  Future<Map<String, int>> retryPendingUploads() async {
+  ///
+  /// Audit 5 P0.4: [epoch] is the principal epoch at the time the caller
+  /// decided to run reconciliation. If the epoch changes mid-loop (due to
+  /// a principal transition), processing stops early and partial results
+  /// are returned. A new reconciliation will start with the current epoch.
+  Future<Map<String, int>> retryPendingUploads({int? epoch}) async {
     final existing = _pendingUploadSyncFuture;
     if (existing != null) return existing;
 
-    final operation = _runPendingUploadSync();
+    final operation = _runPendingUploadSync(epoch: epoch);
+    _pendingUploadEpoch = epoch ?? 0;
     _pendingUploadSyncFuture = operation;
     try {
       return await operation;
@@ -344,13 +447,29 @@ class DocumentService {
     }
   }
 
-  Future<Map<String, int>> _runPendingUploadSync() async {
+  /// Invalidates any in-flight pending-upload sync. Called during principal
+  /// transitions so that the sync loop aborts instead of writing documents
+  /// into the wrong workspace.
+  static void invalidatePendingUploadSync() {
+    _pendingUploadSyncFuture = null;
+    _pendingUploadEpoch = -1;
+  }
+
+  Future<Map<String, int>> _runPendingUploadSync({int? epoch}) async {
     var synced = 0;
     var pending = 0;
     var failed = 0;
     var skipped = 0;
     final queued = await _localStorageService.getPendingUploads();
     for (final document in queued) {
+      // Audit 5 P0.4: Abort if the principal epoch has changed since this
+      // sync started. A changed epoch means a workspace transition is in
+      // progress and writing to the wrong workspace would corrupt data.
+      final currentEpoch = epoch ?? 0;
+      if (currentEpoch != _pendingUploadEpoch) {
+        break;
+      }
+
       final localPath = document.localFilePath;
       if (localPath == null || !await File(localPath).exists()) {
         await _localStorageService.updateDocument(document.copyWith(
@@ -383,20 +502,46 @@ class DocumentService {
 
   Future<String> _retryOnePendingUpload(
       InsuranceDocument document, File file) async {
+    // P0.1 (Audit 5): Re-check consent before retrying transmission.
+    // Consent may have been revoked since the original upload attempt.
+    if (!_hasDocumentProcessingConsent()) {
+      await _localStorageService.updateDocument(document.copyWith(
+        status: 'failed',
+        syncState: 'failed',
+        processingState: 'failed',
+      ));
+      return 'failed';
+    }
+
     try {
       final sessionId = await SessionService.getSessionId();
+
+      // Audit 5 P0.5: Use the same idempotency key as the initial upload
+      // to prevent server orphans on retry. The key is derived from the
+      // filename and file size, which are stable across retries.
+      final fileSize = await file.length();
+      final idempotencyKey = _uploadIdempotencyKey(file.path, fileSize);
+
       final formData = FormData.fromMap({
         'files': await MultipartFile.fromFile(file.path),
         'processing_mode': 'full',
         'processing_consent': true,
+        // Audit 5 P0.3: The consent version is always set during the
+        // initial upload (both uploadFile and uploadWebDocument paths).
+        // A null here means the document predates consent tracking;
+        // use the empty string rather than a magic sentinel.
         'processing_consent_version':
-            document.processingConsentVersion ?? 'legacy-local-save',
+            document.processingConsentVersion ?? '',
       });
       final response = await _dio.post(
         '/documents/upload',
         data: formData,
         options: Options(
-          headers: {'X-Session-ID': sessionId},
+          headers: {
+            'X-Session-ID': sessionId,
+            // Audit 5 P0.5: Same idempotency key as initial upload.
+            'X-Idempotency-Key': idempotencyKey,
+          },
           contentType: 'multipart/form-data',
         ),
       );
@@ -420,8 +565,15 @@ class DocumentService {
           documents != null && documents.isNotEmpty && documents[0] is Map
               ? Map<String, dynamic>.from(documents[0] as Map)
               : <String, dynamic>{};
-      final remoteId = first['id'] ?? first['processing_id'];
-      if (remoteId == null) return 'failed';
+      // Audit 5 P0.6: Only accept the canonical document ID (first['id']),
+      // not the transient processing_id. The server's reconciliation
+      // snapshot uses the final id — a processing_id stored as remoteId
+      // would be absent from that snapshot and cause premature deletion.
+      final remoteId = first['id'];
+      if (remoteId == null ||
+          remoteId.toString().trim().isEmpty) {
+        return 'failed';
+      }
       await _localStorageService.updateDocument(document.copyWith(
         remoteId: remoteId.toString(),
         documentType: first['document_type']?.toString(),
@@ -477,8 +629,17 @@ class DocumentService {
     String? onDeviceOcrText,
     required String processingConsentVersion,
   }) async {
+    // P0.1 (Audit 5): Enforce consent at every data-egress boundary.
+    if (!_hasDocumentProcessingConsent()) {
+      return _consentDeniedError();
+    }
+
     try {
       final sessionId = await SessionService.getSessionId();
+
+      // Audit 5 P0.5: Generate a stable idempotency key from filename+size
+      // for web uploads (no local file path exists).
+      final idempotencyKey = 'upload_web_${Uri.encodeComponent(filename)}_${bytes.length}';
 
       try {
         final formData = FormData.fromMap({
@@ -496,7 +657,11 @@ class DocumentService {
           '/documents/upload',
           data: formData,
           options: Options(
-            headers: {'X-Session-ID': sessionId},
+            headers: {
+              'X-Session-ID': sessionId,
+              // Audit 5 P0.5: Idempotency key prevents server orphans on retry.
+              'X-Idempotency-Key': idempotencyKey,
+            },
             contentType: 'multipart/form-data',
           ),
         );
@@ -514,6 +679,21 @@ class DocumentService {
               firstDoc?['insurer'] ?? _inferInsurerInfo(filename)['insurer'];
           final documentId = firstDoc?['id'] ?? firstDoc?['processing_id'];
 
+          // Audit 5 P0.6: Reject success responses without a canonical ID.
+          if (documentId == null ||
+              documentId.toString().trim().isEmpty) {
+            debugPrint(
+              'Web upload succeeded but server returned no document ID; '
+              'treating as protocol failure.',
+            );
+            return {
+              'error': 'upload_protocol_error',
+              'message':
+                  'The server accepted the upload but did not return a document ID. '
+                  'Please contact support if this persists.',
+            };
+          }
+
           if (firstDoc?['document_type'] != null) {
             documentType = firstDoc!['document_type'];
           }
@@ -527,7 +707,7 @@ class DocumentService {
             filename,
             bytes,
             additionalMetadata: baseDocument,
-            remoteId: documentId?.toString(),
+            remoteId: documentId.toString(),
             syncState: 'synced',
             processingState: firstDoc?['status']?.toString() ?? 'ready',
             status: firstDoc?['status']?.toString() ?? 'completed',
@@ -583,12 +763,15 @@ class DocumentService {
           'insurer': insurerInfo['insurer'],
         };
 
+        // Audit 5 P0.3: Propagate the consent version so the retry path
+        // can replay it instead of falling back to 'legacy-local-save'.
         final document = await _localStorageService.saveWebDocument(
           filename,
           bytes,
           additionalMetadata: baseDocument,
           syncState: 'pending_upload',
           processingState: 'pending',
+          processingConsentVersion: processingConsentVersion,
           status: 'pending',
         );
         await AppStateRepository.setLastUploadedDocumentId(document.id);
@@ -615,15 +798,24 @@ class DocumentService {
   Future<List<InsuranceDocument>> getDocuments() async {
     try {
       var documents = await _localStorageService.getDocuments();
-      // Gracefully skip account reconciliation when Supabase is not
-      // initialized (e.g. unit tests) or when there is no active session.
-      bool hasSession = false;
+      // Audit 5 P1.9: Only reconcile for registered Supabase accounts,
+      // not anonymous sessions. An anonymous Supabase session is not
+      // a registered account — treating it as one would trigger account
+      // reconciliation against a non-existent server workspace.
+      //
+      // A Supabase anonymous user has no email, no phone, and no
+      // confirmed identity. A registered user has at least one of those.
+      bool isRegisteredAccount = false;
       try {
-        hasSession = Supabase.instance.client.auth.currentSession != null;
+        final session = Supabase.instance.client.auth.currentSession;
+        final user = Supabase.instance.client.auth.currentUser;
+        isRegisteredAccount = session != null &&
+            user != null &&
+            !isAnonymousUser(user);
       } catch (_) {
         // Supabase not initialized — stay local-only.
       }
-      if (hasSession) {
+      if (isRegisteredAccount) {
         try {
           documents = await syncAccountDocuments();
         } catch (error) {
@@ -655,10 +847,35 @@ class DocumentService {
   /// materialized without pretending a source file exists, and local records
   /// for confirmed server deletions are removed. A failed request throws so
   /// callers cannot mistake a partial page for a complete reconciliation.
+  /// Audit 5 P1.10: Maximum pages to fetch during reconciliation. A broken
+  /// endpoint that ignores the page parameter and always returns exactly
+  /// 100 rows without total_pages would otherwise loop indefinitely.
+  static const int _maxReconciliationPages = 50;
+
+  /// Audit 5 P1.9: Determine whether a Supabase [User] is anonymous.
+  ///
+  /// A Supabase anonymous user has no email, no phone, and no confirmed
+  /// identity — they were created by `signInAnonymously()`. A registered
+  /// user has at least one verified credential (email or phone).
+  ///
+  /// This is a best-effort heuristic. The definitive answer comes from
+  /// the backend's auth provider metadata, but the client must not
+  /// reconcile anonymous sessions against an account workspace.
+  @visibleForTesting
+  static bool isAnonymousUser(User user) {
+    final hasEmail = user.email != null && user.email!.isNotEmpty;
+    final hasPhone = user.phone != null && user.phone!.isNotEmpty;
+    return !hasEmail && !hasPhone;
+  }
+
   Future<List<InsuranceDocument>> syncAccountDocuments() async {
-    final remoteDocuments = <InsuranceDocument>[];
+    // Audit 5 P1.10: Use a Map keyed by remoteId for reliable deduplication.
+    // InsuranceDocument uses identity equality, so a Set<InsuranceDocument>
+    // would not deduplicate objects with the same remoteId from different
+    // pages of a broken endpoint.
+    final remoteById = <String, InsuranceDocument>{};
     var page = 1;
-    while (true) {
+    while (page <= _maxReconciliationPages) {
       final response = await _dio.get(
         '/documents',
         queryParameters: {'page': page, 'limit': 100},
@@ -679,18 +896,17 @@ class DocumentService {
         if (remoteId == null || remoteId.isEmpty) continue;
         json['remote_id'] = remoteId;
         json['id'] = remoteId;
-        remoteDocuments.add(InsuranceDocument.fromJson(json));
+        remoteById[remoteId] = InsuranceDocument.fromJson(json);
       }
       final totalPages = (payload['total_pages'] as num?)?.toInt();
       if (rows.isEmpty || (totalPages != null && page >= totalPages)) break;
       if (totalPages == null && rows.length < 100) break;
       page++;
     }
+    final remoteDocuments = remoteById.values.toList();
 
     final localDocuments = await _localStorageService.getDocuments();
-    final remoteIds = remoteDocuments
-        .map((document) => document.remoteId ?? document.id)
-        .toSet();
+    final remoteIds = remoteById.keys.toSet();
     for (final local in localDocuments) {
       // An unsent local upload belongs to the retry queue, not the server
       // snapshot, so it must survive a successful reconciliation.
@@ -698,6 +914,9 @@ class DocumentService {
         continue;
       }
       if (local.remoteId != null && !remoteIds.contains(local.remoteId)) {
+        // Audit 5 P1.11: The remoteId being non-null means the server
+        // once owned this record. Its absence from the server snapshot
+        // means the server deleted it.
         await _localStorageService.deleteDocument(local.id);
       }
     }

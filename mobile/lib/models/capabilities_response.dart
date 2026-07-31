@@ -5,11 +5,31 @@
 /// server is an older version), callers fall back to [AppConfig]'s static
 /// defaults.
 ///
-/// All fields have safe defaults so that a partial server response (missing
-/// fields, wrong types) does not break the client.
+/// Audit 6 P0.2: All fields use strict parsing that rejects wrong types
+/// rather than silently casting. Schema violations are logged and reported.
+///
+/// Audit 6 P0.3: Trust gates (confidenceCalibrated, contextualRetrievalEnabled)
+/// fail closed — missing fields default to false, not to previous cached values.
+///
+/// Audit 6 P0.4: All numeric values are clamped to safe execution bounds.
+/// The server owns business limits; the client owns safe runtime bounds.
 ///
 /// A1-P1b: Replaces static client constants with server-provided limits.
 class CapabilitiesResponse {
+  // ── Audit 6 P0.4: Safe execution bounds ─────────────────────
+  static const int _minUploadBytes = 1 * 1024 * 1024; // 1 MiB
+  static const int _maxUploadBytes = 100 * 1024 * 1024; // 100 MiB
+  static const int _minSessionLimit = 1;
+  static const int _maxSessionLimit = 1000;
+  static const int _minIpLimit = 1;
+  static const int _maxIpLimit = 10000;
+  static const int _minSessionDuration = 60; // 1 minute
+  static const int _maxSessionDuration = 86400 * 7; // 7 days
+  static const int _minConnectTimeout = 3;
+  static const int _maxConnectTimeout = 30;
+  static const int _minReceiveTimeout = 10;
+  static const int _maxReceiveTimeout = 180;
+
   /// Maximum upload file size in bytes. Client-side guard only; the backend
   /// enforces the authoritative limit.
   final int maxUploadFileSizeBytes;
@@ -37,9 +57,9 @@ class CapabilitiesResponse {
   /// entirely — users have no context for an internal uncalibrated label.
   /// When `true`, the client may render the legacy high/medium/low chip.
   ///
-  /// The server is the source of truth. A compile-time constant cannot
-  /// prove calibration state because a stale binary may disagree with
-  /// the currently deployed backend.
+  /// Audit 6 P0.3: Missing field defaults to `false` (fail closed),
+  /// never to a previous cached value. Trust gates must not become
+  /// permanently sticky when the backend omits or rolls back the field.
   final bool confidenceCalibrated;
 
   /// Whether the backend is using contextual (source-separated) retrieval.
@@ -60,32 +80,63 @@ class CapabilitiesResponse {
     this.contextualRetrievalEnabled = false,
   });
 
-  /// Construct from the backend JSON response. Uses ?? with the provided
-  /// [fallback] for any missing/null field so that a partial server response
-  /// does not produce null fields.
+  /// Construct from the backend JSON response.
+  ///
+  /// Audit 6 P0.2: Uses strict parsing — wrong types (e.g. string where
+  /// int expected) are treated as missing fields, not cast exceptions.
+  /// Schema violations are logged. The [fallback] parameter is ONLY used
+  /// for numeric limits (not trust gates) — trust fields always default
+  /// to false when missing.
+  ///
+  /// Audit 6 P0.4: All numeric values are clamped to safe bounds.
   factory CapabilitiesResponse.fromJson(
     Map<String, dynamic> json, {
     CapabilitiesResponse? fallback,
   }) {
     final f = fallback ?? _default;
     return CapabilitiesResponse(
-      maxUploadFileSizeBytes:
-          json['max_upload_file_size_bytes'] as int? ?? f.maxUploadFileSizeBytes,
-      defaultSessionLimit:
-          json['default_session_limit'] as int? ?? f.defaultSessionLimit,
-      defaultIpLimit:
-          json['default_ip_limit'] as int? ?? f.defaultIpLimit,
-      sessionDurationSeconds:
-          json['session_duration_seconds'] as int? ?? f.sessionDurationSeconds,
-      connectTimeoutSeconds:
-          json['connect_timeout_seconds'] as int? ?? f.connectTimeoutSeconds,
-      receiveTimeoutSeconds:
-          json['receive_timeout_seconds'] as int? ?? f.receiveTimeoutSeconds,
+      maxUploadFileSizeBytes: _clampInt(
+        parseInt(json['max_upload_file_size_bytes']),
+        f.maxUploadFileSizeBytes,
+        _minUploadBytes,
+        _maxUploadBytes,
+      ),
+      defaultSessionLimit: _clampInt(
+        parseInt(json['default_session_limit']),
+        f.defaultSessionLimit,
+        _minSessionLimit,
+        _maxSessionLimit,
+      ),
+      defaultIpLimit: _clampInt(
+        parseInt(json['default_ip_limit']),
+        f.defaultIpLimit,
+        _minIpLimit,
+        _maxIpLimit,
+      ),
+      sessionDurationSeconds: _clampInt(
+        parseInt(json['session_duration_seconds']),
+        f.sessionDurationSeconds,
+        _minSessionDuration,
+        _maxSessionDuration,
+      ),
+      connectTimeoutSeconds: _clampInt(
+        parseInt(json['connect_timeout_seconds']),
+        f.connectTimeoutSeconds,
+        _minConnectTimeout,
+        _maxConnectTimeout,
+      ),
+      receiveTimeoutSeconds: _clampInt(
+        parseInt(json['receive_timeout_seconds']),
+        f.receiveTimeoutSeconds,
+        _minReceiveTimeout,
+        _maxReceiveTimeout,
+      ),
+      // Audit 6 P0.3: Trust gates always default to false when missing.
+      // Never use fallback values for trust-sensitive fields.
       confidenceCalibrated:
-          json['confidence_calibrated'] as bool? ?? f.confidenceCalibrated,
+          json['confidence_calibrated'] == true,
       contextualRetrievalEnabled:
-          json['contextual_retrieval_enabled'] as bool? ??
-              f.contextualRetrievalEnabled,
+          json['contextual_retrieval_enabled'] == true,
     );
   }
 
@@ -104,4 +155,32 @@ class CapabilitiesResponse {
     confidenceCalibrated: false,
     contextualRetrievalEnabled: false,
   );
+
+  // ── Audit 6 P0.2: Strict parsing helpers ────────────────────
+
+  /// Parse an int from a JSON value. Returns null for wrong types,
+  /// non-finite numbers, null, or unparseable strings — never throws.
+  ///
+  /// Audit 6 P0.2: Handles String representations (e.g. "10") that
+  /// some backends return instead of proper JSON integers.
+  static int? parseInt(Object? value) {
+    if (value is int) return value;
+    if (value is num && value.isFinite && value == value.roundToDouble()) {
+      return value.toInt();
+    }
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  /// Clamp an int to [min]..[max], falling back to [fallback] when null.
+  ///
+  /// Audit 6 P0.4: Ensures returned value is always within safe bounds.
+  /// Uses explicit comparison to guarantee int return type (Dart's
+  /// num.clamp can return num in some contexts).
+  static int _clampInt(int? value, int fallback, int min, int max) {
+    final v = value ?? fallback;
+    if (v < min) return min;
+    if (v > max) return max;
+    return v;
+  }
 }

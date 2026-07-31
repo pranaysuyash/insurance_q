@@ -15,6 +15,7 @@ import 'billing_adapter.dart';
 import '../config/app_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'document_service.dart'; // Audit 5 P1.5: use centralized authenticatedDio
 final authServiceProvider = NotifierProvider<AuthNotifier, AuthServiceState>(
   AuthNotifier.new,
 );
@@ -174,6 +175,20 @@ class AuthService {
       AppConfig.hasSupabaseAuthConfig &&
       Supabase.instance.client.auth.currentSession != null;
 
+  /// Audit 5 P1.9: Whether a *registered* (non-anonymous) Supabase session
+  /// exists. A Supabase anonymous user (no email, no phone) is not a
+  /// registered account — security-sensitive operations like account
+  /// deletion, phone linking, and data export must require this check
+  /// instead of [hasAccountSession].
+  static bool get isRegisteredSession {
+    if (!hasAccountSession) return false;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return false;
+    final hasEmail = user.email != null && user.email!.isNotEmpty;
+    final hasPhone = user.phone != null && user.phone!.isNotEmpty;
+    return hasEmail || hasPhone;
+  }
+
   /// The current Supabase user ID, or null if no session exists.
   /// I3-P1a Phase 2: Removed notifier routing — checks Supabase directly.
   static String? get accountUserId =>
@@ -189,9 +204,12 @@ class AuthService {
   /// Update phone — pure-forward to Supabase.
   /// I3-P1a Phase 1: removed notifier routing since the notifier method
   /// just calls Supabase with the same session check.
-  static Future<UserResponse> updateUserPhone(String phone) async {
-    if (!hasAccountSession) {
-      throw StateError('Must be signed in to link phone to account');
+  static  Future<UserResponse> updateUserPhone(String phone) async {
+    // Audit 5 P1.9: Only registered (non-anonymous) accounts can link a
+    // phone number. An anonymous Supabase session is not an account —
+    // treating it as one would allow phone linking on a guest session.
+    if (!hasAccountSession || !isRegisteredSession) {
+      throw StateError('Must be signed in with a registered account to link phone to account');
     }
     return Supabase.instance.client.auth.updateUser(
       UserAttributes(phone: phone.trim()),
@@ -317,6 +335,20 @@ class AuthNotifier extends Notifier<AuthServiceState> {
       isClientReady &&
       Supabase.instance.client.auth.currentSession != null;
 
+  /// Audit 5 P1.9: Whether a *registered* (non-anonymous) Supabase session
+  /// exists. A Supabase anonymous user (no email, no phone) is not a
+  /// registered account — security-sensitive operations like account
+  /// deletion, phone linking, and data export must require this check
+  /// instead of [hasAccountSession].
+  bool get isRegisteredSession {
+    if (!hasAccountSession) return false;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return false;
+    final hasEmail = user.email != null && user.email!.isNotEmpty;
+    final hasPhone = user.phone != null && user.phone!.isNotEmpty;
+    return hasEmail || hasPhone;
+  }
+
   String? get accountUserId =>
       hasAccountSession ? Supabase.instance.client.auth.currentUser?.id : null;
 
@@ -436,10 +468,9 @@ class AuthNotifier extends Notifier<AuthServiceState> {
     AnalyticsService.track('claim_initiated', {
       'anonymous_token_age_hours_bucket': 'unknown',
     });
-    final dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
-    dio.interceptors.add(AuthInterceptor(dio));
+    // Audit 5 P1.5: Use the centralized authenticated Dio singleton.
     try {
-      final response = await dio.post('/user/claim-anonymous',
+      final response = await DocumentService.authenticatedDio.post('/user/claim-anonymous',
           data: {'anonymous_token': legacyToken});
       final transferred = (response.data is Map)
           ? ((response.data as Map)['transferred_documents'] as int? ?? 0)
@@ -604,16 +635,26 @@ class AuthNotifier extends Notifier<AuthServiceState> {
   /// Also clears local data after successful deletion to prevent stale
   /// cached content from rendering after deletion completes.
   Future<DeleteAccountResult> deleteAccount() async {
-    if (!hasAccountSession) {
-      throw StateError('No account session to delete');
+    // Audit 5 P1.9: Account deletion requires a registered (non-anonymous)
+    // Supabase session. An anonymous session has no account to delete —
+    // the backend would return 404 or reject the request.
+    if (!hasAccountSession || !isRegisteredSession) {
+      throw StateError('No registered account session to delete');
     }
-    final dio = Dio(BaseOptions(
-      baseUrl: AppConfig.baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-    ));
-    dio.interceptors.add(AuthInterceptor(dio));
-    final response = await dio.delete('/user/account');
+    // Audit 5 P1.5: Use the centralized authenticated Dio singleton instead
+    // of creating an ad-hoc instance. The singleton already has AuthInterceptor
+    // wired in and uses server-backed timeouts from CapabilitiesService.
+    //
+    // Per-operation timeout: account deletion is a synchronous backend
+    // operation that must not hang for minutes. 30s is generous for a
+    // database cascade + storage cleanup; anything slower is a backend
+    // defect that should surface as a timeout, not an infinite wait.
+    final response = await DocumentService.authenticatedDio.delete(
+      '/user/account',
+      options: Options(
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
     if (response.statusCode != 200 && response.statusCode != 202) {
       throw Exception('Server returned ${response.statusCode}');
     }
@@ -639,31 +680,42 @@ class AuthNotifier extends Notifier<AuthServiceState> {
   }
 
   Future<DeletionStatus> getDeletionStatus() async {
-    if (!hasAccountSession) {
-      throw StateError('No account session to read deletion status');
+    // Audit 5 P1.9: Deletion status requires a registered account session.
+    if (!hasAccountSession || !isRegisteredSession) {
+      throw StateError('No registered account session to read deletion status');
     }
-    final dio = Dio(BaseOptions(
-      baseUrl: AppConfig.baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-    ));
-    dio.interceptors.add(AuthInterceptor(dio));
-    final response = await dio.get('/user/account/deletion-status');
+    // Audit 5 P1.5: Use the centralized authenticated Dio singleton.
+    //
+    // Per-operation timeout: deletion-status is a lightweight read that
+    // must return quickly. 30s is generous; the server should respond
+    // within seconds. A timeout here signals a backend problem.
+    final response = await DocumentService.authenticatedDio.get(
+      '/user/account/deletion-status',
+      options: Options(
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
     final data = (response.data as Map?)?.cast<String, dynamic>() ?? {};
     return DeletionStatus.fromJson(data);
   }
 
   Future<Map<String, dynamic>> exportAccount() async {
-    if (!hasAccountSession) {
-      throw StateError('No account session to export');
+    // Audit 5 P1.9: Account export requires a registered account session.
+    if (!hasAccountSession || !isRegisteredSession) {
+      throw StateError('No registered account session to export');
     }
-    final dio = Dio(BaseOptions(
-      baseUrl: AppConfig.baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-    ));
-    dio.interceptors.add(AuthInterceptor(dio));
-    final response = await dio.get('/user/account/export');
+    // Audit 5 P1.5: Use the centralized authenticated Dio singleton.
+    //
+    // Per-operation timeout: account export bundles user data and may
+    // involve a few database queries, but should not take minutes.
+    // 30s keeps the operation bounded while allowing for cold-start
+    // latency on the backend.
+    final response = await DocumentService.authenticatedDio.get(
+      '/user/account/export',
+      options: Options(
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
     if (response.statusCode != 200 || response.data is! Map) {
       throw Exception('Account export is temporarily unavailable');
     }

@@ -174,21 +174,20 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
       actions: [
         if (!widget.isRequired)
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               if (!_processingConsent) {
                 setState(() => _consentError =
                     'Accept the Privacy Policy to process this policy.');
                 return;
               }
-              // Record consent in the purpose-specific ledger.
+              // 7-P0.18: Await consent write before returning.
               final ledger = ConsentLedger();
-              if (!ledger.hasConsent(ConsentPurpose.documentProcessing)) {
-                ledger.recordConsent(
-                  purpose: ConsentPurpose.documentProcessing,
-                  version: AppConfig.privacyPolicyVersion,
-                  granted: true,
-                );
-              }
+              await ledger.recordConsent(
+                purpose: ConsentPurpose.documentProcessing,
+                version: AppConfig.privacyPolicyVersion,
+                granted: true,
+              );
+              if (!mounted) return;
               Navigator.of(context).pop({
                 'email': null,
                 'phone': null,
@@ -206,33 +205,28 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () {
+          onPressed: () async {
             if (_formKey.currentState!.validate()) {
               if (!_processingConsent) {
                 setState(() => _consentError =
                     'Accept the Privacy Policy to process this policy.');
                 return;
               }
-              // Record consent in the purpose-specific ledger.
+              // 7-P0.18: Await consent write before returning success.
+              // Unawaited writes can fail silently while the dialog returns
+              // success and the upload proceeds without durable authorization.
               final ledger = ConsentLedger();
-              if (!ledger.hasConsent(ConsentPurpose.documentProcessing)) {
-                ledger.recordConsent(
-                  purpose: ConsentPurpose.documentProcessing,
-                  version: AppConfig.privacyPolicyVersion,
-                  granted: true,
-                );
-              }
-              // Record lead capture consent if contact info is provided.
-              final hasContact = _emailController.text.trim().isNotEmpty ||
-                  _phoneController.text.trim().isNotEmpty;
-              if (hasContact &&
-                  !ledger.hasConsent(ConsentPurpose.marketingEmails)) {
-                ledger.recordConsent(
-                  purpose: ConsentPurpose.marketingEmails,
-                  version: AppConfig.privacyPolicyVersion,
-                  granted: true,
-                );
-              }
+              await ledger.recordConsent(
+                purpose: ConsentPurpose.documentProcessing,
+                version: AppConfig.privacyPolicyVersion,
+                granted: true,
+              );
+              if (!mounted) return;
+              // 7-P0.19: Do NOT automatically grant marketing consent when
+              // contact details are provided. Entering an email is not marketing
+              // consent. Saving an email locally is not marketing consent.
+              // Marketing opt-in requires a separate unticked control with
+              // specific purpose and copy.
               Navigator.of(context).pop({
                 'email': _emailController.text.trim().isEmpty
                     ? null

@@ -61,6 +61,9 @@ class CapabilitiesService {
 
   /// Build a [CapabilitiesResponse] from the current [AppConfig] static
   /// constants. Used as the fallback when the backend is unreachable.
+  ///
+  /// Audit 6 P0.1: Uses [AppConfig.sessionDuration] (Duration) and converts
+  /// to seconds via .inSeconds.
   CapabilitiesResponse _fromAppConfig() => CapabilitiesResponse(
         maxUploadFileSizeBytes: AppConfig.maxUploadFileSizeBytes,
         defaultSessionLimit: AppConfig.defaultSessionLimit,

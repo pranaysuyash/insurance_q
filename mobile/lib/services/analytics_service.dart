@@ -8,9 +8,9 @@ import 'app_state_store.dart';
 import 'consent_ledger.dart';
 import 'install_service.dart';
 import 'session_service.dart';
+import '../config/app_config.dart';
 import '../providers/service_providers.dart';
 
-const String kAppVersion = '0.1.2+11';
 
 final analyticsServiceProvider = NotifierProvider<AnalyticsNotifier, AnalyticsState>(
   AnalyticsNotifier.new,
@@ -121,10 +121,14 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
   String? _uid;
   bool _analyticsConsentCached = true;
 
+  StreamSubscription<List<ConsentRecord>>? _consentSubscription;
+
   @override
   AnalyticsState build() {
     _instance = this;
     ref.onDispose(() {
+      _consentSubscription?.cancel();
+      _consentSubscription = null;
       _instance = null;
       _syncTimer?.cancel();
       _syncTimer = null;
@@ -137,6 +141,13 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
 
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(_syncInterval, (_) => _flush());
+
+    // Audit 5 P1.3: Subscribe to the ConsentLedger consentChanges stream
+    // so that consent revocations are picked up automatically without
+    // requiring manual refreshConsentCache() calls from screens.
+    _consentSubscription = ConsentLedger.consentChanges.listen((_) {
+      _refreshConsentCache();
+    });
 
     _scheduleAppSessionStarted();
 
@@ -156,7 +167,7 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
         'install_id': InstallService.getInstallId(),
         'session_id': SessionService.getSessionIdSync(),
         'platform': InstallService.platformTag(),
-        'app_version': kAppVersion,
+        'app_version': AppConfig.appVersion,
         'days_since_install': InstallService.daysSinceInstall(),
         'is_reinstall': InstallService.isReinstall(),
         'install_referrer_source': referrer?['source'],
@@ -181,9 +192,27 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
     }
   }
 
-  void _refreshConsentCache() {
-    _analyticsConsentCached = _checkConsentFresh();
+  /// P0.1: When consent is revoked, cancel the flush timer, discard the
+  /// in-memory buffer, and delete the persisted queue so no stale events
+  /// are transmitted after revocation.
+  Future<void> applyConsent(bool allowed) async {
+    _analyticsConsentCached = allowed;
+    if (!allowed) {
+      _syncTimer?.cancel();
+      _syncTimer = null;
+      _buffer.clear();
+      await _persistBuffer(); // Overwrites persisted queue with empty list.
+    } else if (_syncTimer == null) {
+      _syncTimer = Timer.periodic(_syncInterval, (_) => _flush());
+    }
     state = AnalyticsState(queuedCount: _buffer.length, hasConsent: _analyticsConsentCached);
+  }
+
+  void _refreshConsentCache() {
+    final fresh = _checkConsentFresh();
+    if (fresh != _analyticsConsentCached) {
+      applyConsent(fresh);
+    }
   }
 
   void _track(String name, [Map<String, dynamic>? properties]) {
@@ -217,6 +246,12 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
   }
 
   Future<void> _flush() async {
+    // P0.1: Re-read authoritative consent immediately before transmission.
+    if (!_analyticsConsentCached) {
+      _buffer.clear();
+      _persistBuffer();
+      return;
+    }
     if (_buffer.isEmpty) return;
 
     final batch = List<Map<String, dynamic>>.from(_buffer);
@@ -238,9 +273,9 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
     }
   }
 
-  void _persistBuffer() {
+  Future<void> _persistBuffer() async {
     try {
-      _box.put(AppStateStore.analyticsEventsKey, jsonEncode(_buffer));
+      await _box.put(AppStateStore.analyticsEventsKey, jsonEncode(_buffer));
     } catch (e) {
       debugPrint('Analytics: failed to persist buffer: $e');
     }
@@ -266,11 +301,17 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
   }
 
   void resetForWorkspace() {
+    _consentSubscription?.cancel();
     _syncTimer?.cancel();
     _buffer.clear();
     _uid = SessionService.getSessionIdSync();
     _analyticsConsentCached = _checkConsentFresh();
     _syncTimer = Timer.periodic(_syncInterval, (_) => _flush());
+    // Re-subscribe to consentChanges after workspace reset so the
+    // stream is bound to the new workspace's ConsentLedger.
+    _consentSubscription = ConsentLedger.consentChanges.listen((_) {
+      _refreshConsentCache();
+    });
     _scheduleAppSessionStarted();
     state = AnalyticsState(queuedCount: 0, hasConsent: _analyticsConsentCached);
   }

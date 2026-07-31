@@ -33,11 +33,18 @@ class _ConsentActivityScreenState extends State<ConsentActivityScreen> {
 
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
-    final records = await _service.getConsentHistory();
+    final result = await _service.getConsentHistory();
     if (!mounted) return;
     setState(() {
-      _records = records;
       _loading = false;
+      switch (result) {
+        case ConsentSnapshotLoaded(:final records):
+          _records = records;
+        case ConsentSnapshotUnavailable():
+          _records = null;
+        case ConsentSnapshotInvalid():
+          _records = null;
+      }
     });
   }
 

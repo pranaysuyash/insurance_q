@@ -13,6 +13,20 @@ enum ConsentPurpose {
   marketingEmails('marketing_emails'),
 
   /// Terms of Service and Privacy Policy acceptance.
+  ///
+  /// Audit 5 P1.2: This purpose tracks which privacy policy version the
+  /// user has accepted. It is NOT a data-processing consent — it records
+  /// acknowledgment of the policy document itself. Document-processing
+  /// consent is tracked separately via [documentProcessing].
+  ///
+  /// The relationship between these two purposes:
+  /// - `privacyPolicy`: "I have read and accept the privacy policy"
+  /// - `documentProcessing`: "I authorize CoverWise to process my documents"
+  ///
+  /// When the privacy policy version changes, the old `documentProcessing`
+  /// consent becomes stale (the user consented under an old policy). The
+  /// UI must re-prompt for `documentProcessing` consent using the new
+  /// policy version, but `privacyPolicy` acceptance is a separate record.
   privacyPolicy('privacy_policy'),
 
   /// Camera access for page capture.
@@ -70,16 +84,37 @@ class ConsentRecord {
     return map;
   }
 
+  /// Construct from a persisted JSON map.
+  ///
+  /// P0.15: Unknown or missing purposes are rejected rather than silently
+  /// defaulting to [ConsentPurpose.documentProcessing]. Malformed timestamps
+  /// also throw to prevent corrupt records from becoming authoritative.
   factory ConsentRecord.fromJson(Map<String, dynamic> json) {
-    final purpose =
-        ConsentPurpose.fromString(json['purpose'] ?? '') ??
-            ConsentPurpose.documentProcessing;
+    final purposeStr = json['purpose'] as String?;
+    if (purposeStr == null || purposeStr.isEmpty) {
+      throw FormatException('ConsentRecord: missing purpose field');
+    }
+    final purpose = ConsentPurpose.fromString(purposeStr);
+    if (purpose == null) {
+      throw FormatException(
+        'ConsentRecord: unknown purpose "$purposeStr"',
+      );
+    }
+    final timestampStr = json['timestamp'] as String?;
+    if (timestampStr == null || timestampStr.isEmpty) {
+      throw FormatException('ConsentRecord: missing timestamp field');
+    }
+    final timestamp = DateTime.tryParse(timestampStr);
+    if (timestamp == null) {
+      throw FormatException(
+        'ConsentRecord: invalid timestamp "$timestampStr"',
+      );
+    }
     return ConsentRecord(
       purpose: purpose,
       version: json['version'] as String? ?? 'unknown',
       granted: json['granted'] as bool? ?? false,
-      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ??
-          DateTime.now(),
+      timestamp: timestamp,
       revokedAt: json['revoked_at'] != null
           ? DateTime.tryParse(json['revoked_at'] as String)
           : null,
@@ -92,8 +127,54 @@ class ConsentRecord {
 /// Stored in a Hive box named `consent_ledger`. Each record is a JSON map
 /// appended to the box's values list. The latest record for a given
 /// [ConsentPurpose] determines the current consent state.
+///
+/// Audit 5 P1.1: Consent is coarse — boolean per [ConsentPurpose] with no
+/// document-level, field-level, or retention-period scoping. This is
+/// intentional for the MVP launch boundary:
+///
+/// **Architectural boundary:**
+/// - The backend server enforces document-level and field-level access
+///   controls independently (the client cannot be the authority).
+/// - The consent ledger is a local pre-flight gate: "has the user
+///   granted permission for this category of data egress?" — not the
+///   authoritative policy store.
+/// - Finer-grained scoping (per-document consent, per-field redaction,
+///   per-retention TTL) requires a backend API contract change and a
+///   new ADR before the client can implement it.
+///
+/// **What would need to change for per-document consent:**
+/// 1. Backend defines a `document_consent` table with (user_id, document_id,
+///    purpose, granted, expires_at, policy_version).
+/// 2. An ADR records the scoping contract and the client's role.
+/// 3. The client adds a DocumentConsentGate that reads from the backend
+///    (with local cache for offline) before each data-egress boundary.
+/// 4. The ConsentLedger retains coarse purpose-level consent as a local
+///    fallback when the backend is unreachable.
+///
+/// **Why the client cannot be the authority for fine-grained consent:**
+/// - The client can be tampered with; the server cannot trust client-side
+///   consent claims for data-access decisions.
+/// - Offline consent grants must still be verifiable by the server before
+///   processing begins.
+/// - Cross-device consent synchronization requires server-side state.
+///
+/// Until then, this coarse per-purpose ledger is the correct design:
+/// it gates every data-egress boundary (upload, analytics, marketing)
+/// with a single boolean per purpose, and the backend independently
+/// verifies consent at processing time.
 class ConsentLedger {
   static const String _boxName = 'consent_ledger';
+
+  /// Audit 5 P1.3: A broadcast stream that emits after every consent
+  /// mutation (grant or revocation). Consumers can listen to react to
+  /// consent changes without manual polling via [refreshConsentCache].
+  static final StreamController<List<ConsentRecord>> _consentChangesController =
+      StreamController<List<ConsentRecord>>.broadcast();
+
+  /// Stream of consent state snapshots. Emits the full record list after
+  /// every [recordConsent] or [revokeConsent] call.
+  static Stream<List<ConsentRecord>> get consentChanges =>
+      _consentChangesController.stream;
 
   Box<dynamic>? get _box {
     try {
@@ -103,7 +184,22 @@ class ConsentLedger {
     }
   }
 
+  /// The underlying Hive box, or null when the workspace is not open.
+  Box<dynamic> get _requiredBox {
+    final box = _box;
+    if (box == null) {
+      throw StateError(
+        'ConsentLedger: Hive box "$_boxName" is not open. '
+        'Consent records cannot be written before workspace activation.',
+      );
+    }
+    return box;
+  }
+
   /// Record a consent grant or revocation.
+  ///
+  /// P0.14: Throws [StateError] when the Hive box is unavailable so that
+  /// callers cannot silently believe consent was recorded when it was not.
   Future<void> recordConsent({
     required ConsentPurpose purpose,
     required String version,
@@ -115,7 +211,8 @@ class ConsentLedger {
       granted: granted,
       timestamp: DateTime.now(),
     );
-    await _box?.add(record.toJson());
+    await _requiredBox.add(record.toJson());
+    _emitConsentChange();
   }
 
   /// Revoke consent for a given purpose by marking the latest active record
@@ -132,7 +229,8 @@ class ConsentLedger {
       timestamp: revokedAt,
       revokedAt: revokedAt,
     );
-    await _box?.add(revokedRecord.toJson());
+    await _requiredBox.add(revokedRecord.toJson());
+    _emitConsentChange();
   }
 
   /// Check if consent is currently granted for a given purpose.
@@ -210,7 +308,18 @@ class ConsentLedger {
   }
 
   /// Clear all consent records.
+  ///
+  /// P0.14: Uses [_requiredBox] so the operation fails visibly when the
+  /// Hive box is unavailable, consistent with [recordConsent].
   Future<void> clear() async {
-    await _box?.clear();
+    await _requiredBox.clear();
+    _emitConsentChange();
+  }
+
+  /// Audit 5 P1.3: Emit current consent state to all stream listeners.
+  void _emitConsentChange() {
+    if (!_consentChangesController.isClosed) {
+      _consentChangesController.add(getAllRecords());
+    }
   }
 }

@@ -609,16 +609,17 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final box = Hive.box(AppStateStore.boxName);
     final storedConsent = box.get('processing_consent_version') as String?;
 
+    // 7-P0.17: Do NOT auto-re-grant consent after revocation. A stored
+    // historical version is evidence of an old decision, not permission
+    // to grant a new one. If the ledger no longer has active consent,
+    // the user must be shown the authorization dialog again.
     if (storedConsent != null) {
       final ledger = ConsentLedger();
-      if (!ledger.hasConsent(ConsentPurpose.documentProcessing)) {
-        await ledger.recordConsent(
-          purpose: ConsentPurpose.documentProcessing,
-          version: storedConsent,
-          granted: true,
-        );
+      if (ledger.hasConsent(ConsentPurpose.documentProcessing)) {
+        // Consent is active — proceed with stored version.
+        return storedConsent;
       }
-      return storedConsent;
+      // Consent was revoked. Fall through to show the dialog.
     }
 
     // First upload — show consent + optional contact capture.

@@ -67,6 +67,13 @@ class LocalStorageService {
     return document;
   }
 
+  /// Persist a web-selected document's bytes to disk and record metadata.
+  ///
+  /// Audit 5 P0.2: The previous implementation discarded the bytes and set
+  /// [InsuranceDocument.localFilePath] to null, causing the retry queue to
+  /// mark the document as failed (no file to upload). The bytes are now
+  /// written to the app documents directory so [retryPendingUploads] can
+  /// replay them.
   Future<InsuranceDocument> saveWebDocument(
     String filename,
     Uint8List bytes, {
@@ -78,6 +85,16 @@ class LocalStorageService {
     String? status,
   }) async {
     final docId = _uuid.v4();
+
+    // Persist the bytes to disk so the retry queue can replay them.
+    final directory = await getApplicationDocumentsDirectory();
+    final safeName = path.basename(filename).replaceAll(
+          RegExp(r'[^A-Za-z0-9._-]'),
+          '_',
+        );
+    final localFilePath = path.join(directory.path, '${docId}_$safeName');
+    await File(localFilePath).writeAsBytes(bytes, flush: true);
+
     final document = InsuranceDocument(
       id: docId,
       remoteId: remoteId,
@@ -89,7 +106,7 @@ class LocalStorageService {
       processingState: processingState,
       processingConsentVersion: processingConsentVersion,
       processingCompletedAt: DateTime.now(),
-      localFilePath: null,
+      localFilePath: localFilePath,
       documentType: additionalMetadata?['document_type'],
       insurer: additionalMetadata?['insurer'],
     );
@@ -139,19 +156,19 @@ class LocalStorageService {
         localFilePath: null,
         policyHolders: [
           PolicyHolder(
-            name: 'Pranay Suyash',
-            dob: '10-May-1988',
+            name: 'Aarav Mehta',
+            dob: '15-Mar-1985',
             relationship: 'SELF',
           ),
           PolicyHolder(
-            name: 'Diksha Sinha',
-            dob: '02-Aug-1992',
+            name: 'Priya Mehta',
+            dob: '22-Jul-1987',
             relationship: 'SPOUSE',
           ),
           PolicyHolder(
-            name: 'Advay Sinha',
-            dob: '28-May-2023',
-            relationship: 'SON',
+            name: 'Anika Mehta',
+            dob: '10-Nov-2019',
+            relationship: 'DAUGHTER',
           ),
         ],
       );
@@ -252,26 +269,20 @@ class LocalStorageService {
     return cached;
   }
 
-  /// Remove all temporary cached source files from disk.
+  /// Remove temporary cached source files that this service owns.
+  ///
+  /// P0.5: Only deletes the CoverWise subtree under the temp directory,
+  /// not the entire application temp directory which may contain files
+  /// owned by file pickers, downloads, image processing, or other plugins.
   Future<void> clearCache() async {
     try {
       final tempDir = await getTemporaryDirectory();
-      if (await tempDir.exists()) {
-        final entities = tempDir.listSync();
-        for (final entity in entities) {
-          try {
-            if (entity is File) {
-              await entity.delete();
-            } else if (entity is Directory) {
-              await entity.delete(recursive: true);
-            }
-          } catch (e) {
-            debugPrint('Failed to delete cached entity: ${entity.path}');
-          }
-        }
+      final cwDir = Directory('${tempDir.path}/coverwise');
+      if (await cwDir.exists()) {
+        await cwDir.delete(recursive: true);
       }
     } catch (e) {
-      debugPrint('Error clearing cache directory: $e');
+      debugPrint('Error clearing CoverWise cache directory: $e');
     }
   }
 

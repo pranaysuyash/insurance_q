@@ -122,7 +122,7 @@ void main() {
     });
   });
 
-  group('AppStateRepository — saveClaimRecords', () {
+  group('AppStateRepository — replaceClaimRecords', () {
     test('replaces all records with new list', () async {
       await _seedClaim(_testClaim);
 
@@ -136,7 +136,7 @@ void main() {
         filedDate: DateTime(2026, 7, 24),
         referenceNumber: 'CLM-2026-002',
       );
-      await AppStateRepository.saveClaimRecords([secondClaim]);
+      await AppStateRepository.replaceClaimRecords([secondClaim]);
 
       final records = AppStateRepository.getClaimRecords();
       expect(records.length, 1);
@@ -147,7 +147,7 @@ void main() {
     test('saving empty list removes all records', () async {
       await _seedClaim(_testClaim);
 
-      await AppStateRepository.saveClaimRecords([]);
+      await AppStateRepository.replaceClaimRecords([]);
 
       final records = AppStateRepository.getClaimRecords();
       expect(records, isEmpty);

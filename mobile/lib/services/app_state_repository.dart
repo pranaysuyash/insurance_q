@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,6 +8,56 @@ import 'package:hive/hive.dart';
 import '../models/claim_record.dart';
 import '../models/document_model.dart';
 import 'app_state_store.dart';
+
+/// Serialization guard for all repository mutations.
+///
+/// P0.9 fix: Without this, two concurrent `addClaimRecord()` calls can both
+/// read the same list, each append their record, and then both write — the
+/// second write silently drops the first record.
+///
+/// Usage:
+/// ```dart
+/// await _writeLock(() async {
+///   final records = getClaimRecords();
+///   records.insert(0, newRecord);
+///   await saveClaimRecords(records);
+/// });
+/// ```
+Completer<void>? _writeLockCompleter;
+
+/// Acquire a serialization lock and execute [fn] while holding it.
+///
+/// **WARNING:** Nested calls (a locked mutation calling another locked
+/// mutation) will deadlock. Currently no nesting exists in this class,
+/// but any future mutation that chains into another must use an
+/// unlocked internal helper instead.
+Future<void> _writeLock(Future<void> Function() fn) async {
+  // Wait for any in-progress write to finish.
+  while (_writeLockCompleter != null) {
+    await _writeLockCompleter!.future;
+  }
+  // Claim the lock.
+  _writeLockCompleter = Completer<void>();
+  try {
+    await fn();
+  } finally {
+    // Release the lock.
+    _writeLockCompleter!.complete();
+    _writeLockCompleter = null;
+  }
+}
+
+/// Quarantine record for a single malformed item within a collection.
+///
+/// P0.8 fix: Previously, one malformed record in a JSON list would cause the
+/// entire `catch` block to return `[]`, destroying every valid record. Now each
+/// record is parsed independently; malformed items are quarantined and logged.
+void _logQuarantine(String collection, String locator, Object error) {
+  debugPrint(
+    '⚠️ AppStateRepository: quarantined malformed $collection '
+    '($locator): $error',
+  );
+}
 
 class AppStateRepository {
   static Box get _box => Hive.box(AppStateStore.boxName);
@@ -76,16 +127,19 @@ class AppStateRepository {
     return [];
   }
 
+  /// P0.9: Serialized mutation.
   static Future<void> addRecentQuestion(String question,
       {int limit = 5}) async {
-    final recentQuestions = getRecentQuestions();
-    if (!recentQuestions.contains(question)) {
-      recentQuestions.insert(0, question);
-      if (recentQuestions.length > limit) {
-        recentQuestions.removeLast();
+    await _writeLock(() async {
+      final recentQuestions = getRecentQuestions();
+      if (!recentQuestions.contains(question)) {
+        recentQuestions.insert(0, question);
+        if (recentQuestions.length > limit) {
+          recentQuestions.removeLast();
+        }
+        await _box.put(AppStateStore.recentQuestionsKey, recentQuestions);
       }
-      await _box.put(AppStateStore.recentQuestionsKey, recentQuestions);
-    }
+    });
   }
 
   static List<String> getRecentlyDeletedDocuments() {
@@ -96,16 +150,19 @@ class AppStateRepository {
     return [];
   }
 
+  /// P0.9: Serialized mutation.
   static Future<void> addRecentlyDeletedDocument(String filename,
       {int limit = 5}) async {
-    final deletedDocs = getRecentlyDeletedDocuments();
-    if (!deletedDocs.contains(filename)) {
-      deletedDocs.insert(0, filename);
-      if (deletedDocs.length > limit) {
-        deletedDocs.removeLast();
+    await _writeLock(() async {
+      final deletedDocs = getRecentlyDeletedDocuments();
+      if (!deletedDocs.contains(filename)) {
+        deletedDocs.insert(0, filename);
+        if (deletedDocs.length > limit) {
+          deletedDocs.removeLast();
+        }
+        await _box.put(AppStateStore.recentlyDeletedDocsKey, deletedDocs);
       }
-      await _box.put(AppStateStore.recentlyDeletedDocsKey, deletedDocs);
-    }
+    });
   }
 
   static Future<void> clearRecentlyDeletedDocuments() async {
@@ -120,80 +177,127 @@ class AppStateRepository {
   // list so they survive app restarts and remain available offline.
   // ---------------------------------------------------------------------------
 
+  /// P0.8: Parse each family member independently — one malformed record
+  /// must not destroy the entire collection.
   static List<PolicyHolder> getManualFamilyMembers() {
     final raw = _box.get(AppStateStore.manualFamilyMembersKey);
     if (raw is! String) return [];
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return [];
-      return decoded
-          .map((item) =>
-              PolicyHolder.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final valid = <PolicyHolder>[];
+      for (var i = 0; i < decoded.length; i++) {
+        try {
+          valid.add(
+            PolicyHolder.fromJson(decoded[i] as Map<String, dynamic>),
+          );
+        } catch (e) {
+          _logQuarantine('manual_family', 'index=$i', e);
+        }
+      }
+      return valid;
     } catch (e) {
       return [];
     }
   }
 
-  static Future<void> saveManualFamilyMembers(
+  static Future<void> _saveManualFamilyMembersRaw(
       List<PolicyHolder> members) async {
     final encoded = jsonEncode(
         members.map((member) => member.toJson()).toList());
     await _box.put(AppStateStore.manualFamilyMembersKey, encoded);
   }
 
+  /// P0.9: Serialized mutation — prevents concurrent add/remove from losing
+  /// a concurrent write.
   static Future<void> addManualFamilyMember(PolicyHolder member) async {
-    final members = getManualFamilyMembers();
-    members.add(member);
-    await saveManualFamilyMembers(members);
+    await _writeLock(() async {
+      final members = getManualFamilyMembers();
+      members.add(member);
+      await _saveManualFamilyMembersRaw(members);
+    });
   }
 
+  /// P0.9: Serialized mutation — prevents concurrent add/remove from losing
+  /// a concurrent write.
   static Future<void> removeManualFamilyMember(String name,
       {String? relationship}) async {
-    final members = getManualFamilyMembers();
-    members.removeWhere((m) =>
-        m.name == name &&
-        (relationship == null || m.relationship == relationship));
-    await saveManualFamilyMembers(members);
+    await _writeLock(() async {
+      final members = getManualFamilyMembers();
+      members.removeWhere((m) =>
+          m.name == name &&
+          (relationship == null || m.relationship == relationship));
+      await _saveManualFamilyMembersRaw(members);
+    });
   }
 
   // ---------------------------------------------------------------------------
   // Claim records — locally tracked insurance claims
   // ---------------------------------------------------------------------------
 
+  /// P0.8: Parse each claim independently — one malformed record must not
+  /// destroy the entire collection. Malformed records are quarantined (logged)
+  /// and the remaining valid records are returned.
   static List<ClaimRecord> getClaimRecords() {
     final raw = _box.get(AppStateStore.claimRecordsKey);
     if (raw is! String) return [];
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return [];
-      return decoded
-          .map((item) => ClaimRecord.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final valid = <ClaimRecord>[];
+      for (var i = 0; i < decoded.length; i++) {
+        try {
+          valid.add(
+            ClaimRecord.fromJson(decoded[i] as Map<String, dynamic>),
+          );
+        } catch (e) {
+          _logQuarantine('claim', 'index=$i', e);
+        }
+      }
+      return valid;
     } catch (e) {
+      // Top-level decode failure (corrupt JSON) — empty is correct.
       return [];
     }
   }
 
-  static Future<void> saveClaimRecords(List<ClaimRecord> records) async {
+  static Future<void> _saveClaimRecordsRaw(List<ClaimRecord> records) async {
     final encoded =
         jsonEncode(records.map((r) => r.toJson()).toList());
     await _box.put(AppStateStore.claimRecordsKey, encoded);
   }
 
-  static Future<void> addClaimRecord(ClaimRecord record) async {
-    final records = getClaimRecords();
-    records.insert(0, record);
-    await saveClaimRecords(records);
+  /// Replace the entire claim collection under the write lock.
+  ///
+  /// Used by [ClaimsSyncService] after a full merge. External callers
+  /// must use this instead of a raw save to prevent concurrent
+  /// read-modify-write races (P0.9).
+  static Future<void> replaceClaimRecords(List<ClaimRecord> records) async {
+    await _writeLock(() async {
+      await _saveClaimRecordsRaw(records);
+    });
   }
 
+  /// P0.9: Serialized mutation — prevents concurrent add/update/delete from
+  /// losing a concurrent write.
+  static Future<void> addClaimRecord(ClaimRecord record) async {
+    await _writeLock(() async {
+      final records = getClaimRecords();
+      records.insert(0, record);
+      await _saveClaimRecordsRaw(records);
+    });
+  }
+
+  /// P0.9: Serialized mutation.
   static Future<void> updateClaimRecord(ClaimRecord updated) async {
-    final records = getClaimRecords();
-    final idx = records.indexWhere((r) => r.id == updated.id);
-    if (idx >= 0) {
-      records[idx] = updated;
-      await saveClaimRecords(records);
-    }
+    await _writeLock(() async {
+      final records = getClaimRecords();
+      final idx = records.indexWhere((r) => r.id == updated.id);
+      if (idx >= 0) {
+        records[idx] = updated;
+        await _saveClaimRecordsRaw(records);
+      }
+    });
   }
 
   /// Delete photo files associated with a set of file paths.
@@ -213,14 +317,23 @@ class AppStateRepository {
     }
   }
 
+  /// P0.9: Serialized mutation — prevents concurrent deletes from conflicting
+  /// with concurrent adds/updates.
+  ///
+  /// NOTE: Photo file deletion runs inside the lock to ensure the claim
+  /// record is not removed from Hive before its photos are cleaned up.
+  /// If photo counts grow large, consider moving deletion outside the
+  /// lock (sacrificing atomicity for shorter lock hold times).
   static Future<void> deleteClaimRecord(String id) async {
-    final records = getClaimRecords();
-    final claim = records.where((r) => r.id == id).firstOrNull;
-    if (claim != null && claim.photoPaths.isNotEmpty) {
-      await deletePhotoFiles(claim.photoPaths);
-    }
-    records.removeWhere((r) => r.id == id);
-    await saveClaimRecords(records);
+    await _writeLock(() async {
+      final records = getClaimRecords();
+      final claim = records.where((r) => r.id == id).firstOrNull;
+      if (claim != null && claim.photoPaths.isNotEmpty) {
+        await deletePhotoFiles(claim.photoPaths);
+      }
+      records.removeWhere((r) => r.id == id);
+      await _saveClaimRecordsRaw(records);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -231,29 +344,46 @@ class AppStateRepository {
   // The gap ID is a stable hash of (category + description + severity).
   // ---------------------------------------------------------------------------
 
+  /// P0.8: Parse each gap entry independently — one malformed entry must not
+  /// destroy the entire resolved-gaps map.
   static Map<String, Map<String, dynamic>> getResolvedGaps() {
     final raw = _box.get(AppStateStore.resolvedGapsKey);
     if (raw is! Map) return {};
     try {
-      return raw.map((k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)));
+      final valid = <String, Map<String, dynamic>>{};
+      for (final entry in raw.entries) {
+        try {
+          valid[entry.key.toString()] =
+              Map<String, dynamic>.from(entry.value as Map);
+        } catch (e) {
+          _logQuarantine('resolved_gap', 'key=${entry.key}', e);
+        }
+      }
+      return valid;
     } catch (e) {
       return {};
     }
   }
 
+  /// P0.9: Serialized mutation.
   static Future<void> markGapResolved(String gapId, {String? notes}) async {
-    final gaps = getResolvedGaps();
-    gaps[gapId] = {
-      'resolvedAt': DateTime.now().toIso8601String(),
-      'notes': notes,
-    };
-    await _box.put(AppStateStore.resolvedGapsKey, gaps);
+    await _writeLock(() async {
+      final gaps = getResolvedGaps();
+      gaps[gapId] = {
+        'resolvedAt': DateTime.now().toIso8601String(),
+        'notes': notes,
+      };
+      await _box.put(AppStateStore.resolvedGapsKey, gaps);
+    });
   }
 
+  /// P0.9: Serialized mutation.
   static Future<void> unresolveGap(String gapId) async {
-    final gaps = getResolvedGaps();
-    gaps.remove(gapId);
-    await _box.put(AppStateStore.resolvedGapsKey, gaps);
+    await _writeLock(() async {
+      final gaps = getResolvedGaps();
+      gaps.remove(gapId);
+      await _box.put(AppStateStore.resolvedGapsKey, gaps);
+    });
   }
 
   static bool isGapResolved(String gapId) {
