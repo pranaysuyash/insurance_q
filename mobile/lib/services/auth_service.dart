@@ -479,6 +479,10 @@ class AuthNotifier extends Notifier<AuthServiceState> {
         'transferred_count': transferred,
       });
       await clearToken();
+      // CW-P0-004: Clear the persisted claim flag ONLY after the server
+      // transfer succeeds. This prevents a transient failure from
+      // stranding the claim — the flag persists for retry on next launch.
+      await clearClaimFlag();
     } catch (error) {
       AnalyticsService.track('claim_failed', {
         'error_class': error.runtimeType.toString(),
@@ -522,19 +526,26 @@ class AuthNotifier extends Notifier<AuthServiceState> {
   ///  2. OAuth kills and restarts the Flutter process
   ///  3. Startup bootstrap reads the flag into _persistedClaimFlag
   ///  4. After signedIn event, this method returns true
+  ///
+  /// CW-P0-004: The persisted flag is NOT cleared here. It is only
+  /// cleared by [clearClaimFlag] after [claimAnonymousData] succeeds.
+  /// This prevents a transient server failure from stranding the
+  /// workspace claim — the flag persists for retry on next launch.
   bool consumeAnonymousWorkspaceClaim() {
     final preserve = state.preserveAnonymousWorkspaceForClaim ||
         AuthService._persistedClaimFlag;
-    AuthService._persistedClaimFlag = false;
+    // Consume the in-memory flag but NOT the persisted flag.
     state = state.copyWith(preserveAnonymousWorkspaceForClaim: false);
-    // Fire-and-forget the storage delete to avoid blocking the callback.
-    unawaited(_clearClaimFlag());
     return preserve;
   }
 
   /// Clear the persisted claim flag from secure storage.
-  /// Runs asynchronously; the in-memory flag is already consumed.
-  Future<void> _clearClaimFlag() async {
+  ///
+  /// CW-P0-004: Called ONLY after [claimAnonymousData] succeeds, or
+  /// during [signOut] (which abandons any pending claim). This ensures
+  /// the claim flag persists across process death until the server
+  /// transfer is confirmed.
+  Future<void> clearClaimFlag() async {
     try {
       await AuthService._secureStorage.delete(key: AuthService._claimFlagKey);
     } catch (_) {}
@@ -581,7 +592,7 @@ class AuthNotifier extends Notifier<AuthServiceState> {
 
     // P0.4: Clear the persisted claim flag so a stale flag from a previous
     // session does not cause incorrect workspace preservation on next sign-in.
-    await _clearClaimFlag();
+    await clearClaimFlag();
 
     // P0.3: Reset analytics identity synchronously in signOut() rather
     // than waiting for the Supabase signedOut auth listener to fire.
