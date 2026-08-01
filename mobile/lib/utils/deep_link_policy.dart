@@ -17,7 +17,7 @@ class DeepLinkPolicy {
     'renewals',
     'coverage-gaps',
     'compare',
-    'what-if',
+
     'qa',
     'reset-callback',
     'login-callback',

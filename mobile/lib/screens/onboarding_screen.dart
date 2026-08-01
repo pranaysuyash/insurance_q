@@ -22,7 +22,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _currentPage = 0;
   bool _analyticsConsent = false; // Optional analytics is explicit opt-in.
+  bool _acceptedPrivacy = false; // Must be true to proceed from last page.
   bool _acceptedTerms = false; // Must be true to proceed from last page.
+  bool _isCompleting = false;
+
 
   static const _pages = [
     _OnboardingData(
@@ -64,22 +67,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _complete({bool openFilePicker = false}) async {
-    if (!_acceptedTerms) return;
-    // Record both analytics consent and terms acceptance.
-    // Analytics: only if user explicitly toggled the switch.
-    // Terms: always record — the user must check the box to proceed.
-    await _recordConsentState();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_complete', true);
-    AnalyticsService.track(
-      'onboarding_completed',
-      {
-        'analytics_consent': _analyticsConsent,
-        'total_steps': _pages.length,
-      },
-    );
-    if (mounted) {
-      widget.onComplete(openFilePicker: openFilePicker);
+    // CW-P0-010: Both Privacy Policy AND Terms of Service must be accepted.
+    if (!_acceptedPrivacy || !_acceptedTerms || _isCompleting) return;
+    setState(() => _isCompleting = true);
+
+    try {
+      // Audit 6 P0.21: If required consent writes fail, onboarding does
+      // not complete. The user must see an error and retry. The method
+      // propagates the exception from _recordConsentState().
+      await _recordConsentState();
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('onboarding_complete', true);
+      AnalyticsService.track(
+        'onboarding_completed',
+        {
+          'analytics_consent': _analyticsConsent,
+          'total_steps': _pages.length,
+        },
+      );
+      if (mounted) {
+        widget.onComplete(openFilePicker: openFilePicker);
+      }
+    } catch (e) {
+      debugPrint('onboarding consent write failed: ${e.runtimeType}: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not save your consent preferences. Please try again.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCompleting = false);
     }
   }
 
@@ -96,38 +119,65 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  /// Record all onboarding consent decisions.
+  ///
+  /// Audit 6 P0.21: Required consent writes (privacy policy, terms of service)
+  /// must succeed before onboarding completes. If they fail, the method throws
+  /// so that onboarding does not proceed without durable evidence of agreement.
+  ///
+  /// Audit 6 P0.22: Terms of Service acceptance is recorded separately from
+  /// privacy policy acceptance — the onboarding checkbox covers both, but the
+  /// ledger tracks them as distinct records with their own lifecycles.
   Future<void> _recordConsentState() async {
     final ledger = ConsentLedger();
+
+    // ── Required consent writes (fail-closed) ──────────────────────────
+    // These MUST succeed. If they throw, onboarding blocks and the user
+    // sees a retry. We do not silently proceed without durable evidence.
+    await ledger.recordConsent(
+      purpose: ConsentPurpose.privacyPolicy,
+      version: AppConfig.privacyPolicyVersion,
+      granted: true,
+    );
+    await ledger.recordConsent(
+      purpose: ConsentPurpose.termsOfService,
+      version: AppConfig.privacyPolicyVersion,
+      granted: true,
+    );
+
+    // ── Optional consent write (best-effort) ───────────────────────────
+    // Analytics opt-in/out is important but not blocking — if the write
+    // fails, the app defaults to no analytics (fail-closed by design).
     try {
-      // Record an explicit analytics decision, including an opt-out. This
-      // keeps the UI choice and the fail-closed analytics gate aligned.
       await ledger.recordConsent(
         purpose: ConsentPurpose.analytics,
         version: 'analytics-v1',
         granted: _analyticsConsent,
       );
-      // Audit 5 P1.3: Manual refreshConsentCache() removed —
-      // AnalyticsNotifier now subscribes to ConsentLedger.consentChanges
-      // and picks up this change automatically.
-
-      // The local ledger is the immediate offline cache. The server append
-      // below is attempted separately so an unavailable backend does not
-      // strand first-run onboarding.
-      await ledger.recordConsent(
-        purpose: ConsentPurpose.privacyPolicy,
-        version: AppConfig.privacyPolicyVersion,
-        granted: _acceptedTerms,
-      );
     } catch (e) {
-      debugPrint('onboarding local consent write deferred: ${e.runtimeType}');
+      debugPrint('onboarding analytics consent write deferred: ${e.runtimeType}');
     }
 
+    // CW-P0-010: Server sync is best-effort — offline onboarding must
+    // not be blocked. But we track the pending state so the UI can
+    // surface that consent is locally recorded but not yet verified
+    // by the server.
     try {
       await ConsentSyncService().syncAll();
     } catch (e) {
-      // Cache-first onboarding remains usable offline. Upload and later
-      // account/session sync paths retry the consent bridge where applicable.
       debugPrint('onboarding server consent sync deferred: ${e.runtimeType}');
+      // CW-P0-010: Surface the sync-pending state so the user knows
+      // consent is recorded locally but not yet verified by the server.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Consent recorded. Will sync when online.',
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -276,67 +326,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ],
                       ),
                     ),
-                    // Privacy Policy and Terms of Service links
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PrivacyPolicyScreen(),
-                              ),
-                            ),
-                            child: const Text('Privacy Policy'),
-                          ),
-                          Text(
-                            ' • ',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const TermsOfServiceScreen(),
-                              ),
-                            ),
-                            child: const Text('Terms of Service'),
-                          ),
-                        ],
+                    // CW-P0-010: Two separate checkboxes for distinct legal
+                    // agreements. Previously a single checkbox covered both
+                    // Privacy Policy and Terms of Service, conflating two
+                    // independent legal records into one user action.
+                    //
+                    // Privacy Policy acceptance and Terms of Service acceptance
+                    // are recorded as separate ledger entries with independent
+                    // lifecycles (each can be revoked independently).
+                    _LegalCheckbox(
+                      value: _acceptedPrivacy,
+                      onChanged: (value) {
+                        setState(() => _acceptedPrivacy = value ?? false);
+                      },
+                      label: 'I have read and accept the Privacy Policy',
+                      onReview: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PrivacyPolicyScreen(),
+                        ),
                       ),
                     ),
-                    // Explicit consent checkbox — required before proceeding
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Checkbox(
-                            value: _acceptedTerms,
-                            onChanged: (value) {
-                              setState(() {
-                                _acceptedTerms = value ?? false;
-                              });
-                            },
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Text(
-                                'I have read and agree to the Privacy Policy '
-                                'and Terms of Service',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 4),
+                    _LegalCheckbox(
+                      value: _acceptedTerms,
+                      onChanged: (value) {
+                        setState(() => _acceptedTerms = value ?? false);
+                      },
+                      label: 'I have read and agree to the Terms of Service',
+                      onReview: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TermsOfServiceScreen(),
+                        ),
                       ),
                     ),
                     // Scope disclaimer — CoverWise is an information assistant.
@@ -372,7 +394,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: isLast
-                          ? (_acceptedTerms
+                          ? (_acceptedPrivacy && _acceptedTerms
                               ? () => _complete(openFilePicker: true)
                               : null)
                           : () {
@@ -526,6 +548,67 @@ class _OnboardingPage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// CW-P0-010: A single legal agreement checkbox with a "Review" link.
+/// Replaces the old single checkbox that conflated Privacy Policy and
+/// Terms of Service into one user action.
+class _LegalCheckbox extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool?> onChanged;
+  final String label;
+  final VoidCallback onReview;
+
+  const _LegalCheckbox({
+    required this.value,
+    required this.onChanged,
+    required this.label,
+    required this.onReview,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Checkbox(
+          value: value,
+          onChanged: onChanged,
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text.rich(
+              TextSpan(
+                text: '$label ',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.3,
+                ),
+                children: [
+                  WidgetSpan(
+                    child: GestureDetector(
+                      onTap: onReview,
+                      child: Text(
+                        'Review',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

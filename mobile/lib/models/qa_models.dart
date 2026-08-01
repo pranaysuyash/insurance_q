@@ -75,41 +75,19 @@ class QaAnswer {
     if (json['sources'] is List) {
       final sourcesList = json['sources'] as List;
       for (var source in sourcesList) {
-        String sourceText = '';
-
-        // Extract text content to check for failed processing
-        if (source is String) {
-          sourceText = source;
-        } else if (source is Map<String, dynamic>) {
-          sourceText = source['text']?.toString() ?? source.toString();
-        } else {
-          sourceText = source.toString();
-        }
-
-        // Filter out failed document processing sources
-        if (sourceText.startsWith('Failed to process PDF:') ||
-            sourceText.contains('Failed to process') ||
-            sourceText.contains('test_policy.pdf')) {
-          debugPrint(
-              'Filtering out failed source: ${sourceText.substring(0, 50)}...');
-          continue; // Skip this source
-        }
-
-        // Filter out sample documents if they contain obvious sample data
-        if (sourceText.contains('John Smith') ||
-            sourceText.contains('Sarah Johnson') ||
-            sourceText.contains('sample_health_policy') ||
-            sourceText.contains('sample_auto_policy')) {
-          debugPrint('Filtering out sample document source');
-          continue; // Skip sample documents
-        }
+        // CW-P0-009: Do NOT filter sources by hardcoded name substrings.
+        // The old code filtered 'John Smith', 'Sarah Johnson', etc. —
+        // this is brittle and will break on real Indian names. Failed
+        // processing sources are handled by the backend (not returned).
 
         if (source is String) {
-          // Backend returns sources as strings
+          // CW-P0-009: Do NOT fabricate a relevance score for string
+          // sources. Use 0.0 to signal "unknown score" so the UI does
+          // not display a misleading 100% relevance badge.
           parsedSources.add(QaSource(
             documentId: json['document_id'] ?? '',
             text: source,
-            score: 1.0,
+            score: 0.0,
           ));
         } else if (source is Map<String, dynamic>) {
           // Legacy format with source objects
@@ -165,24 +143,28 @@ class QaSource {
   factory QaSource.fromJson(dynamic json, {String? defaultDocumentId}) {
     // Handle both Map and String inputs
     if (json is String) {
+      // CW-P0-009: Do NOT fabricate relevance score for raw strings.
       return QaSource(
         documentId: '',
         text: json,
-        score: 1.0,
+        score: 0.0,
       );
     } else if (json is Map<String, dynamic>) {
       return QaSource(
         documentId: json['document_id']?.toString() ?? defaultDocumentId ?? '',
         pageNumber: json['page_number'] ?? json['page'],
         text: json['text']?.toString() ?? json.toString(),
-        score: (json['score'] is num) ? (json['score'] as num).toDouble() : 1.0,
+        // CW-P0-009: Use 0.0 when score is missing or not numeric,
+        // instead of fabricating 1.0. The UI should not show a
+        // misleading relevance badge for unknown scores.
+        score: (json['score'] is num) ? (json['score'] as num).toDouble() : 0.0,
       );
     } else {
-      // Fallback for any other type
+      // Fallback for any other type — unknown score, not 1.0.
       return QaSource(
         documentId: '',
         text: json.toString(),
-        score: 1.0,
+        score: 0.0,
       );
     }
   }

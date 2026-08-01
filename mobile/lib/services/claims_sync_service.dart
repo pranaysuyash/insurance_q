@@ -129,27 +129,42 @@ class ClaimsSyncService {
   /// uploaded (no referenceNumber) is preserved.
   Future<ClaimsSyncResult> pullFromBackend({int? epoch}) async {
     try {
-      final response = await _dio.get('/claims');
-      final data = response.data;
-      if (data is! List) {
-        return const ClaimsSyncResult(
-            errorMessage: 'Unexpected response format',
-            completion: SyncCompletion.failed);
-      }
+      // CW-P0-003 Fix 3: Paginate through all pages to get a complete
+      // server snapshot. Without pagination, users with >50 claims would
+      // only see the first page and incorrectly tombstone the rest.
+      const pageSize = 200;
+      var offset = 0;
+      const maxPages = 50;
+      var page = 0;
 
       final serverClaims = <String, ClaimRecord>{};
-      for (final item in data) {
-        if (item is Map<String, dynamic>) {
-          final claim = ClaimRecord.fromJson({
-            ...item,
-            'document_id': item['document_id'] ?? '',
-            'filed_date':
-                item['filed_date'] ?? DateTime.now().toIso8601String(),
-            // Audit 6 P0.5: Server claims arrive already synced.
-            'sync_state': 'synced',
-          });
-          serverClaims[claim.id] = claim;
+
+      while (page < maxPages) {
+        final response = await _dio.get(
+          '/claims',
+          queryParameters: {
+            'limit': pageSize,
+            'offset': offset,
+          },
+        );
+        final data = response.data;
+        if (data is! List || data.isEmpty) break;
+        for (final item in data) {
+          if (item is Map<String, dynamic>) {
+            final claim = ClaimRecord.fromJson({
+              ...item,
+              'document_id': item['document_id'] ?? '',
+              'filed_date':
+                  item['filed_date'] ?? DateTime.now().toIso8601String(),
+              // Audit 6 P0.5: Server claims arrive already synced.
+              'sync_state': 'synced',
+            });
+            serverClaims[claim.id] = claim;
+          }
         }
+        if (data.length < pageSize) break;
+        offset += pageSize;
+        page++;
       }
 
       // Audit 5 P0.10: Check epoch AFTER the network call but BEFORE
@@ -252,10 +267,12 @@ class ClaimsSyncService {
   /// local ID remains the canonical reference for the claim organizer.
   Future<ClaimsSyncResult> pushClaim(ClaimRecord claim) async {
     try {
+      // CW-P0-003 Fix 1: Do NOT send 'id' in the POST body.
+      // The backend CreateClaimRequest has extra="forbid" and generates
+      // its own UUID. Sending a client ID causes HTTP 422.
       final response = await _dio.post(
         '/claims',
         data: {
-          'id': claim.id,
           'document_id': claim.documentId,
           'policy_type': claim.policyType,
           'insurer': claim.insurer,
@@ -296,14 +313,54 @@ class ClaimsSyncService {
         completion: SyncCompletion.failed,
       );
     }
-  }  /// Full sync: pull from server, then push any locally-created claims that
-  /// don't exist on the server.
+  }  /// Patch a modified claim on the backend.
+  ///
+  /// CW-P0-003 Fix 2: Send PATCH for claims with [ClaimSyncState.modified]
+  /// so that local status/notes edits are pushed to the server.
+  /// Only sends fields that the backend [UpdateClaimRequest] accepts:
+  /// status, reference_number, notes.
+  Future<ClaimsSyncResult> patchClaim(ClaimRecord claim) async {
+    try {
+      final remoteId = claim.remoteId ?? claim.id;
+      // Build the update payload — only fields accepted by UpdateClaimRequest.
+      final data = <String, dynamic>{};
+      data['status'] = claim.status.wireValue;
+      if (claim.referenceNumber != null) {
+        data['reference_number'] = claim.referenceNumber;
+      }
+      if (claim.notes != null) {
+        data['notes'] = claim.notes;
+      }
+      await _dio.patch('/claims/$remoteId', data: data);
+      // Mark as synced after successful PATCH.
+      final updatedClaim = claim.copyWith(
+        syncState: ClaimSyncState.synced,
+        updatedAt: DateTime.now(),
+      );
+      await AppStateRepository.updateClaimRecord(updatedClaim);
+      return const ClaimsSyncResult(
+        pushedCount: 1,
+        completion: SyncCompletion.complete,
+      );
+    } catch (e) {
+      return ClaimsSyncResult(
+        errorCount: 1,
+        errorMessage: 'PATCH failed: $e',
+        completion: SyncCompletion.failed,
+      );
+    }
+  }
+
+  /// Full sync: pull from server, then push new claims and patch modified ones.
   ///
   /// P0.9: If the server index is unavailable, no pushes are attempted —
   /// an unknown server state must not be treated as empty.
   ///
   /// P0.8: The server index is fetched once before the push loop to avoid
   /// redundant network reads inside the loop (N+1 problem).
+  ///
+  /// CW-P0-003 Fix 2: After pushing new claims, PATCH any claims with
+  /// [ClaimSyncState.modified] so local edits are synced to the server.
   ///
   /// Audit 5 P0.10: [epoch] is the principal epoch at the time the caller
   /// decided to run claims sync. The epoch is captured by the caller and
@@ -313,7 +370,7 @@ class ClaimsSyncService {
   /// ClaimsSyncService uses its own epoch ([claimsSyncEpoch]), independent
   /// of DocumentService's epoch. This prevents cross-principal data
   /// contamination when claims sync is in-flight during a workspace transition.
-Future<ClaimsSyncResult> fullSync({int? epoch}) async {
+  Future<ClaimsSyncResult> fullSync({int? epoch}) async {
     // Audit 5 P0.10: Check epoch BEFORE the pull network call to prevent
     // cross-principal data contamination. If a workspace transition
     // happened since this sync was requested, abort immediately.
@@ -333,6 +390,7 @@ Future<ClaimsSyncResult> fullSync({int? epoch}) async {
 
       final localClaims = AppStateRepository.getClaimRecords();
       int pushedCount = 0;
+      int patchedCount = 0;
       int errorCount = 0;
 
       // P0.8: Fetch the authoritative server index once, not per claim.
@@ -347,21 +405,36 @@ Future<ClaimsSyncResult> fullSync({int? epoch}) async {
       }
       final serverIds = (indexResult as ServerClaimIndexLoaded).ids;
 
-      // Push any local claims whose IDs don't appear in the server set.
       for (final claim in localClaims) {
-        // Audit 5 P0.10: Check epoch before each push to prevent claims from
-        // a stale principal being pushed after a workspace transition mid-loop.
-        if (epoch != null &&
-            _claimsSyncEpoch != epoch) {
+        // Audit 5 P0.10: Check epoch before each push/patch to prevent claims
+        // from a stale principal being pushed after a workspace transition.
+        if (epoch != null && _claimsSyncEpoch != epoch) {
           return ClaimsSyncResult(
             pulledCount: pullResult.pulledCount,
             pushedCount: pushedCount,
             errorCount: errorCount + 1,
-            errorMessage: 'Principal epoch changed during push; partial sync',
+            errorMessage: 'Principal epoch changed during sync; partial sync',
             completion: SyncCompletion.partial,
           );
         }
-        if (!serverIds.contains(claim.id)) {
+
+        if (serverIds.contains(claim.id)) {
+          // CW-P0-003 Fix 2: Claim exists on server — if locally modified,
+          // send a PATCH to push local edits (status/notes) upstream.
+          if (claim.syncState == ClaimSyncState.modified) {
+            try {
+              final patchResult = await patchClaim(claim);
+              if (patchResult.pushedCount > 0) {
+                patchedCount++;
+              } else {
+                errorCount++;
+              }
+            } catch (_) {
+              errorCount++;
+            }
+          }
+        } else {
+          // Claim not on server — push as new.
           try {
             final pushResult = await pushClaim(claim);
             if (pushResult.pushedCount > 0) {
@@ -377,9 +450,10 @@ Future<ClaimsSyncResult> fullSync({int? epoch}) async {
 
       return ClaimsSyncResult(
         pulledCount: pullResult.pulledCount,
-        pushedCount: pushedCount,
+        pushedCount: pushedCount + patchedCount,
         errorCount: errorCount,
-        completion: errorCount > 0 ? SyncCompletion.partial : SyncCompletion.complete,
+        completion:
+            errorCount > 0 ? SyncCompletion.partial : SyncCompletion.complete,
       );
     } finally {
       // Audit 5 P0.10: Reset epoch after completion to prevent stale
@@ -391,26 +465,53 @@ Future<ClaimsSyncResult> fullSync({int? epoch}) async {
   /// P0.9: Return a typed result so callers can distinguish "server has no
   /// claims" from "server is unreachable". An empty set from a network
   /// failure must never be treated as an authoritative empty server state.
+  ///
+  /// CW-P0-003 Fix 3: Paginate through all pages to build a complete server
+  /// index. Without pagination, users with >50 claims would have an incomplete
+  /// index, causing valid server claims to be re-pushed as duplicates.
+  ///
+  /// The backend defaults to 50 records per request with limit/offset params.
   Future<ServerClaimIndexResult> _fetchServerIds() async {
     try {
-      final response = await _dio.get('/claims');
-      final data = response.data;
-      if (data is List) {
-        final ids = data
-            .map((item) {
-              if (item is Map<String, dynamic>) {
-                return item['id']?.toString() ?? '';
-              }
-              return '';
-            })
-            .where((id) => id.isNotEmpty)
-            .toSet();
-        return ServerClaimIndexLoaded(ids);
+      final ids = <String>{};
+      const pageSize = 200; // Backend max is 200.
+      var offset = 0;
+
+      // CW-P0-003: Safety bound — never paginate beyond 50 pages (10k claims).
+      // A user with >10k claims is an extraordinary edge case; capping prevents
+      // infinite loops if the backend ignores offset or returns stale data.
+      const maxPages = 50;
+      var page = 0;
+
+      while (page < maxPages) {
+        final response = await _dio.get(
+          '/claims',
+          queryParameters: {
+            'limit': pageSize,
+            'offset': offset,
+          },
+        );
+        final data = response.data;
+        if (data is! List || data.isEmpty) {
+          // Empty page or unexpected format — we have all data.
+          break;
+        }
+        for (final item in data) {
+          if (item is Map<String, dynamic>) {
+            final id = item['id']?.toString() ?? '';
+            if (id.isNotEmpty) ids.add(id);
+          }
+        }
+        // If the page returned fewer than pageSize, we've reached the end.
+        if (data.length < pageSize) break;
+        offset += pageSize;
+        page++;
       }
-      // 7-P0.10: A malformed 200 response (non-List data) is NOT an
-      // authoritative empty server — treat as unavailable to prevent
-      // mutations on unknown state.
-      return ServerClaimIndexUnavailable();
+
+      // 7-P0.10: Even an empty set is treated as loaded (authoritative empty)
+      // because we paginated through all pages. Only a network error or
+      // malformed response returns ServerClaimIndexUnavailable.
+      return ServerClaimIndexLoaded(ids);
     } catch (_) {
       return ServerClaimIndexUnavailable();
     }

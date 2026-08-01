@@ -28,6 +28,7 @@ class HiveWorkspaceService {
     'qa_history',
     'field_overrides_box',
     'entitlements',
+    'newsletter',
   ];
 
   /// Boxes whose user-facing workspace may move during the explicit
@@ -111,6 +112,15 @@ class HiveWorkspaceService {
     );
     await Hive.openBox<String>(
       'entitlements',
+      path: path,
+      encryptionCipher: cipher,
+    );
+    // Audit 7 P0.8: Newsletter box must be opened with the workspace.
+    // Without this, NewsletterService._box returns null and every write
+    // is a silent no-op — subscribe() returns true despite nothing being
+    // persisted (a false-completion claim).
+    await Hive.openBox(
+      'newsletter',
       path: path,
       encryptionCipher: cipher,
     );

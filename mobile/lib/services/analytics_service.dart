@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math' show Random;
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import 'analytics_schema.dart';
 import 'app_state_store.dart';
 import 'consent_ledger.dart';
@@ -120,6 +122,15 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
   Timer? _syncTimer;
   String? _uid;
   bool _analyticsConsentCached = true;
+  
+  /// CW-P0-008: Principal generation (epoch) to fence stale writes.
+  int _principalEpoch = 0;
+  
+  /// CW-P0-008: Single-flight lock to prevent concurrent flushes.
+  bool _flushInProgress = false;
+  
+  /// CW-P0-008: In-flight upload cancel token for consent revocation.
+  CancelToken? _uploadCancelToken;
 
   StreamSubscription<List<ConsentRecord>>? _consentSubscription;
 
@@ -129,15 +140,17 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
     ref.onDispose(() {
       _consentSubscription?.cancel();
       _consentSubscription = null;
+      _uploadCancelToken?.cancel('disposal');
+      _uploadCancelToken = null;
       _instance = null;
       _syncTimer?.cancel();
       _syncTimer = null;
     });
 
     _uid = SessionService.getSessionIdSync();
+    _principalEpoch = 0; // Reset on fresh build
     _loadBuffer();
     _analyticsConsentCached = _checkConsentFresh();
-    unawaited(_recordAnalyticsConsent());
 
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(_syncInterval, (_) => _flush());
@@ -179,10 +192,6 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
     }
   }
 
-  Future<void> _recordAnalyticsConsent() async {
-    return;
-  }
-
   bool _checkConsentFresh() {
     try {
       final ledger = ConsentLedger();
@@ -195,9 +204,13 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
   /// P0.1: When consent is revoked, cancel the flush timer, discard the
   /// in-memory buffer, and delete the persisted queue so no stale events
   /// are transmitted after revocation.
+  /// CW-P0-008: Also cancel any in-flight upload immediately.
   Future<void> applyConsent(bool allowed) async {
     _analyticsConsentCached = allowed;
     if (!allowed) {
+      // CW-P0-008: Cancel in-flight upload before clearing buffer.
+      _uploadCancelToken?.cancel('consent_revoked');
+      _uploadCancelToken = null;
       _syncTimer?.cancel();
       _syncTimer = null;
       _buffer.clear();
@@ -215,6 +228,23 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
     }
   }
 
+  /// CW-P0-008: Increment the principal epoch to invalidate any
+  /// in-flight uploads from the previous principal. Must be called
+  /// during principal transitions (account switch, sign-out, etc.).
+  void incrementEpoch() {
+    _principalEpoch++;
+    // Cancel any in-flight upload from the old epoch.
+    _uploadCancelToken?.cancel('epoch_incremented');
+    _uploadCancelToken = null;
+  }
+
+  /// CW-P0-008: Generate a unique event ID for deduplication.
+  String _generateEventId() {
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
+    final random = Random.secure().nextInt(0x7FFFFFFF);
+    return '${timestamp.toRadixString(16)}-${random.toRadixString(16)}';
+  }
+
   void _track(String name, [Map<String, dynamic>? properties]) {
     if (!_analyticsConsentCached) return;
 
@@ -230,17 +260,24 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
       }
     }
 
+    // CW-P0-008: Immutable event ID for deduplication and audit trail.
     final event = {
+      'event_id': _generateEventId(),
       'event': name,
       'ts': DateTime.now().toUtc().toIso8601String(),
       'uid': _uid ?? 'unknown',
+      'epoch': _principalEpoch,
       if (props.isNotEmpty) 'props': props,
     };
 
     _buffer.add(event);
-    _persistBuffer();
 
+    // CW-P0-008: Persist only when batch threshold reached, not on every track.
+    // This reduces disk I/O and eliminates race conditions on rapid events.
+    // Intentional data-loss boundary: events between persists (1-49) are
+    // in-memory only. Acceptable for analytics; not for billing or consent.
     if (_buffer.length >= _maxBatchSize) {
+      unawaited(_persistBuffer());
       _flush();
     }
   }
@@ -248,28 +285,62 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
   Future<void> _flush() async {
     // P0.1: Re-read authoritative consent immediately before transmission.
     if (!_analyticsConsentCached) {
+      _uploadCancelToken?.cancel('consent_revoked');
       _buffer.clear();
-      _persistBuffer();
+      await _persistBuffer();
       return;
     }
+    
+    // CW-P0-008: Single-flight lock to prevent concurrent flushes.
+    if (_flushInProgress) {
+      return;
+    }
+    
     if (_buffer.isEmpty) return;
+    
+    _flushInProgress = true;
+    // CW-P0-008: Cancel any previous in-flight upload.
+    _uploadCancelToken?.cancel('new_flush');
+    _uploadCancelToken = CancelToken();
 
     final batch = List<Map<String, dynamic>>.from(_buffer);
+    final batchEpoch = _principalEpoch;
 
     try {
       final dio = ref.read(authenticatedDioProvider);
 
-      final response = await dio.post(_endPoint, data: {
-        'events': batch,
-      });
+      final response = await dio.post(
+        _endPoint,
+        data: <String, dynamic>{
+          'events': batch,
+        },
+        cancelToken: _uploadCancelToken,
+      );
+
+      // CW-P0-008: Verify principal epoch hasn't changed during upload.
+      if (batchEpoch != _principalEpoch) {
+        debugPrint('Analytics: principal epoch changed during flush, discarding batch');
+        // Discard stale events from the old epoch.
+        _buffer.removeRange(0, batch.length);
+        await _persistBuffer();
+        return;
+      }
 
       if (response.statusCode == 200 || response.statusCode == 202) {
         _buffer.removeRange(0, batch.length);
-        _persistBuffer();
+        await _persistBuffer();
         debugPrint('Analytics: flushed ${batch.length} events');
+      }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) {
+        debugPrint('Analytics: upload cancelled (${e.message})');
+      } else {
+        debugPrint('Analytics: sync deferred (${batch.length} events queued)');
       }
     } catch (e) {
       debugPrint('Analytics: sync deferred (${batch.length} events queued)');
+    } finally {
+      _flushInProgress = false;
     }
   }
 
@@ -287,7 +358,17 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
       if (raw is String) {
         final decoded = jsonDecode(raw);
         if (decoded is List) {
-          _buffer.addAll(decoded.cast<Map<String, dynamic>>());
+          // CW-P0-008: Load all persisted events. Epoch filtering on load
+          // is ineffective because _principalEpoch resets to 0 on build()
+          // and doesn't persist across restarts. Instead, principal
+          // transitions call resetForWorkspace() which clears the buffer
+          // before incrementing the epoch. The flush-time epoch check
+          // handles stale batch detection within a session.
+          for (final item in decoded) {
+            if (item is Map<String, dynamic>) {
+              _buffer.add(item);
+            }
+          }
         }
       }
     } catch (e) {
@@ -301,6 +382,9 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
   }
 
   void resetForWorkspace() {
+    // CW-P0-008: Increment epoch to invalidate in-flight uploads from
+    // the previous principal before resetting workspace state.
+    incrementEpoch();
     _consentSubscription?.cancel();
     _syncTimer?.cancel();
     _buffer.clear();
@@ -314,5 +398,17 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
     });
     _scheduleAppSessionStarted();
     state = AnalyticsState(queuedCount: 0, hasConsent: _analyticsConsentCached);
+  }
+
+  /// CW-P0-008: Public static method for external callers (AuthService,
+  /// ReconciliationCoordinator) to invalidate analytics epoch during
+  /// principal transitions.
+  ///
+  /// Note: This is a no-op if the notifier hasn't been built yet (early
+  /// startup). In practice, principal transitions happen after the app
+  /// is fully initialized, so this is safe. If called before build(),
+  /// resetForWorkspace() will call incrementEpoch() when it runs.
+  static void invalidateEpoch() {
+    _instance?.incrementEpoch();
   }
 }

@@ -10,6 +10,12 @@ import 'session_service.dart';
 
 /// Converges the principal's local consent cache with the server ledger.
 ///
+/// CW-P0-004: The server is the source of truth for consent state.
+/// This service now performs bidirectional sync:
+/// - [syncAll]: Push local decisions → server (for offline grants)
+/// - [pullFromServer]: Pull server authority → local cache (for cross-device
+///   revocations and server-side overrides)
+///
 /// Local consent remains the immediate offline decision. Successful server
 /// record IDs are represented by a principal-scoped signature so retries do
 /// not append the same current decision on every app start or upload.
@@ -23,6 +29,7 @@ class ConsentSyncService {
 
   final Dio? _dio;
   Future<int>? _inFlight;
+  Future<bool>? _pullInFlight;
 
   Future<int> syncAll() {
     final existing = _inFlight;
@@ -34,6 +41,56 @@ class ConsentSyncService {
       onError: (_, __) => _inFlight = null,
     );
     return future;
+  }
+
+  /// CW-P0-004: Pull server consent authority and reconcile local cache.
+  ///
+  /// The server is the source of truth. If the server says consent was
+  /// revoked (or granted) on another device, the local cache must update.
+  /// This prevents stale local grants from bypassing a server-side revocation.
+  ///
+  /// Returns true if the local cache was updated (server had newer state).
+  Future<bool> pullFromServer() async {
+    final existing = _pullInFlight;
+    if (existing != null) return existing;
+    final future = _pullFromServer();
+    _pullInFlight = future;
+    future.then<void>(
+      (_) => _pullInFlight = null,
+      onError: (_, __) => _pullInFlight = null,
+    );
+    return future;
+  }
+
+  Future<bool> _pullFromServer() async {
+    final server = ServerConsentService(dio: _dio);
+    final result = await server.getCurrentConsentAll();
+    if (result is! ConsentSnapshotLoaded) {
+      // Server unreachable or invalid — keep local cache as-is.
+      return false;
+    }
+
+    final ledger = ConsentLedger();
+    var updated = false;
+
+    for (final serverRecord in result.records) {
+      final purpose = ConsentPurpose.fromString(serverRecord.consentType);
+      if (purpose == null) continue;
+
+      final localRecord = ledger.getLatestRecord(purpose);
+      final serverTime = serverRecord.createdAt;
+
+      // Server record is newer than local — adopt server authority.
+      if (localRecord == null || serverTime.isAfter(localRecord.timestamp)) {
+        await ledger.recordConsent(
+          purpose: purpose,
+          version: serverRecord.policyVersion,
+          granted: serverRecord.granted,
+        );
+        updated = true;
+      }
+    }
+    return updated;
   }
 
   Future<int> _syncAll() async {

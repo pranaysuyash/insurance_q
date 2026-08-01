@@ -152,8 +152,12 @@ void main() {
 
   // ─── Stale consent ─────────────────────────────────────────────────
 
+  // CW-P0-17: A stored consent version without an active ledger record
+  // means consent was revoked. The dialog must reappear — auto-granting
+  // from a stored version is no longer allowed.
   group('Stale consent (version in Hive, ledger empty)', () {
-    testWidgets('records consent in ledger', (tester) async {
+    testWidgets('shows dialog instead of auto-granting from stored version',
+        (tester) async {
       await cleanDb(tester);
       setViewport(tester);
       await setConsentVersion(tester, 'v1');
@@ -165,11 +169,23 @@ void main() {
 
       await tapUpload(tester);
 
-      expect(countLedgerRecords('document_processing'), 1);
-      expect(hasActiveConsentInLedger(ConsentPurpose.documentProcessing), isTrue);
+      // The dialog should appear — not auto-grant from stored version.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      if (find.byType(Dialog).evaluate().isNotEmpty) {
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      // CW-P0-17: No consent should be auto-recorded from the stored version.
+      expect(countLedgerRecords('document_processing'), 0);
+      expect(hasActiveConsentInLedger(ConsentPurpose.documentProcessing),
+          isFalse);
     });
 
-    testWidgets('records correct version string', (tester) async {
+    testWidgets('does not record consent when dialog cancelled after stale version',
+        (tester) async {
       await cleanDb(tester);
       setViewport(tester);
       await setConsentVersion(tester, 'v2_upgrade');
@@ -180,17 +196,20 @@ void main() {
 
       await tapUpload(tester);
 
-      final box = Hive.box('consent_ledger');
-      String? recordedVersion;
-      for (final value in box.values) {
-        try {
-          final map = Map<String, dynamic>.from(value);
-          if (map['purpose'] == 'document_processing') {
-            recordedVersion = map['version'] as String?;
-          }
-        } catch (_) {}
+      // The dialog should appear. Cancel it.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      if (find.byType(Dialog).evaluate().isNotEmpty) {
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
       }
-      expect(recordedVersion, 'v2_upgrade');
+
+      // No consent recorded, stored version not overwritten.
+      expect(countLedgerRecords('document_processing'), 0);
+      final storedConsent =
+          Hive.box(AppStateStore.boxName).get('processing_consent_version');
+      expect(storedConsent, 'v2_upgrade');
     });
   });
 
@@ -219,11 +238,12 @@ void main() {
       expect(countLedgerRecords('document_processing'), 1);
     });
 
-    testWidgets('re-records consent when ledger has revoked record',
+    testWidgets('shows dialog when consent was revoked (does not auto-grant)',
         (tester) async {
       await cleanDb(tester);
-      // Pre-set version in Hive, but ledger has a revoked consent.
-      // _ensureConsent() sees hasConsent() == false and re-records.
+      // CW-P0-17: A stored version + revoked ledger record means the user
+      // explicitly revoked consent. The dialog must reappear — auto-granting
+      // from a stored version is no longer allowed.
       await setConsentVersion(tester, 'v1');
       const revokedRecord = {
         'purpose': 'document_processing',
@@ -246,10 +266,20 @@ void main() {
 
       await tapUpload(tester);
 
-      // _ensureConsent() re-records consent because hasConsent() was false.
-      expect(countLedgerRecords('document_processing'), 2);
+      // The dialog should appear — consent was revoked.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      if (find.byType(Dialog).evaluate().isNotEmpty) {
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+
+      // CW-P0-17: No consent should be auto-recorded. The original revoked
+      // record remains, no new grant is added.
+      expect(countLedgerRecords('document_processing'), 1);
       expect(hasActiveConsentInLedger(ConsentPurpose.documentProcessing),
-          isTrue);
+          isFalse);
     });
 
     testWidgets('does not affect other consent purposes', (tester) async {

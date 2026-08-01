@@ -559,6 +559,13 @@ class AuthNotifier extends Notifier<AuthServiceState> {
     // closes the gap between signOut() returning and the listener firing.
     PrincipalKeyService().clearKey();
 
+    // CW-P0-011: Invalidate analytics epoch EARLY — before the workspace
+    // transition — to cancel any in-flight analytics upload from the
+    // previous principal. This prevents stale events from being sent
+    // under the new (or guest) identity. resetForWorkspace() later calls
+    // incrementEpoch() again (idempotent) and re-initializes the buffer.
+    AnalyticsNotifier.invalidateEpoch();
+
     // P0.3: Detach the RevenueCat customer from the signed-out account.
     // RevenueCat maintains its own identity — without this, account A's
     // entitlements could bleed into a guest or account B session.

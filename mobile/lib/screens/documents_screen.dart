@@ -623,7 +623,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     }
 
     // First upload — show consent + optional contact capture.
-    final savedContact = await ContactService.getSavedContact();
+    final savedContact = ContactService.savedContact;
     if (!mounted) return null;
     final leadInfo = await showDialog<Map<String, dynamic>>(
       context: context,

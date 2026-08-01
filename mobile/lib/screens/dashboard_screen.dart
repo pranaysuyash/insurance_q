@@ -217,16 +217,7 @@ List<_ContextualAction> _computeContextualActions(
     ));
   }
 
-  // Action 4: What-if calculator (if policies exist)
-  if (summaries.isNotEmpty && actions.length < 3) {
-    actions.add(_ContextualAction(
-      title: 'What-if calculator',
-      subtitle: 'Explore cover changes',
-      icon: Icons.tune_rounded,
-      color: const Color(0xFFB66A16),
-      route: '/what-if',
-    ));
-  }
+
 
   // Action 5: Ask a question (always available)
   if (actions.length < 3) {

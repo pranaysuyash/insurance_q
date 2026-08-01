@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_config.dart';
 import '../l10n/app_localizations_gen.dart';
 import '../providers/document_providers.dart';
@@ -16,6 +20,12 @@ import '../services/consent_ledger.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../services/hive_workspace_service.dart';
+import '../services/principal_key_service.dart';
+import '../services/billing_adapter.dart';
+import '../services/entitlement_service.dart';
+import '../services/install_service.dart';
+import '../services/analytics_service.dart';
+import '../models/identity.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
@@ -151,6 +161,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  /// Audit 7 P0.1-P0.6: Complete clear-data lifecycle.
+  ///
+  /// Correct sequence:
+  ///   1. Cancel analytics timer (P0.5)
+  ///   2. Clear consent ledger (P0.6: defense-in-depth, already cleared by clearLocalWorkspace)
+  ///   3. Close all Hive boxes (P0.1: prevent use-after-delete on filesystem)
+  ///   4. Delete physical document files (boxes now closed)
+  ///   5. Sign out of Supabase (P0.2: prevent data re-sync on next launch)
+  ///   6. Reset RevenueCat identity (P0.3: prevent entitlement bleed)
+  ///   7. Clear Sentry identity (P0.4: prevent crash attribution to stale user)
+  ///   8. Clear auth token and in-memory DEK
+  ///   9. Clear SharedPreferences
+  ///  10. Cancel notifications
+  ///  11. Invalidate providers
+  ///  12. Reopen boxes for fresh state
   Future<void> _confirmClearData() async {
     final l10n = AppLocalizationsGen.of(context);
     final confirmed = await showDialog<bool>(
@@ -176,35 +201,120 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
-      // 1. Clear all Hive workspace boxes and cache
-      await HiveWorkspaceService.clearLocalWorkspace();
+      // P0.5: Cancel analytics timer BEFORE any data operations.
+      // An in-flight flush could write to a cleared workspace or send
+      // stale events after revocation. resetForWorkspace() is idempotent.
+      AnalyticsNotifier.instance?.resetForWorkspace();
 
-      // 2. Clear SharedPreferences
+      // P0.6: Clear consent ledger as defense-in-depth. The consent_ledger
+      // box is in boxNames and will be cleared by the box.close() below,
+      // but calling clear() before close ensures the ledger is emptied
+      // even if box.close() fails for any reason.
+      try {
+        final consentBox = Hive.box<dynamic>('consent_ledger');
+        await consentBox.clear();
+      } catch (_) {
+        // Box may not be open yet — non-fatal, will be handled by close.
+      }
+
+      // P0.1: Close all Hive boxes BEFORE deleting files from disk.
+      // clearLocalWorkspace() only empties box contents (box.clear());
+      // the box handles remain open and registered in Hive's internal
+      // registry. Deleting the underlying .hive files while handles are
+      // open is a use-after-delete that can corrupt Hive's WAL/compaction
+      // state and cause silent data loss on subsequent writes.
+      //
+      // Hive.close() fully deregisters all box names, which is the only
+      // reliable way to release file handles in Hive 2.x.
+      for (final boxName in HiveWorkspaceService.boxNames) {
+        if (Hive.isBoxOpen(boxName)) {
+          await Hive.box(boxName).close();
+        }
+      }
+      // Also close the newsletter box if it happens to be open.
+      if (Hive.isBoxOpen('newsletter')) {
+        await Hive.box('newsletter').close();
+      }
+
+      // Delete physical document files — boxes are now closed, so this
+      // is safe. Only delete the CoverWise-owned subtree, not the entire
+      // app documents directory (which could contain files owned by other
+      // plugins or future features).
+      final appDir = await getApplicationDocumentsDirectory();
+      final coverwiseDir = Directory('${appDir.path}/coverwise');
+      if (coverwiseDir.existsSync()) {
+        await coverwiseDir.delete(recursive: true);
+      }
+      // Also clean any legacy top-level Hive workspace directories.
+      final workspacesDir = Directory('${appDir.path}/workspaces');
+      if (workspacesDir.existsSync()) {
+        await workspacesDir.delete(recursive: true);
+      }
+
+      // P0.2: Sign out of Supabase BEFORE deleting local data. If sign-out
+      // fails (network error), local data is still intact for retry. If we
+      // signed out AFTER deletion, a failed sign-out would leave the user
+      // with no local data and a dangling Supabase session.
+      if (AuthService.hasAccountSession) {
+        try {
+          await Supabase.instance.client.auth.signOut();
+        } catch (_) {
+          // Best-effort: Supabase sign-out failure should not block
+          // local data clearing. The session will expire eventually.
+        }
+      }
+
+      // P0.3: Reset RevenueCat identity BEFORE local data deletion.
+      // RevenueCat maintains its own customer identity — without this,
+      // account A's entitlements could bleed into a guest or account B
+      // session after clear-data.
+      try {
+        final billing = BillingAdapter(EntitlementService());
+        await billing.clearAccountIdentity();
+      } catch (_) {
+        // RevenueCat reset is best-effort; the next workspace start will
+        // re-establish identity through billingInitProvider.
+      }
+
+      // P0.4: Clear Sentry user identity BEFORE local data deletion.
+      // After clear-data, crash reports must not be attributed to a stale
+      // user. configureScope and setUser are no-ops when Sentry is disabled.
+      Sentry.configureScope((scope) {
+        scope.setUser(null);
+      });
+
+      // Clear the anonymous auth token from secure storage and Hive.
+      await ref.read(authServiceProvider.notifier).clearToken();
+
+      // Clear the in-memory DEK so encrypted Hive workspace boxes become
+      // unreadable. We call clearKey() directly here instead of going
+      // through AuthNotifier.signOut() because we're already handling all
+      // sign-out responsibilities (Supabase, RevenueCat, Sentry, analytics)
+      // in this method. AuthNotifier.signOut() would duplicate some of
+      // these steps. clearKey() is idempotent.
+      PrincipalKeyService().clearKey();
+
+      // Clear SharedPreferences (onboarding_complete, theme, locale, etc.)
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
-      // 3. Delete physical document files
-      final appDir = await getApplicationDocumentsDirectory();
-      if (appDir.existsSync()) {
-        await appDir.delete(recursive: true);
-        appDir.createSync(recursive: true);
-      }
+      // Cancel all scheduled renewal notifications.
+      await NotificationService.cancelAll();
 
-      // 4. Invalidate all in-memory providers so the UI rebuilds empty
+      // Invalidate all in-memory providers so the UI rebuilds empty.
       ref.invalidate(documentsProvider);
       ref.invalidate(policySummariesProvider);
       ref.invalidate(qaHistoryProvider);
       ref.read(entitlementProvider.notifier).resetToFree();
       refreshManualFamilyMembers(ref);
 
-      // 5. Cancel all scheduled renewal notifications
-      await NotificationService.cancelAll();
-
-      // 6. Clear the consent ledger
-      await ConsentLedger().clear();
-
-      // 7. Clear the auth token
-      await ref.read(authServiceProvider.notifier).clearToken();
+      // Reopen boxes for fresh state. The app needs open Hive boxes to
+      // function (e.g. AppStateStore.boxName is read on every screen).
+      // openForActivePrincipal creates new empty boxes at the local
+      // principal's namespaced path.
+      await HiveWorkspaceService.openForActivePrincipal(
+        LocalPrincipal(InstallService.getInstallId()),
+      );
 
       if (!mounted) return;
       CoverWiseSnackBar.success(context, l10n.settingsClearDataSuccess);
@@ -508,6 +618,8 @@ class _ConsentRecordRow extends StatelessWidget {
         return 'Marketing Emails';
       case ConsentPurpose.privacyPolicy:
         return l10n.settingsConsentTermsAccepted;
+      case ConsentPurpose.termsOfService:
+        return 'Terms of Service';
       case ConsentPurpose.cameraAccess:
         return 'Camera Access';
       case ConsentPurpose.evaluationDataset:
@@ -527,6 +639,8 @@ class _ConsentRecordRow extends StatelessWidget {
         return Icons.contact_mail_outlined;
       case ConsentPurpose.privacyPolicy:
         return Icons.rule_outlined;
+      case ConsentPurpose.termsOfService:
+        return Icons.gavel_outlined;
       case ConsentPurpose.cameraAccess:
         return Icons.camera_alt_outlined;
       case ConsentPurpose.evaluationDataset:

@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/claim_record.dart';
 import '../models/policy_summary.dart';
 import '../services/app_state_repository.dart';
+import '../services/encrypted_attachment_store.dart';
 import '../providers/policy_providers.dart';
 import '../theme/coverwise_theme.dart';
 import 'shared/coverwise_components.dart';
@@ -135,17 +135,22 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
 
       if (picked == null) return;
 
-      // Copy to app's documents directory for persistence
-      final appDir = await getApplicationDocumentsDirectory();
-      final claimsDir = Directory('${appDir.path}/claim_photos');
-      if (!await claimsDir.exists()) {
-        await claimsDir.create(recursive: true);
+      // CW-P0-002: Store in principal-scoped attachments directory with
+      // opaque filename instead of global claim_photos directory.
+      final photoId = const Uuid().v4();
+      final destPath = await EncryptedAttachmentStore.copyFrom(
+        documentId: photoId,
+        sourceFile: File(picked.path),
+      );
+      if (destPath == null) {
+        if (mounted) {
+          CoverWiseSnackBar.error(
+            context,
+            'Cannot save photo: no active workspace. Please sign in again.',
+          );
+        }
+        return;
       }
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final destPath =
-          '${claimsDir.path}/claim_${_selectedDocId ?? 'new'}_$timestamp.jpg';
-      await File(picked.path).copy(destPath);
 
       if (mounted) {
         setState(() => _photoPaths.add(destPath));
@@ -154,6 +159,20 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
       if (mounted) {
         CoverWiseSnackBar.error(context, 'Could not select photo: $e');
       }
+    }
+  }
+
+  /// Delete a photo from the wizard and remove the file from disk.
+  ///
+  /// CW-P0-002: Uses safeDelete with path containment validation.
+  Future<void> _removePhoto(int index) async {
+    final path = _photoPaths[index];
+    setState(() => _photoPaths.removeAt(index));
+    // Delete the file asynchronously — don't block the UI.
+    try {
+      await EncryptedAttachmentStore.safeDelete(path);
+    } catch (e) {
+      debugPrint('CW-P0-002: Failed to delete claim photo: $e');
     }
   }
 
@@ -395,7 +414,7 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
                     top: 4,
                     right: 4,
                     child: GestureDetector(
-                      onTap: () => setState(() => _photoPaths.removeAt(i)),
+                      onTap: () => _removePhoto(i),
                       child: Container(
                         padding: const EdgeInsets.all(2),
                         decoration: const BoxDecoration(

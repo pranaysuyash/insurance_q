@@ -8,6 +8,7 @@ import '../models/document_model.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'encrypted_attachment_store.dart';
 
 class LocalStorageService {
   static const String legacyDocumentsKey = 'local_documents_list';
@@ -33,13 +34,20 @@ class LocalStorageService {
     // Create a unique ID for the document
     final docId = _uuid.v4();
 
-    // Get the app's documents directory
-    final directory = await getApplicationDocumentsDirectory();
     final fileName = path.basename(file.path);
 
-    // Copy the file to our app's documents directory with a unique name
-    final localFilePath = path.join(directory.path, '${docId}_$fileName');
-    await file.copy(localFilePath);
+    // CW-P0-002: Store in principal-scoped attachments directory with
+    // opaque filename instead of global documents directory.
+    final localFilePath = await EncryptedAttachmentStore.copyFrom(
+      documentId: docId,
+      sourceFile: file,
+    );
+    if (localFilePath == null) {
+      throw StateError(
+        'Cannot save document: no active workspace. '
+        'Ensure HiveWorkspaceService.openForActivePrincipal() was called.',
+      );
+    }
 
     // Get the file size
     final fileSize = await File(localFilePath).length();
@@ -72,8 +80,8 @@ class LocalStorageService {
   /// Audit 5 P0.2: The previous implementation discarded the bytes and set
   /// [InsuranceDocument.localFilePath] to null, causing the retry queue to
   /// mark the document as failed (no file to upload). The bytes are now
-  /// written to the app documents directory so [retryPendingUploads] can
-  /// replay them.
+  /// written to the principal-scoped attachments directory so
+  /// [retryPendingUploads] can replay them.
   Future<InsuranceDocument> saveWebDocument(
     String filename,
     Uint8List bytes, {
@@ -86,14 +94,19 @@ class LocalStorageService {
   }) async {
     final docId = _uuid.v4();
 
-    // Persist the bytes to disk so the retry queue can replay them.
-    final directory = await getApplicationDocumentsDirectory();
-    final safeName = path.basename(filename).replaceAll(
-          RegExp(r'[^A-Za-z0-9._-]'),
-          '_',
-        );
-    final localFilePath = path.join(directory.path, '${docId}_$safeName');
-    await File(localFilePath).writeAsBytes(bytes, flush: true);
+    // CW-P0-002: Persist bytes in principal-scoped attachments directory
+    // with opaque filename.
+    final localFilePath = await EncryptedAttachmentStore.write(
+      documentId: docId,
+      originalFilename: filename,
+      bytes: bytes,
+    );
+    if (localFilePath == null) {
+      throw StateError(
+        'Cannot save web document: no active workspace. '
+        'Ensure HiveWorkspaceService.openForActivePrincipal() was called.',
+      );
+    }
 
     final document = InsuranceDocument(
       id: docId,
@@ -241,13 +254,18 @@ class LocalStorageService {
     if (bytes.isEmpty) {
       throw StateError('Downloaded source document was empty');
     }
-    final directory = await getApplicationDocumentsDirectory();
-    final safeName = path.basename(document.filename).replaceAll(
-          RegExp(r'[^A-Za-z0-9._-]'),
-          '_',
-        );
-    final localPath = path.join(directory.path, '${document.id}_$safeName');
-    await File(localPath).writeAsBytes(bytes, flush: true);
+    // CW-P0-002: Store in principal-scoped attachments directory.
+    final localPath = await EncryptedAttachmentStore.write(
+      documentId: document.id,
+      originalFilename: document.filename,
+      bytes: bytes,
+    );
+    if (localPath == null) {
+      throw StateError(
+        'Cannot cache remote source: no active workspace. '
+        'Ensure HiveWorkspaceService.openForActivePrincipal() was called.',
+      );
+    }
     final cached = InsuranceDocument(
       id: document.id,
       remoteId: document.remoteId,
@@ -377,11 +395,18 @@ class LocalStorageService {
         return false;
       }
 
-      // Delete the local file if it exists
+      // CW-P0-002: Use safeDelete with path containment validation.
+      // Never delete using a raw stored path — verify it's inside the
+      // principal's attachments directory first.
       if (documentToDelete.localFilePath != null) {
-        final file = File(documentToDelete.localFilePath!);
-        if (await file.exists()) {
-          await file.delete();
+        final deleted = await EncryptedAttachmentStore.safeDelete(
+          documentToDelete.localFilePath!,
+        );
+        if (!deleted) {
+          debugPrint(
+            'CW-P0-002: Refused to delete ${documentToDelete.localFilePath} — '
+            'path outside principal attachments directory',
+          );
         }
       }
 

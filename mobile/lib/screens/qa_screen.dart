@@ -2062,8 +2062,11 @@ class _SourceCard extends ConsumerWidget {
       if (hasPage) l10n.qaSourcePageLabel(source.pageNumber!),
     ].join(' · ');
 
-    // Show relevance score as a percentage (score is 0.0–1.0)
+    // CW-P0-009: Show relevance score only when the backend provided a
+    // real score (> 0). Score 0.0 means "unknown" (string source or
+    // missing field) — do not show a misleading 100% badge.
     final scorePercent = (source.score * 100).round();
+    final hasKnownScore = source.score > 0.0;
 
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -2096,34 +2099,37 @@ class _SourceCard extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  // Relevance score badge with tooltip
-                  Tooltip(
-                    message: l10n.qaRelevanceTooltip,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: scorePercent >= 80
-                            ? Colors.green.withValues(alpha: 0.1)
-                            : scorePercent >= 50
-                                ? Colors.orange.withValues(alpha: 0.1)
-                                : Colors.red.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$scorePercent%',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                  // CW-P0-009: Only show relevance score badge when the
+                  // backend provided a real score. Score 0.0 means "unknown"
+                  // — do not display a misleading percentage.
+                  if (hasKnownScore)
+                    Tooltip(
+                      message: l10n.qaRelevanceTooltip,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
                           color: scorePercent >= 80
-                              ? Colors.green
+                              ? Colors.green.withValues(alpha: 0.1)
                               : scorePercent >= 50
-                                  ? Colors.orange
-                                  : Colors.red,
+                                  ? Colors.orange.withValues(alpha: 0.1)
+                                  : Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '$scorePercent%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: scorePercent >= 80
+                                ? Colors.green
+                                : scorePercent >= 50
+                                    ? Colors.orange
+                                    : Colors.red,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   if (hasPage && doc != null) ...[
                     const SizedBox(width: 8),
                     Icon(

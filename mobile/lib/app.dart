@@ -173,8 +173,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         nav.pushNamed('/coverage-gaps', arguments: {'documentId': docId});
       case '/compare':
         nav.pushNamed('/compare');
-      case '/what-if':
-        nav.pushNamed('/what-if');
+
       case '/qa':
         final docId = uri.queryParameters['documentId'];
         nav.pushNamed('/qa', arguments: docId);

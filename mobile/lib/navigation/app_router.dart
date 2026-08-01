@@ -26,7 +26,7 @@ import '../screens/insurance_literacy_screen.dart';
 import '../screens/account_screen.dart';
 import '../screens/reset_password_screen.dart';
 import '../screens/notification_preferences_screen.dart';
-import '../screens/what_if_calculator_screen.dart';
+
 
 /// The named-route table for [MaterialApp].
 ///
@@ -87,10 +87,7 @@ Map<String, WidgetBuilder> buildAppRoutes() {
           screenName: 'compare',
           child: PolicyComparisonScreen(),
         ),
-    '/what-if': (context) => const ScreenErrorBoundary(
-          screenName: 'what-if',
-          child: WhatIfCalculatorScreen(),
-        ),
+
     '/settings': (context) => const ScreenErrorBoundary(
           screenName: 'settings',
           child: SettingsScreen(),

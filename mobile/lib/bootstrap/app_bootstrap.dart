@@ -144,6 +144,11 @@ Future<void> _startup() async {
   // Reconcile any local consent decisions that could not reach the server.
   unawaited(ConsentSyncService().syncAll());
 
+  // CW-P0-004: Pull server consent authority into the local cache.
+  // The server is the source of truth — if consent was revoked on another
+  // device, the local cache must update before any upload gate checks it.
+  unawaited(ConsentSyncService().pullFromServer());
+
   // Read stored locale before runApp() so the first frame renders correctly.
   final storedLocale = AppStateRepository.getLocale();
 

@@ -80,7 +80,12 @@ enum AnswerVerificationStatus {
   String get tooltip {
     switch (this) {
       case AnswerVerificationStatus.fullyBacked:
-        return 'Every claim in this answer is verified against your policy documents.';
+        // CW-P0-009: Clarify that "evidence-backed" means every factual
+        // claim has a citation that was verified against the source text.
+        // This does NOT guarantee semantic entailment — the citation may
+        // quote relevant text but the LLM's inference from it is not
+        // re-checked. Users should still read the cited passages.
+        return 'Every claim has a verified citation from your policy. Read the cited passages to confirm.';
       case AnswerVerificationStatus.partiallyBacked:
         return 'Some claims in this answer are verified, some are not. Cross-check with your policy.';
       case AnswerVerificationStatus.abstained:

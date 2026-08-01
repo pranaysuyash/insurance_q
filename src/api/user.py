@@ -414,8 +414,51 @@ class WebDeletionRequest(BaseModel):
     reason: Optional[str] = None
 
 
-# Public web deletion request queue
-_WEB_DELETION_REQUESTS = []
+def _lookup_user_by_email(email: str) -> Optional[dict]:
+    """Look up a Supabase Auth user by email using the admin API.
+
+    Returns the user dict with 'id' and 'email' keys, or None if not found.
+    Uses the paginated admin list_users endpoint — reliable across all
+    Supabase project configurations (unlike direct auth.users table
+    queries which may be blocked by PostgREST restrictions).
+    """
+    try:
+        from src.utils.supabase_client import create_client
+
+        supabase_url = os.getenv("SUPABASE_URL", "").strip()
+        service_role_key = supabase_server_key()
+        if not supabase_url or not service_role_key:
+            return None
+        admin_client = create_client(supabase_url, service_role_key)
+        # Paginate through users to find the matching email.
+        # The Supabase admin list_users API is the most reliable
+        # approach — it works across all project configurations.
+        # Safety bound: max 50 pages (5000 users) to prevent infinite
+        # loops if the API returns stale page counts.
+        page = 1
+        per_page = 100
+        max_pages = 50
+        while page <= max_pages:
+            result = admin_client.auth.admin.list_users(
+                page=page, per_page=per_page,
+            )
+            # Handle both SDK versions: list response or object with .users
+            if isinstance(result, list):
+                users = result
+            else:
+                users = getattr(result, "users", []) or []
+            for user in users:
+                if getattr(user, "email", None) == email:
+                    return {"id": user.id, "email": user.email}
+            if len(users) < per_page:
+                break
+            page += 1
+    except Exception as error:
+        audit_logger.warning(
+            "web_deletion_email_lookup_failed",
+            error_type=type(error).__name__,
+        )
+    return None
 
 
 @router.post("/delete-account-request", status_code=202)
@@ -423,41 +466,101 @@ def request_web_account_deletion(body: WebDeletionRequest, request: Request):
     """Public web account deletion request endpoint for Play Store Data Safety compliance.
 
     Accepts deletion requests from external web form (account_deletion.html),
-    validates the target email address, creates a durable deletion request record,
-    and dispatches verification / support workflow.
+    validates the target email address, looks up the user by email, creates a
+    durable deletion request record via account_lifecycle_service, and queues
+    the deletion through the job outbox — the same lifecycle as the
+    authenticated DELETE /user/account endpoint.
+
+    CW-P0-005: Replaced process-local list with durable Supabase storage.
+    Removed false 'verification email will be sent' promise.
     """
     email = body.email.strip().lower()
     if "@" not in email or "." not in email:
         raise HTTPException(status_code=400, detail="Invalid email address format.")
 
-    request_id = f"del-req-{uuid.uuid4().hex[:12]}"
-    now_iso = datetime.now(timezone.utc).isoformat()
+    # Look up the user by email to get their account_uid.
+    user_record = _lookup_user_by_email(email)
+    if user_record is None:
+        # Do not reveal whether an account exists — return a generic
+        # acknowledgment. The request is logged for operator audit.
+        audit_logger.info(
+            "web_deletion_request_no_account",
+            email_hash=hashlib.sha256(email.encode("utf-8")).hexdigest()[:12],
+            user_agent=request.headers.get("user-agent"),
+            ip_address=request.client.host if request.client else None,
+        )
+        return {
+            "status": "pending_review",
+            "email": email,
+            "message": (
+                "Your deletion request has been received. If an account exists "
+                "for this email, it will be reviewed for deletion."
+            ),
+        }
 
-    record = {
-        "request_id": request_id,
-        "email": email,
-        "reason": body.reason,
-        "status": "pending_verification",
-        "created_at": now_iso,
-        "user_agent": request.headers.get("user-agent"),
-        "ip_address": request.client.host if request.client else None,
-    }
-    _WEB_DELETION_REQUESTS.append(record)
+    account_uid = user_record["id"]
+
+    try:
+        from src.services.account_lifecycle_service import create_deletion_request
+        from src.services.job_outbox_service import JobOutboxService
+        from src.models.job_outbox import EnqueueRequest, JobType
+
+        deletion_request = create_deletion_request(account_uid)
+        outbox = JobOutboxService.from_env()
+        import asyncio
+        existing_job = asyncio.run(outbox.find_by_payload_field(
+            JobType.ACCOUNT_DELETION,
+            "request_id",
+            deletion_request["id"],
+            active_only=True,
+        ))
+        if existing_job is None:
+            try:
+                asyncio.run(outbox.enqueue(EnqueueRequest(
+                    job_type=JobType.ACCOUNT_DELETION,
+                    payload={
+                        "request_id": deletion_request["id"],
+                        "account_uid": account_uid,
+                        "source": "web_form",
+                        "email_hash": hashlib.sha256(email.encode("utf-8")).hexdigest()[:12],
+                        "user_agent": request.headers.get("user-agent"),
+                        "ip_address": request.client.host if request.client else None,
+                    },
+                )))
+            except Exception:
+                # Concurrent retries are converged by the unique payload
+                # index; re-read before treating the request as failed.
+                existing_job = asyncio.run(outbox.find_by_payload_field(
+                    JobType.ACCOUNT_DELETION,
+                    "request_id",
+                    deletion_request["id"],
+                    active_only=True,
+                ))
+                if existing_job is None:
+                    raise
+    except Exception as error:
+        audit_logger.error(
+            "web_deletion_request_failed",
+            email_hash=hashlib.sha256(email.encode("utf-8")).hexdigest()[:12],
+            error_type=type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Account deletion queue is temporarily unavailable. Please try again later.",
+        ) from error
 
     audit_logger.info(
         "web_deletion_request_registered",
-        request_id=request_id,
+        request_id=deletion_request["id"],
         email_hash=hashlib.sha256(email.encode("utf-8")).hexdigest()[:12],
     )
 
     return {
-        "request_id": request_id,
-        "status": "pending_verification",
-        "email": email,
-        "created_at": now_iso,
+        "request_id": deletion_request["id"],
+        "status": "deletion_requested",
         "message": (
-            "Your account deletion request has been registered. "
-            "A verification email will be sent to confirm your identity before data purge."
+            "Your account deletion request has been queued. The account will be "
+            "permanently deleted after all server erasure stages are verified."
         ),
     }
 

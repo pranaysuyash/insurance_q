@@ -162,8 +162,10 @@ def verify_answer(
     material_sentences = _material_sentences(answer_text)
 
     if not material_sentences:
-        # No material claims to verify — treat as fully backed (trivially).
-        return "fully_backed", 0, 0
+        # No material claims to verify — abstain. Returning "fully_backed"
+        # for zero-claim answers (greetings, meta-commentary) would be a
+        # false evidence badge. Abstained means "nothing to verify".
+        return "abstained", 0, 0
 
     cited_count = _count_cited_sentences(answer_text, citations)
     total = len(material_sentences)

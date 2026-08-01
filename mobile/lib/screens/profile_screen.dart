@@ -3,21 +3,17 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
 import 'package:share_plus/share_plus.dart';
 import '../l10n/app_localizations_gen.dart';
-import '../services/app_state_store.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
 import '../models/identity.dart';
-import '../services/analytics_service.dart';
 import '../services/contact_service.dart';
 import '../services/install_service.dart';
 import '../services/hive_workspace_service.dart';
 import '../models/document_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/document_providers.dart';
-import '../providers/entitlement_provider.dart';
 import '../providers/family_providers.dart';
 import '../config/app_config.dart';
 import '../theme/coverwise_theme.dart';
@@ -164,23 +160,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       await ref.read(authServiceProvider.notifier).signOut();
     } finally {
+      // P0.12: Workspace teardown goes through _clearWorkspaceData()
+      // for both sign-out and delete-account — single canonical path.
       await _clearWorkspaceData();
     }
   }
 
+  /// P0.11/P0.12: Canonical workspace teardown for both sign-out and
+  /// delete-account. Called AFTER auth.signOut() has already cleared
+  /// Supabase session, token, DEK, RevenueCat, and Sentry. This method
+  /// handles the remaining local state: ContactService, Hive workspace
+  /// reset, and provider invalidation.
   Future<void> _clearWorkspaceData() async {
     try {
-      if (AppConfig.hasRevenueCatConfig) {
-        await ref.read(billingAdapterProvider).clearAccountIdentity();
-      }
-      ref.read(analyticsServiceProvider.notifier).resetForWorkspace();
       await ContactService.clearSavedContact();
       await HiveWorkspaceService.resetForPrincipal(
         LocalPrincipal(InstallService.getInstallId()),
       );
-      debugPrint('Workspace data cleared on sign-out');
+      debugPrint('Workspace data cleared');
     } catch (e) {
-      debugPrint('Error clearing workspace data on sign-out: $e');
+      debugPrint('Error clearing workspace data: $e');
     }
   }
 
@@ -265,13 +264,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         snackMessage = l10n.profileDeleteRequested(result.status);
       }
       if (result.isComplete) {
-        CoverWiseSnackBar.success(this.context, snackMessage,
-            duration: const Duration(seconds: 8));
+        // P0.11/P0.13: After successful complete deletion, purge local
+        // workspace so no stale cached content remains accessible.
+        // signOut() inside deleteAccount() already cleared Supabase,
+        // token, DEK, RevenueCat, Sentry, and analytics. Now clear
+        // the remaining local state (ContactService, Hive workspace).
+        await _clearWorkspaceData();
+        if (mounted) {
+          CoverWiseSnackBar.success(this.context, snackMessage,
+              duration: const Duration(seconds: 8));
+        }
       } else {
-        CoverWiseSnackBar.warning(this.context, snackMessage,
-            duration: const Duration(seconds: 8));
+        if (mounted) {
+          CoverWiseSnackBar.warning(this.context, snackMessage,
+              duration: const Duration(seconds: 8));
+        }
       }
-      setState(() {});
+      if (mounted) setState(() {});
       // I3-P1e: For async deletions (202), immediately fetch the deletion
       // status so the status banner appears without waiting for the next
       // screen mount or poller tick.
@@ -347,8 +356,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final accountUser = ref.watch(currentUserProvider);
     final docsAsync = ref.watch(documentsProvider);
     final documents = docsAsync.asData?.value ?? const <InsuranceDocument>[];
-    final box = Hive.box(AppStateStore.boxName);
-    final phone = box.get(AppStateStore.phoneNumberKey) as String?;
+    final phone = ContactService.userPhoneNumber;
     final themeMode = AppStateRepository.getThemeMode();
 
     return Scaffold(
@@ -424,7 +432,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 trailing: phone != null
                     ? TextButton(
                         onPressed: () async {
-                          await box.delete(AppStateStore.phoneNumberKey);
+                          await ContactService.setUserPhoneNumber(null);
                           setState(() {});
                         },
                         child: Text(l10n.remove),

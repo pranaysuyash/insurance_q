@@ -29,15 +29,30 @@ class NewsletterService {
 
   /// Subscribe an email address to the newsletter.
   ///
-  /// Records consent via [ConsentLedger] with `ConsentPurpose.marketingEmails`
-  /// and persists the email locally. Returns `true` on success.
+  /// Audit 7 P0.9: Records consent BEFORE persisting the email. If consent
+  /// write fails (e.g. box unavailable), the email is NOT saved — preventing
+  /// a state where email exists but no consent trail exists.
+  ///
+  /// Audit 7 P0.8: The newsletter Hive box is now in
+  /// [HiveWorkspaceService.boxNames] so it is properly opened with the
+  /// workspace. Previously every write was a silent no-op because the box
+  /// was never opened.
+  ///
+  /// Returns `true` on success, `false` if email is invalid, box is
+  /// unavailable, or consent write fails.
   Future<bool> subscribe(String email) async {
     if (!ContactValidator.isValidEmail(email)) return false;
 
-    try {
-      await _box?.put(_emailKey, email.trim().toLowerCase());
-      await _box?.put(_optedInKey, true);
+    // Fail fast if the Hive box is not open. Without this check,
+    // _box?.put() silently succeeds (returns null) and subscribe()
+    // returns true despite nothing being persisted — a false-completion
+    // claim that Audit 7 P0.8 flagged.
+    if (_box == null) return false;
 
+    try {
+      // Audit 7 P0.9: Record consent FIRST. If consent write fails,
+      // the email must NOT be persisted — otherwise email exists with
+      // no consent trail, which is a privacy violation.
       final ledger = ConsentLedger();
       if (!ledger.hasConsent(ConsentPurpose.marketingEmails)) {
         await ledger.recordConsent(
@@ -46,6 +61,11 @@ class NewsletterService {
           granted: true,
         );
       }
+
+      // Consent recorded successfully — now persist the email and opt-in flag.
+      await _box!.put(_emailKey, email.trim().toLowerCase());
+      await _box!.put(_optedInKey, true);
+
       return true;
     } catch (_) {
       return false;
@@ -53,9 +73,13 @@ class NewsletterService {
   }
 
   /// Unsubscribe from the newsletter.
+  ///
+  /// Audit 7: Consistent null-box handling with [subscribe].
   Future<void> unsubscribe() async {
-    await _box?.delete(_emailKey);
-    await _box?.delete(_optedInKey);
+    if (_box == null) return;
+
+    await _box!.delete(_emailKey);
+    await _box!.delete(_optedInKey);
 
     final ledger = ConsentLedger();
     if (ledger.hasConsent(ConsentPurpose.marketingEmails)) {

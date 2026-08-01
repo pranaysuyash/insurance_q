@@ -184,6 +184,10 @@ class ReconciliationCoordinator {
     // Audit 5 P0.10: Invalidate any in-flight claims sync from the
     // previous principal so it cannot write claims into the new workspace.
     ClaimsSyncService.invalidateClaimsSync();
+    // CW-P0-011: Invalidate analytics epoch so any in-flight analytics
+    // upload from the previous principal is cancelled. This prevents
+    // stale events from being sent under the new identity.
+    AnalyticsNotifier.invalidateEpoch();
     return _principalEpoch;
   }
 

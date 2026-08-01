@@ -21,13 +21,23 @@ enum ConsentPurpose {
   ///
   /// The relationship between these two purposes:
   /// - `privacyPolicy`: "I have read and accept the privacy policy"
+  /// - `termsOfService`: "I have read and agree to the Terms of Service"
   /// - `documentProcessing`: "I authorize CoverWise to process my documents"
   ///
   /// When the privacy policy version changes, the old `documentProcessing`
   /// consent becomes stale (the user consented under an old policy). The
   /// UI must re-prompt for `documentProcessing` consent using the new
-  /// policy version, but `privacyPolicy` acceptance is a separate record.
+  /// policy version, but `privacyPolicy` and `termsOfService` acceptance
+  /// are separate records.
   privacyPolicy('privacy_policy'),
+
+  /// Terms of Service acceptance — separate from privacy policy.
+  ///
+  /// Audit 6 P0.22: The onboarding checkbox says "I have read and agree to
+  /// the Privacy Policy and Terms of Service" but historically only recorded
+  /// `privacyPolicy`. This purpose captures the Terms of Service acceptance
+  /// as a distinct record. Both must be recorded on onboarding completion.
+  termsOfService('terms_of_service'),
 
   /// Camera access for page capture.
   cameraAccess('camera_access'),

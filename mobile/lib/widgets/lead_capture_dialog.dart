@@ -180,13 +180,23 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
                     'Accept the Privacy Policy to process this policy.');
                 return;
               }
-              // 7-P0.18: Await consent write before returning.
+              // Audit 7 P0.10: Wrap consent write in try-catch. If
+              // recordConsent throws (e.g. Hive box unavailable via
+              // _requiredBox), the dialog crashes with an unhandled
+              // exception instead of showing a graceful error.
               final ledger = ConsentLedger();
-              await ledger.recordConsent(
-                purpose: ConsentPurpose.documentProcessing,
-                version: AppConfig.privacyPolicyVersion,
-                granted: true,
-              );
+              try {
+                await ledger.recordConsent(
+                  purpose: ConsentPurpose.documentProcessing,
+                  version: AppConfig.privacyPolicyVersion,
+                  granted: true,
+                );
+              } catch (e) {
+                if (!mounted) return;
+                setState(() => _consentError =
+                    'Failed to save consent. Please try again.');
+                return;
+              }
               if (!mounted) return;
               Navigator.of(context).pop({
                 'email': null,
@@ -212,15 +222,22 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
                     'Accept the Privacy Policy to process this policy.');
                 return;
               }
-              // 7-P0.18: Await consent write before returning success.
-              // Unawaited writes can fail silently while the dialog returns
-              // success and the upload proceeds without durable authorization.
+              // Audit 7 P0.10: Wrap consent write in try-catch. If
+              // recordConsent throws (e.g. Hive box unavailable), the
+              // dialog crashes instead of showing a graceful error.
               final ledger = ConsentLedger();
-              await ledger.recordConsent(
-                purpose: ConsentPurpose.documentProcessing,
-                version: AppConfig.privacyPolicyVersion,
-                granted: true,
-              );
+              try {
+                await ledger.recordConsent(
+                  purpose: ConsentPurpose.documentProcessing,
+                  version: AppConfig.privacyPolicyVersion,
+                  granted: true,
+                );
+              } catch (e) {
+                if (!mounted) return;
+                setState(() => _consentError =
+                    'Failed to save consent. Please try again.');
+                return;
+              }
               if (!mounted) return;
               // 7-P0.19: Do NOT automatically grant marketing consent when
               // contact details are provided. Entering an email is not marketing
