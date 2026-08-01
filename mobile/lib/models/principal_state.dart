@@ -1,6 +1,5 @@
 /// CW-P0-004: Deterministic principal state machine.
-library;
-
+///
 /// Replaces the scattered nondeterministic identity transitions with a single
 /// sealed class that models the three authoritative identity states:
 ///
@@ -168,7 +167,7 @@ class RegisteredPrincipal extends PrincipalState {
 /// Deterministic factory methods that map Supabase session state to the
 /// correct [PrincipalState]. The single decision point for identity.
 
-extension PrincipalStateResolve on PrincipalState {
+extension Resolve on PrincipalState {
   /// Resolve the principal state from a Supabase [Session] and the device
   /// install ID. This is the canonical resolution used at bootstrap and
   /// during auth transitions.
