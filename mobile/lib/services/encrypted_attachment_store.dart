@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:encrypt/encrypt.dart' as encrypt_lib;
 import 'package:flutter/foundation.dart';
@@ -98,11 +97,13 @@ class EncryptedAttachmentStore {
 
   /// Get the principal DEK for file encryption. Returns null if no
   /// principal key is available (before login or after sign-out).
+  /// Logs the exception type for debugging if the key is unavailable.
   static encrypt_lib.Key? _getFileKey() {
     try {
       final dek = PrincipalKeyService().getOrThrow();
       return encrypt_lib.Key(dek);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('CW-P0-002: File encryption key unavailable: ${e.runtimeType}');
       return null;
     }
   }
