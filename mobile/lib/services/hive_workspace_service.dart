@@ -1,14 +1,17 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import 'app_state_store.dart';
 import 'encrypted_attachment_store.dart';
 import 'local_storage_service.dart';
 import 'principal_key_service.dart';
 import 'session_service.dart';
+import '../models/claim_record.dart';
 import '../models/document_model.dart';
 import '../models/identity.dart';  /// Owns the lifecycle of all principal-scoped Hive boxes.
   ///
@@ -145,6 +148,10 @@ class HiveWorkspaceService {
     // documents directory into the principal-scoped attachments directory.
     // This is idempotent — skips if already migrated or no documents exist.
     await _migrateLegacyAttachments();
+
+    // CW-P0-002: One-time migration of legacy claim photos from the global
+    // claim_photos/ directory into the principal-scoped attachments directory.
+    await _migrateLegacyClaimPhotos();
   }
 
   /// CW-P0-002: One-time migration of source files from the global
@@ -276,6 +283,176 @@ class HiveWorkspaceService {
     } catch (e) {
       // Migration failure should not prevent workspace from opening.
       debugPrint('CW-P0-002: Legacy file migration failed: $e');
+    }
+  }
+
+  /// CW-P0-002: One-time migration of legacy claim photos from the global
+  /// claim_photos/ directory into the principal-scoped attachments directory.
+  ///
+  /// Each claim record's photoPaths are checked — if any path points to the
+  /// old global claim_photos/ directory, the file is copied to the new
+  /// attachments directory and the path reference is updated.
+  ///
+  /// The old file is only deleted after successful copy verification.
+  /// This method is idempotent: it tracks completion via a flag in
+  /// AppStateStore and skips if already done.
+  static Future<void> _migrateLegacyClaimPhotos() async {
+    try {
+      final appStateBox = Hive.box(AppStateStore.boxName);
+
+      // Skip if already migrated.
+      if (appStateBox.get('claim_photos_migrated_v1') == true) return;
+
+      final claimRecordsRaw = appStateBox.get(AppStateStore.claimRecordsKey);
+      if (claimRecordsRaw is! String || claimRecordsRaw.isEmpty) {
+        // No claims — mark as migrated and return.
+        await appStateBox.put('claim_photos_migrated_v1', true);
+        return;
+      }
+
+      // Get the old global documents directory.
+      final appDir = await getApplicationDocumentsDirectory();
+      final globalPath = appDir.path;
+      final oldClaimsPhotosDir = '$globalPath/claim_photos';
+
+      // Get the new attachments directory.
+      final attachmentsDir = EncryptedAttachmentStore.attachmentsSubdir;
+      final workspacePath = _currentWorkspacePath;
+      if (workspacePath == null) return;
+      final newAttachmentsPath = '$workspacePath/$attachmentsDir';
+
+      // Parse claims, preserving quarantine behavior.
+      List<ClaimRecord> claims = [];
+      try {
+        final decoded = jsonDecode(claimRecordsRaw);
+        if (decoded is List) {
+          for (var i = 0; i < decoded.length; i++) {
+            try {
+              claims.add(
+                ClaimRecord.fromJson(decoded[i] as Map<String, dynamic>),
+              );
+            } catch (e) {
+              debugPrint(
+                'CW-P0-002: Skipping malformed claim at index $i during photo migration: $e',
+              );
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('CW-P0-002: Failed to parse claim records: $e');
+        await appStateBox.put('claim_photos_migrated_v1', true);
+        return;
+      }
+
+      if (claims.isEmpty) {
+        await appStateBox.put('claim_photos_migrated_v1', true);
+        return;
+      }
+
+      int migrated = 0;
+      int skipped = 0;
+      int failed = 0;
+      bool anyChanged = false;
+
+      for (var ci = 0; ci < claims.length; ci++) {
+        final claim = claims[ci];
+        if (claim.photoPaths.isEmpty) {
+          skipped++;
+          continue;
+        }
+
+        bool claimChanged = false;
+        final newPaths = <String>[];
+
+        for (final oldPath in claim.photoPaths) {
+          // Already in the new directory — keep as-is.
+          if (oldPath.startsWith(newAttachmentsPath)) {
+            newPaths.add(oldPath);
+            skipped++;
+            continue;
+          }
+
+          // Not in the old claim_photos directory — keep as-is.
+          if (!oldPath.startsWith(oldClaimsPhotosDir)) {
+            newPaths.add(oldPath);
+            skipped++;
+            continue;
+          }
+
+          final oldFile = File(oldPath);
+          if (!await oldFile.exists()) {
+            // File missing — drop the path reference.
+            failed++;
+            claimChanged = true;
+            continue;
+          }
+
+          // Migrate: copy to new attachments directory with opaque name.
+          final photoId = const Uuid().v4();
+          final newPath = await EncryptedAttachmentStore.migrateLegacyFile(
+            documentId: photoId,
+            legacyPath: oldPath,
+            originalFilename: 'claim_photo.jpg',
+          );
+
+          if (newPath == null) {
+            failed++;
+            continue;
+          }
+
+          // Verify the copy succeeded.
+          final newFile = File(newPath);
+          if (!await newFile.exists()) {
+            failed++;
+            continue;
+          }
+
+          final oldSize = await oldFile.length();
+          final newSize = await newFile.length();
+          if (oldSize != newSize) {
+            failed++;
+            continue;
+          }
+
+          newPaths.add(newPath);
+          claimChanged = true;
+
+          // Delete the old file.
+          try {
+            await oldFile.delete();
+          } catch (_) {
+            // Best-effort.
+          }
+
+          migrated++;
+        }
+
+        if (claimChanged) {
+          claims[ci] = claim.copyWith(
+            photoPaths: List.unmodifiable(newPaths),
+          );
+          anyChanged = true;
+        }
+      }
+
+      // Save updated claims if any paths changed.
+      if (anyChanged) {
+        final encoded = jsonEncode(claims.map((r) => r.toJson()).toList());
+        await appStateBox.put(AppStateStore.claimRecordsKey, encoded);
+      }
+
+      // Mark migration as complete.
+      await appStateBox.put('claim_photos_migrated_v1', true);
+
+      if (migrated > 0 || failed > 0) {
+        debugPrint(
+          'CW-P0-002: Legacy claim photo migration complete — '
+          '$migrated migrated, $skipped skipped, $failed failed',
+        );
+      }
+    } catch (e) {
+      // Migration failure should not prevent workspace from opening.
+      debugPrint('CW-P0-002: Legacy claim photo migration failed: $e');
     }
   }
 
