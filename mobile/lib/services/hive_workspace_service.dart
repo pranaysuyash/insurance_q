@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'app_state_store.dart';
+import 'encrypted_attachment_store.dart';
 import 'local_storage_service.dart';
 import 'principal_key_service.dart';
 import 'session_service.dart';
+import '../models/document_model.dart';
 import '../models/identity.dart';  /// Owns the lifecycle of all principal-scoped Hive boxes.
   ///
   /// P0.5: Each principal's boxes are stored in an isolated directory at
@@ -135,6 +140,143 @@ class HiveWorkspaceService {
     final path = _workspacePath(principal);
     _currentWorkspacePath = path;
     await _openAllBoxes(path, PrincipalKeyService().getOrThrow());
+
+    // CW-P0-002: One-time migration of legacy files from the global
+    // documents directory into the principal-scoped attachments directory.
+    // This is idempotent — skips if already migrated or no documents exist.
+    await _migrateLegacyAttachments();
+  }
+
+  /// CW-P0-002: One-time migration of source files from the global
+  /// application documents directory into the principal-scoped attachments
+  /// directory. Each document's `localFilePath` is checked — if it points
+  /// to a file outside the attachments directory, it is copied to the new
+  /// location and the Hive record is updated.
+  ///
+  /// The old file is only deleted after successful copy verification.
+  /// This method is idempotent: it tracks completion via a flag in
+  /// AppStateStore and skips if already done.
+  static Future<void> _migrateLegacyAttachments() async {
+    try {
+      final appStateBox = Hive.box(AppStateStore.boxName);
+
+      // Skip if already migrated.
+      if (appStateBox.get('attachments_migrated_v1') == true) return;
+
+      final docsBox = Hive.box<String>(LocalStorageService.documentsBoxName);
+      if (docsBox.isEmpty) {
+        // No documents — mark as migrated and return.
+        await appStateBox.put('attachments_migrated_v1', true);
+        return;
+      }
+
+      // Get the old global documents directory.
+      final appDir = await getApplicationDocumentsDirectory();
+      final globalPath = appDir.path;
+
+      // Get the new attachments directory.
+      final attachmentsDir = EncryptedAttachmentStore.attachmentsSubdir;
+      final workspacePath = _currentWorkspacePath;
+      if (workspacePath == null) return;
+      final newAttachmentsPath = '$workspacePath/$attachmentsDir';
+
+      int migrated = 0;
+      int skipped = 0;
+      int failed = 0;
+
+      for (final key in docsBox.keys.toList()) {
+        final raw = docsBox.get(key);
+        if (raw == null) continue;
+
+        try {
+          final doc = InsuranceDocument.fromJsonString(raw);
+          final oldPath = doc.localFilePath;
+          if (oldPath == null || oldPath.isEmpty) {
+            skipped++;
+            continue;
+          }
+
+          // Check if the file is already in the new attachments directory.
+          if (oldPath.startsWith(newAttachmentsPath)) {
+            skipped++;
+            continue;
+          }
+
+          // Check if the file is in the old global directory.
+          if (!oldPath.startsWith(globalPath)) {
+            // File is somewhere unexpected — skip.
+            skipped++;
+            continue;
+          }
+
+          final oldFile = File(oldPath);
+          if (!await oldFile.exists()) {
+            // File missing — clear the path reference.
+            final updated = doc.copyWith(localFilePath: null);
+            await docsBox.put(key, updated.toJsonString());
+            skipped++;
+            continue;
+          }
+
+          // Migrate: copy to new attachments directory.
+          final newPath = await EncryptedAttachmentStore.migrateLegacyFile(
+            documentId: doc.id,
+            legacyPath: oldPath,
+            originalFilename: doc.filename,
+          );
+
+          if (newPath == null) {
+            failed++;
+            continue;
+          }
+
+          // Verify the copy succeeded before updating the record.
+          final newFile = File(newPath);
+          if (!await newFile.exists()) {
+            failed++;
+            continue;
+          }
+
+          // Verify file sizes match.
+          final oldSize = await oldFile.length();
+          final newSize = await newFile.length();
+          if (oldSize != newSize) {
+            failed++;
+            continue;
+          }
+
+          // Update the Hive record with the new path.
+          final updated = doc.copyWith(localFilePath: newPath);
+          await docsBox.put(key, updated.toJsonString());
+
+          // Delete the old file.
+          try {
+            await oldFile.delete();
+          } catch (_) {
+            // Best-effort: old file deletion failure is non-fatal.
+          }
+
+          migrated++;
+        } catch (e) {
+          // Per-document errors should not block the entire migration.
+          debugPrint('CW-P0-002: Migration error for document $key: $e');
+          failed++;
+        }
+      }
+
+      // Mark migration as complete.
+      await appStateBox.put('attachments_migrated_v1', true);
+
+      if (migrated > 0 || failed > 0) {
+        debugPrint(
+          'CW-P0-002: Legacy file migration complete — '
+          '$migrated migrated, $skipped skipped, $failed failed',
+        );
+      }
+    } catch (e) {
+      // Migration failure should not prevent workspace from opening.
+      debugPrint('CW-P0-002: Legacy file migration failed: $e');
+    }
   }
 
   /// P0.6: Safely transition the workspace to a new principal.
