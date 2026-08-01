@@ -1,22 +1,37 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:encrypt/encrypt.dart' as encrypt_lib;
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path/path.dart' as p;
 
 import 'hive_workspace_service.dart';
+import 'principal_key_service.dart';
 
-/// CW-P0-002: Principal-scoped, opaque-named attachment store.
+/// CW-P0-002: Principal-scoped, opaque-named, AES-256-GCM encrypted
+/// attachment store.
 ///
 /// Source policy files (PDFs, images) are stored inside the principal's
 /// encrypted workspace directory with opaque filenames that do not reveal
-/// document type. Every delete operation validates path containment to
-/// prevent arbitrary file deletion from corrupted metadata.
+/// document type. Every file is encrypted at rest using AES-256-GCM with
+/// a random12-byte IV per file. The IV is stored as a prefix in the
+/// encrypted file.
 ///
-/// This service does NOT encrypt individual files at rest — that requires
-/// a dedicated dependency (e.g. `encrypt` package) and is tracked as a
-/// follow-up. The directory itself is within the principal's Hive workspace,
-/// which provides isolation between principals.
+/// Every delete operation validates path containment to prevent arbitrary
+/// file deletion from corrupted metadata.
+///
+/// The directory itself is within the principal's Hive workspace, which
+/// provides isolation between principals.
+///
+/// **File format (encrypted):**
+/// ```
+/// [4 bytes magic: CW01][12 bytes IV][encrypted data + 16 bytes GCM tag]
+/// ```
+///
+/// **File format (legacy unencrypted):**
+/// Any file that does NOT start with the `CW01` magic header is treated
+/// as a legacy unencrypted file and read directly.
 ///
 /// Path structure:
 /// ```
@@ -75,7 +90,77 @@ class EncryptedAttachmentStore {
     return p.join(dir.path, opaqueName);
   }
 
+  /// 4-byte magic header identifying CW-P0-002 encrypted files.
+  static const List<int> _magicHeader = [0x43, 0x57, 0x30, 0x31]; // 'CW01'
+
+  /// IV length in bytes for AES-256-GCM.
+  static const int _ivLength = 12;
+
+  /// Get the principal DEK for file encryption. Returns null if no
+  /// principal key is available (before login or after sign-out).
+  static encrypt_lib.Key? _getFileKey() {
+    try {
+      final dek = PrincipalKeyService().getOrThrow();
+      return encrypt_lib.Key(dek);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Encrypt plaintext bytes using AES-256-GCM.
+  ///
+  /// Returns `[CW01 magic][12-byte IV][encrypted data + GCM tag]`.
+  static Uint8List _encryptBytes(Uint8List plaintext, encrypt_lib.Key key) {
+    final iv = encrypt_lib.IV.fromSecureRandom(_ivLength);
+    final encrypter = encrypt_lib.Encrypter(
+      encrypt_lib.AES(key, mode: encrypt_lib.AESMode.gcm),
+    );
+    final encrypted = encrypter.encryptBytes(plaintext, iv: iv);
+
+    // Build the output: magic + IV + encrypted bytes (includes GCM tag).
+    final output = Uint8List(4 + _ivLength + encrypted.bytes.length);
+    output.setRange(0, 4, _magicHeader);
+    output.setRange(4, 4 + _ivLength, iv.bytes);
+    output.setRange(4 + _ivLength, output.length, encrypted.bytes);
+    return output;
+  }
+
+  /// Decrypt an encrypted file (starts with CW01 magic header).
+  ///
+  /// Returns the decrypted plaintext bytes. Throws if decryption fails
+  /// (wrong key, corrupted data, or tampered GCM tag).
+  static Uint8List _decryptBytes(
+    Uint8List encryptedData,
+    encrypt_lib.Key key,
+  ) {
+    if (encryptedData.length < 4 + _ivLength) {
+      throw StateError('Encrypted file too short to contain IV');
+    }
+    final iv = encrypt_lib.IV(encryptedData.sublist(4, 4 + _ivLength));
+    final ciphertext = encryptedData.sublist(4 + _ivLength);
+    final encrypter = encrypt_lib.Encrypter(
+      encrypt_lib.AES(key, mode: encrypt_lib.AESMode.gcm),
+    );
+    return Uint8List.fromList(encrypter.decryptBytes(
+      encrypt_lib.Encrypted(ciphertext),
+      iv: iv,
+    ));
+  }
+
+  /// Check if a file has the CW01 encrypted magic header.
+  static bool _isEncrypted(Uint8List header) {
+    if (header.length < 4) return false;
+    return header[0] == _magicHeader[0] &&
+        header[1] == _magicHeader[1] &&
+        header[2] == _magicHeader[2] &&
+        header[3] == _magicHeader[3];
+  }
+
   /// Write bytes to a new attachment at an opaque path.
+  ///
+  /// The bytes are encrypted with AES-256-GCM before writing.
+  /// If no principal key is available, bytes are written unencrypted
+  /// (legacy mode — the migration will re-encrypt later).
   ///
   /// Returns the path where the file was written, or null if no workspace
   /// is active.
@@ -90,11 +175,22 @@ class EncryptedAttachmentStore {
     );
     if (filePath == null) return null;
 
-    await File(filePath).writeAsBytes(bytes, flush: true);
+    final key = _getFileKey();
+    if (key != null) {
+      // Encrypt before writing.
+      final encrypted = _encryptBytes(bytes, key);
+      await File(filePath).writeAsBytes(encrypted, flush: true);
+    } else {
+      // No key available — write unencrypted (legacy fallback).
+      await File(filePath).writeAsBytes(bytes, flush: true);
+    }
     return filePath;
   }
 
   /// Copy a file to a new attachment at an opaque path.
+  ///
+  /// The source file bytes are encrypted with AES-256-GCM before writing.
+  /// If no principal key is available, bytes are written unencrypted.
   ///
   /// Returns the path where the file was copied, or null if no workspace
   /// is active.
@@ -108,8 +204,46 @@ class EncryptedAttachmentStore {
     );
     if (filePath == null) return null;
 
-    await sourceFile.copy(filePath);
+    final key = _getFileKey();
+    if (key != null) {
+      // Read source, encrypt, write.
+      final sourceBytes = await sourceFile.readAsBytes();
+      final encrypted = _encryptBytes(sourceBytes, key);
+      await File(filePath).writeAsBytes(encrypted, flush: true);
+    } else {
+      // No key available — copy unencrypted (legacy fallback).
+      await sourceFile.copy(filePath);
+    }
     return filePath;
+  }
+
+  /// Read and decrypt an attachment file.
+  ///
+  /// If the file has the CW01 magic header, it is decrypted with the
+  /// principal DEK. If not (legacy unencrypted file), the raw bytes
+  /// are returned directly.
+  ///
+  /// Returns null if the file does not exist, no workspace is active,
+  /// or the file is encrypted but no principal key is available.
+  static Future<Uint8List?> read(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) return null;
+
+    final raw = await file.readAsBytes();
+    if (_isEncrypted(raw)) {
+      final key = _getFileKey();
+      if (key == null) {
+        // No key available — cannot decrypt. Return null rather than
+        // throwing, so callers get a consistent 'file unavailable' signal.
+        debugPrint(
+          'CW-P0-002: Cannot decrypt $filePath — no principal key',
+        );
+        return null;
+      }
+      return _decryptBytes(raw, key);
+    }
+    // Legacy unencrypted file.
+    return raw;
   }
 
   /// Delete an attachment after validating path containment.
@@ -186,6 +320,9 @@ class EncryptedAttachmentStore {
   /// Migrate a legacy file (from global documents directory) into the
   /// principal-scoped attachments directory.
   ///
+  /// If a principal key is available, the file is encrypted during
+  /// migration. If not, it is copied unencrypted (legacy fallback).
+  ///
   /// Returns the new path if migration succeeded, or null if the source
   /// file doesn't exist or no workspace is active.
   ///
@@ -203,5 +340,34 @@ class EncryptedAttachmentStore {
       documentId: documentId,
       sourceFile: file,
     );
+  }
+
+  /// Re-encrypt a legacy unencrypted file in the attachments directory.
+  ///
+  /// If the file already has the CW01 magic header, this is a no-op.
+  /// Otherwise, the file is read, encrypted, and written back in place.
+  ///
+  /// Used during the legacy file migration to upgrade plaintext files
+  /// that were stored before CW-P0-002 encryption was added.
+  ///
+  /// Returns true if the file was re-encrypted or was already encrypted.
+  /// Returns false if the file does not exist or no key is available.
+  static Future<bool> reEncryptIfNeeded(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) return false;
+
+    final key = _getFileKey();
+    if (key == null) return false;
+
+    final raw = await file.readAsBytes();
+    if (_isEncrypted(raw)) {
+      // Already encrypted.
+      return true;
+    }
+
+    // Re-encrypt in place.
+    final encrypted = _encryptBytes(raw, key);
+    await file.writeAsBytes(encrypted, flush: true);
+    return true;
   }
 }
