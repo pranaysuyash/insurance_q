@@ -40,7 +40,7 @@
 
 #### **Step 3: First Launch**
 1. Open the **Insurance RAG** app
-2. The app will connect to: `https://nrmmvtpyaf.ap-south-1.awsapprunner.com`
+2. The app will connect to: `the canonical Cloud Run backend (configure via API_BASE_URL / mobile/.dartdefine.env)`
 3. Test with a sample query like "What is a premium?"
 
 ## 📱 Device-Specific Recommendations
@@ -112,7 +112,7 @@ Try these sample questions after uploading a document:
 - "What are the exclusions?"
 
 ### **Backend Connection**
-- **Service URL**: https://nrmmvtpyaf.ap-south-1.awsapprunner.com
+- **Service URL**: the canonical Cloud Run backend (configure via API_BASE_URL / mobile/.dartdefine.env)
 - **Health Check**: Should show all services operational
 - **Response Time**: Queries should respond within 2-3 seconds
 
@@ -156,7 +156,7 @@ Try these sample questions after uploading a document:
 - **UI/UX feedback**: Suggest improvements
 
 ### **Backend Status**
-- **Service URL**: https://nrmmvtpyaf.ap-south-1.awsapprunner.com/health
+- **Service URL**: the canonical Cloud Run backend (configure via API_BASE_URL / mobile/.dartdefine.env)/health
 - **Status**: Should show "RAG: Available" and "Document Processing: Available"
 
 ## 🎯 Testing Checklist
@@ -254,7 +254,7 @@ For any issues or questions, refer to this guide or contact the development team
 - User-friendly refresh functionality with progress indicators
 
 ### ✅ **Backend Integration**
-- **Stable Backend**: `https://aa2485vt7t.ap-south-1.awsapprunner.com`
+- **Stable Backend**: `the canonical Cloud Run backend (configure via API_BASE_URL / mobile/.dartdefine.env)`
 - **RAG System**: Fully operational with document-specific Q&A
 - **Anti-Abuse**: Rate limiting and session management active
 - **Lead Capture**: Optional email/phone collection for business leads
@@ -318,7 +318,7 @@ For any issues or questions, refer to this guide or contact the development team
 - **Signing**: Debug (compatible with all devices)
 
 ### **Backend Configuration**
-- **API Endpoint**: `https://aa2485vt7t.ap-south-1.awsapprunner.com`
+- **API Endpoint**: `the canonical Cloud Run backend (configure via API_BASE_URL / mobile/.dartdefine.env)`
 - **Session Management**: UUID-based with 24h expiration
 - **Rate Limits**: 5 uploads per session, 10 per IP per day
 - **Supported Formats**: PDF, JPG, PNG

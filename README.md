@@ -138,8 +138,8 @@ AZURE_SUBSCRIPTION_ID=your_subscription_id
 # Backend tests
 tools/run_backend_tests.sh tests/ -v
 
-# API tests
-./scripts/test_azure_apis.sh
+# API tests (canonical backend is Cloud Run; start via tools/deploy_cloud_run.sh).
+# The legacy ./scripts/test_azure_apis.sh was removed with the Azure dead path.
 
 # Flutter tests (mobile/ directory)
    cd mobile
@@ -160,14 +160,10 @@ See `mobile/.dartdefine.env` for details and available overrides.
 
 ### Backend Deployment
    ```bash
-# Deploy all services to Azure
-./scripts/deploy_full_backend_to_azure.sh
-
-# Fix service configurations
-./scripts/fix_services_config.sh
-
-# Test deployment
-./scripts/test_azure_apis.sh
+# Canonical backend deployment is Cloud Run + Supabase.
+# See tools/deploy_cloud_run.sh and tools/deploy_outbox_worker.sh.
+# (The legacy Azure deploy scripts were removed — agent-built dead path
+#  with a no-password Redis anti-pattern; see ADR-2026-08-12-01.)
 ```
 
 ## 🔧 Troubleshooting

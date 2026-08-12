@@ -39,21 +39,12 @@ def test_production_ocr_profile_is_pinned_and_reuses_slim_core_contract():
     assert "--hash=sha256:" in lock
 
 
-def test_cloud_run_and_legacy_generated_images_use_model_bearing_memory_budget():
+def test_cloud_run_deploy_image_uses_model_bearing_memory_budget():
+    # Canonical deploy path is Cloud Run + Supabase. The legacy AWS App Runner
+    # and Azure deploy scripts were agent-built dead paths and have been removed,
+    # so this contract now guards only the canonical Cloud Run deploy script.
     cloud_run = (ROOT / "tools/deploy_cloud_run.sh").read_text(encoding="utf-8")
-    aws = (ROOT / "deploy_aws_multiarch.sh").read_text(encoding="utf-8")
-    app_runner = (ROOT / "deploy_enhanced_rag.sh").read_text(encoding="utf-8")
-    azure = (ROOT / "scripts/deploy_full_backend_to_azure.sh").read_text(encoding="utf-8")
-
     assert 'COVERWISE_CLOUD_RUN_MEMORY:-4Gi' in cloud_run
-    assert '"Memory": "4096"' in aws
-    assert '"Memory": "4096"' in app_runner
-    assert "requirements-production-ocr.txt" in aws
-    assert "requirements-production-ocr.txt" in azure
-    assert "download.pytorch.org/whl/cpu" in aws
-    assert "download.pytorch.org/whl/cpu" in azure
-    assert "COPY docs/legal/ docs/legal/" in aws
-    assert "COPY docs/legal/ docs/legal/" in azure
 
 
 def test_production_sbom_generator_uses_the_canonical_locked_linux_profile():

@@ -64,11 +64,10 @@ cp .env.example .env
 ./test_api.sh https://your-deployed-url.com
 ```
 
-### 3. Deploy to AWS
-```bash
-# Deploy enhanced version
-./deploy_enhanced_rag.sh
-```
+### 3. Deploy
+The canonical deployment target is Cloud Run + Supabase (see `tools/deploy_cloud_run.sh`
+and `tools/deploy_outbox_worker.sh`). The legacy AWS App Runner and Azure deploy
+scripts were agent-built dead paths and have been removed.
 
 ## 📋 Environment Variables
 
@@ -78,13 +77,14 @@ Create a `.env` file with:
 # Required - OpenAI API Key
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Vector Database (configured via cloud provider / your own Qdrant instance)
-QDRANT_URL=https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333
+# Canonical backend uses Supabase pgvector — no external Qdrant/Redis required.
+# For local Qdrant dev only (optional), point at your own instance:
+QDRANT_URL=http://localhost:6333
 QDRANT_API_KEY=your_qdrant_api_key_here
 QDRANT_COLLECTION=insurance_documents_v2
 
-# Redis Cache (already configured)
-REDIS_HOST=insurance-app-redis-mumbai-public.y6jsma.0001.aps1.cache.amazonaws.com
+# Redis is not used by the canonical path (see ADR-2026-08-12-01).
+# REDIS_HOST=localhost
 REDIS_PORT=6379
 
 # Optional - AI Model Configuration
