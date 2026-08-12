@@ -13,8 +13,14 @@ import '../services/document_service.dart';
 import '../services/hive_workspace_service.dart';
 import '../services/principal_key_service.dart';
 
-/// Coordinates reconciliation (upload retry + claims sync) and workspace
-/// transitions for authenticated sessions.
+/// Coordinates reconciliation (upload retry) and workspace transitions for
+/// authenticated sessions.
+///
+/// Audit 6 P0.1: Claims are a local-only personal log for the launch product.
+/// Automatic claims sync is DISABLED — reconciliation covers upload retry
+/// only. No claim data is sent to the backend until the sync contract
+/// (idempotency, tombstones, revisions) is redesigned and an explicit user
+/// opt-in exists. See ADR-2026-07-24-02 update log (2026-08-03).
 ///
 /// Extracted from `_InsuranceAppState` to reduce app.dart from ~727 lines
 /// and isolate the reconciliation/transition logic into a testable unit.
@@ -22,7 +28,7 @@ import '../services/principal_key_service.dart';
 /// The coordinator owns:
 /// - Principal epoch tracking (stale-transition rejection)
 /// - Debounced reconciliation scheduling
-/// - Epoch-gated upload retry and claims sync
+/// - Epoch-gated upload retry
 /// - Authenticated session transitions (workspace reopen + claim)
 class ReconciliationCoordinator {
   ReconciliationCoordinator({
@@ -77,12 +83,15 @@ class ReconciliationCoordinator {
   /// reconciliation and schedules a new one after [debounceDuration].
   /// This coalesces burst triggers (auth + connectivity + init) into a
   /// single sync cycle, preventing duplicate uploads and rate-limit pressure.
+  ///
+  /// Audit 6 P0.1: This only retries pending document uploads. Claims sync
+  /// is intentionally NOT scheduled — the claim log is local-only for the
+  /// launch product.
   void scheduleReconciliation({int? epoch}) {
     _reconciliationDebounce?.cancel();
     _reconciliationDebounce = Timer(_reconciliationDebounceDuration, () {
       reconciliationFireCount++;
       unawaited(_retryPendingUploads(epoch: epoch));
-      unawaited(_syncClaims(epoch: epoch));
     });
   }
 
@@ -100,33 +109,6 @@ class ReconciliationCoordinator {
     } catch (error, stackTrace) {
       debugPrint('Pending upload reconciliation failed: $error');
       Sentry.captureException(error, stackTrace: stackTrace);
-    }
-  }
-
-  /// Epoch-gated claims sync. Stale requests are discarded both
-  /// before and after the work.
-  ///
-  /// Audit 5 P0.10: ClaimsSyncService uses its own epoch, independent
-  /// of DocumentService. The coordinator sets the epoch before initiating
-  /// the sync and the service verifies it before each mutation.
-  Future<void> _syncClaims({int? epoch}) async {
-    final e = epoch ?? _principalEpoch;
-    if (e != _principalEpoch) return;
-    try {
-      // Set the claims sync epoch before initiating the sync.
-      ClaimsSyncService.setClaimsSyncEpoch(e);
-      final syncService = ClaimsSyncService(ClaimsSyncService.authenticatedDio);
-      final result = await syncService.fullSync(epoch: e);
-      if (result.errorMessage != null) {
-        debugPrint('Claims sync failed: ${result.errorMessage}');
-        Sentry.captureMessage(
-          'Claims sync failed: ${result.errorMessage}',
-          level: SentryLevel.warning,
-        );
-      }
-    } catch (error) {
-      debugPrint('Claims sync error: $error');
-      Sentry.captureException(error);
     }
   }
 
@@ -181,8 +163,10 @@ class ReconciliationCoordinator {
     // Audit 5 P0.4: Invalidate any in-flight pending-upload sync from the
     // previous principal so it cannot write documents into the new workspace.
     DocumentService.invalidatePendingUploadSync();
-    // Audit 5 P0.10: Invalidate any in-flight claims sync from the
-    // previous principal so it cannot write claims into the new workspace.
+    // Audit 5 P0.10: Defensive — invalidate any in-flight claims sync from
+    // the previous principal so it cannot write claims into the new
+    // workspace. Claims sync is disabled for launch (Audit 6 P0.1) but this
+    // guard remains correct if an explicit opt-in sync is ever added.
     ClaimsSyncService.invalidateClaimsSync();
     // CW-P0-011: Invalidate analytics epoch so any in-flight analytics
     // upload from the previous principal is cancelled. This prevents

@@ -25,7 +25,7 @@ import '../services/billing_adapter.dart';
 import '../services/entitlement_service.dart';
 import '../services/install_service.dart';
 import '../services/analytics_service.dart';
-import '../models/identity.dart';
+import '../models/principal_state.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/phone_capture_sheet.dart';
 import '../widgets/shared/coverwise_components.dart';
@@ -312,9 +312,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // function (e.g. AppStateStore.boxName is read on every screen).
       // openForActivePrincipal creates new empty boxes at the local
       // principal's namespaced path.
-      await HiveWorkspaceService.openForActivePrincipal(
-        LocalPrincipal(InstallService.getInstallId()),
-      );
+      //
+      // CW-P0-004: Route through the canonical PrincipalState resolver
+      // (session was signed out above, so this deterministically produces
+      // the InstallGuest workspace principal) instead of constructing
+      // LocalPrincipal directly.
+      final resetPrincipal = Resolve.resolve(
+        session: null,
+        installId: InstallService.getInstallId(),
+      ).principal;
+      await HiveWorkspaceService.openForActivePrincipal(resetPrincipal);
 
       if (!mounted) return;
       CoverWiseSnackBar.success(context, l10n.settingsClearDataSuccess);

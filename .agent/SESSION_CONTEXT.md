@@ -1,6 +1,6 @@
 # Session Context
 
-- Generated: 2026-08-01T06:28:44Z
+- Generated: 2026-08-12T04:57:18Z
 - Project: `medpiper/insurance_app`
 - Provider: `local`
 - Model: `BAAI/bge-m3`
@@ -9,10 +9,10 @@
 
 ## Project Motto
 
-- File: `/Users/pranay/Projects/medpiper/insurance_app/motto_v4.md`
-- Retired doctrine paths removed: `/Users/pranay/Projects/medpiper/insurance_app/motto_v3.md`, `/Users/pranay/Projects/medpiper/insurance_app/motto_v2.md`
-- Source: `/Users/pranay/Downloads/motto_v4.md`
-- Sync status: `synced from /Users/pranay/Downloads/motto_v4.md; retired motto_v3.md and motto_v2.md`
+- File: `/Users/pranay/Projects/medpiper/insurance_app/motto_v5.md`
+- Retired doctrine paths removed: `/Users/pranay/Projects/medpiper/insurance_app/motto_v4.md`, `/Users/pranay/Projects/medpiper/insurance_app/motto_v3.md`, `/Users/pranay/Projects/medpiper/insurance_app/motto_v2.md`
+- Source: `/Users/pranay/Downloads/motto_v5.md`
+- Sync status: `synced from /Users/pranay/Downloads/motto_v5.md; retired motto_v4.md, motto_v3.md, and motto_v2.md`
 - Guidance: read this before implementation or review on this project.
 
 ## Project-Focused Retrieval

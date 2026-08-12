@@ -605,24 +605,26 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   ///
   /// Returns the consent version string, or `null` if the user cancelled.
   /// Shared between single-file upload and batch upload to avoid duplication.
+  ///
+  /// Audit 6 P0.17: The fast path requires consent that is BOTH active AND
+  /// recorded under the CURRENT privacy policy version. A grant under an
+  /// older policy version is evidence of an old decision, not authorization
+  /// under the new policy — the user must be shown the authorization dialog
+  /// again before any upload proceeds. The ledger is authoritative; the
+  /// stored `processing_consent_version` box value is never used to bypass
+  /// the gate.
   Future<String?> _ensureConsent() async {
-    final box = Hive.box(AppStateStore.boxName);
-    final storedConsent = box.get('processing_consent_version') as String?;
-
-    // 7-P0.17: Do NOT auto-re-grant consent after revocation. A stored
-    // historical version is evidence of an old decision, not permission
-    // to grant a new one. If the ledger no longer has active consent,
-    // the user must be shown the authorization dialog again.
-    if (storedConsent != null) {
-      final ledger = ConsentLedger();
-      if (ledger.hasConsent(ConsentPurpose.documentProcessing)) {
-        // Consent is active — proceed with stored version.
-        return storedConsent;
-      }
-      // Consent was revoked. Fall through to show the dialog.
+    final ledger = ConsentLedger();
+    if (ledger.hasConsentForVersion(
+      ConsentPurpose.documentProcessing,
+      AppConfig.privacyPolicyVersion,
+    )) {
+      // Consent is active for the exact current version — proceed.
+      return AppConfig.privacyPolicyVersion;
     }
 
-    // First upload — show consent + optional contact capture.
+    // No active current-version consent (never granted, revoked, or granted
+    // under an older policy version) — show consent + optional contact capture.
     final savedContact = ContactService.savedContact;
     if (!mounted) return null;
     final leadInfo = await showDialog<Map<String, dynamic>>(
@@ -636,6 +638,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     if (leadInfo == null) return null;
 
     final version = leadInfo['processing_consent_version'] as String;
+    // Legacy record for consumers that read the box value directly
+    // (e.g. document replace). The upload gate itself reads only the ledger.
+    final box = Hive.box(AppStateStore.boxName);
     await box.put('processing_consent_version', version);
 
     if (leadInfo['save'] == true) {

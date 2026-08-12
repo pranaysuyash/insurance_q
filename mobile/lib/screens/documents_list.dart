@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:hive/hive.dart';
+import '../config/app_config.dart';
 import '../models/document_model.dart';
 import '../providers/service_providers.dart';
 import '../providers/document_providers.dart';
@@ -1205,9 +1206,13 @@ class _DocumentReplaceScreenState
 
     Object? replaceError;
     try {
-      final box = Hive.box(AppStateStore.boxName);
-      final consentVersion =
-          box.get('processing_consent_version') as String? ?? 'v1';
+      // Audit 6 P0.17: Always transmit the CURRENT policy version as the
+      // consent version for replacement uploads. The legacy box value
+      // ("processing_consent_version") may hold an old version or a 'v1'
+      // default; it must never be sent as the consent version. The actual
+      // authorization gate is the ledger check inside
+      // [DocumentService.uploadDocument] (current-version consent).
+      final consentVersion = AppConfig.privacyPolicyVersion;
 
       final result = await ref.read(documentServiceProvider).replaceDocument(
             widget.document.id,

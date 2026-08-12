@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
+import 'package:coverwise/config/app_config.dart';
 import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/services/consent_ledger.dart';
 import 'package:coverwise/services/consent_sync_service.dart';
@@ -17,9 +18,14 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     await HiveTestHelper.setUp();
+    // CW-P0-002: saveDocument requires an active workspace (encrypted
+    // attachment store). Open a test workspace so retry-path tests can
+    // persist pending documents.
+    await HiveTestHelper.openTestWorkspace();
   });
 
   tearDownAll(() async {
+    HiveTestHelper.closeTestWorkspace();
     await HiveTestHelper.tearDown();
   });
 
@@ -92,8 +98,11 @@ void main() {
 
       expect(second, equals(0),
           reason: 'Should not re-sync already cached signatures');
-      expect(serverCalls, equals(0),
-          reason: 'Should not make any server calls');
+      // P0.23: syncAll() now calls pullFromServer() first, which makes
+      // one server call to check server authority before pushing local
+      // state. The push itself is skipped (signatures match).
+      expect(serverCalls, equals(1),
+          reason: 'Pull call before push — 1 server call expected');
     });
 
     test('retries failed consent records on next call', () async {
@@ -171,6 +180,18 @@ void main() {
   });
 
   group('DocumentService retryPendingUploads', () {
+    setUp(() async {
+      // Audit 6 P0.17: The upload/retry gate requires document-processing
+      // consent for the exact CURRENT privacy-policy version. The shared
+      // tearDown clears the consent ledger after every test, so each retry
+      // test must re-record current-version consent before it runs.
+      await ConsentLedger().recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: AppConfig.privacyPolicyVersion,
+        granted: true,
+      );
+    });
+
     /// Creates a pending document with an actual file on disk at the path
     /// set by [LocalStorageService.saveDocument].
     Future<String> savePendingDocument({

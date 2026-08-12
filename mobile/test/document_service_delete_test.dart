@@ -6,10 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'package:coverwise/config/app_config.dart';
 import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/services/consent_ledger.dart';
 import 'package:coverwise/services/document_service.dart';
 import 'package:coverwise/services/local_storage_service.dart';
+
+import 'helpers/hive_test_helper.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,14 +31,22 @@ void main() {
     // processing consent so upload/retry paths are not blocked by the
     // new consent gate.
     await Hive.openBox('consent_ledger');
+    // CW-P0-002: LocalStorageService.saveDocument requires an active
+    // workspace (principal-scoped encrypted attachment store). Open a test
+    // workspace so the upload/retry paths in this suite can write files.
+    await HiveTestHelper.openTestWorkspace();
+    // Audit 6 P0.17: The upload/retry gate requires consent for the exact
+    // CURRENT privacy-policy version. Recording the test string here would
+    // trip the version-aware gate and block every upload path.
     await ConsentLedger().recordConsent(
       purpose: ConsentPurpose.documentProcessing,
-      version: 'test',
+      version: AppConfig.privacyPolicyVersion,
       granted: true,
     );
   });
 
   tearDownAll(() async {
+    HiveTestHelper.closeTestWorkspace();
     if (await testDirectory.exists()) {
       await testDirectory.delete(recursive: true);
     }
@@ -339,10 +350,11 @@ void main() {
       expect(result['consent_required'], isTrue);
       expect(result['message'], contains('consent'));
     } finally {
-      // Re-grant consent so other tests remain unaffected.
+      // Re-grant consent so other tests remain unaffected. Must use the
+      // current policy version — the gate is exact-version (Audit 6 P0.17).
       await ConsentLedger().recordConsent(
         purpose: ConsentPurpose.documentProcessing,
-        version: 'test',
+        version: AppConfig.privacyPolicyVersion,
         granted: true,
       );
       if (await file.exists()) await file.delete();
@@ -372,10 +384,11 @@ void main() {
       final doc = await storage.getDocumentById(saved.id);
       expect(doc?.syncState, 'failed');
     } finally {
-      // Re-grant consent so other tests remain unaffected.
+      // Re-grant consent so other tests remain unaffected. Must use the
+      // current policy version — the gate is exact-version (Audit 6 P0.17).
       await ConsentLedger().recordConsent(
         purpose: ConsentPurpose.documentProcessing,
-        version: 'test',
+        version: AppConfig.privacyPolicyVersion,
         granted: true,
       );
       if (await source.exists()) await source.delete();

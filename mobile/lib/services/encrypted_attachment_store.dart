@@ -8,6 +8,24 @@ import 'package:path/path.dart' as p;
 import 'hive_workspace_service.dart';
 import 'principal_key_service.dart';
 
+/// CW-P0-003 (launch audit P0-3): thrown when a durable write cannot be
+/// encrypted because no principal encryption key is available.
+///
+/// Encryption must FAIL CLOSED for policy documents: unavailable
+/// encryption stops durable storage rather than silently downgrading
+/// to plaintext. Never persist sensitive files unencrypted in the
+/// principal workspace.
+final class EncryptionUnavailableException implements Exception {
+  final String operation;
+
+  const EncryptionUnavailableException(this.operation);
+
+  @override
+  String toString() =>
+      'EncryptionUnavailableException: cannot $operation — no principal '
+      'encryption key is available. Refusing to persist unencrypted data.';
+}
+
 /// CW-P0-002: Principal-scoped, opaque-named, AES-256-GCM encrypted
 /// attachment store.
 ///
@@ -160,8 +178,11 @@ class EncryptedAttachmentStore {
   /// Write bytes to a new attachment at an opaque path.
   ///
   /// The bytes are encrypted with AES-256-GCM before writing.
-  /// If no principal key is available, bytes are written unencrypted
-  /// (legacy mode — the migration will re-encrypt later).
+  ///
+  /// CW-P0-003 (launch audit P0-3): FAILS CLOSED when no principal
+  /// encryption key is available — throws [EncryptionUnavailableException]
+  /// instead of writing plaintext. A policy document must never be
+  /// durably stored unencrypted in the principal workspace.
   ///
   /// Returns the path where the file was written, or null if no workspace
   /// is active.
@@ -177,21 +198,21 @@ class EncryptedAttachmentStore {
     if (filePath == null) return null;
 
     final key = _getFileKey();
-    if (key != null) {
-      // Encrypt before writing.
-      final encrypted = _encryptBytes(bytes, key);
-      await File(filePath).writeAsBytes(encrypted, flush: true);
-    } else {
-      // No key available — write unencrypted (legacy fallback).
-      await File(filePath).writeAsBytes(bytes, flush: true);
+    if (key == null) {
+      throw const EncryptionUnavailableException('write attachment');
     }
+    final encrypted = _encryptBytes(bytes, key);
+    await File(filePath).writeAsBytes(encrypted, flush: true);
     return filePath;
   }
 
   /// Copy a file to a new attachment at an opaque path.
   ///
   /// The source file bytes are encrypted with AES-256-GCM before writing.
-  /// If no principal key is available, bytes are written unencrypted.
+  ///
+  /// CW-P0-003 (launch audit P0-3): FAILS CLOSED when no principal
+  /// encryption key is available — throws [EncryptionUnavailableException]
+  /// instead of copying plaintext.
   ///
   /// Returns the path where the file was copied, or null if no workspace
   /// is active.
@@ -206,15 +227,13 @@ class EncryptedAttachmentStore {
     if (filePath == null) return null;
 
     final key = _getFileKey();
-    if (key != null) {
-      // Read source, encrypt, write.
-      final sourceBytes = await sourceFile.readAsBytes();
-      final encrypted = _encryptBytes(sourceBytes, key);
-      await File(filePath).writeAsBytes(encrypted, flush: true);
-    } else {
-      // No key available — copy unencrypted (legacy fallback).
-      await sourceFile.copy(filePath);
+    if (key == null) {
+      throw const EncryptionUnavailableException('copy attachment');
     }
+    // Read source, encrypt, write.
+    final sourceBytes = await sourceFile.readAsBytes();
+    final encrypted = _encryptBytes(sourceBytes, key);
+    await File(filePath).writeAsBytes(encrypted, flush: true);
     return filePath;
   }
 
@@ -321,8 +340,10 @@ class EncryptedAttachmentStore {
   /// Migrate a legacy file (from global documents directory) into the
   /// principal-scoped attachments directory.
   ///
-  /// If a principal key is available, the file is encrypted during
-  /// migration. If not, it is copied unencrypted (legacy fallback).
+  /// The file is encrypted during migration. CW-P0-003: if no principal
+  /// key is available, the migration fails (throws
+  /// [EncryptionUnavailableException]) rather than copying plaintext —
+  /// a policy file must never be persisted unencrypted in the workspace.
   ///
   /// Returns the new path if migration succeeded, or null if the source
   /// file doesn't exist or no workspace is active.
@@ -350,6 +371,9 @@ class EncryptedAttachmentStore {
   ///
   /// Used during the legacy file migration to upgrade plaintext files
   /// that were stored before CW-P0-002 encryption was added.
+  ///
+  /// CW-P0-003: returns false (never writes plaintext) when no key is
+  /// available — the file is left untouched for a later retry.
   ///
   /// Returns true if the file was re-encrypted or was already encrypted.
   /// Returns false if the file does not exist or no key is available.

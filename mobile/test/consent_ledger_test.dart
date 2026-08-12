@@ -372,6 +372,141 @@ void main() {
     });
   });
 
+  group('ConsentLedger.hasConsentForVersion (Audit 6 P0.17)', () {
+    late ConsentLedger ledger;
+
+    setUp(() {
+      ledger = ConsentLedger();
+    });
+
+    test('returns false when no records exist', () {
+      expect(
+        ledger.hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          'v1',
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns true when active grant matches the exact version', () async {
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: 'v2',
+        granted: true,
+      );
+      expect(
+        ledger.hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          'v2',
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+        'returns false when the active grant is under a DIFFERENT version '
+        '(stale grant is not authorization)',
+        () async {
+      // The core Audit 6 P0.17 regression: consent is active but recorded
+      // under an older policy version. The exact-version gate must refuse it.
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: 'v1_old',
+        granted: true,
+      );
+      expect(ledger.hasConsent(ConsentPurpose.documentProcessing), isTrue);
+      expect(
+        ledger.hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          'v2_current',
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns false when the matching-version record is revoked', () async {
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: 'v1',
+        granted: true,
+      );
+      await ledger.revokeConsent(ConsentPurpose.documentProcessing);
+      expect(
+        ledger.hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          'v1',
+        ),
+        isFalse,
+      );
+    });
+
+    test('latest record wins across version upgrades', () async {
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: 'v1',
+        granted: true,
+      );
+      await Future.delayed(const Duration(milliseconds: 10));
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: 'v2',
+        granted: true,
+      );
+
+      // The latest (v2) grant is authoritative: v1 is no longer current.
+      expect(
+        ledger.hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          'v1',
+        ),
+        isFalse,
+      );
+      expect(
+        ledger.hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          'v2',
+        ),
+        isTrue,
+      );
+    });
+
+    test('returns false when the matching record was denied (granted=false)',
+        () async {
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.documentProcessing,
+        version: 'v1',
+        granted: false,
+      );
+      expect(
+        ledger.hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          'v1',
+        ),
+        isFalse,
+      );
+    });
+
+    test('is purpose-scoped (a grant for one purpose is not another)', () async {
+      await ledger.recordConsent(
+        purpose: ConsentPurpose.analytics,
+        version: 'v1',
+        granted: true,
+      );
+      expect(
+        ledger.hasConsentForVersion(ConsentPurpose.analytics, 'v1'),
+        isTrue,
+      );
+      expect(
+        ledger.hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          'v1',
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('ConsentLedger — corrupted data handling', () {
     late ConsentLedger ledger;
 

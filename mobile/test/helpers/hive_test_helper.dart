@@ -3,9 +3,12 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:coverwise/models/identity.dart';
 import 'package:coverwise/services/analytics_service.dart';
 import 'package:coverwise/services/app_state_store.dart';
+import 'package:coverwise/services/hive_workspace_service.dart';
 import 'package:coverwise/services/local_storage_service.dart';
+import 'package:coverwise/services/principal_key_service.dart';
 
 /// Shared Hive test helper that provides consistent initialization and cleanup
 /// for all test files. Eliminates lock contention by ensuring boxes are opened
@@ -85,5 +88,77 @@ class HiveTestHelper {
     // The directory is intentionally process-scoped temporary test data; the
     // OS/test runner owns its cleanup after the isolate exits.
     _testDirectory = null;
+  }
+
+  /// In-memory flutter_secure_storage backing store for [_mockSecureStorage].
+  static final Map<String, String> _secureStorage = {};
+
+  /// Mocks flutter_secure_storage so a principal DEK can be created without
+  /// a platform channel. Used by [openTestWorkspace] and by test files that
+  /// exercise [PrincipalKeyService] directly.
+  ///
+  /// In tests without this mock, `FlutterSecureStorage.read()` (used by
+  /// [PrincipalKeyService.initForPrincipal] and the AuthInterceptor) waits
+  /// for a platform response that never arrives and hangs the test isolate.
+  static void mockSecureStorage() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      (call) async {
+        switch (call.method) {
+          case 'read':
+            final key = (call.arguments as Map)['key'] as String;
+            return _secureStorage[key];
+          case 'write':
+            final args = call.arguments as Map;
+            _secureStorage[args['key'] as String] = args['value'] as String;
+            return null;
+          case 'readAll':
+            return Map<String, String>.from(_secureStorage);
+          case 'delete':
+            _secureStorage.remove((call.arguments as Map)['key'] as String);
+            return null;
+          case 'deleteAll':
+            _secureStorage.clear();
+            return null;
+          case 'containsKey':
+            final key = (call.arguments as Map)['key'] as String;
+            return _secureStorage.containsKey(key);
+          default:
+            return null;
+        }
+      },
+    );
+  }
+
+  /// Opens a principal-scoped test workspace so that
+  /// [LocalStorageService.saveDocument] (which requires an active workspace
+  /// for the encrypted attachment store — CW-P0-002) works in unit tests.
+  ///
+  /// Hive 2.x returns already-open boxes as-is from `Hive.openBox` (path and
+  /// cipher are ignored), so pre-opened boxes from [setUp] keep working while
+  /// `HiveWorkspaceService.workspacePath` becomes available for file writes.
+  ///
+  /// Call in `setUpAll` alongside [setUp], and [closeTestWorkspace] in
+  /// `tearDownAll`.
+  static Future<void> openTestWorkspace({
+    String principalId = 'test-principal',
+  }) async {
+    mockSecureStorage();
+    await PrincipalKeyService().initForPrincipal(principalId);
+    await HiveWorkspaceService.openForActivePrincipal(
+      LocalPrincipal(principalId),
+    );
+  }
+
+  /// Tears down the in-memory principal key and resets the secure-storage
+  /// mock so it does not leak into other tests in the same isolate.
+  static void closeTestWorkspace() {
+    PrincipalKeyService().clearKey();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      null,
+    );
   }
 }

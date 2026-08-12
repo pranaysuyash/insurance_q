@@ -1,3 +1,4 @@
+import 'package:coverwise/config/app_config.dart';
 import 'package:coverwise/models/document_model.dart';
 import 'package:coverwise/providers/connectivity_provider.dart';
 import 'package:coverwise/providers/document_providers.dart';
@@ -218,11 +219,13 @@ void main() {
   group('Healthy consent (version in Hive + ledger already populated)', () {
     testWidgets('does not create duplicate ledger record', (tester) async {
       await cleanDb(tester);
+      // A stale box value must not matter — the ledger is authoritative
+      // (Audit 6 P0.17) and it holds CURRENT-version consent.
       await setConsentVersion(tester, 'v1');
       await recordConsentInLedger(
         tester,
         purpose: 'document_processing',
-        version: 'v1',
+        version: AppConfig.privacyPolicyVersion,
         granted: true,
       );
       expect(countLedgerRecords('document_processing'), 1);
@@ -285,8 +288,8 @@ void main() {
     testWidgets('does not affect other consent purposes', (tester) async {
       await cleanDb(tester);
       await setConsentVersion(tester, 'v1');
-      await recordConsentInLedger(tester, purpose: 'document_processing', version: 'v1', granted: true);
-      await recordConsentInLedger(tester, purpose: 'analytics', version: 'v1', granted: true);
+      await recordConsentInLedger(tester, purpose: 'document_processing', version: AppConfig.privacyPolicyVersion, granted: true);
+      await recordConsentInLedger(tester, purpose: 'analytics', version: AppConfig.privacyPolicyVersion, granted: true);
       expect(countLedgerRecords('document_processing'), 1);
       expect(countLedgerRecords('analytics'), 1);
 
@@ -350,7 +353,12 @@ void main() {
         (tester) async {
       await cleanDb(tester);
       await setConsentVersion(tester, 'v1');
-      await recordConsentInLedger(tester, purpose: 'document_processing', version: 'v1', granted: true);
+      await recordConsentInLedger(
+        tester,
+        purpose: 'document_processing',
+        version: AppConfig.privacyPolicyVersion,
+        granted: true,
+      );
 
       setViewport(tester);
       await tester.pumpWidget(buildApp());
@@ -363,13 +371,21 @@ void main() {
       expect(find.byType(Dialog), findsNothing);
     });
 
-    testWidgets('returns existing version without re-prompt on version change',
+    testWidgets(
+        'returns the current version without re-prompt when the ledger '
+        'holds current-version consent (stale box value is ignored)',
         (tester) async {
       await cleanDb(tester);
-      // Even if the stored version is "v1" (no upgrade logic exists yet),
-      // _ensureConsent() should return it without showing a dialog.
+      // The box value is legacy ('v1') but the ledger is authoritative and
+      // holds CURRENT-version consent — _ensureConsent() must fast-path and
+      // return the current version without touching the box.
       await setConsentVersion(tester, 'v1');
-      await recordConsentInLedger(tester, purpose: 'document_processing', version: 'v1', granted: true);
+      await recordConsentInLedger(
+        tester,
+        purpose: 'document_processing',
+        version: AppConfig.privacyPolicyVersion,
+        granted: true,
+      );
 
       setViewport(tester);
       await tester.pumpWidget(buildApp());
@@ -380,10 +396,127 @@ void main() {
 
       // No dialog shown (fast path).
       expect(find.byType(Dialog), findsNothing);
-      // Version still v1.
+      // The stale box value is untouched — nothing re-grants from it.
       final stored =
           Hive.box(AppStateStore.boxName).get('processing_consent_version');
       expect(stored, 'v1');
     });
   });
+
+  // ─── Stale-version consent (Audit 6 P0.17) ─────────────────────────
+
+  group('Stale-version consent (active grant under an OLD policy version)', () {
+    testWidgets(
+        're-prompts instead of reusing a grant recorded under an older version',
+        (tester) async {
+      await cleanDb(tester);
+      // An ACTIVE grant exists, but under a previous policy version. The
+      // fast path must NOT accept it — only exact-version consent counts.
+      // This is the core P0.17 regression: consent is active yet stale.
+      await recordConsentInLedger(
+        tester,
+        purpose: 'document_processing',
+        version: 'v1_old',
+        granted: true,
+      );
+      expect(
+        ConsentLedger().hasConsent(ConsentPurpose.documentProcessing),
+        isTrue,
+      );
+
+      setViewport(tester);
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tapUpload(tester);
+
+      // The dialog must appear — the old grant is not current-version
+      // authorization.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(Dialog), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // No new record was created by the fast path.
+      expect(countLedgerRecords('document_processing'), 1);
+    });
+
+    testWidgets(
+        're-granting at the current version unlocks the fast path on the '
+        'next upload',
+        (tester) async {
+      await cleanDb(tester);
+      await recordConsentInLedger(
+        tester,
+        purpose: 'document_processing',
+        version: 'v1_old',
+        granted: true,
+      );
+
+      setViewport(tester);
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tapUpload(tester);
+
+      // Dialog appears (stale grant). Grant consent at the current version.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(Dialog), findsOneWidget);
+      await tester.tap(find.text('I agree to policy processing'));
+      await tester.pump();
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Continue'));
+        await tester.pump();
+        for (int i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+      });
+
+      // The dialog recorded consent at the CURRENT version (old + new).
+      expect(countLedgerRecords('document_processing'), 2);
+      expect(
+        ConsentLedger().hasConsentForVersion(
+          ConsentPurpose.documentProcessing,
+          AppConfig.privacyPolicyVersion,
+        ),
+        isTrue,
+      );
+
+      // Real-async settle: Continue's pop + the consent write + the mocked
+      // network round-trips in the continuing upload flow all run on real
+      // timers/event-loop turns — fake-time pumps alone do not complete
+      // them. Give wall-clock time, then pump to render the settled frames.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 500)),
+      );
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(
+        find.byType(Dialog),
+        findsNothing,
+        reason: 'STEP-1: the consent dialog should be fully closed after '
+            'the re-grant',
+      );
+
+      // Second upload — the fast path now matches and no dialog appears.
+      await tester.pumpWidget(buildApp());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tapUpload(tester);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        find.byType(Dialog),
+        findsNothing,
+        reason: 'STEP-2: the second upload should fast-path without a dialog',
+      );
+    });
+  });
 }
+

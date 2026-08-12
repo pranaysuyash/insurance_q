@@ -49,6 +49,14 @@ class QaAnswer {
   final String? status;
   final String? verificationStatus;
 
+  /// CW-P0-001 (launch audit P0-1): the query scope that produced this
+  /// answer — `'all'` when the user asked across all policies, `'single'`
+  /// when scoped to one policy. Stored in the answer/history model so the
+  /// UI and history can faithfully represent what was actually queried
+  /// (an empty [documentId] alone is ambiguous: it could mean "all
+  /// documents" or "no documents").
+  final String? queryScope;
+
   QaAnswer({
     required this.text,
     required this.sources,
@@ -65,6 +73,7 @@ class QaAnswer {
     this.error,
     this.status,
     this.verificationStatus,
+    this.queryScope,
   });
 
   String get query => question;
@@ -123,6 +132,7 @@ class QaAnswer {
       error: json['error']?.toString(),
       status: json['status']?.toString(),
       verificationStatus: json['verification_status']?.toString(),
+      queryScope: json['query_scope']?.toString(),
     );
   }
 }
@@ -219,6 +229,7 @@ class QaPair {
         'error': answer.error,
         'status': answer.status,
         'verification_status': answer.verificationStatus,
+        'query_scope': answer.queryScope,
       },
       'timestamp': timestamp.toIso8601String(),
     };

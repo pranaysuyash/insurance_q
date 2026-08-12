@@ -93,6 +93,7 @@ mobile/ios/Flutter/Generated.xcconfig
 mobile/ios/Flutter/flutter_export_environment.sh
 mobile/ios/Runner/GeneratedPluginRegistrant.*
 mobile/android/.gradle
+mobile/android/.kotlin/
 mobile/android/captures/
 mobile/android/gradlew
 mobile/android/gradlew.bat
@@ -141,6 +142,12 @@ temp_migration/
 *.hive
 *.hive.lock
 mobile/test_*_hive/
+
+# Flutter workspace runtime data (HiveWorkspaceService)
+# Principal-scoped workspace dirs created under the CWD by tests (and under
+# the app documents dir in production). Contains Hive boxes + encrypted
+# attachment files; must never be committed.
+mobile/workspaces/
 
 # Supabase local runtime state; migration SQL remains tracked.
 supabase/.branches/

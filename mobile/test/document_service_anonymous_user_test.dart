@@ -6,10 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:coverwise/config/app_config.dart';
 import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/services/consent_ledger.dart';
 import 'package:coverwise/services/document_service.dart';
 import 'package:coverwise/services/local_storage_service.dart';
+
+import 'helpers/hive_test_helper.dart';
 
 /// Fake Supabase User for testing anonymous vs registered classification.
 ///
@@ -52,14 +55,20 @@ void main() {
     await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     await Hive.openBox(AppStateStore.boxName);
     await Hive.openBox('consent_ledger');
+    // CW-P0-002: saveDocument requires an active workspace (encrypted
+    // attachment store). Open a test workspace so local docs can be saved.
+    await HiveTestHelper.openTestWorkspace();
+    // Audit 6 P0.17: The upload gate requires the exact current policy
+    // version; record it so any consent-gated path stays unlocked.
     await ConsentLedger().recordConsent(
       purpose: ConsentPurpose.documentProcessing,
-      version: 'test',
+      version: AppConfig.privacyPolicyVersion,
       granted: true,
     );
   });
 
   tearDownAll(() async {
+    HiveTestHelper.closeTestWorkspace();
     if (await testDirectory.exists()) {
       await testDirectory.delete(recursive: true);
     }

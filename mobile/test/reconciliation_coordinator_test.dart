@@ -1,11 +1,32 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:coverwise/models/identity.dart';
 import 'package:coverwise/sync/reconciliation_coordinator.dart';
+
+/// Registers a mock handler for the flutter_secure_storage platform channel
+/// that THROWS [MissingPluginException].
+///
+/// In the flutter_test FakeAsync zone an unmocked platform channel never
+/// delivers a response, so `FlutterSecureStorage.read()` (used by
+/// [PrincipalKeyService] and `AuthService`) would hang forever — which stalls
+/// any test that reaches `HiveWorkspaceService.resetForPrincipal`.
+/// Simulating "no platform available" makes the secure-storage read fail
+/// fast, so `resetForPrincipal` throws exactly as the coordinator's catch
+/// blocks (and these tests' comments) expect.
+void _mockSecureStorageUnavailable() {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+    (call) async => throw MissingPluginException(
+      'flutter_secure_storage unavailable in tests',
+    ),
+  );
+}
 
 /// Creates a [ReconciliationCoordinator] backed by a real [WidgetRef]
 /// from a [ProviderScope] for the duration of the test.
@@ -33,6 +54,19 @@ void _withCoordinator(
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() => _mockSecureStorageUnavailable());
+  tearDown(() {
+    // Reset the mock handler so it cannot leak into other test files
+    // running in the same test runner.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      null,
+    );
+  });
+
   // ── Initial state ────────────────────────────────────────────────────
 
   group('initial state', () {
@@ -478,6 +512,24 @@ void main() {
       expect(source, contains('Duration(seconds: 2)'));
     });
 
+    test('claims sync is NOT auto-triggered (Audit 6 P0.1 local-only)', () {
+      // Audit 6 P0.1: The launch product keeps the claim log device-only.
+      // scheduleReconciliation must only retry pending document uploads —
+      // it must not invoke claims sync. The claim model's syncState remains
+      // for draft/commit tracking, but nothing sends claims to the backend
+      // automatically until the sync contract is redesigned and an explicit
+      // opt-in exists (see ADR-2026-07-24-02 update log).
+      final source = File('lib/sync/reconciliation_coordinator.dart')
+          .readAsStringSync();
+
+      // No private claims-sync helper may remain in the coordinator.
+      expect(source, isNot(contains('_syncClaims')));
+      // No fullSync trigger may remain in the coordinator's reconciliation.
+      expect(source, isNot(contains('.fullSync(')));
+      // Reconciliation now only retries uploads.
+      expect(source, contains('_retryPendingUploads(epoch: epoch)'));
+    });
+
     test('dispose sets mounted to false', () {
       final source = File('lib/sync/reconciliation_coordinator.dart')
           .readAsStringSync();
@@ -493,13 +545,21 @@ void main() {
       final source = File('lib/sync/reconciliation_coordinator.dart')
           .readAsStringSync();
 
-      final epochChecks =
-          'e != _principalEpoch'.allMatches(source).length;
+      // Audit 6 P0.1: Claims sync was removed from reconciliation, so the
+      // coordinator has ONE epoch-gated async path (_retryPendingUploads).
+      // It must guard BEFORE the work (e != _principalEpoch) and AFTER the
+      // work (mounted && e == _principalEpoch before ref.invalidate).
+      final preRejection = 'e != _principalEpoch'.allMatches(source).length;
+      final postRejection = 'e == _principalEpoch'.allMatches(source).length;
       expect(
-        epochChecks,
-        greaterThanOrEqualTo(2),
-        reason:
-            'Expected at least 2 epoch checks (before + after async work)',
+        preRejection,
+        greaterThanOrEqualTo(1),
+        reason: 'Expected a pre-rejection epoch guard before async work',
+      );
+      expect(
+        postRejection,
+        greaterThanOrEqualTo(1),
+        reason: 'Expected a post-rejection epoch guard after async work',
       );
     });
 
@@ -630,12 +690,15 @@ void main() {
           .readAsStringSync();
 
       expect(source, contains('e != _principalEpoch'));
-      // Must have at least 2 occurrences (pre-rejection + post-rejection).
-      final matches = 'e != _principalEpoch'.allMatches(source);
+      // Audit 6 P0.1: Claims sync removed — the coordinator's single
+      // epoch-gated path (_retryPendingUploads) keeps BOTH the
+      // pre-rejection guard (e != _principalEpoch) and the post-rejection
+      // guard (mounted && e == _principalEpoch).
+      expect(source, contains('e == _principalEpoch'));
       expect(
-        matches.length,
-        greaterThanOrEqualTo(2),
-        reason: 'Expected pre-rejection and post-rejection epoch guards',
+        'e != _principalEpoch'.allMatches(source).length,
+        greaterThanOrEqualTo(1),
+        reason: 'Expected the pre-rejection epoch guard',
       );
     });
 

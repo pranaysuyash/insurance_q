@@ -7,6 +7,8 @@ import 'package:hive/hive.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+import 'helpers/hive_test_helper.dart';
+
 /// In-memory path provider for tests. The Hive boxes need a
 /// real on-disk path; the tests use a temp directory.
 class _TempPathProvider extends PathProviderPlatform {
@@ -32,12 +34,17 @@ void main() {
   late Directory tempDir;
 
   setUp(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    // FSS-hang fix: without a flutter_secure_storage mock,
+    // initForPrincipal() waits forever for a platform response.
+    HiveTestHelper.mockSecureStorage();
     tempDir = await Directory.systemTemp.createTemp('principal_key_test_');
     PathProviderPlatform.instance = _TempPathProvider(tempDir.path);
     Hive.init(tempDir.path);
   });
 
   tearDown(() async {
+    PrincipalKeyService().clearKey();
     if (tempDir.existsSync()) {
       await tempDir.delete(recursive: true);
     }
@@ -51,11 +58,53 @@ void main() {
 
     test('returns the cached DEK after init', () {
       final svc = PrincipalKeyService();
-      // We can't call initForPrincipal without mocking the
-      // secure storage; the test of the in-memory cache
-      // shape is via clearKey (no throw when uninitialized).
+      // Uninitialized cache throws; covered by the previous test.
       svc.clearKey();
       expect(() => svc.getOrThrow(), throwsStateError);
+    });
+  });
+
+  group('initForPrincipal (FSS mocked)', () {
+    test('generates a 32-byte DEK and caches it for the principal', () async {
+      const principalId = 'user-abc-123';
+      await PrincipalKeyService().initForPrincipal(principalId);
+
+      final dek = PrincipalKeyService().getOrThrow();
+      expect(dek, hasLength(32));
+      expect(PrincipalKeyService().principalId, principalId);
+    });
+
+    test('returns the SAME DEK on re-init for the same principal', () async {
+      const principalId = 'user-abc-123';
+      await PrincipalKeyService().initForPrincipal(principalId);
+      final first = PrincipalKeyService().getOrThrow();
+
+      // Simulate a restart: drop the in-memory cache and re-init.
+      PrincipalKeyService().clearKey();
+      await PrincipalKeyService().initForPrincipal(principalId);
+      final second = PrincipalKeyService().getOrThrow();
+
+      // The DEK is stable — persisted in secure storage, not regenerated.
+      expect(second, equals(first));
+    });
+
+    test('a different principal gets a different DEK', () async {
+      await PrincipalKeyService().initForPrincipal('user-a');
+      final dekA = PrincipalKeyService().getOrThrow();
+      PrincipalKeyService().clearKey();
+
+      await PrincipalKeyService().initForPrincipal('user-b');
+      final dekB = PrincipalKeyService().getOrThrow();
+
+      expect(dekA, isNot(equals(dekB)));
+    });
+
+    test('throws on empty principalId without touching secure storage',
+        () async {
+      expect(
+        () => PrincipalKeyService().initForPrincipal(''),
+        throwsArgumentError,
+      );
     });
   });
 

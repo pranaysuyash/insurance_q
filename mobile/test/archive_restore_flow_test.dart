@@ -16,6 +16,8 @@ import 'package:coverwise/providers/service_providers.dart';
 import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/l10n/app_localizations_gen.dart';
 
+import 'helpers/hive_test_helper.dart';
+
 // ── Fake DocumentService for widget tests ─────────────────────────
 
 /// A [DocumentService] that does not need a real backend.
@@ -88,6 +90,8 @@ void main() {
     await Hive.initFlutter(tempDir.path);
     await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     await Hive.openBox(AppStateStore.boxName);
+    // CW-P0-002: saveDocument requires an active workspace + principal DEK.
+    await HiveTestHelper.openTestWorkspace();
   });
 
   setUp(() async {
@@ -97,6 +101,7 @@ void main() {
   });
 
   tearDownAll(() async {
+    HiveTestHelper.closeTestWorkspace();
     if (await tempDir.exists()) {
       try {
         await tempDir.delete(recursive: true);

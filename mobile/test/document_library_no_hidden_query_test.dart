@@ -9,17 +9,24 @@ import 'package:coverwise/services/app_state_store.dart';
 import 'package:coverwise/services/document_service.dart';
 import 'package:coverwise/services/local_storage_service.dart';
 
+import 'helpers/hive_test_helper.dart';
+
 void main() {
   late Directory hiveDirectory;
 
   setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
     hiveDirectory = await Directory.systemTemp.createTemp('coverwise-library-');
     Hive.init(hiveDirectory.path);
     await Hive.openBox<String>(LocalStorageService.documentsBoxName);
     await Hive.openBox(AppStateStore.boxName);
+    // CW-P0-002: saveWebDocument requires an active workspace + principal
+    // DEK. Mock secure storage so initForPrincipal does not hang.
+    await HiveTestHelper.openTestWorkspace();
   });
 
   tearDownAll(() async {
+    HiveTestHelper.closeTestWorkspace();
     await Hive.close();
     await hiveDirectory.delete(recursive: true);
   });

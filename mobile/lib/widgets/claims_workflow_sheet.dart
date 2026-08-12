@@ -38,14 +38,14 @@ class ClaimWizardSheet extends ConsumerStatefulWidget {
       ),
       builder: (_) => ClaimWizardSheet(preselectedPolicy: preselectedPolicy),
     );
+    // P0.12: The wizard persists the claim (addClaimRecord) itself before
+    // popping, so a persistence failure keeps the sheet open and cannot
+    // orphan committed photos.
     if (result != null && context.mounted) {
-      await AppStateRepository.addClaimRecord(result);
-      if (context.mounted) {
-        CoverWiseSnackBar.success(
-          context,
-          'Claim logged — ${result.incidentType}. Track it in Claim log.',
-        );
-      }
+      CoverWiseSnackBar.success(
+        context,
+        'Claim logged — ${result.incidentType}. Track it in Claim log.',
+      );
     }
   }
 
@@ -63,6 +63,14 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
 
   // Step 2: photo evidence
   final List<String> _photoPaths = [];
+  // P0.12: Paths added during this wizard session. Only these are eligible
+  // for cleanup — photos belonging to a previously saved claim are never
+  // touched.
+  final List<String> _sessionPhotoPaths = [];
+  // P0.12: True only after the claim has been durably persisted. When false
+  // at dispose time (cancel, swipe-dismiss, tap-outside, app close, or a
+  // persistence failure), session photos are deleted from disk.
+  bool _saved = false;
   final ImagePicker _picker = ImagePicker();
 
   // Step 3: description + notes
@@ -93,7 +101,26 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
     _pageController.dispose();
     _descController.dispose();
     _notesController.dispose();
+    // P0.12: Clean up photos added in this session that were never
+    // committed. Covers Cancel, swipe-dismiss, tap-outside, and app close
+    // before save. safeDelete enforces path containment (only files inside
+    // the principal-scoped attachments directory are removed) and is
+    // idempotent for already-deleted paths.
+    if (!_saved && _sessionPhotoPaths.isNotEmpty) {
+      for (final path in _sessionPhotoPaths) {
+        unawaited(_deleteOrphanPhoto(path));
+      }
+    }
     super.dispose();
+  }
+
+  /// P0.12: Best-effort deletion of an uncommitted wizard photo.
+  Future<void> _deleteOrphanPhoto(String path) async {
+    try {
+      await EncryptedAttachmentStore.safeDelete(path);
+    } catch (e) {
+      debugPrint('CW-P0-012: Failed to clean up orphaned claim photo: $e');
+    }
   }
 
   void _next() {
@@ -152,9 +179,17 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
         return;
       }
 
-      if (mounted) {
-        setState(() => _photoPaths.add(destPath));
+      // P0.12: If the sheet was dismissed while the encrypted copy was in
+      // flight, do not leak the orphan file.
+      if (!mounted) {
+        await EncryptedAttachmentStore.safeDelete(destPath);
+        return;
       }
+
+      setState(() {
+        _photoPaths.add(destPath);
+        _sessionPhotoPaths.add(destPath);
+      });
     } catch (e) {
       if (mounted) {
         CoverWiseSnackBar.error(context, 'Could not select photo: $e');
@@ -167,12 +202,15 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
   /// CW-P0-002: Uses safeDelete with path containment validation.
   Future<void> _removePhoto(int index) async {
     final path = _photoPaths[index];
-    setState(() => _photoPaths.removeAt(index));
+    setState(() {
+      _photoPaths.removeAt(index);
+      _sessionPhotoPaths.remove(path);
+    });
     // Delete the file asynchronously — don't block the UI.
     try {
       await EncryptedAttachmentStore.safeDelete(path);
     } catch (e) {
-      debugPrint('CW-P0-002: Failed to delete claim photo: $e');
+      debugPrint('CW-P0-012: Failed to delete claim photo: $e');
     }
   }
 
@@ -202,6 +240,24 @@ class _ClaimWizardSheetState extends ConsumerState<ClaimWizardSheet> {
       photoPaths: List.unmodifiable(_photoPaths),
     );
 
+    // P0.12: Persist BEFORE closing the sheet so a storage failure is
+    // surfaced while the wizard is still open. On failure the session
+    // photos remain tracked and are cleaned up if the user cancels.
+    try {
+      await AppStateRepository.addClaimRecord(claim);
+    } catch (e) {
+      debugPrint('CW-P0-012: Failed to persist claim record: $e');
+      setState(() => _saving = false);
+      if (mounted) {
+        CoverWiseSnackBar.error(
+          context,
+          'Could not save claim. Please try again.',
+        );
+      }
+      return;
+    }
+
+    _saved = true;
     setState(() => _saving = false);
     if (mounted) Navigator.of(context).pop(claim);
   }

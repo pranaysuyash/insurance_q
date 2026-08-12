@@ -94,6 +94,19 @@ class ConsentSyncService {
   }
 
   Future<int> _syncAll() async {
+    // P0.23: Pull server authority BEFORE pushing local state. This prevents
+    // a stale local grant (e.g., offline grant followed by server-side
+    // revocation on another device) from overwriting the server's current
+    // state. The server is the source of truth for consent.
+    //
+    // pullFromServer() itself is idempotent and debounced via _pullInFlight.
+    try {
+      await pullFromServer();
+    } catch (e) {
+      debugPrint('ConsentSyncService: pre-push pull failed (server may be '
+          'unreachable) — continuing with local state: $e');
+    }
+
     final box = Hive.box(AppStateStore.boxName);
     // Gracefully degrade when Supabase is not initialized (e.g. unit tests).
     String principal;

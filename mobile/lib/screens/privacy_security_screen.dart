@@ -156,8 +156,9 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             icon: Icons.description,
             title: 'Policy documents',
             body: 'When you upload an insurance policy (PDF or image), it is '
-                'stored on your device. When you choose to sync a policy, the '
-                'document is sent to CoverWise for summaries and answers.',
+                'stored on your device and sent to CoverWise for summaries '
+                'and answers. If you are offline, the file stays on your '
+                'device until the upload retries.',
           ),
           const _PrivacyItem(
             icon: Icons.chat_bubble_outline_rounded,
@@ -206,10 +207,10 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                               ?.copyWith(fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
                       Text(
-                        'Help improve CoverWise by sharing anonymous usage '
-                        'statistics. No personal data or policy content is '
-                        'included — only anonymous event counts and '
-                        'feature usage patterns.',
+                        'Help improve CoverWise by sharing usage statistics. '
+                        'No policy content is included — events use a random '
+                        'install identifier, not your name or email. You can '
+                        'turn this off at any time.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme

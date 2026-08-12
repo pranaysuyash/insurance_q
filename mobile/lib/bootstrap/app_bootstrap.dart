@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_config.dart';
 import '../models/identity.dart';
+import '../models/principal_state.dart';
 import '../providers/capabilities_provider.dart';
 import '../providers/policy_providers.dart';
 import '../services/app_state_repository.dart';
@@ -170,16 +171,19 @@ Future<void> _startup() async {
   );
 }
 
-/// Resolves the workspace principal based on the current auth state.
+/// CW-P0-004: Resolves the workspace principal deterministically.
+///
+/// Uses [PrincipalState.resolveCurrent] which maps the current Supabase
+/// session state (null → InstallGuest, anonymous → BackendAnonymous,
+/// registered → RegisteredPrincipal) to the correct [WorkspacePrincipal].
+///
+/// This replaces the previous manual if/else chain with a single
+/// deterministic decision point.
 WorkspacePrincipal _resolvePrincipal() {
-  if (AuthService.hasAccountSession) {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (currentUser?.id != null) {
-      return AccountPrincipal(currentUser!.id);
-    }
-  }
-  // Local-only principal uses the persisted install id (stable until uninstall).
-  return LocalPrincipal(InstallService.getInstallId());
+  return Resolve.resolve(
+    session: Supabase.instance.client.auth.currentSession,
+    installId: InstallService.getInstallId(),
+  ).principal;
 }
 
 /// Migrates legacy Hive boxes from device-key encryption to principal-scoped

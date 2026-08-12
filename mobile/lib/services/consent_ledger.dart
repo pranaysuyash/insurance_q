@@ -252,6 +252,28 @@ class ConsentLedger {
     return record?.isActive ?? false;
   }
 
+  /// Check if consent is currently granted for [purpose] under the EXACT
+  /// [expectedVersion].
+  ///
+  /// Audit 6 P0.17: A grant recorded under an older policy version is
+  /// evidence of an old decision, not authorization under the current
+  /// policy. Upload gates must require consent for the exact current
+  /// version, so a policy change forces re-authorization instead of
+  /// silently reusing a stale grant. Returns `false` (default deny)
+  /// when no record, the latest record is revoked, or the version differs.
+  ///
+  /// Version comparison is EXACT string equality by design: any version-
+  /// string format change (e.g. a backend bumping 'v3' to '3.0')
+  /// intentionally invalidates all prior grants and forces re-prompt.
+  /// Do not "soften" this into a prefix/contains match.
+  bool hasConsentForVersion(
+    ConsentPurpose purpose,
+    String expectedVersion,
+  ) {
+    final record = getLatestRecord(purpose);
+    return record?.isActive == true && record?.version == expectedVersion;
+  }
+
   /// Get the latest consent record for a given purpose.
   ConsentRecord? getLatestRecord(ConsentPurpose purpose) {
     if (_box == null) return null;

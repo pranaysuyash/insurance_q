@@ -7,6 +7,7 @@ import 'package:hive/hive.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/qa_models.dart';
+import '../models/query_scope.dart';
 import '../models/document_model.dart';
 import '../config/app_config.dart';
 import '../providers/capabilities_provider.dart';
@@ -330,6 +331,7 @@ class QaScreenState extends ConsumerState<QaScreen>
         ...result,
         'query': question,
         'document_id': selectedDoc ?? '',
+        'query_scope': _currentScope().isAllDocuments ? 'all' : 'single',
       });
 
       if (!mounted || !widget.isActive) {
@@ -380,6 +382,7 @@ class QaScreenState extends ConsumerState<QaScreen>
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
           question: question,
+          queryScope: _currentScope().isAllDocuments ? 'all' : 'single',
         );
         if (mounted &&
             widget.isActive &&
@@ -549,6 +552,7 @@ class QaScreenState extends ConsumerState<QaScreen>
             timestamp: DateTime.now(),
             documentId: selectedDoc ?? '',
             question: question,
+            queryScope: _currentScope().isAllDocuments ? 'all' : 'single',
           );
           ref.read(currentAnswerProvider.notifier).setState(fallbackAnswer);
           if (!mounted) return;
@@ -570,6 +574,7 @@ class QaScreenState extends ConsumerState<QaScreen>
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
           question: question,
+          queryScope: _currentScope().isAllDocuments ? 'all' : 'single',
         );
         if (mounted && widget.isActive) {
           ref.read(currentAnswerProvider.notifier).setState(partialAnswer);
@@ -589,6 +594,7 @@ class QaScreenState extends ConsumerState<QaScreen>
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
           question: question,
+          queryScope: _currentScope().isAllDocuments ? 'all' : 'single',
         );
         ref.read(currentAnswerProvider.notifier).setState(finalAnswer);
 
@@ -619,6 +625,7 @@ class QaScreenState extends ConsumerState<QaScreen>
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
           question: question,
+          queryScope: _currentScope().isAllDocuments ? 'all' : 'single',
         );
         if (mounted &&
             widget.isActive &&
@@ -697,6 +704,7 @@ class QaScreenState extends ConsumerState<QaScreen>
         question: question,
         status: 'offline_assist',
         verificationStatus: 'unverified',
+        queryScope: 'single',
       );
       ref.read(currentAnswerProvider.notifier).setState(answer);
       ref.read(qaHistoryProvider.notifier).addItem(question, answer);
@@ -713,14 +721,31 @@ class QaScreenState extends ConsumerState<QaScreen>
     }
   }
 
-  String? _currentDocumentId() {
+  /// CW-P0-001 (launch audit P0-1): resolve the explicit [QueryScope] for
+  /// the current question instead of collapsing "All Documents" into the
+  /// first policy. Previously, `selectedDocumentProvider == null` (the
+  /// "All Documents" choice) silently fell through to `documents.first.id`,
+  /// so the request queried one policy while the UI claimed all policies
+  /// were being searched.
+  ///
+  /// Resolution order:
+  ///   1. Explicit single-document selection (user picked a policy).
+  ///   2. `initialDocumentId` passed into this screen (e.g. opened from a
+  ///      document context).
+  ///   3. Otherwise → [QueryScope.all] (the "All Documents" chip default).
+  QueryScope _currentScope() {
     final selectedDoc = ref.read(selectedDocumentProvider);
-    if (selectedDoc != null) return selectedDoc;
-    if (widget.initialDocumentId != null) return widget.initialDocumentId;
-    final documents = ref.read(documentsProvider).asData?.value ?? [];
-    if (documents.isNotEmpty) return documents.first.id;
-    return null;
+    if (selectedDoc != null) return QueryScope.single(selectedDoc);
+    if (widget.initialDocumentId != null) {
+      return QueryScope.single(widget.initialDocumentId!);
+    }
+    return QueryScope.all;
   }
+
+  /// Returns the effective document ID for the current scope, or null when
+  /// the query targets ALL documents. Passing null omits the `document_id`
+  /// filter so the backend searches every policy.
+  String? _currentDocumentId() => _currentScope().documentId;
 
   /// Fire [first_question_asked] once per install. Uses SharedPreferences
   /// to deduplicate across app launches and sessions. The flag is never
@@ -1775,8 +1800,16 @@ class _AnswerCardState extends ConsumerState<_AnswerCard> {
                               ? l10n.qaCitationSource(entry.key + 1)
                               : l10n.qaCitationSourcePage(entry.key + 1, page);
                           final displayStatus = status ?? l10n.qaCitationUnknown;
-                          // Navigate to document preview at the cited page
-                          final documentId = answer.documentId;
+                          // Navigate to document preview at the cited page.
+                          // Prefer the per-citation documentId so that
+                          // all-documents answers (answer.documentId == '')
+                          // still open the correct source policy.
+                          final citationDocumentId =
+                              citation['document_id']?.toString() ?? '';
+                          final documentId =
+                              citationDocumentId.isNotEmpty
+                                  ? citationDocumentId
+                                  : answer.documentId;
                           final pageInt = page is int
                               ? page
                               : int.tryParse(page?.toString() ?? '');

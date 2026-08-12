@@ -103,15 +103,26 @@ class DocumentService {
     return _localStorageService.cacheRemoteSource(document, bytes);
   }
 
-  /// Checks the local consent ledger for document-processing consent.
+  /// Checks the local consent ledger for document-processing consent under
+  /// the EXACT current privacy-policy version.
   ///
   /// P0.1 (Audit 5): No document bytes may be transmitted to the backend
   /// without active documentProcessing consent recorded in the ledger.
   ///
-  /// [ConsentLedger.hasConsent] already returns `false` when the Hive box
-  /// is unavailable, so no extra error handling is needed here.
+  /// Audit 6 P0.17: The gate requires consent for the exact current policy
+  /// version. A grant recorded under an older version is evidence of an old
+  /// decision — not authorization under the current policy — so a policy
+  /// change forces re-authorization before any upload or retry transmits
+  /// bytes. This is defense in depth: the UI ([_ensureConsent]) already
+  /// re-prompts, and this service gate refuses stale-version grants too.
+  ///
+  /// [ConsentLedger.hasConsentForVersion] already returns `false` when the
+  /// Hive box is unavailable, so no extra error handling is needed here.
   bool _hasDocumentProcessingConsent() {
-    return ConsentLedger().hasConsent(ConsentPurpose.documentProcessing);
+    return ConsentLedger().hasConsentForVersion(
+      ConsentPurpose.documentProcessing,
+      AppConfig.privacyPolicyVersion,
+    );
   }
 
   /// Returns a user-facing error map when processing consent is missing.
@@ -526,12 +537,12 @@ class DocumentService {
         'files': await MultipartFile.fromFile(file.path),
         'processing_mode': 'full',
         'processing_consent': true,
-        // Audit 5 P0.3: The consent version is always set during the
-        // initial upload (both uploadFile and uploadWebDocument paths).
-        // A null here means the document predates consent tracking;
-        // use the empty string rather than a magic sentinel.
-        'processing_consent_version':
-            document.processingConsentVersion ?? '',
+        // Audit 6 P0.17: The gate above already proved active consent for
+        // the exact CURRENT policy version, so the retry replays the current
+        // version — never a stale stored one. Reusing an old document-level
+        // consent version after a policy change would misrepresent the
+        // authorization the user just gave.
+        'processing_consent_version': AppConfig.privacyPolicyVersion,
       });
       final response = await _dio.post(
         '/documents/upload',
@@ -581,6 +592,10 @@ class DocumentService {
         status: first['status']?.toString() ?? 'received',
         syncState: 'synced',
         processingState: first['status']?.toString() ?? 'received',
+        // Audit 6 P0.17: Keep the stored consent version aligned with the
+        // authorization actually proven by the gate, so the record never
+        // claims an older policy version authorized this transmission.
+        processingConsentVersion: AppConfig.privacyPolicyVersion,
       ));
       return 'synced';
     } on DioException catch (error) {

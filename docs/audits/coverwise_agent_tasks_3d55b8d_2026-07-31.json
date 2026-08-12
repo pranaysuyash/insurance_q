@@ -1,0 +1,793 @@
+{
+  "metadata": {
+    "repository": "pranaysuyash/insurance_q",
+    "branch": "main",
+    "reviewed_commit": "3d55b8d0ee0d905ee06e76902e74875b7a06787e",
+    "date": "2026-07-31",
+    "doctrine": "motto_v4",
+    "release_verdict": "NO-GO"
+  },
+  "agent_operating_rules": [
+    "Read motto_v4.md, .agent/AGENT_KICKOFF_PROMPT.txt, the signed product constitution, relevant ADRs, and current session context before editing.",
+    "Re-check repository HEAD and all listed files before acting because parallel work may have landed.",
+    "Do not create a parallel implementation. Replace, migrate, or converge the canonical path.",
+    "Do not use mutating git commands. Work against current files and report intended changes.",
+    "Every task must include behavioral tests, migration/recovery behavior, documentation updates, and an acceptance report.",
+    "Do not declare success from no-crash tests, source-string assertions, comments, or local mocks that bypass the real cross-layer contract."
+  ],
+  "tasks": [
+    {
+      "id": "CW-P0-001",
+      "priority": "P0",
+      "title": "Sign doctrine and remove prohibited product surface",
+      "agent_role": "product-architecture and legal-boundary reviewer",
+      "objective": "Make one product constitution canonical and remove launch behavior that contradicts it.",
+      "files": [
+        "motto_v4.md",
+        "docs/planning/product/PRODUCT_FIRST_PRINCIPLES.md",
+        "docs/decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md",
+        "mobile/lib/screens/what_if_calculator_screen.dart",
+        "mobile/lib/utils/what_if_calculator.dart",
+        "mobile/lib/navigation/app_router.dart",
+        "mobile/lib/navigation/main_navigation.dart",
+        "mobile/lib/l10n/*.arb"
+      ],
+      "implementation": [
+        "Record operator approval or rejection of the proposed constitution.",
+        "Remove What-If from routes, navigation, tests, copy, analytics, and release assets.",
+        "Remove or explicitly quarantine speculative smart-guidance copy.",
+        "Add an allowed-capability registry and a release test for prohibited surfaces."
+      ],
+      "acceptance": [
+        "No premium or coverage estimate formula ships.",
+        "No /what-if route exists in a production build.",
+        "One signed doctrine document has precedence over all other product documents.",
+        "Decision log records rationale and migration impact."
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "CW-P0-002",
+      "priority": "P0",
+      "title": "Freeze shared cross-layer wire contracts",
+      "agent_role": "API contract architect",
+      "objective": "Create one source for claims, consent, capabilities, upload, and Q&A schemas shared by Dart, FastAPI, tests, and documentation.",
+      "files": [
+        "src/models/",
+        "src/api/",
+        "mobile/lib/models/",
+        "mobile/lib/services/",
+        "docs/architecture/",
+        "docs/decisions/"
+      ],
+      "implementation": [
+        "Choose OpenAPI/JSON Schema or an equivalent canonical schema source.",
+        "Generate or validate Dart and Pydantic representations.",
+        "Version every external response.",
+        "Define strict error/result unions and forward compatibility.",
+        "Add CI drift detection."
+      ],
+      "acceptance": [
+        "Undocumented fields fail contract tests.",
+        "Mobile and backend types are generated or mechanically checked.",
+        "Contract version is visible in runtime responses.",
+        "Claims id mismatch is caught before app code runs."
+      ],
+      "depends_on": [
+        "CW-P0-001"
+      ]
+    },
+    {
+      "id": "CW-P0-003",
+      "priority": "P0",
+      "title": "Rebuild claims synchronization",
+      "agent_role": "offline-sync and backend contract engineer",
+      "objective": "Deliver lossless create, update, delete, pagination, retry, and conflict behavior.",
+      "files": [
+        "mobile/lib/services/claims_sync_service.dart",
+        "mobile/lib/models/claim_record.dart",
+        "mobile/lib/services/app_state_repository.dart",
+        "src/models/claim.py",
+        "src/api/claims.py",
+        "supabase/migrations/20260724000000_claims_table.sql",
+        "mobile/test/",
+        "tests/"
+      ],
+      "implementation": [
+        "Separate local_id and remote_id.",
+        "Use server identity/version after create.",
+        "Implement PATCH for modified records.",
+        "Implement deletion tombstones.",
+        "Use cursor pagination and never treat one page as the full snapshot.",
+        "Add idempotency keys and conflict policy.",
+        "Preserve filed_date where product semantics require it.",
+        "Validate document and artifact ownership."
+      ],
+      "acceptance": [
+        "Real mobile POST succeeds against FastAPI.",
+        "More than 200 claims reconcile without local deletion.",
+        "Timeout after server create does not duplicate.",
+        "Offline create/edit/delete survives process death.",
+        "Malformed success response is not success.",
+        "Concurrent device/server edit follows documented conflict policy."
+      ],
+      "depends_on": [
+        "CW-P0-002"
+      ]
+    },
+    {
+      "id": "CW-P0-004",
+      "priority": "P0",
+      "title": "Implement deterministic principal state machine",
+      "agent_role": "identity and state-machine engineer",
+      "objective": "Unify install guest, backend anonymous, and registered account ownership with durable transitions.",
+      "files": [
+        "mobile/lib/bootstrap/app_bootstrap.dart",
+        "mobile/lib/services/auth_service.dart",
+        "mobile/lib/sync/reconciliation_coordinator.dart",
+        "mobile/lib/services/hive_workspace_service.dart",
+        "mobile/lib/services/principal_key_service.dart",
+        "src/api/user.py",
+        "src/services/identity_link_service.py"
+      ],
+      "implementation": [
+        "Model explicit identity_type instead of email/phone heuristics.",
+        "Bind all long-running work to principal epoch.",
+        "Persist anonymous claim intent until server completion.",
+        "Define local/server transition ordering and recovery.",
+        "Fence RevenueCat and all external identity-bound providers.",
+        "Define old-principal retention and key deletion."
+      ],
+      "acceptance": [
+        "Startup timing cannot change workspace identity.",
+        "Anonymous refresh does not become account transition.",
+        "Network loss at every identity-link stage recovers.",
+        "Account A work cannot commit under account B.",
+        "Process death does not lose claim intent.",
+        "Old principal data is inaccessible after transition policy."
+      ],
+      "depends_on": [
+        "CW-P0-002"
+      ]
+    },
+    {
+      "id": "CW-P0-005",
+      "priority": "P0",
+      "title": "Encrypt and principal-scope local policy content",
+      "agent_role": "mobile storage security engineer",
+      "objective": "Protect source policy bytes, filenames, metadata, migration, and verified erasure.",
+      "files": [
+        "mobile/lib/services/local_storage_service.dart",
+        "mobile/lib/services/document_service.dart",
+        "mobile/lib/services/principal_key_service.dart",
+        "mobile/lib/services/hive_workspace_service.dart",
+        "mobile/lib/screens/settings_screen.dart",
+        "mobile/android/app/src/main/AndroidManifest.xml",
+        "mobile/ios/Runner/Info.plist"
+      ],
+      "implementation": [
+        "Create dedicated per-principal content root.",
+        "Use opaque filenames and authenticated encryption.",
+        "Store and validate content digest.",
+        "Add atomic file/metadata journal.",
+        "Migrate existing plaintext files safely.",
+        "Delete only CoverWise-owned paths.",
+        "Delete secure-store keys and verify erasure.",
+        "Set platform backup/file-protection policies."
+      ],
+      "acceptance": [
+        "Sandbox inspection finds no readable policy source or original filename.",
+        "Migration survives kill at every stage.",
+        "Principal cross-read fails.",
+        "Clear Data does not delete unrelated app files.",
+        "Residual ciphertext is unrecoverable after key erasure.",
+        "Android and iOS backup behavior is documented and tested."
+      ],
+      "depends_on": [
+        "CW-P0-004"
+      ]
+    },
+    {
+      "id": "CW-P0-006",
+      "priority": "P0",
+      "title": "Make consent server-authoritative",
+      "agent_role": "privacy architecture engineer",
+      "objective": "Implement idempotent, principal-scoped consent reconciliation and enforce it at protected operations.",
+      "files": [
+        "mobile/lib/services/consent_ledger.dart",
+        "mobile/lib/services/server_consent_service.dart",
+        "mobile/lib/services/consent_sync_service.dart",
+        "mobile/lib/screens/onboarding_screen.dart",
+        "mobile/lib/screens/documents_screen.dart",
+        "mobile/lib/widgets/lead_capture_dialog.dart",
+        "src/api/consent.py",
+        "src/api/document.py",
+        "src/services/consent_ledger_service.py"
+      ],
+      "implementation": [
+        "Pull current server authority before convergence.",
+        "Append pending local events idempotently.",
+        "Use server sequence/order.",
+        "Bind sync to principal epoch.",
+        "Check current server consent during upload/processing authorization.",
+        "Remove client control of IP/user-agent.",
+        "Separate Terms, Privacy, processing, analytics, contact, marketing, and model-improvement purposes."
+      ],
+      "acceptance": [
+        "Cross-device revocation blocks next protected operation.",
+        "Crash after append does not duplicate.",
+        "Principal switch cannot publish old consent.",
+        "Onboarding mandatory records cannot fail silently.",
+        "Malformed server response is explicit partial/error state.",
+        "Terms and Privacy versions are separately auditable."
+      ],
+      "depends_on": [
+        "CW-P0-002",
+        "CW-P0-004"
+      ]
+    },
+    {
+      "id": "CW-P0-007",
+      "priority": "P0",
+      "title": "Replace public deletion fiction with durable workflow",
+      "agent_role": "data lifecycle and backend engineer",
+      "objective": "Unify public and authenticated deletion around durable verification, retry, status, and truthful copy.",
+      "files": [
+        "src/api/user.py",
+        "src/services/account_lifecycle_service.py",
+        "src/services/job_outbox_service.py",
+        "src/workers/outbox_worker.py",
+        "mobile/lib/screens/profile_screen.dart",
+        "mobile/lib/screens/settings_screen.dart",
+        "mobile/lib/services/auth_service.dart"
+      ],
+      "implementation": [
+        "Persist public request in canonical database.",
+        "Send and verify a challenge before destructive action.",
+        "Add abuse protection and idempotency.",
+        "Expose durable status.",
+        "Use the existing deletion outbox.",
+        "Create verified local erasure flow.",
+        "Remove any untrue email or permanent-deletion copy."
+      ],
+      "acceptance": [
+        "Service restart does not lose request.",
+        "Email is actually sent before copy claims it.",
+        "Duplicate requests converge.",
+        "Unauthorized requester cannot erase account.",
+        "Server and local deletion stages are independently verified.",
+        "Status and audit trail survive deployment."
+      ],
+      "depends_on": [
+        "CW-P0-002",
+        "CW-P0-004",
+        "CW-P0-005"
+      ]
+    },
+    {
+      "id": "CW-P0-008",
+      "priority": "P0",
+      "title": "Fence analytics by consent and principal generation",
+      "agent_role": "telemetry and concurrency engineer",
+      "objective": "Prevent post-revocation sends, cross-principal events, duplicates, and release-schema violations.",
+      "files": [
+        "mobile/lib/services/analytics_service.dart",
+        "mobile/lib/providers/",
+        "src/api/analytics.py",
+        "docs/analysis/analytics_tracking_event_registry.md"
+      ],
+      "implementation": [
+        "Use one serialized analytics actor.",
+        "Add event UUID and batch idempotency.",
+        "Bind events to principal and consent generation.",
+        "Cancel/fence in-flight upload on revocation/transition.",
+        "Enforce schema and property allowlist in release.",
+        "Sanitize logs and Sentry.",
+        "Correct anonymous wording to pseudonymous."
+      ],
+      "acceptance": [
+        "Revocation during upload sends no post-revocation event.",
+        "Account switch cannot relabel old events.",
+        "Concurrent flush triggers do not duplicate.",
+        "Crash after backend ingest is idempotent.",
+        "Unknown event/property fails release tests."
+      ],
+      "depends_on": [
+        "CW-P0-004",
+        "CW-P0-006"
+      ]
+    },
+    {
+      "id": "CW-P0-009",
+      "priority": "P0",
+      "title": "Correct Q&A evidence semantics",
+      "agent_role": "RAG trust and mobile state engineer",
+      "objective": "Ensure every truth label matches measured evidence and transport failures never become answers.",
+      "files": [
+        "mobile/lib/screens/qa_screen.dart",
+        "mobile/lib/models/qa_models.dart",
+        "mobile/lib/widgets/answer_verification_badge.dart",
+        "src/services/answer_verifier.py",
+        "src/rag/pipeline.py",
+        "tests/test_answer_verifier.py",
+        "mobile/lib/l10n/*.arb"
+      ],
+      "implementation": [
+        "Unify streaming and non-streaming under one request controller.",
+        "Use disjoint UI states.",
+        "Remove client substring source filtering.",
+        "Remove fabricated relevance scores.",
+        "Add strict provenance schema.",
+        "Implement claim decomposition and entailment/calibrated verification.",
+        "Downgrade UI wording until semantics are proven.",
+        "Keep unsupported claims out of fully-backed output."
+      ],
+      "acceptance": [
+        "Non-entailing citation cannot produce fully backed.",
+        "Short unsupported answer cannot produce fully backed.",
+        "Transport error is never stored in answer history.",
+        "Real customer names are not filtered.",
+        "Every rendered material claim maps to evidence span.",
+        "Verification copy matches measured evaluator behavior."
+      ],
+      "depends_on": [
+        "CW-P0-001",
+        "CW-P0-002"
+      ]
+    },
+    {
+      "id": "CW-P0-010",
+      "priority": "P0",
+      "title": "Make onboarding a durable legal transaction",
+      "agent_role": "mobile onboarding and privacy engineer",
+      "objective": "Prevent onboarding completion without durable required legal records and clear state.",
+      "files": [
+        "mobile/lib/screens/onboarding_screen.dart",
+        "mobile/lib/services/consent_ledger.dart",
+        "mobile/lib/services/consent_sync_service.dart",
+        "mobile/lib/services/analytics_service.dart",
+        "mobile/lib/l10n/*.arb"
+      ],
+      "implementation": [
+        "Persist mandatory records before completion flag.",
+        "Separate Terms and Privacy.",
+        "Represent offline pending server sync explicitly.",
+        "Correct pseudonymous analytics copy.",
+        "Reduce legal/footer density and make full page scroll-safe.",
+        "Use evidence-neutral product wording."
+      ],
+      "acceptance": [
+        "Local write failure blocks completion.",
+        "Process death resumes safely.",
+        "Offline completion has durable pending state.",
+        "200 percent text scale has no overflow.",
+        "Terms and Privacy are separately visible."
+      ],
+      "depends_on": [
+        "CW-P0-006"
+      ]
+    },
+    {
+      "id": "CW-P0-011",
+      "priority": "P0",
+      "title": "Deploy the exact signed artifact",
+      "agent_role": "platform and supply-chain engineer",
+      "objective": "Make the production revision provably identical to the CI-tested, attested, and signed artifact.",
+      "files": [
+        ".github/workflows/ci.yml",
+        "Dockerfile",
+        "tools/deploy_cloud_run.sh",
+        ".gcloudignore",
+        "deployment docs"
+      ],
+      "implementation": [
+        "Stop production source-tree deployment.",
+        "Build/test/scan/SBOM/attest/sign one digest.",
+        "Deploy exact digest through CI with GCP workload identity.",
+        "Use immutable secret versions.",
+        "Set dedicated least-privilege service account.",
+        "Restrict metrics and operational ingress.",
+        "Bind Cosign verification to exact repo/workflow/ref.",
+        "Add smoke, canary, approval, and rollback."
+      ],
+      "acceptance": [
+        "Cloud Run revision digest equals tested digest.",
+        "Provenance contains commit SHA.",
+        "No local source production deploy.",
+        "Metrics denied publicly.",
+        "Rollback rehearsal succeeds.",
+        "Secret and service account bindings are immutable and least privilege."
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "CW-P1-012",
+      "priority": "P1",
+      "title": "Build atomic local repository and durable quarantine",
+      "agent_role": "mobile persistence engineer",
+      "objective": "Eliminate invented defaults, lost updates, and invisible corruption.",
+      "files": [
+        "mobile/lib/services/app_state_repository.dart",
+        "mobile/lib/services/app_state_store.dart",
+        "mobile/lib/models/claim_record.dart",
+        "mobile/test/app_state_repository_quarantine_test.dart"
+      ],
+      "implementation": [
+        "Strict DTO validation.",
+        "Durable quarantine box with original payload and reason.",
+        "Typed valid/partial/corrupt read result.",
+        "Repository actor or atomic mutation API.",
+        "Version/CAS conflict protection.",
+        "Remove source-string tests."
+      ],
+      "acceptance": [
+        "Every malformed required field is quarantined.",
+        "Corrupt is not returned as empty.",
+        "Concurrent sync and user edit preserve both intended changes.",
+        "Quarantined data is recoverable or explicitly reset."
+      ],
+      "depends_on": [
+        "CW-P0-002"
+      ]
+    },
+    {
+      "id": "CW-P1-013",
+      "priority": "P1",
+      "title": "Extract upload coordinator and durable receipt",
+      "agent_role": "mobile workflow engineer",
+      "objective": "Create one upload state machine for online, offline, batch, retry, processing, and recovery.",
+      "files": [
+        "mobile/lib/screens/documents_screen.dart",
+        "mobile/lib/services/document_service.dart",
+        "mobile/lib/models/document_model.dart",
+        "src/api/document.py"
+      ],
+      "implementation": [
+        "Move orchestration out of widget.",
+        "Persist intent and digest before network.",
+        "Use typed per-file response.",
+        "Add offline queue and consent_blocked state.",
+        "Bound aggregate batch memory.",
+        "Add cancellation.",
+        "Verify download host and digest.",
+        "Remove filename-size idempotency fiction."
+      ],
+      "acceptance": [
+        "Offline queue survives restart.",
+        "Server-accepted/local-failed receipt reconciles.",
+        "Partial batch result is complete and unambiguous.",
+        "Regrant consent resumes item.",
+        "Screen contains presentation only."
+      ],
+      "depends_on": [
+        "CW-P0-002",
+        "CW-P0-005",
+        "CW-P0-006"
+      ]
+    },
+    {
+      "id": "CW-P1-014",
+      "priority": "P1",
+      "title": "Version capabilities and fix composition race",
+      "agent_role": "configuration contract engineer",
+      "objective": "Guarantee one coherent capabilities snapshot before dependent clients initialize.",
+      "files": [
+        "src/api/capabilities.py",
+        "mobile/lib/models/capabilities_response.dart",
+        "mobile/lib/services/capabilities_service.dart",
+        "mobile/lib/bootstrap/app_bootstrap.dart",
+        "mobile/lib/services/document_service.dart"
+      ],
+      "implementation": [
+        "Add schema version and response model.",
+        "Generate/check client type.",
+        "Bound environment values.",
+        "Await capabilities or inject reactive immutable snapshot.",
+        "Remove field mixing and upward clamping.",
+        "Expose stale-cache/error state."
+      ],
+      "acceptance": [
+        "First Dio client uses resolved configuration.",
+        "Lower server limits remain lower.",
+        "Invalid env fails startup clearly.",
+        "Schema drift fails CI."
+      ],
+      "depends_on": [
+        "CW-P0-002"
+      ]
+    },
+    {
+      "id": "CW-P1-015",
+      "priority": "P1",
+      "title": "Make worker readiness truthful and handlers fenced",
+      "agent_role": "distributed-systems engineer",
+      "objective": "Ensure queue ownership, readiness, duplicate delivery, and failure records remain correct under faults.",
+      "files": [
+        "src/services/job_outbox_service.py",
+        "src/services/job_dispatcher.py",
+        "src/workers/outbox_worker.py",
+        "src/workers/*_handler.py",
+        "supabase/migrations/"
+      ],
+      "implementation": [
+        "Probe canonical queue dependency in readiness.",
+        "Add mutation fencing/idempotency at handler boundaries.",
+        "Atomic fail/dead-letter RPC.",
+        "Quarantine malformed claimed rows.",
+        "Typed sanitized failure codes.",
+        "Jitter retry.",
+        "Measure safe concurrency."
+      ],
+      "acceptance": [
+        "Lease loss during blocking work cannot commit stale mutations.",
+        "Duplicate job produces one logical result.",
+        "Queue outage changes readiness.",
+        "Malformed job is operator-visible.",
+        "No PII in last_error."
+      ],
+      "depends_on": [
+        "CW-P0-011"
+      ]
+    },
+    {
+      "id": "CW-P1-016",
+      "priority": "P1",
+      "title": "Typed guarded navigation and verified links",
+      "agent_role": "Flutter navigation and platform security engineer",
+      "objective": "Prevent deep-link gate bypass and remove stringly typed route contracts.",
+      "files": [
+        "mobile/lib/navigation/app_router.dart",
+        "mobile/lib/navigation/main_navigation.dart",
+        "mobile/lib/app.dart",
+        "mobile/android/app/src/main/AndroidManifest.xml",
+        "mobile/ios/Runner/Info.plist",
+        "platform entitlements"
+      ],
+      "implementation": [
+        "Use typed route objects.",
+        "Central bootstrap/onboarding/auth/workspace guards.",
+        "Adopt verified HTTPS app links and universal links.",
+        "Restrict attribution receiver and sanitize values.",
+        "Remove direct route bypasses."
+      ],
+      "acceptance": [
+        "Cold deep link cannot bypass initialization.",
+        "Another app cannot claim canonical link.",
+        "Malformed args yield typed safe error.",
+        "All launch navigation uses one policy."
+      ],
+      "depends_on": [
+        "CW-P0-004"
+      ]
+    },
+    {
+      "id": "CW-P1-017",
+      "priority": "P1",
+      "title": "Release localization and accessibility matrix",
+      "agent_role": "mobile UX quality engineer",
+      "objective": "Prove launch UI works across language, scale, theme, input, and assistive technologies.",
+      "files": [
+        "mobile/lib/screens/",
+        "mobile/lib/widgets/",
+        "mobile/lib/l10n/",
+        "DESIGN.md",
+        "mobile/test/"
+      ],
+      "implementation": [
+        "Eliminate unapproved hardcoded launch strings.",
+        "Add l10n completeness test.",
+        "Add semantics and focus tests.",
+        "Add golden matrix for text scale/theme/locale/narrow devices.",
+        "Run Android and iOS device QA.",
+        "Align palette and remove speculative status theatre."
+      ],
+      "acceptance": [
+        "No overflow at 200 percent text.",
+        "Screen reader order and labels verified.",
+        "Keyboard and switch access verified.",
+        "All supported locales complete.",
+        "Dark mode and reduced motion verified."
+      ],
+      "depends_on": [
+        "CW-P0-001",
+        "CW-P1-016"
+      ]
+    },
+    {
+      "id": "CW-P1-018",
+      "priority": "P1",
+      "title": "Add contract, platform, and security CI gates",
+      "agent_role": "test infrastructure engineer",
+      "objective": "Make cross-layer drift and release regressions fail automatically.",
+      "files": [
+        ".github/workflows/ci.yml",
+        "tests/",
+        "mobile/test/",
+        "contract schemas",
+        "security tooling configs"
+      ],
+      "implementation": [
+        "Mobile-backend contract integration.",
+        "Local Supabase integration.",
+        "Process-death/state-machine tests.",
+        "Android instrumentation and iOS build.",
+        "Accessibility/golden tests.",
+        "SBOM, transitive audit, secret/SAST/container/IaC scan.",
+        "Coverage thresholds.",
+        "Workflow concurrency and cancellation."
+      ],
+      "acceptance": [
+        "Current claims 422 mismatch fails CI.",
+        "Skipped launch-critical tests fail gate.",
+        "Release artifacts and reports retained.",
+        "Coverage and security failures are blocking."
+      ],
+      "depends_on": [
+        "CW-P0-002",
+        "CW-P0-011"
+      ]
+    },
+    {
+      "id": "CW-P1-019",
+      "priority": "P1",
+      "title": "Clean claims schema ownership and speculative fields",
+      "agent_role": "database and domain-model engineer",
+      "objective": "Keep claims a self-reported user log and enforce same-owner references.",
+      "files": [
+        "supabase/migrations/20260724000000_claims_table.sql",
+        "src/models/claim.py",
+        "src/api/claims.py",
+        "docs/planning/product/"
+      ],
+      "implementation": [
+        "Remove or quarantine agent-initiated fields.",
+        "Add owner-safe document relation.",
+        "Model photo artifacts through canonical registry.",
+        "Add version/tombstone fields.",
+        "Strengthen RLS/check constraints.",
+        "Provide migration and rollback plan."
+      ],
+      "acceptance": [
+        "Cannot attach another owner's document/artifact.",
+        "No unapproved agent behavior in launch schema.",
+        "Migration preserves existing rows.",
+        "RLS tests cover direct authenticated access."
+      ],
+      "depends_on": [
+        "CW-P0-001",
+        "CW-P0-003"
+      ]
+    },
+    {
+      "id": "CW-P1-020",
+      "priority": "P1",
+      "title": "Harden backend observability and maintenance topology",
+      "agent_role": "backend reliability engineer",
+      "objective": "Protect operational surfaces and remove replica-local maintenance.",
+      "files": [
+        "src/app/main.py",
+        "src/utils/metrics.py",
+        "src/utils/log_config.py",
+        "deployment configuration",
+        "analytics retention service"
+      ],
+      "implementation": [
+        "Protect metrics.",
+        "Move retention cleanup to one scheduler/outbox job.",
+        "Add correlation IDs.",
+        "Add security headers.",
+        "Use app-scoped dependency composition.",
+        "Sanitize structured logs.",
+        "Define bounded dependency readiness."
+      ],
+      "acceptance": [
+        "Metrics not public.",
+        "One maintenance execution regardless of replicas.",
+        "No PII in log fixtures.",
+        "Readiness reflects canonical dependency failure.",
+        "Liveness remains cheap."
+      ],
+      "depends_on": [
+        "CW-P0-011",
+        "CW-P1-015"
+      ]
+    },
+    {
+      "id": "CW-P2-021",
+      "priority": "P2",
+      "title": "Decompose god-screens and duplicate request paths",
+      "agent_role": "Flutter architecture engineer",
+      "objective": "Separate view, state machine, domain operation, persistence, and transport.",
+      "files": [
+        "mobile/lib/screens/documents_screen.dart",
+        "mobile/lib/screens/qa_screen.dart",
+        "mobile/lib/screens/settings_screen.dart",
+        "mobile/lib/screens/onboarding_screen.dart",
+        "mobile/lib/providers/",
+        "mobile/lib/services/"
+      ],
+      "implementation": [
+        "Thin widgets.",
+        "One controller per workflow.",
+        "Immutable typed UI state.",
+        "Dependency injection.",
+        "No direct Hive/network access from screens.",
+        "Remove streaming/non-streaming duplication."
+      ],
+      "acceptance": [
+        "Widget tests require no real storage/network.",
+        "Domain tests exercise workflows without Flutter UI.",
+        "No screen owns multiple external subsystems.",
+        "Request behavior has one canonical path."
+      ],
+      "depends_on": [
+        "CW-P1-013",
+        "CW-P0-009",
+        "CW-P1-014"
+      ]
+    },
+    {
+      "id": "CW-P2-022",
+      "priority": "P2",
+      "title": "Establish SLO, cost, cold-start, and chaos evidence",
+      "agent_role": "performance and reliability engineer",
+      "objective": "Replace guessed Cloud Run/OCR/worker settings with measured operating envelopes.",
+      "files": [
+        "Dockerfile",
+        "tools/deploy_cloud_run.sh",
+        "src/workers/",
+        "src/rag/",
+        "docs/review/evidence/"
+      ],
+      "implementation": [
+        "Define upload acceptance, processing, Q&A, deletion, and recovery SLOs.",
+        "Benchmark cold start, memory, OCR latency, concurrency, and cost.",
+        "Run queue backlog and provider outage tests.",
+        "Document autoscaling and timeout rationale.",
+        "Create launch capacity model."
+      ],
+      "acceptance": [
+        "Settings trace to measured evidence.",
+        "P50/P95/P99 and failure rate recorded.",
+        "Cost per processed policy and Q&A recorded.",
+        "Backlog recovery time measured.",
+        "Chaos report covers dependency outages and worker loss."
+      ],
+      "depends_on": [
+        "CW-P1-015",
+        "CW-P0-011"
+      ]
+    },
+    {
+      "id": "CW-P2-023",
+      "priority": "P2",
+      "title": "Reconcile stale documentation and comments",
+      "agent_role": "architecture documentation maintainer",
+      "objective": "Make docs describe current canonical behavior rather than historical intentions.",
+      "files": [
+        "docs/",
+        ".agent/",
+        "src/services/job_outbox_service.py",
+        "src/workers/outbox_worker.py",
+        "source comments referencing motto_v3 or deferred handlers"
+      ],
+      "implementation": [
+        "Update old motto references.",
+        "Remove stale queue migration comments.",
+        "Mark superseded audits and ADRs.",
+        "Generate current architecture inventory.",
+        "Link every accepted task to evidence and decision."
+      ],
+      "acceptance": [
+        "No active doc contradicts signed doctrine.",
+        "Runtime topology matches architecture diagram.",
+        "Superseded docs are clearly marked.",
+        "Agent kickoff resolves one source of truth."
+      ],
+      "depends_on": [
+        "CW-P0-001",
+        "CW-P1-015"
+      ]
+    }
+  ]
+}

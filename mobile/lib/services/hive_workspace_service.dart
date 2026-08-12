@@ -57,15 +57,46 @@ class HiveWorkspaceService {
     AppStateStore.sessionCreatedKey,
   };
 
+  /// Best-effort read of Hive's base directory (set by `Hive.init()` /
+  /// `Hive.initFlutter()`).
+  ///
+  /// hive 2.2.3 stores `homePath` on `HiveImpl`, which is not exposed through
+  /// the exported `HiveInterface`, so it cannot be read statically. The
+  /// dynamic access is isolated here behind a typed null-returning helper:
+  /// if the field shape changes on an upgrade, this degrades to the
+  /// relative-path fallback instead of throwing.
+  static String? get _hiveHomePath {
+    try {
+      final Object? home = (Hive as dynamic).homePath;
+      return (home is String && home.isNotEmpty) ? home : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// P0.5: Derives an isolated directory path for the given principal.
   /// Each principal gets its own subdirectory under `workspaces/`, keyed by
   /// the stable principalId with path-unsafe characters replaced. Examples:
-  ///   `workspaces/local-only-550e8400-e29b-.../`
-  ///   `workspaces/a1b2c3d4-e5f6-7890-abcd-ef1234567890/`
+  ///   `<homePath>/workspaces/local-only-550e8400-e29b-.../`
+  ///   `<homePath>/workspaces/a1b2c3d4-e5f6-7890-abcd-ef1234567890/`
+  ///
+  /// The path is anchored to Hive's home path when set. In production
+  /// `Hive.initFlutter()` sets it to the app documents directory, so boxes
+  /// and attachment files land inside the app sandbox. In tests each test
+  /// file calls `Hive.init(tempDir)` / `Hive.initFlutter(tempDir)` with its
+  /// own temp directory, so workspaces land there too. A CWD-relative path
+  /// would instead resolve against the process working directory
+  /// (`mobile/` during `flutter test`, `/` on iOS/Android sandboxes) —
+  /// polluting the repo, colliding on the same `.lock` file when two test
+  /// isolates share a principal, and being unwritable on real devices.
+  /// Falls back to the relative path only if Hive has not been initialized.
   static String _workspacePath(WorkspacePrincipal principal) {
     final safeDir =
         principal.principalId.replaceAll(RegExp(r'[^\w\-]'), '_');
-    return 'workspaces/$safeDir';
+    final relative = 'workspaces/$safeDir';
+    final home = _hiveHomePath;
+    if (home == null || home.isEmpty) return relative;
+    return '$home/$relative';
   }
 
   /// Compute the namespaced workspace path for [principal] without side
@@ -160,125 +191,27 @@ class HiveWorkspaceService {
   /// to a file outside the attachments directory, it is copied to the new
   /// location and the Hive record is updated.
   ///
+  /// After migration, all files in the attachments directory are checked
+  /// for encryption. Files stored before CW-P0-002 encryption was added
+  /// are re-encrypted in place.
+  ///
   /// The old file is only deleted after successful copy verification.
-  /// This method is idempotent: it tracks completion via a flag in
-  /// AppStateStore and skips if already done.
+  /// Both steps are idempotent: they track completion via flags in
+  /// AppStateStore and skip if already done.
   static Future<void> _migrateLegacyAttachments() async {
     try {
       final appStateBox = Hive.box(AppStateStore.boxName);
 
-      // Skip if already migrated.
-      if (appStateBox.get('attachments_migrated_v1') == true) return;
-
-      final docsBox = Hive.box<String>(LocalStorageService.documentsBoxName);
-      if (docsBox.isEmpty) {
-        // No documents — mark as migrated and return.
-        await appStateBox.put('attachments_migrated_v1', true);
-        return;
+      // ── Step 1: Migrate files from global directory to attachments ──
+      if (appStateBox.get('attachments_migrated_v1') != true) {
+        await _migrateFilesFromGlobalDirectory(appStateBox);
       }
 
-      // Get the old global documents directory.
-      final appDir = await getApplicationDocumentsDirectory();
-      final globalPath = appDir.path;
-
-      // Get the new attachments directory.
-      final attachmentsDir = EncryptedAttachmentStore.attachmentsSubdir;
-      final workspacePath = _currentWorkspacePath;
-      if (workspacePath == null) return;
-      final newAttachmentsPath = '$workspacePath/$attachmentsDir';
-
-      int migrated = 0;
-      int skipped = 0;
-      int failed = 0;
-
-      for (final key in docsBox.keys.toList()) {
-        final raw = docsBox.get(key);
-        if (raw == null) continue;
-
-        try {
-          final doc = InsuranceDocument.fromJsonString(raw);
-          final oldPath = doc.localFilePath;
-          if (oldPath == null || oldPath.isEmpty) {
-            skipped++;
-            continue;
-          }
-
-          // Check if the file is already in the new attachments directory.
-          if (oldPath.startsWith(newAttachmentsPath)) {
-            skipped++;
-            continue;
-          }
-
-          // Check if the file is in the old global directory.
-          if (!oldPath.startsWith(globalPath)) {
-            // File is somewhere unexpected — skip.
-            skipped++;
-            continue;
-          }
-
-          final oldFile = File(oldPath);
-          if (!await oldFile.exists()) {
-            // File missing — clear the path reference.
-            final updated = doc.copyWith(localFilePath: null);
-            await docsBox.put(key, updated.toJsonString());
-            skipped++;
-            continue;
-          }
-
-          // Migrate: copy to new attachments directory.
-          final newPath = await EncryptedAttachmentStore.migrateLegacyFile(
-            documentId: doc.id,
-            legacyPath: oldPath,
-            originalFilename: doc.filename,
-          );
-
-          if (newPath == null) {
-            failed++;
-            continue;
-          }
-
-          // Verify the copy succeeded before updating the record.
-          final newFile = File(newPath);
-          if (!await newFile.exists()) {
-            failed++;
-            continue;
-          }
-
-          // Verify file sizes match.
-          final oldSize = await oldFile.length();
-          final newSize = await newFile.length();
-          if (oldSize != newSize) {
-            failed++;
-            continue;
-          }
-
-          // Update the Hive record with the new path.
-          final updated = doc.copyWith(localFilePath: newPath);
-          await docsBox.put(key, updated.toJsonString());
-
-          // Delete the old file.
-          try {
-            await oldFile.delete();
-          } catch (_) {
-            // Best-effort: old file deletion failure is non-fatal.
-          }
-
-          migrated++;
-        } catch (e) {
-          // Per-document errors should not block the entire migration.
-          debugPrint('CW-P0-002: Migration error for document $key: $e');
-          failed++;
-        }
-      }
-
-      // Mark migration as complete.
-      await appStateBox.put('attachments_migrated_v1', true);
-
-      if (migrated > 0 || failed > 0) {
-        debugPrint(
-          'CW-P0-002: Legacy file migration complete — '
-          '$migrated migrated, $skipped skipped, $failed failed',
-        );
+      // ── Step 2: Re-encrypt any unencrypted files in attachments ──
+      // Runs independently of step 1 — handles files that were already
+      // in the attachments directory before encryption was added.
+      if (appStateBox.get('attachments_reencrypted_v1') != true) {
+        await _reEncryptAttachmentFiles(appStateBox);
       }
     } catch (e) {
       // Migration failure should not prevent workspace from opening.
@@ -286,173 +219,429 @@ class HiveWorkspaceService {
     }
   }
 
-  /// CW-P0-002: One-time migration of legacy claim photos from the global
-  /// claim_photos/ directory into the principal-scoped attachments directory.
-  ///
-  /// Each claim record's photoPaths are checked — if any path points to the
-  /// old global claim_photos/ directory, the file is copied to the new
-  /// attachments directory and the path reference is updated.
-  ///
-  /// The old file is only deleted after successful copy verification.
-  /// This method is idempotent: it tracks completion via a flag in
-  /// AppStateStore and skips if already done.
-  static Future<void> _migrateLegacyClaimPhotos() async {
-    try {
-      final appStateBox = Hive.box(AppStateStore.boxName);
+  /// Step 1 of migration: copy files from the global documents directory
+  /// into the principal-scoped attachments directory.
+  static Future<void> _migrateFilesFromGlobalDirectory(
+    Box<dynamic> appStateBox,
+  ) async {
+    final docsBox = Hive.box<String>(LocalStorageService.documentsBoxName);
+    if (docsBox.isEmpty) {
+      await appStateBox.put('attachments_migrated_v1', true);
+      return;
+    }
 
-      // Skip if already migrated.
-      if (appStateBox.get('claim_photos_migrated_v1') == true) return;
+    final appDir = await getApplicationDocumentsDirectory();
+    final globalPath = appDir.path;
 
-      final claimRecordsRaw = appStateBox.get(AppStateStore.claimRecordsKey);
-      if (claimRecordsRaw is! String || claimRecordsRaw.isEmpty) {
-        // No claims — mark as migrated and return.
-        await appStateBox.put('claim_photos_migrated_v1', true);
-        return;
-      }
+    final attachmentsDir = EncryptedAttachmentStore.attachmentsSubdir;
+    final workspacePath = _currentWorkspacePath;
+    if (workspacePath == null) return;
+    final newAttachmentsPath = '$workspacePath/$attachmentsDir';
 
-      // Get the old global documents directory.
-      final appDir = await getApplicationDocumentsDirectory();
-      final globalPath = appDir.path;
-      final oldClaimsPhotosDir = '$globalPath/claim_photos';
+    int migrated = 0;
+    int skipped = 0;
+    int failed = 0;
 
-      // Get the new attachments directory.
-      final attachmentsDir = EncryptedAttachmentStore.attachmentsSubdir;
-      final workspacePath = _currentWorkspacePath;
-      if (workspacePath == null) return;
-      final newAttachmentsPath = '$workspacePath/$attachmentsDir';
+    for (final key in docsBox.keys.toList()) {
+      final raw = docsBox.get(key);
+      if (raw == null) continue;
 
-      // Parse claims, preserving quarantine behavior.
-      List<ClaimRecord> claims = [];
       try {
-        final decoded = jsonDecode(claimRecordsRaw);
-        if (decoded is List) {
-          for (var i = 0; i < decoded.length; i++) {
-            try {
-              claims.add(
-                ClaimRecord.fromJson(decoded[i] as Map<String, dynamic>),
-              );
-            } catch (e) {
-              debugPrint(
-                'CW-P0-002: Skipping malformed claim at index $i during photo migration: $e',
-              );
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('CW-P0-002: Failed to parse claim records: $e');
-        await appStateBox.put('claim_photos_migrated_v1', true);
-        return;
-      }
-
-      if (claims.isEmpty) {
-        await appStateBox.put('claim_photos_migrated_v1', true);
-        return;
-      }
-
-      int migrated = 0;
-      int skipped = 0;
-      int failed = 0;
-      bool anyChanged = false;
-
-      for (var ci = 0; ci < claims.length; ci++) {
-        final claim = claims[ci];
-        if (claim.photoPaths.isEmpty) {
+        final doc = InsuranceDocument.fromJsonString(raw);
+        final oldPath = doc.localFilePath;
+        if (oldPath == null || oldPath.isEmpty) {
           skipped++;
           continue;
         }
 
-        bool claimChanged = false;
-        final newPaths = <String>[];
-
-        for (final oldPath in claim.photoPaths) {
-          // Already in the new directory — keep as-is.
-          if (oldPath.startsWith(newAttachmentsPath)) {
-            newPaths.add(oldPath);
-            skipped++;
-            continue;
-          }
-
-          // Not in the old claim_photos directory — keep as-is.
-          if (!oldPath.startsWith(oldClaimsPhotosDir)) {
-            newPaths.add(oldPath);
-            skipped++;
-            continue;
-          }
-
-          final oldFile = File(oldPath);
-          if (!await oldFile.exists()) {
-            // File missing — drop the path reference.
-            failed++;
-            claimChanged = true;
-            continue;
-          }
-
-          // Migrate: copy to new attachments directory with opaque name.
-          final photoId = const Uuid().v4();
-          final newPath = await EncryptedAttachmentStore.migrateLegacyFile(
-            documentId: photoId,
-            legacyPath: oldPath,
-            originalFilename: 'claim_photo.jpg',
-          );
-
-          if (newPath == null) {
-            failed++;
-            continue;
-          }
-
-          // Verify the copy succeeded.
-          final newFile = File(newPath);
-          if (!await newFile.exists()) {
-            failed++;
-            continue;
-          }
-
-          final oldSize = await oldFile.length();
-          final newSize = await newFile.length();
-          if (oldSize != newSize) {
-            failed++;
-            continue;
-          }
-
-          newPaths.add(newPath);
-          claimChanged = true;
-
-          // Delete the old file.
-          try {
-            await oldFile.delete();
-          } catch (_) {
-            // Best-effort.
-          }
-
-          migrated++;
+        // Already in the new attachments directory — skip migration
+        // but will be re-encrypted in step 2 if needed.
+        if (oldPath.startsWith(newAttachmentsPath)) {
+          skipped++;
+          continue;
         }
 
-        if (claimChanged) {
-          claims[ci] = claim.copyWith(
-            photoPaths: List.unmodifiable(newPaths),
-          );
-          anyChanged = true;
+        // Not in the old global directory — skip.
+        if (!oldPath.startsWith(globalPath)) {
+          skipped++;
+          continue;
         }
-      }
 
-      // Save updated claims if any paths changed.
-      if (anyChanged) {
-        final encoded = jsonEncode(claims.map((r) => r.toJson()).toList());
-        await appStateBox.put(AppStateStore.claimRecordsKey, encoded);
-      }
+        final oldFile = File(oldPath);
+        if (!await oldFile.exists()) {
+          final updated = doc.copyWith(localFilePath: null);
+          await docsBox.put(key, updated.toJsonString());
+          skipped++;
+          continue;
+        }
 
-      // Mark migration as complete.
-      await appStateBox.put('claim_photos_migrated_v1', true);
-
-      if (migrated > 0 || failed > 0) {
-        debugPrint(
-          'CW-P0-002: Legacy claim photo migration complete — '
-          '$migrated migrated, $skipped skipped, $failed failed',
+        // Migrate: copy to new attachments directory (encrypted if key
+        // available, unencrypted fallback otherwise — step 2 handles
+        // re-encryption for the fallback case).
+        final newPath = await EncryptedAttachmentStore.migrateLegacyFile(
+          documentId: doc.id,
+          legacyPath: oldPath,
+          originalFilename: doc.filename,
         );
+
+        if (newPath == null) {
+          failed++;
+          continue;
+        }
+
+        // Verify the copy succeeded before updating the record.
+        final newFile = File(newPath);
+        if (!await newFile.exists()) {
+          failed++;
+          continue;
+        }
+
+        final oldSize = await oldFile.length();
+        final newSize = await newFile.length();
+        if (oldSize != newSize) {
+          failed++;
+          continue;
+        }
+
+        // Update the Hive record with the new path.
+        final updated = doc.copyWith(localFilePath: newPath);
+        await docsBox.put(key, updated.toJsonString());
+
+        // Delete the old file.
+        try {
+          await oldFile.delete();
+        } catch (e) {
+          // Best-effort; a leftover legacy file is not a data-loss risk
+          // because the migration already copied+verified the new file.
+          debugPrint('CW-P0-002: Could not delete legacy file: $e');
+        }
+
+        migrated++;
+      } catch (e) {
+        debugPrint('CW-P0-002: Migration error for document $key: $e');
+        failed++;
+      }
+    }
+
+    // Only mark the migration complete when nothing failed. With
+    // fail-closed encryption, a transiently-unavailable principal key
+    // would otherwise strand legacy files permanently. The loop is
+    // idempotent (already-migrated files are skipped by path check), so
+    // a re-run next workspace open safely retries only the stragglers.
+    if (failed == 0) {
+      await appStateBox.put('attachments_migrated_v1', true);
+    } else {
+      debugPrint(
+        'CW-P0-002: Legacy file migration incomplete — '
+        '$failed file(s) failed; will retry on next workspace open. '
+        '($migrated migrated, $skipped skipped)',
+      );
+    }
+  }
+
+  /// Step 2 of migration: re-encrypt any files in the attachments directory
+  /// that were stored before CW-P0-002 encryption was added.
+  ///
+  /// Uses [EncryptedAttachmentStore.reEncryptIfNeeded] which checks for the
+  /// CW01 magic header and re-encrypts in place if missing. Idempotent —
+  /// already-encrypted files are no-ops.
+  static Future<void> _reEncryptAttachmentFiles(
+    Box<dynamic> appStateBox,
+  ) async {
+    final attachmentsDir = EncryptedAttachmentStore.attachmentsSubdir;
+    final workspacePath = _currentWorkspacePath;
+    if (workspacePath == null) return;
+
+    final dir = Directory('$workspacePath/$attachmentsDir');
+    if (!await dir.exists()) {
+      await appStateBox.put('attachments_reencrypted_v1', true);
+      return;
+    }
+
+    int processed = 0;
+    int failed = 0;
+
+    // Non-recursive: only process files directly in the attachments dir.
+    await for (final entity in dir.list(recursive: false)) {
+      if (entity is! File) continue;
+
+      try {
+        final ok =
+            await EncryptedAttachmentStore.reEncryptIfNeeded(entity.path);
+        if (ok) {
+          processed++;
+        } else {
+          failed++;
+        }
+      } catch (e) {
+        debugPrint(
+          'CW-P0-002: Re-encryption error for ${entity.path}: $e',
+        );
+        failed++;
+      }
+    }
+
+    // Only mark the re-encryption pass complete when nothing failed.
+    // `reEncryptIfNeeded` leaves a file untouched (returns false) when no
+    // principal key is available, so a transiently-unavailable key would
+    // otherwise strand plaintext files permanently. The pass is idempotent
+    // (already-encrypted files are no-ops), so a re-run on next workspace
+    // open safely retries only the stragglers.
+    if (failed == 0) {
+      await appStateBox.put('attachments_reencrypted_v1', true);
+    } else {
+      debugPrint(
+        'CW-P0-002: Re-encryption pass incomplete — '
+        '$failed file(s) failed; will retry on next workspace open. '
+        '($processed processed)',
+      );
+    }
+  }
+
+  /// CW-P0-002: One-time migration of legacy claim photos from the global
+  /// claim_photos/ directory into the principal-scoped attachments directory.
+  ///
+  /// After migration, all files in the attachments directory referenced by
+  /// claim records are checked for encryption. Files stored before CW-P0-002
+  /// encryption was added are re-encrypted in place.
+  ///
+  /// Both steps are idempotent: they track completion via flags in
+  /// AppStateStore and skip if already done.
+  static Future<void> _migrateLegacyClaimPhotos() async {
+    try {
+      final appStateBox = Hive.box(AppStateStore.boxName);
+
+      // ── Step 1: Migrate files from global claim_photos/ ──
+      if (appStateBox.get('claim_photos_migrated_v1') != true) {
+        await _migrateClaimPhotoFiles(appStateBox);
+      }
+
+      // ── Step 2: Re-encrypt migrated claim photos ──
+      // Runs independently of step 1 — handles files that were already
+      // in the attachments directory before encryption was added, as well
+      // as files migrated when no key was available (legacy fallback).
+      if (appStateBox.get('claim_photos_reencrypted_v1') != true) {
+        await _reEncryptClaimPhotoFiles(appStateBox);
       }
     } catch (e) {
       // Migration failure should not prevent workspace from opening.
       debugPrint('CW-P0-002: Legacy claim photo migration failed: $e');
+    }
+  }
+
+  /// Step 1: Migrate claim photo files from the global claim_photos/
+  /// directory into the principal-scoped attachments directory.
+  static Future<void> _migrateClaimPhotoFiles(
+    Box<dynamic> appStateBox,
+  ) async {
+    final claimRecordsRaw = appStateBox.get(AppStateStore.claimRecordsKey);
+    if (claimRecordsRaw is! String || claimRecordsRaw.isEmpty) {
+      await appStateBox.put('claim_photos_migrated_v1', true);
+      return;
+    }
+
+    final appDir = await getApplicationDocumentsDirectory();
+    final globalPath = appDir.path;
+    final oldClaimsPhotosDir = '$globalPath/claim_photos';
+
+    final attachmentsDir = EncryptedAttachmentStore.attachmentsSubdir;
+    final workspacePath = _currentWorkspacePath;
+    if (workspacePath == null) return;
+    final newAttachmentsPath = '$workspacePath/$attachmentsDir';
+
+    // Parse claims, preserving quarantine behavior.
+    List<ClaimRecord> claims = [];
+    try {
+      final decoded = jsonDecode(claimRecordsRaw);
+      if (decoded is List) {
+        for (var i = 0; i < decoded.length; i++) {
+          try {
+            claims.add(
+              ClaimRecord.fromJson(decoded[i] as Map<String, dynamic>),
+            );
+          } catch (e) {
+            debugPrint(
+              'CW-P0-002: Skipping malformed claim at index $i during photo migration: $e',
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('CW-P0-002: Failed to parse claim records: $e');
+      await appStateBox.put('claim_photos_migrated_v1', true);
+      return;
+    }
+
+    if (claims.isEmpty) {
+      await appStateBox.put('claim_photos_migrated_v1', true);
+      return;
+    }
+
+    int migrated = 0;
+    int skipped = 0;
+    int failed = 0;
+    bool anyChanged = false;
+
+    for (var ci = 0; ci < claims.length; ci++) {
+      final claim = claims[ci];
+      if (claim.photoPaths.isEmpty) {
+        skipped++;
+        continue;
+      }
+
+      bool claimChanged = false;
+      final newPaths = <String>[];
+
+      for (final oldPath in claim.photoPaths) {
+        // Already in the new directory — keep as-is.
+        // Step 2 will re-encrypt if needed.
+        if (oldPath.startsWith(newAttachmentsPath)) {
+          newPaths.add(oldPath);
+          skipped++;
+          continue;
+        }
+
+        // Not in the old claim_photos directory — keep as-is.
+        if (!oldPath.startsWith(oldClaimsPhotosDir)) {
+          newPaths.add(oldPath);
+          skipped++;
+          continue;
+        }
+
+        final oldFile = File(oldPath);
+        if (!await oldFile.exists()) {
+          failed++;
+          claimChanged = true;
+          continue;
+        }
+
+        // Migrate: copy to new attachments directory with opaque name.
+        // Encrypted during migration. CW-P0-003: if no principal key is
+        // available this throws EncryptionUnavailableException (fail
+        // closed) — catch per file so one failure does not abort the
+        // whole migration; step 2 re-encryption is a no-op for the same
+        // reason (no key → returns false, file left untouched).
+        final photoId = const Uuid().v4();
+        String? newPath;
+        try {
+          newPath = await EncryptedAttachmentStore.migrateLegacyFile(
+            documentId: photoId,
+            legacyPath: oldPath,
+            originalFilename: 'claim_photo.jpg',
+          );
+        } catch (e) {
+          debugPrint(
+            'CW-P0-002: Claim photo migration failed for $oldPath: $e',
+          );
+          failed++;
+          claimChanged = true;
+          continue;
+        }
+
+        if (newPath == null) {
+          failed++;
+          continue;
+        }
+
+        final newFile = File(newPath);
+        if (!await newFile.exists()) {
+          failed++;
+          continue;
+        }
+
+        final oldSize = await oldFile.length();
+        final newSize = await newFile.length();
+        if (oldSize != newSize) {
+          failed++;
+          continue;
+        }
+
+        newPaths.add(newPath);
+        claimChanged = true;
+
+        try {
+          await oldFile.delete();
+        } catch (e) {
+          // Best-effort; a leftover legacy photo is not a data-loss risk
+          // because the migration already copied+verified the new file.
+          debugPrint('CW-P0-002: Could not delete legacy claim photo: $e');
+        }
+
+        migrated++;
+      }
+
+      if (claimChanged) {
+        claims[ci] = claim.copyWith(
+          photoPaths: List.unmodifiable(newPaths),
+        );
+        anyChanged = true;
+      }
+    }
+
+    if (anyChanged) {
+      final encoded = jsonEncode(claims.map((r) => r.toJson()).toList());
+      await appStateBox.put(AppStateStore.claimRecordsKey, encoded);
+    }
+
+    await appStateBox.put('claim_photos_migrated_v1', true);
+
+    if (migrated > 0 || failed > 0) {
+      debugPrint(
+        'CW-P0-002: Legacy claim photo migration complete — '
+        '$migrated migrated, $skipped skipped, $failed failed',
+      );
+    }
+  }
+
+  /// Step 2: Re-encrypt claim photos in the attachments directory that
+  /// were stored before CW-P0-002 encryption was added.
+  ///
+  /// This runs AFTER _migrateClaimPhotoFiles() because
+  /// _reEncryptAttachmentFiles() in openForActivePrincipal() executes
+  /// BEFORE _migrateLegacyClaimPhotos(), so files migrated by step 1
+  /// would not be caught by the earlier re-encryption pass.
+  static Future<void> _reEncryptClaimPhotoFiles(
+    Box<dynamic> appStateBox,
+  ) async {
+    final attachmentsDir = EncryptedAttachmentStore.attachmentsSubdir;
+    final workspacePath = _currentWorkspacePath;
+    if (workspacePath == null) return;
+
+    final dir = Directory('$workspacePath/$attachmentsDir');
+    if (!await dir.exists()) {
+      await appStateBox.put('claim_photos_reencrypted_v1', true);
+      return;
+    }
+
+    int processed = 0;
+    int failed = 0;
+
+    await for (final entity in dir.list(recursive: false)) {
+      if (entity is! File) continue;
+
+      try {
+        final ok =
+            await EncryptedAttachmentStore.reEncryptIfNeeded(entity.path);
+        if (ok) {
+          processed++;
+        } else {
+          failed++;
+        }
+      } catch (e) {
+        debugPrint(
+          'CW-P0-002: Claim photo re-encryption error for ${entity.path}: $e',
+        );
+        failed++;
+      }
+    }
+
+    await appStateBox.put('claim_photos_reencrypted_v1', true);
+
+    if (processed > 0 || failed > 0) {
+      debugPrint(
+        'CW-P0-002: Claim photo re-encryption pass complete — '
+        '$processed processed, $failed failed',
+      );
     }
   }
 

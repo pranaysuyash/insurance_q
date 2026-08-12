@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:coverwise/services/local_storage_service.dart';
 import 'package:coverwise/models/document_model.dart';
 
+import 'helpers/hive_test_helper.dart';
+
 void main() {
   late Directory tempDir;
 
@@ -35,6 +37,10 @@ void main() {
     });
     await Hive.initFlutter(tempDir.path);
     await Hive.openBox<String>(LocalStorageService.documentsBoxName);
+    // CW-P0-002: saveDocument/saveWebDocument require an active workspace
+    // (principal-scoped encrypted attachment store). Open a test workspace
+    // so the fail-closed encryption path has a principal DEK to use.
+    await HiveTestHelper.openTestWorkspace();
   });
 
   setUp(() async {
@@ -43,6 +49,7 @@ void main() {
   });
 
   tearDownAll(() async {
+    HiveTestHelper.closeTestWorkspace();
     if (await tempDir.exists()) {
       try {
         await tempDir.delete(recursive: true);

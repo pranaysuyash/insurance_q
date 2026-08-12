@@ -72,6 +72,7 @@ must continue to distinguish personal notes from verified external events.
 | Date | Entry | Trigger |
 |------|-------|---------|
 | 2026-07-29 | **Reaffirmed per [ADR-2026-07-29-02](./ADR-2026-07-29-02-doctrine-stack-reconciliation.md) §4.4.** Personal claim log boundary stands: user-entered records with `Recorded as ...` states; not insurer status, claim management, filing, adjudication, or representation (Gate C). Original reasoning preserved. | Operator direction: layered doctrine stack. |
+| 2026-08-03 | **Launch: claim log is local-only (Audit 6 P0.1).** Automatic claims sync is disabled. `ReconciliationCoordinator.scheduleReconciliation()` no longer invokes claims sync at startup, on connectivity restore, or after auth events; no claim data is sent to `POST/PATCH/DELETE /claims` by the app. The on-device claim log (Hive, principal-scoped, `Recorded as ...` labels) is the launch surface. Server sync may only return behind an explicit user opt-in AND a redesigned contract covering: owner-scoped idempotency (`client_claim_id`/`client_mutation_id`), revisions, tombstones/deletion, paginated or cursor-based reads, status wire-value mapping, and attachment IDs instead of local paths. Until then the backend `/claims` endpoint remains experimental and is not a launch dependency. | Launch decision from the claim/consent execution audit (Audit 6 P0.1). |
 
 
 ---

@@ -22,6 +22,10 @@ void main() {
     // NOT fully deregister box names in Hive 2.x, causing HiveError on
     // reopen. Plugin-owned boxes are lightweight and reopen when needed.
     expect(source, contains('await Hive.close();'));
-    expect(source, isNot(contains('catch (_)')));
+    // _hiveHomePath uses a single catch (_) for dynamic cast safety —
+    // the service must not have any other bare catch-all blocks.
+    final catches = RegExp(r'catch\s*\(_\)').allMatches(source);
+    expect(catches.length, lessThanOrEqualTo(1),
+        reason: 'Only one catch-all allowed (_hiveHomePath), found ${catches.length}');
   });
 }

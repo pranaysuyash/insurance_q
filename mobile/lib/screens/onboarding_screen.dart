@@ -297,7 +297,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Anonymous usage stats (optional)',
+                                  'Usage stats (optional)',
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: theme.colorScheme.onSurface,
@@ -305,8 +305,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Only anonymous usage events are sent; policy '
-                                  'content is not included.',
+                                  'Events use a random install identifier, not '
+                                  'your name or email. Policy content is not '
+                                  'included.',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                     height: 1.3,

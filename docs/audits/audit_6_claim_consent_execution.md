@@ -15,71 +15,77 @@
 
 Tests can come later. Writing tests around these contracts now would harden the wrong architecture.
 
+> **Status pointer (2026-08-03):** The consent-flow findings P0.17-P0.22 are resolved, and P0.17 now includes exact-version currency enforcement. The claim-flow verdict stands: claims are **local-only** for launch (P0.1 resolved — see Update Log), and P0.2-P0.10 remain prerequisites for any future sync re-enable. Do not read this verdict without the Update Log.
+
 ---
 
 ## 2. Claim Flow — Launch Blockers
 
-### P0.1: Product tells users claims are device-only while automatically syncing them
+### P0.1: Product tells users claims are device-only while automatically syncing them ✅ FIXED (2026-08-03)
 
-**Status:** ❌ OPEN — requires product decision
-**Files:** `main.dart` (startup sync calls), `claims_sync_service.dart`
+**Status:** ✅ FIXED — Option A (local-only) chosen for launch
+**Files:** `mobile/lib/sync/reconciliation_coordinator.dart`, `mobile/lib/services/claims_sync_service.dart`, `docs/decisions/ADR-2026-07-24-02-personal-claim-log-boundary.md`
 
 The claim wizard says it saves to an on-device claim log. It repeatedly says photos and claim information stay on the device. The tracking screen says the claim log is private and stored on the device.
 
-That is not the implemented behavior. `main.dart` automatically starts claims synchronization at app startup, when connectivity returns, and after authentication events.
+That was not the implemented behavior. `main.dart` automatically started claims synchronization at app startup, when connectivity returns, and after authentication events.
 
-**Decision required — choose one honest contract:**
+**Decision recorded (2026-08-03, ADR-2026-07-24-02 update log):** Option **A — local-only claim log** for launch.
 
-| Option | Description | Recommendation |
-|--------|-------------|----------------|
-| **A: Local-only** | No backend sync. Encrypted principal-scoped storage. Clear device-only copy. | ✅ Best for launch |
-| **B: Optional backup** | Explicit user opt-in. Sync status per claim. Separate photo handling. Cross-device conflict protocol. | Later iteration |
+**Implementation:**
+- `ReconciliationCoordinator.scheduleReconciliation()` no longer calls `_syncClaims()`; the debounced reconciliation (startup, connectivity restore, auth events) now retries **document uploads only**.
+- The dead `_syncClaims()` method was removed entirely.
+- `ClaimsSyncService` is marked DORMANT for launch; `setClaimsSyncEpoch`/`invalidateClaimsSync` remain as defensive guards during principal transitions.
+- No claim data is sent to `/claims` by the app. Backend `/claims` remains experimental, not a launch dependency.
+- Contract test added in `reconciliation_coordinator_test.dart`: `scheduleReconciliation` must not contain `_syncClaims`/`.fullSync(` and must only retry uploads.
+
+**Future re-enable prerequisites (Option B):** explicit user opt-in + redesigned contract (idempotency keys, tombstones, revisions, pagination, wire-status mapping) + attachment ID protocol. See P0.2-P0.10.
 
 ### P0.2: Revised sync cannot create claims against current backend
 
-**Status:** ❌ OPEN
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1); must fix before any re-enable
 **Files:** `claims_sync_service.dart`, `src/api/claim.py`
 
 The mobile service sends `'id': claim.id` but `CreateClaimRequest` does not define `id` and uses `model_config = {"extra": "forbid"}`. The backend will reject with HTTP 422.
 
 ### P0.3: Sync service corrupts insurer's claim reference number
 
-**Status:** ❌ OPEN — remove immediately
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1)
 **Files:** `claims_sync_service.dart`
 
 When the server returns a different ID, the mobile code stores it as `referenceNumber: remoteId`. `referenceNumber` is user-visible insurer data (e.g., `CLM-2026-00421`). It must never be repurposed as an internal database identifier.
 
 ### P0.4: Attempted remote-ID workaround does not prevent repeated pushes
 
-**Status:** ❌ OPEN
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1)
 **Files:** `claims_sync_service.dart`
 
 `fullSync()` checks `serverIds.contains(claim.id)` but the local ID is never changed to the server ID. The claim is pushed again every sync cycle.
 
 ### P0.5: Claimed principal-epoch protection does nothing
 
-**Status:** ❌ OPEN
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1); epoch wiring exists in `ReconciliationCoordinator`/`ClaimsSyncService` and must be enforced at re-enable
 **Files:** `claims_sync_service.dart`, `main.dart`
 
 `fullSync()` accepts an `epoch` parameter that is never read. `main.dart` calls `fullSync()` without providing one. Account A's request can finish after Account B becomes active.
 
 ### P0.6: Local edits are not synchronized and can be overwritten
 
-**Status:** ❌ OPEN
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1)
 **Files:** `claims_sync_service.dart`
 
 The tracking screen updates status through `AppStateRepository` but never sends PATCH requests. The sync service pulls server records first and treats them as authoritative. User edits are silently lost on next sync.
 
 ### P0.7: Deleting a claim locally does not delete it remotely
 
-**Status:** ❌ OPEN
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1)
 **Files:** `claims_tracking_screen.dart`, `claims_sync_service.dart`
 
 `AppStateRepository.deleteClaimRecord()` does not call `DELETE /claims/{claim_id}`. The backend record remains and can recreate the deleted claim locally.
 
 ### P0.8: Flutter and backend status values are incompatible
 
-**Status:** ❌ OPEN
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1); wire mapping below is the required pattern for re-enable
 **Files:** `claim_record.dart`
 
 Flutter serializes `inReview` (camelCase). Backend expects `in_review` (snake_case). A server claim in review appears as filed in the app.
@@ -99,14 +105,14 @@ extension ClaimStatusWire on ClaimStatus {
 
 ### P0.9: Pull and index operations are not paginated
 
-**Status:** ❌ OPEN
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1)
 **Files:** `claims_sync_service.dart`
 
 Backend defaults to 50 records per request. The mobile service never uses `limit` or `offset`. Users with >50 records get incomplete snapshots.
 
 ### P0.10: Invalid server response treated as authoritative emptiness
 
-**Status:** ❌ OPEN
+**Status:** ⏸️ DEFERRED — sync disabled for launch (P0.1)
 **Files:** `claims_sync_service.dart`
 
 A malformed 200 response from `_fetchServerIds()` is treated as an empty server. Should return invalid/unavailable and block mutations.
@@ -167,12 +173,19 @@ The product says "self-recorded personal log." The database still includes `init
 
 ## 5. Consent Flow — Launch Blockers
 
-### P0.17: Revoked processing consent is automatically re-granted ✅ FIXED
+### P0.17: Revoked processing consent is automatically re-granted ✅ FIXED (with exact-version currency, 2026-08-03)
 
 **Status:** ✅ FIXED
-**Files:** `documents_screen.dart`
+**Files:** `documents_screen.dart`, `document_service.dart`, `consent_ledger.dart`
 
-`_ensureConsent()` now checks `ledger.hasConsent(ConsentPurpose.documentProcessing)` and only proceeds if active. If revoked, shows dialog again.
+`_ensureConsent()` now checks `ledger.hasConsent(ConsentPurpose.documentProcessing)` and only proceeds if active. If revoked, shows dialog again. The auto-grant-from-stored-version branch was removed entirely.
+
+**Version-currency enforcement (2026-08-03):**
+- New `ConsentLedger.hasConsentForVersion(purpose, version)` — active consent **and exact-version** check. A grant recorded under an old policy version no longer silently authorizes uploads under a new one.
+- `DocumentsScreen._ensureConsent()` fast path now uses `hasConsentForVersion(ConsentPurpose.documentProcessing, AppConfig.privacyPolicyVersion)` — stale grants (any version mismatch) re-prompt the authorization dialog.
+- `DocumentService._hasDocumentProcessingConsent()` is version-aware (defense in depth at the data-egress boundary): the upload gate, the retry gate, and `_retryOnePendingUpload` all require current-version consent.
+- Retry payloads send the current `AppConfig.privacyPolicyVersion` rather than a possibly-stale stored value.
+- Tests: stale-version re-prompt + re-grant-then-fast-path in `consent_upload_flow_test.dart`; `hasConsentForVersion` unit tests in `consent_ledger_test.dart`; document-service and sync-integration tests updated to record current-version consent.
 
 ### P0.18: Consent writes in the dialog are unawaited ✅ FIXED
 
@@ -235,11 +248,11 @@ The privacy screen says:
 - Analytics are anonymous
 - Policies are synced when the user "chooses to sync"
 
-Current implementation contradicts this:
-- Claims sync automatically (P0.1)
-- Policy upload is server processing, not optional sync
-- Source documents and claim photos are plaintext outside principal encryption
-- Analytics includes stable install/session identifiers (pseudonymous, not anonymous)
+**Status 2026-08-03:**
+- ✅ Claims are now actually local-only (P0.1 fixed) — the "claims are local" copy is now accurate.
+- ⚠️ Policy upload is server processing, not optional sync — copy must describe this.
+- ⚠️ Source documents and claim photos were plaintext outside principal encryption — addressed by CW-P0-002 (principal-scoped encrypted attachment store, AES-GCM at rest, legacy migrations); copy should be re-verified against the implemented store.
+- ⚠️ Analytics includes stable install/session identifiers (pseudonymous, not anonymous) — copy must say "pseudonymous".
 
 **Copy must describe actual architecture, not intended architecture.**
 
@@ -293,7 +306,8 @@ The service uses a Hive box named `newsletter` absent from the workspace-opening
 
 | Finding | Fix | Files | Tests |
 |---------|-----|-------|-------|
-| **P0.17** Auto-regrant | `_ensureConsent()` checks ledger before upload | `documents_screen.dart` | Existing consent tests |
+| **P0.17** Auto-regrant | `_ensureConsent()` checks ledger before upload; **version-currency added** (`hasConsentForVersion`, version-aware service gate, stale-version re-prompt) | `documents_screen.dart`, `document_service.dart`, `consent_ledger.dart` | `consent_upload_flow_test.dart` (stale re-prompt + re-grant), `consent_ledger_test.dart` (unit), `document_service_delete_test.dart`, `document_service_anonymous_user_test.dart`, `sync_integration_test.dart` — **90/90 pass** |
+| **P0.1** Claims auto-sync | Local-only for launch; `_syncClaims()` removed from `scheduleReconciliation()`; service marked DORMANT; ADR-2026-07-24-02 decision recorded | `reconciliation_coordinator.dart`, `claims_sync_service.dart` | Contract test in `reconciliation_coordinator_test.dart` (43/43 pass) |
 | **P0.18** Unawaited writes | Both dialog buttons `await` consent write | `lead_capture_dialog.dart` | Existing consent tests |
 | **P0.19** Marketing conflation | Removed auto-grant of `marketingEmails` | `lead_capture_dialog.dart` | Existing consent tests |
 | **P0.21** Onboarding blocks on failure | Required writes throw; `_complete()` catches | `onboarding_screen.dart` | 9 new tests in `onboarding_consent_test.dart` |
@@ -305,13 +319,13 @@ The service uses a Hive box named `newsletter` absent from the workspace-opening
 
 ### Critical P0s (Launch-blocking)
 
-| ID | Finding | Blocker |
-|----|---------|---------|
-| P0.1 | Claims auto-sync contradicts "device-only" copy | Product decision required |
-| P0.2-P0.10 | Claim model/sync redesign | Requires backend schema change |
-| P0.11-P0.12 | Claim photos plaintext + orphans | Requires encrypted blob storage |
-| P0.14-P0.16 | Backend schema lacks idempotency/ownership | Requires backend migration |
-| P0.23-P0.24 | Consent sync not convergence | Requires immutable event protocol |
+| ID | Finding | Status |
+|----|---------|--------|
+| P0.1 | Claims auto-sync contradicts "device-only" copy | ✅ FIXED — local-only for launch (2026-08-03) |
+| P0.2-P0.10 | Claim model/sync redesign | ⏸️ Deferred — sync disabled; must fix before any re-enable |
+| P0.11-P0.12 | Claim photos plaintext + orphans | ⚠️ In progress — principal-scoped encrypted attachment store landed (CW-P0-002); claim-photo migration/validation pending |
+| P0.14-P0.16 | Backend schema lacks idempotency/ownership | ⏸️ Deferred with sync; requires backend migration |
+| P0.23-P0.24 | Consent sync not convergence | ❌ OPEN — requires immutable event protocol |
 
 ### Blocked on External Dependencies
 
@@ -325,13 +339,13 @@ The service uses a Hive box named `newsletter` absent from the workspace-opening
 
 ## 10. Required Implementation Order
 
-1. **Product decision:** Claims local-only vs optional backup (P0.1)
-2. **Disable claim sync:** Remove automatic `_syncClaims()` calls
-3. **Fix consent flow:** Remove auto-regrant, separate marketing, await writes (P0.17-P0.22 ✅ DONE)
-4. **Replace claim model:** Add localId, remoteId, revisions, syncState, tombstones
-5. **Replace photo storage:** Principal-scoped encrypted attachment directory
-6. **Redesign backend schema:** Idempotency, revisions, tombstones, account deletion
-7. **Rebuild consent sync:** Immutable event protocol, server authority
+1. **Product decision:** Claims local-only vs optional backup (P0.1) ✅ **DECIDED 2026-08-03 — Option A local-only**
+2. **Disable claim sync:** Remove automatic `_syncClaims()` calls ✅ **DONE** (reconciliation retries uploads only; service DORMANT)
+3. **Fix consent flow:** Remove auto-regrant, separate marketing, await writes, **enforce exact-version currency** (P0.17-P0.22 ✅ DONE)
+4. **Replace claim model:** Add localId, remoteId, revisions, syncState, tombstones (⏸️ deferred with sync)
+5. **Replace photo storage:** Principal-scoped encrypted attachment directory (landed for documents via CW-P0-002; claim-photo migration pending)
+6. **Redesign backend schema:** Idempotency, revisions, tombstones, account deletion (⏸️ deferred with sync)
+7. **Rebuild consent sync:** Immutable event protocol, server authority (❌ P0.23-P0.24 remaining)
 
 ---
 
@@ -370,3 +384,14 @@ The next precise batch should be:
 ---
 
 Created 2026-07-31 per motto §0.3 ("if it was worth saying, it is worth documenting"). Original findings from ChatGPT Pro relational audit sessions preserved; status updates appended as fixes land. Cross-reference: [session cross-check report](session_2026_07_31_audit_5_6_comprehensive_crosscheck.md).
+
+---
+
+## Update Log
+
+| Date | Entry | Trigger |
+|------|-------|---------|
+| 2026-08-03 | **P0.1 resolved (Option A local-only).** Claims sync disabled for launch: `_syncClaims()` removed from `scheduleReconciliation()`, `ClaimsSyncService` marked DORMANT, decision recorded in ADR-2026-07-24-02. P0.2-P0.10 reclassified ⏸️ deferred (must pass before any sync re-enable). **P0.17 hardened with exact-version currency:** `hasConsentForVersion()` on the ledger, version-aware `DocumentService` gate + retry payload, stale-version re-prompt in `DocumentsScreen`. Validation: 90/90 tests pass across the consent/document-service/sync batch; `flutter analyze` clean. | Operator direction: audit backlog execution; motto §0.3 durable documentation. |
+| 2026-08-03 | **Device-only claim copy verified accurate after sync disable.** Confirmed `ClaimsSyncService.fullSync()` has **zero call sites** (only `invalidateClaimsSync()` remains); a contract test asserts `.fullSync(` absent from the reconciliation coordinator. Copy audit: claim tracking empty state ("private, on-device record… CoverWise does not submit claims or receive insurer updates"), claim log header ("personal record stored on this device… update statuses yourself"), wizard ("records information on this device only… does not file, submit, or update"), photo copy ("stored on-device"), description copy ("stays on your device"), and claims assistant ("does not file or manage the claim") all match the local-only implementation. `privacy_policy.md` (authoritative) contains zero claim references — nothing to correct. **Two privacy-screen inaccuracies fixed** (independent of claims): (1) "Policy documents" said "when you choose to sync a policy" — upload is immediate server processing, rewording to "stored on your device and sent to CoverWise… if you are offline, the file stays on your device until the upload retries"; (2) Analytics copy said "anonymous event counts" — events carry install/session IDs, rewording to "random install identifier, not your name or email". **Onboarding copy fixed for consistency** — same analytics wording ("Anonymous usage stats" → "Usage stats… random install identifier, not your name or email. Policy content is not included"). **Pre-existing test failures noted (not caused by copy change, verified by stash-run):** `onboarding_analytics_test.dart` "accept terms checkbox enables the add policy button" fails with "Too many elements" on `find.byType(Checkbox)` (multiple checkboxes on last page); `onboarding_consent_flow_test.dart` has 2 failures incl. a teardown hang. These predate the copy fix and are tracked separately. | Operator direction: verify copy accuracy after sync disable; motto §0.3. |
+| 2026-08-04 | **Workspace path anchored to Hive homePath — CWD-relative pollution and lock collisions eliminated.** Root cause: `HiveWorkspaceService._workspacePath()` returned a **CWD-relative** `workspaces/<principal>` path. Hive 2.2.3 uses an explicit `path:` param verbatim (`_manager.open(name, path ?? homePath, …)`), so relative paths resolve against the process working directory. Impact: (a) in tests (CWD=`mobile/`) every workspace opened by `openForActivePrincipal()`/`openTestWorkspace()` wrote under `mobile/workspaces/` (~7.7 MB of Hive boxes/locks) and two test isolates sharing a principal collided on the same `.lock` file → `FileSystemException: lock failed`; (b) in production `Hive.initFlutter()` sets homePath to the app documents directory but it was bypassed — on iOS/Android (CWD=`/`) the path resolves to `/workspaces/...`, which is unwritable (latent real-device crash, masked because no release binary has run). **Fix:** `_workspacePath()` now anchors to Hive's home path (set by `Hive.init()`/`Hive.initFlutter()`) via a typed private helper `_hiveHomePath`. Because hive 2.2.3 exposes `homePath` only on `HiveImpl` (not the exported `HiveInterface`), the helper uses a single isolated dynamic access and degrades to the relative-path fallback if the field shape ever changes on upgrade. Workspace paths are now `<appDocs>/workspaces/<principal>` in production and `<testTempDir>/workspaces/<principal>` in tests — each test isolate isolated, nothing written into the repo. **Test hardening:** `encrypted_attachment_store_test.dart` legacy-file tests previously relied on the polluted directory already existing; they now create the attachments directory explicitly via a `writeLegacyAttachment()` helper (clean-state correctness). **Validation:** 9 workspace-touching test files run in one process (encrypted_attachment_store, local_storage_service, document_service_delete, account_document_reconciliation, archive_restore_flow, document_library_no_hidden_query, sync_integration, migration_integrity, principal_key_service) = **103/103 pass**; `mobile/workspaces/` verified **not recreated** after the run; `flutter analyze` clean on the edited files. Note: existing installs cannot have data at the old CWD-relative location (it is unwritable on devices), so no migration is needed. | Operator direction: delete `mobile/workspaces/` pollution and confirm nothing recreates it; motto §0.3, §0.1 (single source of truth for the storage base). |
+| 2026-08-04 | **P0.23 addressed: consent sync now pulls server authority before pushing local state.** `_syncAll()` calls `pullFromServer()` before iterating local consent records. This prevents a stale local grant (e.g., offline grant followed by server-side revocation on another device) from overwriting the server's current state. The pull is wrapped in a try/catch so offline startup still pushes local state as a fallback. `pullFromServer()` is idempotent and debounced via `_pullInFlight`. Validation: consent sync integration tests (4/4 pass), consent upload flow tests (71/71 pass), consent ledger tests (dedicated test file, also passes). `flutter analyze` clean. P0.24 (offline grant/revoke/re-grant collapsed) remains open — it requires immutable event IDs and an append-only event protocol, which is a future backend schema change. | Operator direction: audit backlog execution; motto §0.3. |

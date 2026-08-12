@@ -1,9 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:coverwise/widgets/claims_workflow_sheet.dart';
 import 'package:coverwise/providers/policy_providers.dart';
 import 'package:coverwise/models/policy_summary.dart';
+import 'package:coverwise/services/app_state_repository.dart';
+import 'package:coverwise/services/hive_workspace_service.dart';
 import 'package:coverwise/widgets/shared/coverwise_snackbar.dart';
 import 'package:coverwise/theme/coverwise_theme.dart';
 import 'helpers/hive_test_helper.dart';
@@ -43,12 +49,94 @@ Future<void> openWizard(WidgetTester tester) async {
 
 // ── Main ──
 
+// ── P0.12 photo-cleanup harness ──
+
+String? _pickedPhotoPath;
+
+/// Mocks the image_picker method channel so `pickImage` returns a real
+/// temporary file path that the wizard copies into the encrypted
+/// attachment store.
+void _mockImagePickerChannel(String path) {
+  _pickedPhotoPath = path;
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    const MethodChannel('plugins.flutter.io/image_picker'),
+    (call) async {
+      if (call.method == 'pickImage') return _pickedPhotoPath;
+      return null;
+    },
+  );
+}
+
+/// Creates a temporary source image file for the picker to "return".
+/// Must be called via `tester.runAsync` (real file I/O).
+Future<String> _createSourceImage() async {
+  final dir = await Directory.systemTemp.createTemp('wizard_photo_src_');
+  final file = File(p.join(dir.path, 'evidence.jpg'));
+  await file.writeAsBytes(List<int>.filled(128, 7));
+  return file.path;
+}
+
+/// Number of files currently in the workspace attachments directory.
+/// Synchronous — real file I/O does not progress under the widget-test
+/// fake async zone, so counting must not await anything.
+int _attachmentCount() {
+  final dir = Directory(
+    p.join(HiveWorkspaceService.workspacePath!, 'attachments'),
+  );
+  if (!dir.existsSync()) return 0;
+  return dir.listSync().whereType<File>().length;
+}
+
+/// Waits until the attachments directory reaches [expected] files, letting
+/// real (non-fake-async) file I/O progress via [WidgetTester.runAsync].
+/// File copies and deletes happen outside the widget frame pump cycle.
+Future<void> _expectAttachmentCountEventually(
+  WidgetTester tester,
+  int expected,
+) async {
+  var count = _attachmentCount();
+  for (var i = 0; i < 30 && count != expected; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    count = _attachmentCount();
+  }
+  expect(count, expected);
+}
+
+/// Taps Gallery on the photo step and lets the encrypted copy (real file
+/// I/O) finish before returning.
+Future<void> _addPhotoViaGallery(WidgetTester tester) async {
+  await tester.runAsync(() async {
+    await tester.tap(find.text('Gallery'));
+    await tester.pump();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  });
+  await tester.pumpAndSettle();
+}
+
+/// Taps Save and lets the claim persistence (real Hive write) finish
+/// before the sheet pops.
+Future<void> _tapSave(WidgetTester tester) async {
+  await tester.runAsync(() async {
+    await tester.tap(find.text('Save to claim log'));
+    await tester.pump();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  });
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() async {
     await HiveTestHelper.setUp();
+    // P0.12: Photo capture writes into the principal-scoped encrypted
+    // attachment store, which needs an active workspace + principal DEK.
+    await HiveTestHelper.openTestWorkspace();
   });
 
   tearDownAll(() async {
+    HiveTestHelper.closeTestWorkspace();
     await HiveTestHelper.tearDown();
   });
 
@@ -287,8 +375,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save to claim log'));
-      await tester.pumpAndSettle();
+      await _tapSave(tester);
 
       // Hive is available (via HiveTestHelper), so save should persist
       // the claim record and close the sheet.
@@ -337,6 +424,96 @@ void main() {
       expect(find.text('Camera'), findsOneWidget);
       expect(find.text('Gallery'), findsOneWidget);
       expect(find.textContaining('Photos are optional'), findsOneWidget);
+    });
+  });
+
+  group('ClaimWizardSheet — P0.12 photo cleanup', () {
+    // P0.12 tests add real claim records; clean up between each test so
+    // getClaimRecords() does not accumulate across cases.
+    tearDown(() {
+      AppStateRepository.replaceClaimRecords([]);
+    });
+
+    testWidgets('cancelling the wizard deletes session photos from disk',
+        (tester) async {
+      _mockImagePickerChannel(
+        (await tester.runAsync<String>(() => _createSourceImage()))!,
+      );
+      await tester.pumpWidget(_buildTestApp());
+      await openWizard(tester);
+
+      // Navigate to the photos step and add a photo via Gallery.
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await _addPhotoViaGallery(tester);
+
+      // One photo attached: thumbnail with a close/remove button, and the
+      // encrypted copy exists in the attachments directory.
+      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      expect(_attachmentCount(), 1);
+
+      // Back to step 1, then Cancel — the sheet is dismissed without save.
+      await tester.tap(find.text('Back'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // The orphan file must have been cleaned up.
+      expect(find.text('What happened?'), findsNothing);
+      await _expectAttachmentCountEventually(tester, 0);
+    });
+
+    testWidgets('removing a photo deletes its file immediately',
+        (tester) async {
+      _mockImagePickerChannel(
+        (await tester.runAsync<String>(() => _createSourceImage()))!,
+      );
+      await tester.pumpWidget(_buildTestApp());
+      await openWizard(tester);
+
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await _addPhotoViaGallery(tester);
+
+      expect(_attachmentCount(), 1);
+
+      // Tap the remove button on the thumbnail (file deletion is real I/O,
+      // so let it finish via runAsync).
+      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.close_rounded), findsNothing);
+      await _expectAttachmentCountEventually(tester, 0);
+    });
+
+    testWidgets('saving the claim keeps its photos and persists the record',
+        (tester) async {
+      _mockImagePickerChannel(
+        (await tester.runAsync<String>(() => _createSourceImage()))!,
+      );
+      await tester.pumpWidget(_buildTestApp());
+      await openWizard(tester);
+
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+      await _addPhotoViaGallery(tester);
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'What happened? *'),
+        'Car hit pole on Marine Drive',
+      );
+      await tester.pumpAndSettle();
+      await _tapSave(tester);
+
+      // Sheet closed, photo retained (committed), claim persisted with the
+      // photo path.
+      expect(find.text('What happened?'), findsNothing);
+      expect(_attachmentCount(), 1);
+      final claims = AppStateRepository.getClaimRecords();
+      expect(claims, hasLength(1));
+      expect(claims.first.photoPaths, hasLength(1));
     });
   });
 

@@ -7,7 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../l10n/app_localizations_gen.dart';
 import '../services/app_state_repository.dart';
 import '../services/auth_service.dart';
-import '../models/identity.dart';
+import '../models/principal_state.dart';
 import '../services/contact_service.dart';
 import '../services/install_service.dart';
 import '../services/hive_workspace_service.dart';
@@ -174,9 +174,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _clearWorkspaceData() async {
     try {
       await ContactService.clearSavedContact();
-      await HiveWorkspaceService.resetForPrincipal(
-        LocalPrincipal(InstallService.getInstallId()),
-      );
+      // CW-P0-004: Route through the canonical PrincipalState resolver.
+      // This runs after sign-out, so the Supabase session is null and the
+      // resolver deterministically produces the InstallGuest workspace
+      // principal — no direct LocalPrincipal construction here.
+      final guestPrincipal = Resolve.resolveCurrent(
+        installId: InstallService.getInstallId(),
+      ).principal;
+      await HiveWorkspaceService.resetForPrincipal(guestPrincipal);
       debugPrint('Workspace data cleared');
     } catch (e) {
       debugPrint('Error clearing workspace data: $e');

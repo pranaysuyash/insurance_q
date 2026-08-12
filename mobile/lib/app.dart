@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/app_localizations_gen.dart';
 import 'config/app_config.dart';
-import 'models/identity.dart';
+import 'models/principal_state.dart';
 import 'models/reset_password_args.dart';
 import 'providers/auth_provider.dart';
 import 'providers/entitlement_provider.dart';
@@ -81,7 +81,14 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
         switch (event) {
           case AuthChangeEvent.signedIn:
             if (session == null) return;
-            final principal = AccountPrincipal(session.user.id);
+            // CW-P0-004: Deterministic principal resolution via the
+            // PrincipalState model — replaces the hardcoded
+            // AccountPrincipal(session.user.id) construction.
+            final principalState = Resolve.resolve(
+              session: session,
+              installId: InstallService.getInstallId(),
+            );
+            final principal = principalState.principal;
             ref.read(authServiceProvider.notifier).updateSessionExpired(false);
             final preserveWorkspace =
                 ref.read(authServiceProvider.notifier).consumeAnonymousWorkspaceClaim();
@@ -99,7 +106,13 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
 
           case AuthChangeEvent.signedOut:
             _reconciliation.prepareSignOut();
-            final principal = LocalPrincipal(InstallService.getInstallId());
+            // CW-P0-004: Deterministic principal resolution —
+            // null session always produces InstallGuest.
+            final principalState = Resolve.resolve(
+              session: null,
+              installId: InstallService.getInstallId(),
+            );
+            final principal = principalState.principal;
             final epoch = _reconciliation.prepareTransition(principal);
             unawaited(_reconciliation.handleAuthenticatedSessionTransition(
               principal,

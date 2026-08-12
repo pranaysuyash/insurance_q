@@ -1,19 +1,28 @@
-/// Synchronises a user's self-reported claim log between backend and Hive.
+/// >>> DORMANT FOR LAUNCH (Audit 6 P0.1) <<<
+/// The claim log is local-only for the launch product. NOTHING calls this
+/// service automatically — `ReconciliationCoordinator.scheduleReconciliation()`
+/// only retries document uploads. The methods below remain intact as the
+/// protocol for a FUTURE explicit opt-in sync, which requires a redesigned
+/// backend contract (owner-scoped idempotency, revisions, tombstones,
+/// pagination, status wire mapping, attachment IDs) and user opt-in.
+/// See ADR-2026-07-24-02 update log (2026-08-03).
 ///
+/// Original protocol description (retained for the future opt-in design):
+/// synchronises a user's self-reported claim log between backend and Hive.
 /// The mobile app stores claims locally via [AppStateRepository] (Hive). The
 /// backend API (POST /claims, GET /claims) provides server-side persistence
 /// for cross-device sync of the user's own records.
 ///
-/// Sync strategy:
-///   - On app startup (or when online), pull claims from the backend and merge
-///     them into the local store. Server claims take precedence for status
-///     and reference_number; the local store is the source of truth for
-///     photo_paths (which are file-system paths not accessible server-side).
+/// Sync strategy (as designed, not currently active):
+///   - Pull claims from the backend and merge them into the local store.
+///     Server claims take precedence for status and reference_number; the
+///     local store is the source of truth for photo_paths (which are
+///     file-system paths not accessible server-side).
 ///   - When a new claim is filed locally, push it to the backend via POST /claims.
 ///   - Conflicts are resolved by taking the most recently updated record.
 ///
-/// This is a best-effort sync: failures are logged but never block the UI
-/// because the local store is always functional offline.
+/// Best-effort by design: failures are logged but never block the UI because
+/// the local store is always functional offline.
 library;
 
 import 'package:dio/dio.dart';
@@ -98,6 +107,10 @@ class ClaimsSyncService {
 
   /// Set the epoch for the current claims sync. Called by the reconciliation
   /// coordinator before initiating a sync.
+  ///
+  /// DORMANT for launch (Audit 6 P0.1): no caller sets this today because
+  /// claims sync is disabled. Retained so a future explicit opt-in sync can
+  /// re-establish the epoch contract without rework.
   static void setClaimsSyncEpoch(int epoch) {
     _claimsSyncEpoch = epoch;
   }
@@ -105,6 +118,10 @@ class ClaimsSyncService {
   /// Invalidate any in-flight claims sync by bumping the epoch to an
   /// impossible value. Called by the reconciliation coordinator during
   /// workspace transitions to prevent stale claims from being pushed.
+  ///
+  /// DORMANT for launch (Audit 6 P0.1): claims sync is disabled, but this
+  /// guard is still invoked defensively during principal transitions so a
+  /// future opt-in sync can never write across a workspace boundary.
   static void invalidateClaimsSync() {
     _claimsSyncEpoch = -1;
   }
