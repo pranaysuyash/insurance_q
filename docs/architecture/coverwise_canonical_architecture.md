@@ -1,7 +1,7 @@
 # CoverWise Canonical Architecture
 
 **Status:** Living document. Updated when the system changes.
-**Last updated:** 2026-07-24 (added §6 four-face evidence-backed contract, all 4 faces implemented + tested)
+**Last updated:** 2026-08-12 (reconciled §1.2 runtime to Render launch decision + §4 Tier 1 secrets; supersedes the 2026-07-24 Cloud Run framing per `docs/planning/deployment/platform_decision_reassessment_2026-07-28.md`)
 **Maintainer:** Pranay (operator) + every agent/engineer who changes the system
 **Decision record:** [ADR-2026-07-19-05](../decisions/ADR-2026-07-19-05-canonical-architecture-doc-location.md)
 **Product doctrine:** this architecture serves the [Product Constitution](../planning/product/PRODUCT_FIRST_PRINCIPLES.md) (Proposed, per [ADR-2026-07-29-02](../decisions/ADR-2026-07-29-02-doctrine-stack-reconciliation.md)). Where any architectural choice touches the product boundary, the constitution's five-gate stack governs.
@@ -36,7 +36,7 @@ CoverWise is built from 5 main components. Each is a small surface with a clear 
 
 ### 1.2 The FastAPI backend (`src/`)
 
-- **Runtime:** Cloud Run (single service, scale-to-zero, `min-instances=0`).
+- **Runtime:** **Render (Starter)** — a **Web Service** (the FastAPI API) plus a **Background Worker** (`src/workers/outbox_worker.py`), both always-on on the $7/mo Starter tier (~$14/mo total). The worker is always-on because the `job_outbox` queue only drains while it runs (see `docs/planning/deployment/platform_decision_reassessment_2026-07-28.md`, which supersedes the earlier Cloud Run framing). **Cloud Run is the documented later scale-out target** — re-point the same Docker image, not a rewrite.
 - **Routes:** `src/api/` (user, document, family, policy, analytics, **evidence**).
 - **Document processing:** `src/services/document_processing_service.py` (the state machine via `derive_document_state()`).
 - **Evidence pipeline:** `src/services/evidence_pipeline.py` (6 deterministic + 1 LLM extractor).
@@ -156,7 +156,7 @@ The system has 3 trust tiers, ordered from highest to lowest:
 
 - **Can read and write all RLS-protected tables.**
 - **The substrate, RevOps tables, outbox, and the `documents` table are service-role-only** in the RLS policies (the API enforces owner-scoping at the route boundary, not in RLS).
-- **This tier is held by the FastAPI service only.** The key is in GCP Secret Manager; the service reads it from the runtime env.
+- **This tier is held by the FastAPI service only.** On the launch platform (Render), the service_role key is supplied via **Render secret env vars** (or Supabase Vault) and read from the runtime environment — there is no GCP Secret Manager in the launch architecture. The key must never be bundled into the mobile app or client-side code.
 
 ### Tier 2: anon + authenticated (the mobile app, via SUPABASE_PUBLISHABLE_KEY / anon key)
 

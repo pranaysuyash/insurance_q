@@ -65,9 +65,7 @@ cp .env.example .env
 ```
 
 ### 3. Deploy
-The canonical deployment target is Cloud Run + Supabase (see `tools/deploy_cloud_run.sh`
-and `tools/deploy_outbox_worker.sh`). The legacy AWS App Runner and Azure deploy
-scripts were agent-built dead paths and have been removed.
+The canonical **launch** deployment target is **Render (Starter) + Supabase** — a Web Service (API) plus a Background Worker, both always-on. The legacy AWS App Runner and Azure deploy scripts were agent-built dead paths and have been removed. **Cloud Run is the documented later scale-out target** (`tools/deploy_cloud_run.sh` is retained for that path); see `docs/planning/deployment/platform_decision_reassessment_2026-07-28.md`.
 
 ## 📋 Environment Variables
 

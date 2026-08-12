@@ -9,7 +9,7 @@
 
 ## 1. Context
 
-We are removing the AWS deployment path (user-confirmed obsolete; nothing live as of 2026-08-12). The canonical path is **Cloud Run + Supabase Postgres + pgvector + private Storage** (per `README.md:39-48`).
+We are removing the AWS deployment path (user-confirmed obsolete; nothing live as of 2026-08-12). The canonical **launch** path is **Render (Starter) + Supabase Postgres + pgvector + private Storage**, per `docs/planning/deployment/platform_decision_reassessment_2026-07-28.md` (which supersedes the earlier Cloud Run framing). **Cloud Run is the documented later scale-out target** — re-point the same Docker image, not a rewrite.
 
 The single worst defect in the audit (`docs/audit/rag_mobile_best_practices_audit_2026-08-12.md`, Finding #2) was a **public, unauthenticated Redis** caching full private policy answers. Investigation shows this was **not an AWS-specific mistake** — the Azure deploy script contains the identical anti-pattern: *"services are currently configured to connect to Redis without a password for simplicity"* (`scripts/deploy_full_backend_to_azure.sh:25`). Redis is used in two roles:
 
@@ -59,7 +59,7 @@ No standalone cache service (Redis/Memcached) is introduced.
 1. **Owner-scoped (RLS).** Cache rows carry `owner_id`; cross-tenant reads impossible at the DB layer.
 2. **Re-verify on read.** Cache hits MUST re-run `verify_citation` + `verify_answer` before returning (closes the `pipeline.py:1165` gap). Cache is treated as **untrusted**; verification is cheap (string match) and is the defense-in-depth against any write-path compromise.
 3. **TTL + version invalidation.** `expires_at` column + global version key bumped on ingest (design already has the version concept).
-4. **No public exposure.** Postgres is private; only the Cloud Run service + Supabase-bound clients reach it.
+4. **No public exposure.** Postgres is private; only the Render Web Service + Supabase-bound clients reach it.
 5. **Cache disabled by default flag.** `RAG_CACHE_ENABLED=false` at launch is acceptable; flip on after the faithfulness eval passes.
 
 ---
@@ -108,3 +108,4 @@ No standalone cache service (Redis/Memcached) is introduced.
 ## 9. Update log
 
 - **2026-08-12** — Initial proposal. Context, decision (drop Redis, consolidate on Postgres), options, security requirements, and removal scope recorded. Awaiting Pranay sign-off.
+- **2026-08-12 (reconciliation)** — Corrected §1 + §5 to name **Render (Starter)** as the canonical *launch* runtime, superseding the earlier Cloud Run framing. Cloud Run is retained only as the documented later scale-out target (per `platform_decision_reassessment_2026-07-28.md`). This ADR governs the Redis/cache substrate; the runtime choice is owned by the 07-28 platform decision.
