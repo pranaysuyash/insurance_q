@@ -9,7 +9,7 @@ import requests
 from pathlib import Path
 
 # Configuration
-API_BASE_URL = "https://nrmmvtpyaf.ap-south-1.awsapprunner.com"
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")  # no hardcoded deploy endpoint; set API_BASE_URL to the active Cloud Run service
 DOCUMENTS_DIR = "storage/documents"
 
 
