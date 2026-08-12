@@ -26,6 +26,12 @@ from src.security.prompt_injection import (
     fence_untrusted_content,
 )
 from src.models.rag import RAGAnswer, RAGCitation
+from src.rag.persona import (
+    build_system_message,
+    is_policy_wording_persona_enabled,
+    get_persona_version,
+    WORDING_ASSESSMENT_INSTRUCTION,
+)
 from src.services.answer_verifier import verify_answer
 from src.services.supabase_vector_store import SupabaseVectorStore
 from src.utils.runtime_config import supabase_server_key
@@ -706,6 +712,7 @@ class RAGPipeline:
                 # in every backend, including the direct Qdrant path.
                 "retrieval_text": chunk_text,
                 "section_type": self._classify_section_type(chunk_text),
+                "section_tags": self._classify_section_types(chunk_text),
                 "chunk_type": block.get("chunk_type", "paragraph"),
                 "parent_chunk_id": block.get("parent_chunk_id"),
             }
@@ -1309,28 +1316,41 @@ class RAGPipeline:
 
         context_str = "\n\n".join(contexts)
 
+        # Orphan-layer fusion: prepend the pre-extracted policy structure as a
+        # clearly-labelled, NON-CITABLE priming context. The persona uses it to
+        # see the benefit/exclusion/limit map; it must never be cited as a Source.
+        policy_map = self._build_policy_map_context(
+            (filters or {}).get("document_ids") if filters else None
+        )
+        if policy_map:
+            context_str = f"{policy_map}\n\n{context_str}"
+
         answer_payload: Optional[RAGAnswer] = None
         llm_unavailable = False
         try:
+            # Single chokepoint for answer-identity selection (feature flag).
+            system_message = build_system_message()
+            user_instruction = (
+                "Return a grounded answer with citations, confidence, missing "
+                "information, and helpful follow-up questions."
+            )
+            if is_policy_wording_persona_enabled():
+                # Only ask for the structured coverage reading when the persona is on.
+                user_instruction = (
+                    user_instruction + " " + WORDING_ASSESSMENT_INSTRUCTION
+                )
             answer_payload = await self.llm.generate_structured(
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            SYSTEM_PROMPT_PREFIX
-                            + "\n\nYou are a careful insurance-document assistant. Answer only from the "
-                            "provided context. Cite the source indices that support each claim. "
-                            "If the context does not contain the answer, say so explicitly instead "
-                            "of guessing. Keep the answer concise and practical."
-                        ),
+                        "content": system_message,
                     },
                     {
                         "role": "user",
                         "content": (
                             f"Retrieved context:\n{context_str}\n\n"
                             f"Question: {user_query}\n\n"
-                            "Return a grounded answer with citations, confidence, missing "
-                            "information, and helpful follow-up questions."
+                            f"{user_instruction}"
                         ),
                     },
                 ],
@@ -1383,6 +1403,10 @@ class RAGPipeline:
             citations=answer_payload.citations,
         )
         answer_payload.verification_status = verification_status
+        # Traceability: stamp the persona version only when the persona produced it.
+        answer_payload.persona_version = (
+            get_persona_version() if is_policy_wording_persona_enabled() else None
+        )
         logger.info(
             "Answer verifier: status=%s material=%d cited=%d total_citations=%d",
             verification_status, material_claims_count, cited_claims_count,
@@ -1418,6 +1442,12 @@ class RAGPipeline:
                 "retrieval_confidence": round(retrieval_confidence, 3),
                 "citations": [citation.model_dump() for citation in answer_payload.citations],
                 "verification_status": verification_status,
+                "persona_version": answer_payload.persona_version,
+                "wording_assessment": (
+                    answer_payload.wording_assessment.model_dump()
+                    if answer_payload.wording_assessment
+                    else None
+                ),
                 "missing_information": answer_payload.missing_information,
                 "follow_up_questions": answer_payload.follow_up_questions,
                 "retrieval_strategy": (
@@ -1571,25 +1601,31 @@ class RAGPipeline:
         try:
             # Use streaming LLM call
             full_answer = ""
+            # Single chokepoint for answer-identity selection (feature flag).
+            stream_system_message = build_system_message()
+            stream_user_instruction = (
+                "Return a grounded answer with citations, confidence, missing "
+                "information, and helpful follow-up questions."
+            )
+            if is_policy_wording_persona_enabled():
+                stream_user_instruction = (
+                    stream_user_instruction + " If the question is about whether something is "
+                    "covered, also explain the coverage reasoning (applicable exclusions, "
+                    "exceptions, conditions, limits, amending endorsements). Interpret the "
+                    "wording as written; do not make a binding coverage decision."
+                )
             async for token in self.llm.generate_stream(
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            SYSTEM_PROMPT_PREFIX
-                            + "\n\nYou are a careful insurance-document assistant. Answer only from the "
-                            "provided context. Cite the source indices that support each claim. "
-                            "If the context does not contain the answer, say so explicitly instead "
-                            "of guessing. Keep the answer concise and practical."
-                        ),
+                        "content": stream_system_message,
                     },
                     {
                         "role": "user",
                         "content": (
                             f"Retrieved context:\n{context_str}\n\n"
                             f"Question: {user_query}\n\n"
-                            "Return a grounded answer with citations, confidence, missing "
-                            "information, and helpful follow-up questions."
+                            f"{stream_user_instruction}"
                         ),
                     },
                 ],
@@ -2110,6 +2146,39 @@ class RAGPipeline:
     def _tokenize(self, text: str) -> List[str]:
         return re.findall(r"[a-z0-9]+", (text or "").lower())
 
+    # --- Orphan policy-summary fusion (see audit: document_policy_summaries is
+    # extracted at ingest but never shown to the chat model). We surface it as a
+    # clearly-labelled, NON-CITABLE priming context so the Policy Wording
+    # Specialist sees the pre-extracted benefit/exclusion/limit map alongside
+    # retrieved chunks. It is never cited as a Source. Guarded: returns "" when
+    # no summary is available so retrieval is never broken. ---
+    def _build_policy_map_context(self, document_ids: Optional[List[str]]) -> str:
+        if not document_ids:
+            return ""
+        try:
+            service = getattr(self, "_policy_extraction_service", None)
+            if service is None:
+                from src.services.policy_extraction_service import PolicyExtractionService
+                service = PolicyExtractionService(self.llm)
+                self._policy_extraction_service = service
+            parts = []
+            for doc_id in document_ids:
+                summary = service._load_summary(doc_id)
+                if not summary:
+                    continue
+                lines = [f"Extracted policy structure for document {doc_id} (context only, NOT a citable source):"]
+                _flat = lambda v: ", ".join(map(str, v)) if isinstance(v, list) else str(v)
+                for key in ("key_benefits", "exclusions", "waiting_periods", "coverage_items", "limits", "sub_limits"):
+                    value = summary.get(key)
+                    if value:
+                        lines.append(f"  - {key}: {_flat(value)}")
+                parts.append("\n".join(lines))
+            return "\n\n".join(parts)
+        except Exception as e:  # Defensive: never break retrieval on summary load failure.
+            logger.warning("Policy map priming skipped: %s", e)
+            return ""
+
+
     def _lexical_overlap(self, query_tokens: List[str], text: str) -> float:
         if not query_tokens or not text:
             return 0.0
@@ -2121,6 +2190,13 @@ class RAGPipeline:
         overlap = sum(min(query_counter[token], text_counter[token]) for token in query_counter)
         return overlap / max(len(query_tokens), 1)
 
+    # Keywords that signal the user is asking about a defined term; when present,
+    # definition chunks are boosted so the persona can resolve the term before
+    # interpreting (Persona step 5: Definitions).
+    _DEFINITION_INTENT_KEYWORDS: List[str] = [
+        "mean", "meaning", "definition", "defined", "what is", "refers", "interpret", "term",
+    ]
+
     def _exact_match_boost(self, user_query: str, text: str, payload: Dict[str, Any]) -> float:
         haystacks = [user_query.lower(), text.lower()]
         for key in ("document_id", "filename", "policy_number", "block_id"):
@@ -2131,8 +2207,22 @@ class RAGPipeline:
         for query_token in self._tokenize(user_query):
             if len(query_token) >= 4 and any(query_token in haystack for haystack in haystacks[1:]):
                 boost += 0.1
+        # Definition-privileging: if the query asks about a term and this chunk is
+        # a definition (by tag or coarse type), give it a small, bounded boost.
+        tags = payload.get("section_tags") or []
+        if isinstance(tags, str):
+            tags = [tags]
+        is_definition_chunk = payload.get("section_type") == "definition" or "definition" in tags
+        if is_definition_chunk and any(kw in user_query.lower() for kw in self._DEFINITION_INTENT_KEYWORDS):
+            boost += 0.15
         return min(boost, 1.0)
 
+    # Granular taxonomy. The coarse ``section_type`` column (enforced by a DB
+    # CHECK constraint) stays limited to the original 8 values for stable
+    # routing/filtering. The richer categories below are emitted as multi-label
+    # ``section_tags`` (stored in the JSONB metadata) so the Policy Wording
+    # Specialist persona can reason about insuring agreements, conditions,
+    # endorsements, exceptions and deductibles without a schema migration.
     _SECTION_TYPE_PATTERNS: Dict[str, List[str]] = {
         'definition': ['means', 'defined as', 'definition', 'interpretation', 'shall mean', 'refers to'],
         'exclusion': ['not covered', 'excluded', 'exclusion', 'not payable', 'shall not', 'does not cover', 'except'],
@@ -2140,23 +2230,54 @@ class RAGPipeline:
         'sub_limit': ['limited to', 'maximum of', 'subject to a limit', 'up to', 'capped at', 'not exceeding'],
         'schedule': ['schedule', 'annexure', 'premium schedule', 'benefit table', 'sum insured table'],
         'waiting_period': ['waiting period', 'waiting', 'initial waiting', 'pre-existing', 'days from', 'months from inception'],
-        'contact': ['helpline', 'customer care', 'toll free', 'email', 'contact', 'grievance', 'call centre', 'tpa']
+        'contact': ['helpline', 'customer care', 'toll free', 'email', 'contact', 'grievance', 'call centre', 'tpa'],
+        # Extended granular categories (emitted as tags; mapped to a coarse parent below)
+        'insuring_agreement': ['we will indemnify', 'we will pay', 'we cover', 'this policy covers', 'agrees to indemnify', 'undertakes to indemnify'],
+        'condition': ['claims condition', 'notification of claim', 'notify us', 'subject to the condition', 'provided that', 'warranty that', 'condition precedent', 'duty to', 'must notify'],
+        'endorsement': ['endorsement no', 'endorsement no.', 'rider', 'addendum', 'amended by', 'amends the wording'],
+        'exception': ['exception to', 'except that', 'carve-back', 'notwithstanding', 'provided always that', 'save that'],
+        'deductible': ['deductible', 'excess of', 'franchise amount', 'retention of', 'first amount'],
     }
 
-    def _classify_section_type(self, text: str) -> str:
+    # Mapping from a granular category to a coarse ``section_type`` value that is
+    # valid under the DB CHECK constraint. Categories not listed map to themselves.
+    _SECTION_TYPE_COARSE_MAP: Dict[str, str] = {
+        'insuring_agreement': 'benefit',
+        'condition': 'general',
+        'endorsement': 'general',
+        'exception': 'exclusion',
+        'deductible': 'sub_limit',
+    }
+
+    def _classify_section_types(self, text: str) -> List[str]:
+        """Return all matched granular section tags (multi-label), most frequent first."""
         if not text:
-            return 'general'
+            return []
         text_lower = text.lower()
         counts = Counter()
         for section, keywords in self._SECTION_TYPE_PATTERNS.items():
             for kw in keywords:
                 if kw in text_lower:
                     counts[section] += 1
-        
         if not counts:
+            return []
+        # Stable order: by count desc, then declaration order.
+        ordered = sorted(counts.items(), key=lambda kv: (-kv[1], list(self._SECTION_TYPE_PATTERNS).index(kv[0])))
+        return [section for section, _ in ordered]
+
+    def _classify_section_type(self, text: str) -> str:
+        """Return the coarse ``section_type`` (DB-valid) for a chunk.
+
+        Multi-label matches are preserved via :meth:`_classify_section_types`; this
+        single value is the routing-friendly parent of the dominant granular tag.
+        """
+        if not text:
             return 'general'
-        
-        return counts.most_common(1)[0][0]
+        tags = self._classify_section_types(text)
+        if not tags:
+            return 'general'
+        top = tags[0]
+        return self._SECTION_TYPE_COARSE_MAP.get(top, top)
 
     async def _expand_with_adjacent_chunks(self, hits: List[Any], max_expand: int = 3) -> List[Any]:
         if self.vector_backend != 'supabase' or not hasattr(self, 'vector_store') or not self.vector_store:
@@ -2199,6 +2320,9 @@ class RAGPipeline:
             parts.append(f"page={payload.get('page_number')}")
         if payload.get("section"):
             parts.append(f"section={payload.get('section')}")
+        tags = payload.get("section_tags")
+        if tags:
+            parts.append(f"tags={','.join(tags) if isinstance(tags, list) else tags}")
         parts.append(f"score={float(hit.score or 0.0):.3f}")
         parts.append(f"text={text}")
         return " | ".join(parts)

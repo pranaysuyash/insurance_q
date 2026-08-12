@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -45,6 +45,67 @@ class RAGCitation(BaseModel):
     )
 
 
+# --- Policy Wording Specialist: structured coverage interpretation ---
+# Legal-safety note: this is an INTERPRETATION of the wording as written, not a
+# binding coverage / eligibility / claim / legal decision. The insurer decides.
+# Field names deliberately avoid "decision"; the model must surface ambiguity
+# rather than assert a single binding reading. See docs/review/... audit.
+
+
+class CoverageLimitationRef(BaseModel):
+    label: str = Field(..., description="Short label, e.g. 'Exclusion 3', 'Endorsement 4', 'Limit on baggage'.")
+    quote: str = Field(
+        "",
+        description="Short supporting quote copied from source_text (the immutable OCR'd text).",
+    )
+    source_index: Optional[int] = Field(
+        None,
+        description="1-based index of the retrieved source this limitation was read from.",
+    )
+
+
+class WordingAssessment(BaseModel):
+    # Deliberately 'reading', never 'decision'.
+    reading: Literal["likely_covered", "likely_not_covered", "conditional", "ambiguous"] = Field(
+        "ambiguous",
+        description=(
+            "Interpretation of the wording as written. NOT a binding coverage decision. "
+            "'conditional' = covered only if a condition/limit is met; 'ambiguous' = the "
+            "wording permits more than one reasonable reading."
+        ),
+    )
+    summary: str = Field(
+        "",
+        description="One or two sentence plain-language reading of the wording for the question asked.",
+    )
+    applicable_exclusions: List[CoverageLimitationRef] = Field(
+        default_factory=list, description="Exclusions that carve out the asked-about cover."
+    )
+    applicable_exceptions: List[CoverageLimitationRef] = Field(
+        default_factory=list, description="Carve-backs to those exclusions that may restore cover."
+    )
+    applicable_conditions: List[CoverageLimitationRef] = Field(
+        default_factory=list, description="Conditions, notification duties, or claims conditions that must be met."
+    )
+    applicable_limits: List[CoverageLimitationRef] = Field(
+        default_factory=list, description="Limits or deductibles that cap the cover."
+    )
+    amending_endorsements: List[CoverageLimitationRef] = Field(
+        default_factory=list, description="Endorsements, riders, or schedules that amend or override the base wording."
+    )
+    alternative_interpretation: Optional[str] = Field(
+        None,
+        description="The most reasonable unintended reading of the wording (adversarial test). Null if none identified.",
+    )
+    disclaimer: str = Field(
+        (
+            "This is an interpretation of the policy wording as written, not a binding coverage, "
+            "eligibility, or claim decision. Confirm with your insurer before relying on it."
+        ),
+        description="Mandatory non-legal-ish disclaimer; the insurer makes binding decisions.",
+    )
+
+
 VerificationStatus = Literal["fully_backed", "partially_backed", "abstained", "unverified"]
 
 
@@ -78,4 +139,16 @@ class RAGAnswer(BaseModel):
             "be backed; 'unverified' is the initial state before the answer "
             "verifier runs (reserved for the UI badge to render a warning)."
         ),
+    )
+    wording_assessment: Optional[WordingAssessment] = Field(
+        None,
+        description=(
+            "Optional structured interpretation produced when the question is about "
+            "whether something is covered. Interprets the wording; never a binding decision. "
+            "Populated only when the Policy Wording Specialist persona is active."
+        ),
+    )
+    persona_version: Optional[str] = Field(
+        None,
+        description="Version of the Policy Wording Specialist persona prompt that produced this answer (traceability).",
     )

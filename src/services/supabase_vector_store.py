@@ -55,7 +55,7 @@ class SupabaseVectorStore:
             contract = self._embedding_contract(embedding, block)
             metadata = {
                 key: block.get(key)
-                for key in ("page", "section", "source", "filename", "bbox", "page_artifact_id", "parent_chunk_id")
+                for key in ("page", "section", "source", "filename", "bbox", "page_artifact_id", "parent_chunk_id", "section_tags")
                 if block.get(key) is not None
             }
             source_text = block.get("source_text", block.get("text", ""))
