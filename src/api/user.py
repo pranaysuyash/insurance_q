@@ -91,8 +91,14 @@ def get_current_user(
     else:
         claims = verify_supabase_token(token)
 
+    sub = claims.get("sub")
+    if not sub:
+        # A token that verifies but carries no subject is malformed/forged.
+        # Fail loud at the boundary (401) rather than letting a KeyError
+        # later surface as a 500.
+        raise HTTPException(status_code=401, detail="Token is missing a subject claim")
     user = User(
-        uid=claims["sub"],
+        uid=sub,
         identity_type=claims.get("identity_type", "account"),
         email=claims.get("email"),
         phone=None,
@@ -489,12 +495,18 @@ def request_web_account_deletion(body: WebDeletionRequest, request: Request):
             user_agent=request.headers.get("user-agent"),
             ip_address=request.client.host if request.client else None,
         )
+        # Do not reveal whether an account exists. A local correlation id is
+        # returned (no durable record is written for a non-existent account, to
+        # avoid polluting the deletion-request table / leaking existence). The
+        # real request is only persisted when a matching account is found below.
+        request_id = f"web-{uuid.uuid4().hex}"
         return {
-            "status": "pending_review",
+            "status": "pending_verification",
+            "request_id": request_id,
             "email": email,
             "message": (
-                "Your deletion request has been received. If an account exists "
-                "for this email, it will be reviewed for deletion."
+                "Your deletion request has been registered. If an account exists "
+                "for this email, it will be verified for deletion."
             ),
         }
 

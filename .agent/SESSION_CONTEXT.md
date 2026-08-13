@@ -1,9 +1,9 @@
 # Session Context
 
-- Generated: 2026-08-12T11:36:04Z
+- Generated: 2026-08-13T06:40:02Z
 - Project: `medpiper/insurance_app`
-- Provider: `local`
-- Model: `BAAI/bge-m3`
+- Provider: `openai`
+- Model: `text-embedding-3-small`
 - Project collection: `projects_proj_medpiper_insurance_app`
 - Shared collection: `projects_workspace_shared`
 

@@ -145,3 +145,24 @@
 5.  **Review and Refine Environment Configuration & Secrets Management Strategy:**
     *   **Goal:** Enhance the strategy for managing environment variables and secrets across development, staging, and production.
     *   **Action:** Review current setup (`.env`, `sample.env`, `set_env_vars.py`, `docker-compose.yml`, `Dockerfile`). Propose best practices (e.g., Docker secrets for prod), refine loading/validation. Update `docs/developer_guide.md`.
+
+---
+
+## VII. 2026-08-12 — Active Backlog Pointer (NEW)
+
+> This file remains the historical operational checklist (see top note). For the
+> **current** prioritized backlog of missing / partial / expansion work, see:
+> **`docs/planning/backlog_missing_partial_work_and_expansion_2026-08-12.md`**
+> (canonical synthesis of a `motto_v5` missed-anything sweep). New debt-register
+> entries C-02, H-05…H-08, M-11…M-16, L-10, L-11 were added 2026-08-12.
+
+**Top leverage items — Remediation Batch 1 EXECUTED 2026-08-13 (see backlog doc "Execution Log"):**
+1. **C-02 (CRITICAL):** ✅ `tests/test_supabase_auth.py` added (10 tests) + `get_current_user` hardened against missing-`sub`→500.
+2. **H-05 (HIGH):** ✅ prod policy-extraction `NameError` fixed + `tests/test_policy_extraction_service.py` (3 tests).
+3. **H-06 (HIGH):** ✅ rate-limit now fails closed + `tests/test_anti_abuse_rate_limit.py` (3 tests).
+4. **H-08 (HIGH):** ✅ `fast_path=True` default + batched variant embeddings (code-only; CI latency probe pending).
+5. **H-07 (HIGH):** ✅ `tests/fixtures/pgvector_fake_supabase.py` + `tests/test_supabase_pgvector_integration.py` (10 tests) exercise the real prod pgvector adapter.
+
+**Full suite (`./venv/bin/python -m pytest`): 819 passed, 0 failed, 2 skipped.** Baseline is now **GREEN** — the 6 failures that remained (answer_verifier vacuous-truth regression ×2, `test_production_health` Sentry path ×2, redaction partial-phone PII gap ×1, report-and-deletion no-account contract ×1) were genuine source/test drifts, all fixed in this batch's greening pass (see backlog "Execution Log" addendum). Per motto §0.4 the attestation gate is satisfied; Batch 1 + greening are committed. **No push without explicit ask.** NOTE: `motto_v5.md` working-tree drift, persona RAG (`src/rag/*`), global corpus, and `docs/research/*` are deliberately left uncommitted (deferred, not bundled).
+
+See the backlog doc for full categorization, evidence tiers, file:line, severity, and closure paths.

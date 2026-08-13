@@ -240,16 +240,24 @@ class TestSentryConfiguration:
             "sentry_flutter dependency not found in pubspec.yaml"
         )
 
-    def test_sentry_init_exists_in_main_dart(self):
-        """SentryFlutter.init() must be called in main.dart."""
-        main_dart = Path(__file__).resolve().parents[1] / "mobile" / "lib" / "main.dart"
-        assert main_dart.exists(), "main.dart not found"
-        content = main_dart.read_text(encoding="utf-8")
+    def test_sentry_init_exists_in_app_bootstrap(self):
+        """SentryFlutter.init() must be wired in the app's composition root.
+
+        Startup logic (Sentry, Hive, Supabase, principal resolution) was
+        extracted from the thin main.dart entrypoint into
+        bootstrap/app_bootstrap.dart, so the Sentry wiring lives there.
+        """
+        bootstrap_dart = (
+            Path(__file__).resolve().parents[1]
+            / "mobile" / "lib" / "bootstrap" / "app_bootstrap.dart"
+        )
+        assert bootstrap_dart.exists(), "app_bootstrap.dart not found"
+        content = bootstrap_dart.read_text(encoding="utf-8")
         assert "SentryFlutter.init" in content, (
-            "SentryFlutter.init() not found in main.dart"
+            "SentryFlutter.init() not found in app_bootstrap.dart"
         )
         assert "AppConfig.sentryDsn" in content, (
-            "sentryDsn config reference not found in main.dart"
+            "AppConfig.sentryDsn reference not found in app_bootstrap.dart"
         )
 
     def test_has_sentry_config_property_exists(self):
@@ -268,11 +276,14 @@ class TestSentryConfiguration:
         )
 
     def test_run_zoned_guarded_fallback_exists(self):
-        """runZonedGuarded must still exist as a fallback when Sentry DSN is empty."""
-        main_dart = Path(__file__).resolve().parents[1] / "mobile" / "lib" / "main.dart"
-        content = main_dart.read_text(encoding="utf-8")
+        """runZonedGuarded must still exist as a fallback in the composition root."""
+        bootstrap_dart = (
+            Path(__file__).resolve().parents[1]
+            / "mobile" / "lib" / "bootstrap" / "app_bootstrap.dart"
+        )
+        content = bootstrap_dart.read_text(encoding="utf-8")
         assert "runZonedGuarded" in content, (
-            "runZonedGuarded fallback must exist when Sentry DSN is empty"
+            "runZonedGuarded fallback must exist in app_bootstrap.dart"
         )
 
 

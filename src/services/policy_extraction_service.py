@@ -19,6 +19,7 @@ from src.llm.client import LLMClient
 from src.models.extraction import PolicySummaryExtraction
 from src.security.prompt_injection import fence_untrusted_content
 from src.utils.runtime_config import supabase_server_key
+from src.utils.supabase_client import create_client
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,6 @@ class PolicyExtractionService:
             key = supabase_server_key()
             if not url or not key:
                 raise RuntimeError("Supabase policy-summary storage is required in production")
-                from src.utils.supabase_client import create_client
             self._supabase = create_client(url, key)
         else:
             os.makedirs(_SUMMARY_DIR, exist_ok=True)

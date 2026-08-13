@@ -1,6 +1,6 @@
 # Source this file in your shell for this project session.
-export MEMSEARCH_PROVIDER="local"
-export MEMSEARCH_MODEL="BAAI/bge-m3"
+export MEMSEARCH_PROVIDER="openai"
+export MEMSEARCH_MODEL="text-embedding-3-small"
 export PM="/Users/pranay/Projects/projects-memory"
 export PROJECT_REL="medpiper/insurance_app"
 export AGENT_MOTTO_SOURCE="/Users/pranay/Downloads/motto_v5.md"  # portable setups override to project motto_v5.md

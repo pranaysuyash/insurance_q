@@ -46,6 +46,18 @@ except Exception:
 # In-memory fallback for rate limiting when Redis is not available
 _memory_store = {}
 
+
+def rate_limiter_backend() -> str:
+    """Report which backend is currently enforcing rate limits.
+
+    ``"redis"`` means a shared, cross-worker store (effective behind multiple
+    workers). ``"memory"`` means a per-process store that does NOT coordinate
+    across worker processes — rate limits are effectively NOT enforced when more
+    than one worker is running. Use this in health checks / startup diagnostics
+    to fail loud when running multi-worker without Redis.
+    """
+    return "redis" if redis_client is not None else "memory"
+
 # Known disposable email domains (Phase 1 basic list)
 DISPOSABLE_EMAIL_DOMAINS = {
     '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com',
@@ -176,8 +188,11 @@ def _check_redis_rate_limit(
         
     except Exception:
         # CSO F5: never log Redis error details (may contain password/URL).
-        logger.warning("Redis rate limiting unavailable, allowing request")
-        return True, "Rate limiting unavailable"
+        # Fail CLOSED: when the rate-limiting backend is unavailable we deny the
+        # request rather than silently allow unlimited traffic (abuse protection
+        # must not be defeated by a Redis blip). Callers surface this as a 429.
+        logger.warning("Redis rate limiting unavailable, denying request")
+        return False, "Rate limiting unavailable"
 
 def _check_memory_rate_limit(
     key_type: str, 

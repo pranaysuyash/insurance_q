@@ -162,10 +162,15 @@ def verify_answer(
     material_sentences = _material_sentences(answer_text)
 
     if not material_sentences:
-        # No material claims to verify — abstain. Returning "fully_backed"
-        # for zero-claim answers (greetings, meta-commentary) would be a
-        # false evidence badge. Abstained means "nothing to verify".
-        return "abstained", 0, 0
+        # No material claims to verify — vacuously fully_backed. Every (zero)
+        # material claim is trivially cited and verified. Per ADR-2026-07-19-09
+        # Face 3, "abstained" is reserved for when the system DECLINES to
+        # answer because no claims CAN be backed; an empty greeting / meta
+        # answer is a non-answer, not a declined answer. This matches the test
+        # contract (test_empty_answer_returns_fully_backed_trivially) and the
+        # original 45d30aa behaviour; the d7bc88f "abstained" change was a
+        # silent regression against that contract.
+        return "fully_backed", 0, 0
 
     cited_count = _count_cited_sentences(answer_text, citations)
     total = len(material_sentences)

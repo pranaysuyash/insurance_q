@@ -166,6 +166,85 @@ Named routes (settings, help, documents, etc.) accessed via `Navigator.pushNamed
 
 ---
 
+## 2026-08-12 Sweep Additions (from `docs/planning/backlog_missing_partial_work_and_expansion_2026-08-12.md`)
+
+> Additive findings from a `motto_v5` missed-anything sweep. Items below are NEW and are **not** verified by a test run (evidence tiers are in the backlog doc). They extend — not replace — the register above.
+
+### C-02 (CRITICAL) No tests on the Supabase auth boundary
+`get_current_user` (the gate for nearly every protected endpoint) has **zero dedicated tests** — only `tests/test_anonymous_auth.py` exists; there is no `tests/test_supabase_auth.py`. JWT verification, expiry, revocation, and claim/role handling are untested.
+- **Impact:** Security-critical path untested; an auth regression would ship unnoticed.
+- **Remediation:** Add `tests/test_supabase_auth.py` (valid/invalid/expired/malformed JWT, missing `sub`, anonymous fallback; assert 401/403 boundaries).
+- **Evidence:** T4-verified (direct read this pass).
+- **Status:** **RESOLVED (2026-08-13)** — `tests/test_supabase_auth.py` added (10 tests) covering bearer-scheme rejection, anonymous→Supabase fallback, missing-`sub`→401, and a wire-level regression proving a 3-segment token + unconfigured Supabase returns 401 (not 500). Also hardened `src/api/user.py::get_current_user` to raise 401 (not KeyError→500) on a `sub`-less claim.
+
+### H-05 (HIGH) Policy-extraction service cannot initialize in production
+`src/services/policy_extraction_service.py:35-41` — on the prod branch a `raise RuntimeError` precedes the only `create_client` import (dead code); line 41 references `create_client`, which is never imported on this path → `NameError` when prod creds are present (or `RuntimeError` when absent). Swallowed at `document_processing_service.py:234` and `rag/pipeline.py:2252` → **policy extraction silently disabled in prod**.
+- **Impact:** Core ingestion value (single-call structured summary) degraded in prod.
+- **Remediation:** Move import to module top; remove dead line; unit-test constructing with `ENVIRONMENT=production`.
+- **Evidence:** T4-verified.
+- **Status:** **RESOLVED (2026-08-13)** — `from src.utils.supabase_client import create_client` moved to module top; prod `if/else` branch rewritten so `_supabase` is constructed when `ENVIRONMENT=production` (and `RuntimeError` only when creds are absent). `tests/test_policy_extraction_service.py` (3 tests) guards prod-construct, prod-missing-creds, and dev-local paths.
+
+### H-06 (HIGH) Rate limiting silently degrades to per-process memory
+`src/utils/anti_abuse.py:40-44` — on Redis-down, falls back to a module-global in-memory store. Behind multiple workers (gunicorn/uvicorn multiprocess) rate limits are not enforced across workers.
+- **Impact:** Abuse protection defeated silently in multi-worker prod.
+- **Remediation:** Fail loud / DB-backed counter; startup health check; 2-worker integration test.
+- **Evidence:** T4-verified.
+- **Status:** **RESOLVED (2026-08-13)** — `_check_redis_rate_limit` now **fails closed** (`return False` → caller surfaces 429) on Redis error instead of allowing the request; added `rate_limiter_backend()` helper for observability. `tests/test_anti_abuse_rate_limit.py` (3 tests) covers the fail-closed path and the backend-detection helper. NOTE: cross-worker memory fallback remains a known limitation (a Redis/DB-backed counter is the durable fix — tracked as follow-up, not closed by this change).
+
+### H-07 (HIGH) Production pgvector path is never exercised by tests
+Dev/QA uses Qdrant/local-SQLite; the canonical prod store (Supabase pgvector) is not covered by the suite.
+- **Impact:** The path users actually hit is untested.
+- **Remediation:** Add a pgvector (or pgvector-sqlite shim) test fixture; run the real pipeline.
+- **Evidence:** T3 (agent-inspected).
+- **Status:** **RESOLVED (2026-08-13)** — `tests/fixtures/pgvector_fake_supabase.py` provides an in-memory fake of the Supabase client surface (`rpc("match_document_chunks"|"match_document_chunks_fts")`, `table().upsert/select/delete`), and `tests/test_supabase_pgvector_integration.py` (10 tests) drives the **real** `SupabaseVectorStore` through it: contract guards (1536-dim, `embedding_model`, owner required), owner/tenant isolation, cosine ranking, FTS ranking, and the adjacent-chunk fallback. A true Postgres+pgvector round-trip (cosine via the `pgvector` type + the SQL match fn) still needs a disposable DB and is tracked separately.
+
+### H-08 (HIGH) `/query` RAG latency ~37s
+`src/rag/service.py:352` defaults `fast_path=False`; HyDE + RAG-Fusion + serial variant embeddings + serial answer generation dominate latency. README claims "<2s".
+- **Impact:** Real usage blocked by latency; credibility gap vs docs.
+- **Remediation:** Default `fast_path=True` + parallelize variant embeddings + set prompt-cache `extra_body`.
+- **Evidence:** T3.
+- **Status:** **RESOLVED (2026-08-13, code-only)** — Flipped `fast_path` default to `True` at all three `query_rag`/`query_rag_stream` entrypoints; batched the serial variant-embedding loops (HyDE/RAG-Fusion) into a single concurrent embed call. OpenAI prompt caching is automatic for `gpt-5-nano` (stable system prefix) — no `extra_body` plumbing needed (sending it returns 400). NOT yet backed by an automated latency test; `tests/bench_fast_path.py` + `tests/evals/fast_path_benchmark_2026-08-13.md` capture manual benchmarks. Effect expected to move the dominant ~37s serial path down substantially; a CI latency probe is a recommended follow-up.
+
+### M-11 (MED) In-memory QA-report store lost on restart
+`src/api/report_router.py:43-44` (`_REPORTS_STORE = []`). User reports of AI-generated content (Google Play policy requirement) are not durable.
+- **Remediation:** Persist to evidence substrate / a `qa_reports` table.
+- **Evidence:** T4-verified.
+
+### M-12 (MED) Cost ledger permanently zero
+`src/services/evidence_pipeline.py:537-541` — `cost = 0.0` for both LLM and deterministic extractors → cost dashboard always $0.
+- **Remediation:** Plumb `CostTracker` token counts into the record.
+- **Evidence:** T4-verified.
+
+### M-13 (MED) Unmounted / retired routers (dead code + false capability)
+`src/api/family.py` (zero `@router` decorators), `src/api/policy.py` — not mounted in `main.py`. Also `src/rag/service.py` (~540 lines) is a second, unmounted RAG microservice.
+- **Remediation:** Implement + mount, or archive with ADR (motto §0.12). Do not leave half-wired.
+- **Evidence:** T4-verified (mount check).
+
+### M-14 (MED) Orphaned `JobType`s / commented-out outbox handler
+`src/models/job_outbox.py:30,33,34` (`QA_RESPONSE`, `CLAIM_VERIFICATION`, `RENEWAL_DIFF`); `src/workers/outbox_worker.py:115-116` — `qa_handler` dispatch commented out → `QA_RESPONSE` never consumed.
+- **Remediation:** Implement `qa_handler` + register, or remove enum values + enqueue sites.
+- **Evidence:** T4-verified.
+
+### M-15 (MED) Deployment-platform doc contradiction + launch_claims tier violation
+README says Cloud Run; other docs say App Runner / Render. `docs/launch_claims/` #4–#10 marked active while the registry's own tier rule says Tier 0/1.
+- **Remediation:** Single-source deployment target; fix registry tier labels to match reality.
+- **Evidence:** T3 (README Cloud Run T4-verified).
+
+### M-16 (MED) Settings/doc model drift
+`src/config/settings.py:8` = `gpt-5-nano`; product/docs reference `gpt-4o-mini`.
+- **Remediation:** Reconcile and document the actual default.
+- **Evidence:** T4-verified.
+
+### L-10 (LOW) Hardcoded fabricated documents in frontend
+`src/frontend/app.py:419-445` — `/documents` returns hardcoded demo data; dangerous if shipped.
+- **Remediation:** Gate behind explicit demo flag; never in prod builds.
+
+### L-11 (LOW) Dead / deprecated modules cleanup
+`src/simple_app.py` ("Hello from Azure!"), `src/utils/firebase_auth.py`, `src/rag/config.py` (deprecated e5-large-v2/Qdrant/Redis), `src/services/dataset_registry.py` + `dataset_execution_service.py` + `model_lineage_service.py` (orphaned governance subsystem, never invoked).
+- **Remediation:** Schedule dead-code sweep; archive (do not delete history) with ADR.
+
+---
+
 ## Tracking
 
 | Item | Status | Target | Owner |
@@ -186,3 +265,16 @@ Named routes (settings, help, documents, etc.) accessed via `Navigator.pushNamed
 | M-09 | open | — | — |
 | M-10 | open | — | — |
 | L-09 | open | — | — |
+| C-02 | resolved (2026-08-13) | tests/test_supabase_auth.py | — |
+| H-05 | resolved (2026-08-13) | src/services/policy_extraction_service.py + tests/test_policy_extraction_service.py | — |
+| H-06 | resolved (2026-08-13, fail-closed only) | src/utils/anti_abuse.py + tests/test_anti_abuse_rate_limit.py | cross-worker backend follow-up |
+| H-07 | resolved (2026-08-13, fake-client) | tests/fixtures/pgvector_fake_supabase.py + tests/test_supabase_pgvector_integration.py | real-DB round-trip follow-up |
+| H-08 | resolved (2026-08-13, code-only) | src/rag/pipeline.py | CI latency probe follow-up |
+| M-11 | open (2026-08-12) | — | — |
+| M-12 | open (2026-08-12) | — | — |
+| M-13 | open (2026-08-12) | — | — |
+| M-14 | open (2026-08-12) | — | — |
+| M-15 | open (2026-08-12) | — | — |
+| M-16 | open (2026-08-12) | — | — |
+| L-10 | open (2026-08-12) | — | — |
+| L-11 | open (2026-08-12) | — | — |
