@@ -1,0 +1,93 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/tests/evals/coverage_dataset_policy.jsonl",
+  "n": 16,
+  "correct": 13,
+  "accuracy": 0.8125,
+  "per_class": {
+    "conditional": {
+      "n": 6,
+      "correct": 5
+    },
+    "likely_not_covered": {
+      "n": 3,
+      "correct": 3
+    },
+    "likely_covered": {
+      "n": 7,
+      "correct": 5
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "ambiguous": 1,
+      "conditional": 5
+    },
+    "likely_not_covered": {
+      "likely_not_covered": 3
+    },
+    "likely_covered": {
+      "conditional": 2,
+      "likely_covered": 5
+    }
+  },
+  "mismatches": [
+    {
+      "id": "policy-pdf",
+      "question": "Is maternity treatment covered from day one of this policy?",
+      "gold": "conditional",
+      "pred": "ambiguous",
+      "rationale": "Maternity is subject to a 36-month waiting period; it is not covered until that period is served."
+    },
+    {
+      "id": "policy-pdf",
+      "question": "Is there a deductible I must pay before the policy pays a claim?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "The policy states the deductible is Not Applicable, so no deductible amount is subtracted before cover applies."
+    },
+    {
+      "id": "policy-pdf",
+      "question": "Will the policy pay for an ambulance to take me to hospital?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "Domestic Road Ambulance Cover is a granted benefit (cashless actuals / reimbursement up to Rs 10,000 or 1% SI), so ambulance transport is covered subject to that sub-limit."
+    }
+  ],
+  "grounding_checked": 16,
+  "grounding_failed": [
+    {
+      "id": "policy-pdf",
+      "expected": "Maternity waiting period: 36 months"
+    },
+    {
+      "id": "policy-pdf",
+      "expected": "Not Applicable"
+    },
+    {
+      "id": "policy-pdf",
+      "expected": "Maternity Cover & New Born Baby Cover"
+    }
+  ],
+  "latencies_ms": [
+    36956.5,
+    35955.3,
+    27958.8,
+    38077.2,
+    41754.0,
+    29625.4,
+    36579.5,
+    37239.1,
+    49159.2,
+    37935.8,
+    36213.1,
+    35988.1,
+    32008.7,
+    42914.9,
+    47603.5,
+    25989.9
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

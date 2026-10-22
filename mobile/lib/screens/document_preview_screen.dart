@@ -17,6 +17,9 @@ class DocumentPreviewScreen extends StatefulWidget {
   final String filename;
   final String? documentId;
   final int initialPage;
+  final int? highlightPage;
+  final String? highlightQuote;
+  final Rect? highlightRect;
 
   const DocumentPreviewScreen({
     super.key,
@@ -24,6 +27,9 @@ class DocumentPreviewScreen extends StatefulWidget {
     required this.filename,
     this.documentId,
     this.initialPage = 1,
+    this.highlightPage,
+    this.highlightQuote,
+    this.highlightRect,
   });
 
   @override
@@ -145,23 +151,78 @@ class _DocumentPreviewScreenState extends State<DocumentPreviewScreen> {
   }
 
   Widget _buildPdfView() {
-    return PdfView(
-      controller: _pdfController!,
-      scrollDirection: Axis.vertical,
-      onPageChanged: (page) {
-        setState(() => _currentPage = page);
-      },
-      builders: PdfViewBuilders<DefaultBuilderOptions>(
-        options: const DefaultBuilderOptions(),
-        documentLoaderBuilder: (_) =>
-            const LoadingWidget(message: 'Opening policy document…'),
-        pageLoaderBuilder: (_) =>
-            const LoadingWidget(message: 'Rendering policy page…'),
-        errorBuilder: (_, error) => const AppErrorView(
-          message: 'This page could not be rendered.',
-          icon: Icons.broken_image_outlined,
+    final showHighlight = widget.highlightPage != null &&
+        _currentPage == (widget.highlightPage ?? widget.initialPage);
+
+    return Stack(
+      children: [
+        PdfView(
+          controller: _pdfController!,
+          scrollDirection: Axis.vertical,
+          onPageChanged: (page) {
+            setState(() => _currentPage = page);
+          },
+          builders: PdfViewBuilders<DefaultBuilderOptions>(
+            options: const DefaultBuilderOptions(),
+            documentLoaderBuilder: (_) =>
+                const LoadingWidget(message: 'Opening policy document…'),
+            pageLoaderBuilder: (_) =>
+                const LoadingWidget(message: 'Rendering policy page…'),
+            errorBuilder: (_, error) => const AppErrorView(
+              message: 'This page could not be rendered.',
+              icon: Icons.broken_image_outlined,
+            ),
+          ),
         ),
-      ),
+        if (showHighlight && widget.highlightRect != null)
+          Positioned(
+            left: widget.highlightRect!.left,
+            top: widget.highlightRect!.top,
+            width: widget.highlightRect!.width,
+            height: widget.highlightRect!.height,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.25),
+                  border: Border.all(color: Colors.amber.shade700, width: 2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+        if (showHighlight && widget.highlightQuote != null)
+          Positioned(
+            top: 12,
+            left: 16,
+            right: 16,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.amber.shade100,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.format_quote, size: 20, color: Colors.amber.shade900),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.highlightQuote!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.amber.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

@@ -1,0 +1,89 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/in/cyber/coverage.jsonl",
+  "n": 6,
+  "correct": 0,
+  "accuracy": 0.0,
+  "per_class": {
+    "conditional": {
+      "n": 2,
+      "correct": 0
+    },
+    "likely_not_covered": {
+      "n": 4,
+      "correct": 0
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "likely_covered": 2
+    },
+    "likely_not_covered": {
+      "likely_covered": 1,
+      "conditional": 2,
+      "ambiguous": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": "in-cyber-1",
+      "question": "If someone steals funds from my bank account through an unauthorized online transaction, am I covered?",
+      "gold": "conditional",
+      "pred": "likely_covered",
+      "rationale": "Section I (p.1) covers unauthorized-transaction theft, subject to 48-hour reporting and the deductible."
+    },
+    {
+      "id": "in-cyber-2",
+      "question": "If I am tricked into paying for goods online that are never delivered, am I covered?",
+      "gold": "conditional",
+      "pred": "likely_covered",
+      "rationale": "Section II (p.1) covers online purchase fraud subject to those conditions."
+    },
+    {
+      "id": "in-cyber-3",
+      "question": "If I am hit by a ransomware attack and pay a ransom to regain access to my files, am I covered?",
+      "gold": "likely_not_covered",
+      "pred": "likely_covered",
+      "rationale": "The insuring grants are limited to unauthorized transactions and online purchase fraud; extortion is not separately insured."
+    },
+    {
+      "id": "in-cyber-4",
+      "question": "If I am hacked while using my work laptop for my business and suffer a loss, am I covered?",
+      "gold": "likely_not_covered",
+      "pred": "conditional",
+      "rationale": "Exclusion 2 (p.2) excludes business/professional activity."
+    },
+    {
+      "id": "in-cyber-5",
+      "question": "If a war or terrorist act causes my cyber loss, am I covered?",
+      "gold": "likely_not_covered",
+      "pred": "conditional",
+      "rationale": "Exclusion 14 (p.2) excludes war / terrorism / governmental acts."
+    },
+    {
+      "id": "in-cyber-6",
+      "question": "Am I covered for losses caused by a power cut or internet outage at my service provider?",
+      "gold": "likely_not_covered",
+      "pred": "ambiguous",
+      "rationale": "Exclusion 15 (p.2) excludes third-party infrastructure failure."
+    }
+  ],
+  "grounding_checked": 6,
+  "grounding_failed": [
+    {
+      "id": "in-cyber-5",
+      "expected": "General Exclusions \u2014 Exclusion 14 (p.2)"
+    }
+  ],
+  "latencies_ms": [
+    57981.2,
+    53320.6,
+    71606.7,
+    66848.3,
+    36102.7,
+    34029.4
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

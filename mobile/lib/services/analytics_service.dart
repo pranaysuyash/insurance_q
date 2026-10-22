@@ -215,8 +215,8 @@ class AnalyticsNotifier extends Notifier<AnalyticsState> {
       _syncTimer = null;
       _buffer.clear();
       await _persistBuffer(); // Overwrites persisted queue with empty list.
-    } else if (_syncTimer == null) {
-      _syncTimer = Timer.periodic(_syncInterval, (_) => _flush());
+    } else {
+      _syncTimer ??= Timer.periodic(_syncInterval, (_) => _flush());
     }
     state = AnalyticsState(queuedCount: _buffer.length, hasConsent: _analyticsConsentCached);
   }

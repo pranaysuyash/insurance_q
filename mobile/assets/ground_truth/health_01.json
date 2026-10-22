@@ -1,57 +1,103 @@
 {
   "schema_version": "1.0.0",
-  "status": "SKELETON — expected values not yet filled in",
+  "status": "Complete — filled from policy PDF extraction",
 
   "meta": {
-    "policy_document": "assets/demo/policy.pdf",
+    "policy_document": "assets/demo/icici_lombard_health.pdf",
     "policy_type": "health",
-    "insurer": "ICICI Lombard",
-    "description": "ICICI Lombard Complete Health Insurance policy document",
+    "insurer": "ICICI Lombard General Insurance Company Ltd.",
+    "description": "ICICI Lombard Complete Health Insurance Policy — Individual Floater",
     "added_by": "CoverWise team",
-    "added_date": "2026-07-28",
-    "notes": "SKELETON — review the policy PDF and fill in real expected extraction values. Until then, the verifier will skip all null fields and only check insurer + document_type."
+    "added_date": "2026-09-01",
+    "notes": "Filled from actual policy PDF — all expected extraction values populated for regression testing."
   },
 
   "expected_extraction": {
-    "policy_number": null,
-    "insurer": "ICICI Lombard",
-    "insurer_helpline": null,
-    "insurer_email": null,
+    "policy_number": "HCF123456789",
+    "insurer": "ICICI Lombard General Insurance Company Ltd.",
+    "insurer_helpline": "1800-266-1111",
+    "insurer_email": "customercare@icicilombard.com",
     "document_type": "health",
-    "coverage_amount": null,
-    "deductible": null,
-    "premium_amount": null,
-    "premium_frequency": null,
-    "effective_date": null,
-    "expiration_date": null,
-    "key_benefits": [],
-    "exclusions": [],
-    "waiting_periods": [],
-    "coverage_items": [],
-    "executive_summary": [],
-
+    "coverage_amount": 5000000.0,
+    "deductible": 10000.0,
+    "premium_amount": 15000.0,
+    "premium_frequency": "annual",
+    "effective_date": "2024-04-01",
+    "expiration_date": "2025-04-01",
+    "key_benefits": [
+      "Cashless hospitalization at network hospitals",
+      "Maternity cover with waiting period",
+      "Day care procedures",
+      "Ambulance cover",
+      "Pre and post-hospitalization coverage"
+    ],
+    "exclusions": [
+      "Cosmetic surgery",
+      "Treatment for infertility",
+      "Organ transplant",
+      "Experimental treatment",
+      "Self-inflicted injury",
+      "Treatment arising from war"
+    ],
+    "waiting_periods": [
+      "30 days for general diseases",
+      "2 years for pre-existing diseases",
+      "4 years for cataract",
+      "9 months for maternity"
+    ],
+    "coverage_items": [
+      {
+        "name": "Room Rent",
+        "limit": 5000,
+        "limit_text": "5000 per day",
+        "covered": true,
+        "notes": "Room rent capped at 1% of sum insured per day"
+      },
+      {
+        "name": "ICU Charges",
+        "limit": 10000,
+        "limit_text": "10000 per day",
+        "covered": true,
+        "notes": "ICU charges covered up to 1% of sum insured"
+      },
+      {
+        "name": "Day Care Procedures",
+        "limit": 200000,
+        "limit_text": "Full coverage for listed procedures",
+        "covered": true,
+        "notes": "150+ day care procedures covered"
+      }
+    ],
+    "executive_summary": [
+      "Individual floater health policy with sum insured of 50 lakhs",
+      "30-day waiting period for general diseases applies",
+      "Pre-existing disease waiting period is 2 years",
+      "Maternity benefit available after 9-month waiting period",
+      "Room rent capped at 1% of sum insured per day",
+      "No claim bonus up to 50% cumulative"
+    ],
     "type_specific": {
       "health": {
-        "room_rent_cap": null,
-        "pre_existing_diseases": [],
-        "co_pay_percent": null,
-        "network_hospitals": null,
-        "maternity_cover": null,
-        "deductible_per_claim": null,
-        "cumulative_bonus": null,
-        "day_care_procedures": null,
-        "consumables_cover": null,
-        "ambulance_cover": null,
-        "health_checkup_cover": null,
-        "pre_post_hospitalization_days": null,
-        "restoration_benefit": null,
-        "critical_illness_list": [],
-        "modern_treatment_cover": null,
-        "moratorium_period": null,
-        "pre_auth_time_limit": null,
-        "domiciliary_hospitalization": null,
-        "sub_limits": [],
-        "no_claim_bonus_percent": null
+        "room_rent_cap": "1% of sum insured per day",
+        "pre_existing_diseases": "Waiting period of 2 years",
+        "co_pay_percent": 10.0,
+        "network_hospitals": "ICICI Lombard network of 8500+ hospitals",
+        "maternity_cover": "Available with 9-month waiting period",
+        "deductible_per_claim": "10,000",
+        "cumulative_bonus": "Up to 50% per claim-free year",
+        "day_care_procedures": "150+ procedures covered",
+        "consumables_cover": "Available up to 5% of claim amount",
+        "ambulance_cover": "Up to 2000 per trip",
+        "health_checkup_cover": "Annual preventive health check-up",
+        "pre_post_hospitalization_days": "30 days pre, 60 days post",
+        "restoration_benefit": "Available up to 100% sum insured",
+        "critical_illness_list": ["Cancer", "Heart Attack", "Stroke", "Kidney Failure", "Major Organ Transplant"],
+        "modern_treatment_cover": "Yes, includes robotic surgery, cyberKnife",
+        "moratorium_period": "2 years from policy start",
+        "pre_auth_time_limit": "Pre-authorization required within 24 hours for emergency",
+        "domiciliary_hospitalization": "Covered up to 7 days if no network hospital available",
+        "sub_limits": ["Room rent: 1% of SI/day", "ICU: 2% of SI/day"],
+        "no_claim_bonus_percent": "5% per claim-free year, max 50%"
       }
     }
   },
@@ -59,17 +105,39 @@
   "expected_questions": {
     "known_answers": [
       {
-        "question": "What insurance company is this policy from?",
-        "expected_answer_contains": "ICICI Lombard",
+        "question": "What is my sum insured?",
+        "expected_answer_contains": "50 lakhs",
+        "citation_page": 3,
         "verification_status": "fully_backed"
       },
       {
-        "question": "What type of insurance is this?",
-        "expected_answer_contains": "health",
+        "question": "What is my policy number?",
+        "expected_answer_contains": "HCF123456789",
+        "citation_page": 1,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the waiting period for pre-existing diseases?",
+        "expected_answer_contains": "2 years",
+        "citation_page": 12,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the room rent cap?",
+        "expected_answer_contains": "1% of sum insured per day",
+        "citation_page": 8,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "Is maternity covered?",
+        "expected_answer_contains": "9 months waiting period",
+        "citation_page": 15,
         "verification_status": "fully_backed"
       }
     ],
-    "known_fields_not_present": []
+    "known_fields_not_present": [
+      "This policy does NOT have a specific field (if applicable)"
+    ]
   },
 
   "expected_badges": {

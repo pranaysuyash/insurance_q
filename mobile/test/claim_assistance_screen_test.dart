@@ -53,6 +53,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Claim guide'), findsOneWidget);
     expect(find.text('What happened?'), findsOneWidget);
+    expect(find.text('Informational Guide Only'), findsOneWidget);
     expect(
       find.textContaining('Choose an incident'),
       findsOneWidget,

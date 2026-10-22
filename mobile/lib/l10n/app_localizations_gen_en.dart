@@ -651,10 +651,10 @@ class AppLocalizationsGenEn extends AppLocalizationsGen {
   }
 
   @override
-  String get renewalContactToRenew => 'Contact insurer to renew';
+  String get renewalContactToRenew => 'View renewal details';
 
   @override
-  String get renewalStartRenewal => 'Start renewal';
+  String get renewalStartRenewal => 'View renewal details';
 
   @override
   String renewalRenewTitle(Object type) {

@@ -5,6 +5,9 @@ from typing import Optional
 class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_embedding_model: str = "text-embedding-3-small"
+    # Primary: gpt-5-nano (OpenAI 2026 release, fast, cost-efficient).
+    # Fallback chain in rag/pipeline.py: ["gpt-4o-mini"] for compatibility.
+    # Both are intentional: gpt-5-nano is default; gpt-4o-mini is fallback.
     openai_chat_model: str = "gpt-5-nano"
 
     # Ollama (local LLM/embeddings) - OpenAI-compatible API

@@ -1,0 +1,4 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10033.29it/s]
+[safe-delete][SAFE_DELETE_BULK_CONFIRM_REQUIRED] {"count":50,"threshold":50,"scope":"turn","targets":["/Users/pranay/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/blobs/tmp_a47f2240-43e6-4432-9595-2a0d1dc0cc3b"],"targetCount":1}
+[safe-delete][SAFE_DELETE_BULK_CONFIRM_REQUIRED] {"count":50,"threshold":50,"scope":"turn","targets":["/Users/pranay/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/blobs/d1514c3162bbe87b343f565fadc62e6c06f04f03.cde678ef.incomplete"],"targetCount":1}

@@ -172,3 +172,17 @@ See [`ADR-2026-07-20-26-rag-pipeline-excellence.md`](../decisions/ADR-2026-07-20
 - **Embedding fallback unsafe (P0-16)**: `recreate_collection` at runtime on dimension change. Must be fixed in Commit 4 when multi-granularity embeddings are added, before adding more embedding configs.
 - **Eval corpus is a data asset** (motto_v4 §0.8): must be versioned, in `docs/eval/corpus/`, not a throwaway script.
 - **Citation verifier strictness**: exact-match as pass, fuzzy (≥70% token overlap) as warning state in UI, fail = citation stripped. This is the right trust boundary for an insurance product. Baked into Commit 1.
+
+---
+
+## 8. Dated reconciliation — Supabase FTS status (2026-09-30)
+
+The July 20 entries above are preserved as the inspection-time plan. Their statement that Supabase FTS is absent is superseded at the current source-code level; it is not evidence that the migration is installed in any hosted database.
+
+| Claim | Current evidence | Disposition |
+|---|---|---|
+| `supabase_vector_store.py` has no FTS and exact lookup is dense-only | `src/services/supabase_vector_store.py::search_fts` calls `match_document_chunks_fts` and requires an `owner_id`; `src/rag/pipeline.py::_query_hybrid_index_supabase` calls it, and both standard and streaming query paths dispatch there for the Supabase backend. `supabase/migrations/20260720020000_rag_fts.sql` defines owner-filtered `tsvector` and trigram search and limits execute permission to `service_role`. | **Superseded for the checked-in implementation.** T1 static source inspection on 2026-09-30. The implementation keeps tenant scope in the database call and applies requested document IDs as an additional filter. |
+| FTS path is tested | `tests/test_supabase_fts.py` covers the RPC call, owner requirement, and document-ID filtering. `tests/test_supabase_pgvector_integration.py` exercises the real adapter against a synthetic Supabase/Postgres fixture, including owner isolation. | `./venv/bin/pytest -q tests/test_supabase_fts.py tests/test_supabase_pgvector_integration.py` could not start because `./venv/bin/pytest` is absent (exit 127). Fallback `python3 -m pytest -q tests/test_supabase_fts.py tests/test_supabase_pgvector_integration.py` passed **19 tests** in 0.06s (T2/S1). Synthetic fixture only; this is not a hosted database test. |
+| Migration is present in the customer environment | The migration file exists, but `insurance_app/AGENTS.md` still lists H-02 migration-ledger mismatch as open, and `insurance_app/README.md` says CoverWise is not deployed for customer use. No migration receipt or hosted schema was inspected. | **Unknown.** Do not query or mutate a hosted/provider database under this documentation-only reconciliation. Resolve only from an authorized, non-sensitive migration/deployment receipt. |
+
+**Next action:** separately reconcile H-02 from the migration ledger using an authorized, non-sensitive receipt. Do not reopen the original code repair unless a current test or authorized environment probe reproduces a missing FTS route. Preserve this map’s historical sequence and use this dated status instead of treating the July gap row as a current defect.

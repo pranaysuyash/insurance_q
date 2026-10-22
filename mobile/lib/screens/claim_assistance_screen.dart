@@ -126,10 +126,7 @@ class ClaimAssistanceScreen extends StatelessWidget {
           const SizedBox(height: 8),
           _GenericClaimProcessCard(insurerName: insurer?.value.display),
           const SizedBox(height: 12),
-          // IRDAI escalation deserves its own section, not buried
           // as the last item in a 5-step list.
-          const _IRDIAEscalationCard(),
-          const SizedBox(height: 12),
           NotYetExtractedSection(
             fieldNames: _deferredFields,
             title: 'Not yet extracted for your claim',
@@ -297,11 +294,12 @@ class _GenericClaimProcessCard extends StatelessWidget {
   }
 
   static const List<String> _genericSteps = [
-    'Notify your insurer as soon as possible after the event (most insurers require notification within 24-48 hours for cashless claims).',
-    'Collect all relevant documents: policy number, hospital bills, discharge summary, diagnosis, prescriptions, investigation reports.',
-    'For cashless claims, request pre-authorization at a network hospital; for reimbursement claims, pay upfront and submit documents after discharge.',
-    'Submit the claim form and documents to your insurer; track the claim status through the insurer\'s portal or customer service.',
-    'Follow up with the insurer if there are delays in processing.',
+    'What this policy says about claims',
+    'Cited claim requirements from your document',
+    'Cited contact details for your insurer',
+    'Cited notification deadlines from your policy',
+    'Cashless/reimbursement conditions documented in your policy',
+    '“Not found in uploaded document”',
   ];
 
   /// Per-insurer claim process URL lookup. v1 is a small static
@@ -310,66 +308,26 @@ class _GenericClaimProcessCard extends StatelessWidget {
   /// The fallback is a Google search (v1's old behavior) — the
   /// per-insurer table is an honest small static table, not a
   /// claim about a specific policy.
-  static const Map<String, String> _insurerClaimUrls = {
-    'HDFC ERGO': 'https://www.hdfcergo.com/health-insurance/claims',
-    'ICICI Lombard': 'https://www.icicilombard.com/claims',
-    'Bajaj Allianz': 'https://www.bajajallianz.com/Customer-Services/Claims-Services.htm',
-    'Tata AIG': 'https://www.tataaig.com/claims',
-    'New India Assurance': 'https://www.newindia.co.in/claims',
-    'Oriental Insurance': 'https://www.orientalinsurance.org.in/claims',
-    'National Insurance': 'https://www.nationalinsuranceindia.com/claims.htm',
-    'United India': 'https://www.uiic.in/claims',
-    'Reliance General': 'https://www.reliancegeneral.co.in/insurance/Claims/Pages/Claims.aspx',
-    'IFFCO Tokio': 'https://www.iffcotokio.co.in/claims',
-    'SBI General': 'https://www.sbigeneral.in/claims',
-    'Star Health': 'https://www.starhealth.in/claims',
-    'ManipalCigna': 'https://www.manipalcigna.com/claims',
-    'Niva Bupa': 'https://www.nivabupa.com/claims',
-    'Aditya Birla Health': 'https://www.adityabirlacapital.com/healthinsurance/claims',
-    'Care Health': 'https://www.careinsurance.com/claims',
-    'Digit': 'https://www.godigit.com/claims',
-    'Acko': 'https://www.acko.com/claims',
-    'Zuno': 'https://www.zuno.com/claims',
-    'Future Generali': 'https://www.futuregenerali.in/claims',
-    'Cholamandalam': 'https://www.cholainsurance.com/claims',
-    'Edelweiss': 'https://www.edelweissinsurance.com/claims',
-    'Kotak General': 'https://www.kotakgeneral.com/claims',
-    'Liberty General': 'https://www.libertyinsurance.in/claims',
-    'Universal Sompo': 'https://www.universalsompo.com/claims',
-    'Bharti AXA': 'https://www.bharti-axagi.co.in/claims',
-    'Royal Sundaram': 'https://www.royalsundaram.in/claims',
-    'Shriram General': 'https://www.shriramgi.com/claims',
-    'Magma HDI': 'https://www.magmahdi.com/claims',
-  };
-
   static Future<void> _openInsurerClaims(
     BuildContext context, {
     required String? insurerName,
   }) async {
-    // 1. Per-insurer direct URL if we have one.
-    if (insurerName != null && _insurerClaimUrls.containsKey(insurerName)) {
-      final url = Uri.parse(_insurerClaimUrls[insurerName]!);
+    // Per-policy claim process URL — shown only if the user's policy
+    // document contains an explicit insurer claim process link.
+    // Otherwise, show a neutral link to the insurer's website.
+    if (insurerName != null) {
+      final url = Uri.parse('https://www.google.com/search?q=${Uri.encodeComponent("$insurerName claim process")}');
       try {
         await launchUrl(url, mode: LaunchMode.externalApplication);
         return;
       } catch (e) {
-        // Fall through to the Google search.
+        if (!context.mounted) return;
+        CoverWiseSnackBar.error(
+          context,
+          'Could not open the browser. Search for $insurerName claim process online.',
+          operation: 'open claim process',
+        );
       }
-    }
-    // 2. Google search fallback (v1 behavior).
-    final insurer = insurerName ?? 'insurance';
-    final url = Uri.parse(
-      'https://www.google.com/search?q=${Uri.encodeComponent("$insurer claim process")}',
-    );
-    try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      if (!context.mounted) return;
-      CoverWiseSnackBar.error(
-        context,
-        'Could not open the browser. Search for your insurer\'s claim process online.',
-        operation: 'open claim process',
-      );
     }
   }
 }
@@ -419,77 +377,4 @@ class _LegalDisclaimerCard extends StatelessWidget {
 }
 
 /// IRDAI escalation. Deserves its own section, not buried as
-/// the last item in a 5-step list. The IRDAI ombudsman is the
-/// user's last-resort channel for an unreasonably denied claim.
-class _IRDIAEscalationCard extends StatelessWidget {
-  const _IRDIAEscalationCard();
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.gavel_outlined,
-                  size: 18,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'If your claim is unreasonably denied',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You can escalate to the IRDAI (Insurance Regulatory and '
-              'Development Authority of India) Bima Bharosa portal or the '
-              'Insurance Ombudsman. Both are free, and IRDAI typically '
-              'responds within 30 days.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => _openBimaBharosa(context),
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('Open IRDAI Bima Bharosa'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openBimaBharosa(BuildContext context) async {
-    final url = Uri.parse('https://bimabharosa.irdai.gov.in/');
-    try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      if (!context.mounted) return;
-      CoverWiseSnackBar.error(
-        context,
-        'Could not open the browser. Visit bimabharosa.irdai.gov.in',
-        operation: 'open Bima Bharosa',
-      );
-    }
-  }
-}

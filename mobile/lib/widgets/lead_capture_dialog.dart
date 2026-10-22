@@ -184,6 +184,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               // recordConsent throws (e.g. Hive box unavailable via
               // _requiredBox), the dialog crashes with an unhandled
               // exception instead of showing a graceful error.
+              final navigator = Navigator.of(context);
               final ledger = ConsentLedger();
               try {
                 await ledger.recordConsent(
@@ -198,7 +199,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
                 return;
               }
               if (!mounted) return;
-              Navigator.of(context).pop({
+              navigator.pop({
                 'email': null,
                 'phone': null,
                 'save': false,
@@ -225,6 +226,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               // Audit 7 P0.10: Wrap consent write in try-catch. If
               // recordConsent throws (e.g. Hive box unavailable), the
               // dialog crashes instead of showing a graceful error.
+              final navigator = Navigator.of(context);
               final ledger = ConsentLedger();
               try {
                 await ledger.recordConsent(
@@ -244,7 +246,7 @@ class _LeadCaptureDialogState extends State<LeadCaptureDialog> {
               // consent. Saving an email locally is not marketing consent.
               // Marketing opt-in requires a separate unticked control with
               // specific purpose and copy.
-              Navigator.of(context).pop({
+              navigator.pop({
                 'email': _emailController.text.trim().isEmpty
                     ? null
                     : _emailController.text.trim(),

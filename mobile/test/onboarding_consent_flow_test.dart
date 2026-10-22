@@ -4,6 +4,7 @@ import 'package:coverwise/services/consent_ledger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers/hive_test_helper.dart';
 
@@ -36,9 +37,11 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     await HiveTestHelper.setUp();
+    HiveTestHelper.mockSecureStorage();
   });
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     final box = Hive.box('consent_ledger');
     await box.clear();
     await AppConfig.init();
@@ -169,12 +172,19 @@ void main() {
       await tester.ensureVisible(checkboxes.first);
       await tester.tap(checkboxes.first);
       await tester.pumpAndSettle();
+      await tester.ensureVisible(checkboxes.last);
       await tester.tap(checkboxes.last);
       await tester.pumpAndSettle();
 
-      await tester.tap(
-          find.widgetWithText(FilledButton, 'Add my first policy'));
-      await tester.pumpAndSettle();
+      final addButton = find.widgetWithText(FilledButton, 'Add my first policy');
+      await tester.ensureVisible(addButton);
+      await tester.runAsync(() async {
+        await tester.tap(addButton);
+        for (int i = 0; i < 20 && !onCompleteCalled; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+      });
 
       // Verify consent was recorded.
       final ledger = ConsentLedger();
@@ -201,7 +211,9 @@ void main() {
 
       // Close the consent ledger box so _requiredBox throws.
       final box = Hive.box('consent_ledger');
-      await box.close();
+      await tester.runAsync(() async {
+        await box.close();
+      });
 
       await _navigateToLastPage(tester,
           onComplete: ({bool openFilePicker = false}) {
@@ -215,9 +227,14 @@ void main() {
       await tester.tap(checkboxes.last);
       await tester.pumpAndSettle();
 
-      await tester.tap(
-          find.widgetWithText(FilledButton, 'Add my first policy'));
-      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.tap(
+            find.widgetWithText(FilledButton, 'Add my first policy'));
+        for (int i = 0; i < 5; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+      });
 
       // onComplete should NOT have been called.
       expect(onCompleteCalled, isFalse);
@@ -228,6 +245,12 @@ void main() {
             'Could not save your consent preferences. Please try again.'),
         findsOneWidget,
       );
+
+      // Re-open box for subsequent tests and tearDown.
+      await tester.runAsync(() async {
+        await Hive.openBox('consent_ledger');
+      });
+      await tester.pump(const Duration(seconds: 5));
     });
   });
 }

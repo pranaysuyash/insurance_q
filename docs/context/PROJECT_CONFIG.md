@@ -80,7 +80,7 @@ NONE of the three keys work for schema migrations through PostgREST because Post
 
 Direct database host (`db.eyumuxwabmsymytjbxoj.supabase.co`) is **IPv6-only** — this machine has no IPv6 connectivity. The connection pooler has IPv4 but uses SNI-based routing (newer v2 pooler), which older tools don't support. **Always use the Management API or supabase library for admin operations.**
 
-**Database password (`Osddeies_12`):** This password exists for emergency admin access but is **not usable** from this machine — direct psql is blocked by IPv6, the pooler rejects the newer username format, and NONE of the API keys work for DDL through PostgREST. Do not waste time trying direct psql. Use the Supabase dashboard SQL editor or the Management API with a PAT token for schema changes.
+**Database password (`<REDACTED-rotate-in-Supabase>`):** This password exists for emergency admin access but is **not usable** from this machine — direct psql is blocked by IPv6, the pooler rejects the newer username format, and NONE of the API keys work for DDL through PostgREST. Do not waste time trying direct psql. Use the Supabase dashboard SQL editor or the Management API with a PAT token for schema changes.
 
 ## Existing Verification Tools
 

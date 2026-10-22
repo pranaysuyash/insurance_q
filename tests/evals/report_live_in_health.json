@@ -1,0 +1,54 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/in/health/coverage.jsonl",
+  "n": 4,
+  "correct": 2,
+  "accuracy": 0.5,
+  "per_class": {
+    "conditional": {
+      "n": 2,
+      "correct": 1
+    },
+    "likely_covered": {
+      "n": 2,
+      "correct": 1
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "conditional": 1,
+      "ambiguous": 1
+    },
+    "likely_covered": {
+      "ambiguous": 1,
+      "likely_covered": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": "in-health-2",
+      "question": "Can I switch my health insurer and keep my accumulated waiting-period credit for pre-existing diseases?",
+      "gold": "conditional",
+      "pred": "ambiguous",
+      "rationale": "Reg 18 (p.27) mandates portability credit for PED waiting periods."
+    },
+    {
+      "id": "in-health-3",
+      "question": "Do all health insurers have to use the same standard definitions for terms in my policy?",
+      "gold": "likely_covered",
+      "pred": "ambiguous",
+      "rationale": "Reg 20 (p.12) mandates standard definitions across insurers."
+    }
+  ],
+  "grounding_checked": 4,
+  "grounding_failed": [],
+  "latencies_ms": [
+    42043.9,
+    31260.7,
+    26565.7,
+    27963.2
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

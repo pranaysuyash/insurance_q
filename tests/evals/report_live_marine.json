@@ -1,0 +1,92 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/tests/evals/coverage_dataset_marine.jsonl",
+  "n": 8,
+  "correct": 3,
+  "accuracy": 0.375,
+  "per_class": {
+    "conditional": {
+      "n": 3,
+      "correct": 1
+    },
+    "likely_not_covered": {
+      "n": 3,
+      "correct": 2
+    },
+    "likely_covered": {
+      "n": 2,
+      "correct": 0
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "likely_covered": 1,
+      "conditional": 1,
+      "ambiguous": 1
+    },
+    "likely_not_covered": {
+      "likely_not_covered": 2,
+      "ambiguous": 1
+    },
+    "likely_covered": {
+      "conditional": 2
+    }
+  },
+  "mismatches": [
+    {
+      "id": "marine-pdf",
+      "question": "Does my marine cargo cover start the moment I buy the goods, or only once title passes at the overseas port?",
+      "gold": "conditional",
+      "pred": "likely_covered",
+      "rationale": "Under the F.A.S. Attachment Clause, the risks do not attach until title of the insured interest is duly vested in the assured alongside the overseas vessel at the port of shipment, so cover is conditional on title vesting at that point."
+    },
+    {
+      "id": "marine-pdf",
+      "question": "How is the value of my cargo calculated for a claim under this policy?",
+      "gold": "conditional",
+      "pred": "ambiguous",
+      "rationale": "Cargo is valued at invoice amount plus charges (premium included) unless otherwise declared to the Company prior to shipment and prior to any known/reported loss, so the valuation is conditional on the declaration timing."
+    },
+    {
+      "id": "marine-pdf",
+      "question": "Will the marine policy pay a claim if doing so would breach international sanctions?",
+      "gold": "likely_not_covered",
+      "pred": "ambiguous",
+      "rationale": "The Sanctions and Limitation Clause (LMA 3100) is an applicable clause that limits/removes cover to the extent a claim would breach sanctions, so a sanctions-breaching claim is not covered."
+    },
+    {
+      "id": "marine-pdf",
+      "question": "Does this marine cargo policy cover war-related risks to my cargo?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "Institute War Clauses (Cargo) is an applicable insuring clause in the policy, extending cover to war risks (subject to the War Cancellation Clause for specified areas/circumstances), so war-related loss to cargo is within cover."
+    },
+    {
+      "id": "marine-pdf",
+      "question": "Is my cargo covered for all risks during transit?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "Institute Cargo Clause (A) is the broadest all-risks insuring clause and is applicable under this policy, so cargo is covered for all risks during transit (subject to the policy's general exclusions)."
+    }
+  ],
+  "grounding_checked": 8,
+  "grounding_failed": [
+    {
+      "id": "marine-pdf",
+      "expected": "Sanctions and Limitation Clause (LMA 3100)"
+    }
+  ],
+  "latencies_ms": [
+    43268.5,
+    59537.8,
+    40398.2,
+    31559.8,
+    26663.5,
+    34824.0,
+    34834.7,
+    43361.4
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

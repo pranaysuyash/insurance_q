@@ -1,0 +1,61 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/uk/liability/coverage.jsonl",
+  "n": 6,
+  "correct": 4,
+  "accuracy": 0.6667,
+  "per_class": {
+    "likely_covered": {
+      "n": 3,
+      "correct": 2
+    },
+    "likely_not_covered": {
+      "n": 3,
+      "correct": 2
+    }
+  },
+  "confusion": {
+    "likely_covered": {
+      "ambiguous": 1,
+      "likely_covered": 2
+    },
+    "likely_not_covered": {
+      "conditional": 1,
+      "likely_not_covered": 2
+    }
+  },
+  "mismatches": [
+    {
+      "id": "uk-liability-1",
+      "question": "If a member of the public is injured on my business premises, am I covered?",
+      "gold": "likely_covered",
+      "pred": "ambiguous",
+      "rationale": "p.17 covers awards of damages for accidental bodily injury/property damage to third parties."
+    },
+    {
+      "id": "uk-liability-3",
+      "question": "Does my public liability cover an incident that happens outside the UK?",
+      "gold": "likely_not_covered",
+      "pred": "conditional",
+      "rationale": "p.6 restricts cover to GB/NI/Channel Islands/Isle of Man."
+    }
+  ],
+  "grounding_checked": 6,
+  "grounding_failed": [
+    {
+      "id": "uk-liability-1",
+      "expected": "Public liability - awards of damages (p.17)"
+    }
+  ],
+  "latencies_ms": [
+    65055.1,
+    39709.7,
+    38646.3,
+    26762.8,
+    37909.9,
+    32906.8
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

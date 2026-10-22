@@ -1,0 +1,972 @@
+[
+  {
+    "market": "us",
+    "lob": "property",
+    "pdf": "corpus_global/us/property/iii__homeowners-3-special-form.pdf",
+    "product": "Homeowners 3 (HO-3) Special Form",
+    "insurer": "III (Insurance Information Institute sample)",
+    "license_class": "industry",
+    "examples": [
+      {
+        "id": "us-property-1",
+        "question": "Is the dwelling itself covered by this policy?",
+        "search": "Coverage A",
+        "expected_citation": "Coverage A - Dwelling (p.3)",
+        "gold": "conditional",
+        "gold_reading": "Yes - Coverage A insures the dwelling on the residence premises including attached structures, but only against the perils insured against and after the deductible; land is excluded.",
+        "gold_rationale": "Section I Coverage A (p.3) covers the dwelling and attached structures; the perils-insured-against and exclusions (pp.5-12) plus the deductible (p.3) apply, so cover is conditional."
+      },
+      {
+        "id": "us-property-2",
+        "question": "Is flood damage to my home covered?",
+        "search": "Water Damage",
+        "expected_citation": "Water Damage exclusion (p.12)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - flood and surface/ground water are specifically excluded under the Water Damage exclusion.",
+        "gold_rationale": "p.12 defines Water Damage to include flood, surface water, tidal water, and water below ground, and excludes them."
+      },
+      {
+        "id": "us-property-3",
+        "question": "If someone is injured on my property and sues me, am I covered?",
+        "search": "Coverage E",
+        "expected_citation": "Coverage E - Personal Liability (p.16)",
+        "gold": "conditional",
+        "gold_reading": "Yes - Coverage E pays damages for bodily injury/property damage you are legally liable for and provides a defense, subject to the policy's liability conditions and limits.",
+        "gold_rationale": "Section II Coverage E (p.16) covers damages for which an insured is legally liable and provides a defense."
+      },
+      {
+        "id": "us-property-4",
+        "question": "Are detached structures like a separate garage covered?",
+        "search": "Coverage B",
+        "expected_citation": "Coverage B - Other Structures (p.3)",
+        "gold": "conditional",
+        "gold_reading": "Yes - Coverage B covers other structures set apart from the dwelling, subject to limits and exclusions (e.g. not land, not rented out).",
+        "gold_rationale": "Coverage B (p.3) covers other structures on the residence premises set apart by clear space."
+      },
+      {
+        "id": "us-property-5",
+        "question": "Do I have to pay a deductible before the insurer pays a property claim?",
+        "search": "DEDUCTIBLE",
+        "expected_citation": "Deductible provision (p.3)",
+        "gold": "conditional",
+        "gold_reading": "Yes - the insurer pays only the part of a Section I loss that exceeds the deductible shown in the Declarations.",
+        "gold_rationale": "The Deductible provision (p.3) states payment is only that part exceeding the deductible."
+      },
+      {
+        "id": "us-property-6",
+        "question": "Are my trees and shrubs covered if they are damaged by fire?",
+        "search": "Trees, Shrubs",
+        "expected_citation": "Trees, Shrubs And Other Plants (p.6)",
+        "gold": "conditional",
+        "gold_reading": "Yes - trees/shrubs/plants are covered for listed perils including fire/lightning, up to 5% of the dwelling limit ($500 max per item), but not for business-grown property.",
+        "gold_rationale": "p.6 covers trees/shrubs/plants for perils including fire, with sub-limits."
+      }
+    ]
+  },
+  {
+    "market": "uk",
+    "lob": "motor",
+    "pdf": "corpus_global/uk/motor/axa__car-policy-wording.pdf",
+    "product": "AXA Car Policy Wording",
+    "insurer": "AXA",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "uk-motor-1",
+        "question": "Is damage to my windscreen covered?",
+        "search": "broken glass in your car",
+        "expected_citation": "Windscreen/window glass (p.12)",
+        "gold": "conditional",
+        "gold_reading": "Yes - broken glass in windscreens/windows is covered and your no-claims discount is not reduced, but to get the full benefit the work must be done by AXA's approved repairer.",
+        "gold_rationale": "p.12 pays to repair/replace broken glass; the full benefit requires using the approved repairer."
+      },
+      {
+        "id": "uk-motor-2",
+        "question": "Can I drive someone else's car and still be covered?",
+        "search": "drive other cars",
+        "expected_citation": "Drive other cars (p.11)",
+        "gold": "conditional",
+        "gold_reading": "Only if your certificate Section 5 provides it and you meet the conditions (age 25+, you do not own it, valid cover elsewhere, driven in GB/NI/Channel Islands/IoM, you still own your own car).",
+        "gold_rationale": "p.11 sets conditions for cover when driving other cars."
+      },
+      {
+        "id": "uk-motor-3",
+        "question": "Are my personal belongings in the car covered if they are stolen?",
+        "search": "Personal belongings",
+        "expected_citation": "Personal belongings (p.13)",
+        "gold": "conditional",
+        "gold_reading": "Up to GBP300 for clothing/personal belongings lost or damaged by fire, theft, attempted theft or accident in the car; keys, money, cards, audio systems and phones are excluded.",
+        "gold_rationale": "p.13 covers personal belongings up to GBP300 with listed exclusions."
+      },
+      {
+        "id": "uk-motor-4",
+        "question": "Do I have to pay an excess when I make a claim?",
+        "search": "excess",
+        "expected_citation": "Excess (p.4)",
+        "gold": "conditional",
+        "gold_reading": "Yes - an excess generally applies; but if the other driver is uninsured and you are not at fault, you will not pay the excess or lose any no-claims discount.",
+        "gold_rationale": "p.4 sets out the excess provision and the uninsured-driver waiver."
+      },
+      {
+        "id": "uk-motor-5",
+        "question": "Is breakdown cover included automatically?",
+        "search": "Breakdown option",
+        "expected_citation": "Section L - Breakdown option (p.3, p.21)",
+        "gold": "conditional",
+        "gold_reading": "Only if you opted for it and it is stated on your schedule; it is an optional section, not included by default.",
+        "gold_rationale": "p.3 lists Breakdown as Section L, an optional section that applies only if stated on the schedule."
+      },
+      {
+        "id": "uk-motor-6",
+        "question": "Am I covered if I am legally liable for injuring someone in an accident?",
+        "search": "legally liable",
+        "expected_citation": "Liability to others (p.11)",
+        "gold": "conditional",
+        "gold_reading": "Yes - the policy pays if you are legally liable for death/injury to any person or damage to others' property up to GBP20m (GBP25m including costs), caused by using your car.",
+        "gold_rationale": "p.11 covers legal liability up to GBP20m/GBP25m."
+      }
+    ]
+  },
+  {
+    "market": "uk",
+    "lob": "health",
+    "pdf": "corpus_global/uk/health/bupa__health-policy-guide.pdf",
+    "product": "Bupa Health Insurance Policy Guide",
+    "insurer": "Bupa",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "uk-health-1",
+        "question": "Are my pre-existing medical conditions covered?",
+        "search": "pre-existing conditions",
+        "expected_citation": "Underwriting / pre-existing (p.11)",
+        "gold": "likely_not_covered",
+        "gold_reading": "Generally no - conditions, symptoms, illnesses or injuries you had before the policy started are not usually covered; a moratorium or special conditions may apply.",
+        "gold_rationale": "p.11 states pre-existing conditions are not usually covered."
+      },
+      {
+        "id": "uk-health-2",
+        "question": "Is cancer treatment covered?",
+        "search": "Cancer",
+        "expected_citation": "Direct Access - Cancer (p.6)",
+        "gold": "conditional",
+        "gold_reading": "Yes - cancer is a core benefit accessible via Direct Access without a GP referral, subject to underwriting and any pre-existing-condition exclusion.",
+        "gold_rationale": "p.6 Direct Access covers cancer with referral; standard underwriting/exclusions apply."
+      },
+      {
+        "id": "uk-health-3",
+        "question": "Are outpatient consultations and tests covered?",
+        "search": "outpatient",
+        "expected_citation": "Outpatient cover (p.6)",
+        "gold": "conditional",
+        "gold_reading": "It depends on your plan - Bupa Health Essentials only covers outpatient treatment for 6 months after inpatient/day-patient discharge; full outpatient cover depends on the policy you purchased.",
+        "gold_rationale": "p.6 limits Essentials outpatient to post-discharge; general outpatient is subject to the plan."
+      },
+      {
+        "id": "uk-health-4",
+        "question": "Is mental health treatment covered?",
+        "search": "Mental health",
+        "expected_citation": "Mental health / Direct Access (p.4, p.6)",
+        "gold": "conditional",
+        "gold_reading": "Mental health support and treatment are available via Direct Access, but specific limits and exclusions apply; the Family Mental HealthLine is advice only.",
+        "gold_rationale": "p.4/p.6 provide mental health access subject to plan limits."
+      },
+      {
+        "id": "uk-health-5",
+        "question": "Are chronic (long-term) conditions covered?",
+        "search": "Chronic conditions",
+        "expected_citation": "Chronic conditions exclusion (p.25)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - treatment of chronic conditions (those needing ongoing or long-term monitoring, control or relief of symptoms) is not covered.",
+        "gold_rationale": "p.25 explicitly excludes treatment of chronic conditions."
+      },
+      {
+        "id": "uk-health-6",
+        "question": "Do I pay an excess when I claim?",
+        "search": "excess",
+        "expected_citation": "Excess (p.7)",
+        "gold": "conditional",
+        "gold_reading": "An excess may apply to some consultations or treatment, but Direct Access phone/video assessments have no excess and do not use your outpatient allowance.",
+        "gold_rationale": "p.7 notes an excess applies except for Direct Access assessments."
+      }
+    ]
+  },
+  {
+    "market": "ca",
+    "lob": "property",
+    "pdf": "corpus_global/ca/property/squareone__home-insurance-wording.pdf",
+    "product": "Square One Home Insurance Wording",
+    "insurer": "Square One",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "ca-property-1",
+        "question": "Is there a deductible on my home policy?",
+        "search": "deductibles",
+        "expected_citation": "Insuring Agreement / deductibles (p.1)",
+        "gold": "conditional",
+        "gold_reading": "Yes - cover is provided subject to the deductibles shown on your Policy Declaration.",
+        "gold_rationale": "p.1 insuring agreement is subject to deductibles specified on the declaration."
+      },
+      {
+        "id": "ca-property-2",
+        "question": "If someone is injured on my property, am I covered?",
+        "search": "Personal and Premises Liability",
+        "expected_citation": "Liability Coverages (p.15)",
+        "gold": "conditional",
+        "gold_reading": "Yes - Personal and Premises Liability covers unintentional bodily injury or property damage to others arising from your actions or ownership/use of the premises, subject to limits and deductibles.",
+        "gold_rationale": "p.15 provides liability coverage for unintentional bodily injury/property damage to others."
+      },
+      {
+        "id": "ca-property-3",
+        "question": "Is water damage to my home covered?",
+        "search": "Water damage exclusions",
+        "expected_citation": "Water damage exclusions (p.19)",
+        "gold": "conditional",
+        "gold_reading": "Generally yes, but there are specific exclusions - for example water damage is not covered when the premises is vacant for more than 30 days, or from freezing unless within a heated portion (with exceptions).",
+        "gold_rationale": "p.19 lists water damage exclusions, implying water damage is covered subject to those exclusions."
+      },
+      {
+        "id": "ca-property-4",
+        "question": "Am I covered for identity theft or financial loss from a stolen credit card?",
+        "search": "Identity Theft",
+        "expected_citation": "Identity Theft and Financial Loss (p.11)",
+        "gold": "conditional",
+        "gold_reading": "Yes - up to the policy limit, it covers financial loss from theft or illegal access to your identity or credit, and unauthorized use of your cards, subject to limits.",
+        "gold_rationale": "p.11 insures identity theft / financial loss up to the specified limit."
+      },
+      {
+        "id": "ca-property-5",
+        "question": "Are detached structures like a shed or garage covered?",
+        "search": "Detached Structures means",
+        "expected_citation": "Definition 2.12 Detached Structures (p.2)",
+        "gold": "conditional",
+        "gold_reading": "Yes - detached permanent structures (garages, sheds, gazebos) are covered as Detached Structures, but fences and landscaping are excluded; subject to policy limits.",
+        "gold_rationale": "p.2 defines Detached Structures as covered structures; fences/landscaping are excluded."
+      },
+      {
+        "id": "ca-property-6",
+        "question": "Is water damage covered if my home is left vacant for over a month?",
+        "search": "Vacant for more than 30",
+        "expected_citation": "Water damage exclusion - vacancy (p.19)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - water damage caused when the premises is vacant for more than 30 consecutive days is excluded.",
+        "gold_rationale": "p.19(a) excludes water damage when the premises is vacant for more than 30 consecutive days."
+      }
+    ]
+  },
+  {
+    "market": "au",
+    "lob": "property",
+    "pdf": "corpus_global/au/property/axa__home-policy-wording.pdf",
+    "product": "AXA Home Insurance Policy Wording",
+    "insurer": "AXA",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "au-property-1",
+        "question": "Is damage to my buildings caused by a storm covered?",
+        "search": "Storm or flood",
+        "expected_citation": "Buildings cover - storm/flood (p.6)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - the policy covers the buildings for loss or damage resulting from a storm or flood (among the listed perils), subject to the policy excess and any specific exclusions.",
+        "gold_rationale": "p.6 lists storm or flood as a covered cause of loss for buildings."
+      },
+      {
+        "id": "au-property-2",
+        "question": "If I lose my house keys, is replacing the locks covered?",
+        "search": "If your keys are lost or stolen",
+        "expected_citation": "Keys & locks (p.4)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - up to the schedule limit, the policy pays the cost of replacing keys and locks or lock mechanisms for external doors/windows, a safe within the home, or the home alarm, if lost or stolen.",
+        "gold_rationale": "p.4 pays for replacement keys/locks if lost or stolen."
+      },
+      {
+        "id": "au-property-3",
+        "question": "Is damage caused by wear and tear or gradual deterioration covered?",
+        "search": "Any loss or damage caused by wear and tear",
+        "expected_citation": "Gradual deterioration/maintenance exclusion (p.25)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - loss or damage caused by wear and tear, depreciation, mould, dry/wet rot or fungus, or normal maintenance/upkeep, is excluded.",
+        "gold_rationale": "p.25 excludes wear and tear, depreciation, mould/rot and maintenance costs."
+      },
+      {
+        "id": "au-property-4",
+        "question": "Is accidental damage to my contents covered?",
+        "search": "Accidental Damage (optional extra)",
+        "expected_citation": "Accidental Damage (optional extra) (p.6)",
+        "gold": "conditional",
+        "gold_reading": "Only if you chose the Accidental Damage optional extra and it is shown on your schedule; otherwise it is not covered.",
+        "gold_rationale": "p.6 states Accidental Damage is an optional extra that applies only if shown on the schedule."
+      },
+      {
+        "id": "au-property-5",
+        "question": "If my home is uninhabitable after an insured event, are alternative accommodation costs covered?",
+        "search": "reasonable cost of alternative accommodation",
+        "expected_citation": "Alternative Accommodation (p.4)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - up to the limit for any one claim, the policy pays the reasonable cost of alternative accommodation for you, your family and your pets if the home becomes uninhabitable.",
+        "gold_rationale": "p.4 pays for alternative accommodation when the home is uninhabitable."
+      },
+      {
+        "id": "au-property-6",
+        "question": "Are food items I keep at home for my business covered under contents?",
+        "search": "Food used for business, trade, profession",
+        "expected_citation": "Contents exclusion - business use (p.11)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - loss or damage to food used for business, trade, profession or employment purposes is excluded from contents cover.",
+        "gold_rationale": "p.11 excludes food used for business/trade/profession/employment."
+      }
+    ]
+  },
+  {
+    "market": "ca",
+    "lob": "motor",
+    "pdf": "corpus_global/ca/motor/rbc__auto-policy-ontario.pdf",
+    "product": "RBC Auto Policy Ontario (OAP1 2024)",
+    "insurer": "RBC Insurance",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "ca-motor-1",
+        "question": "If I am at fault in an accident and someone is injured or their property is damaged, am I covered?",
+        "search": "pay on your behalf",
+        "expected_citation": "Liability Coverage - how much we will pay (p.26)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - the policy pays on your behalf, and on behalf of other insured persons, for damages for bodily injury and property damage you are legally liable for, up to the liability limit on your Certificate of Automobile Insurance.",
+        "gold_rationale": "p.26 states the insurer pays on your behalf for at-fault third-party bodily injury/property damage up to the limit."
+      },
+      {
+        "id": "ca-motor-2",
+        "question": "Is damage to my own car from a collision covered?",
+        "search": "Collision or Upset - we will pay for losses caused",
+        "expected_citation": "Loss or Damage - Collision or Upset (p.49)",
+        "gold": "conditional",
+        "gold_reading": "Only if you purchased the optional Collision or Upset coverage shown on your Certificate; it pays for damage to your automobile from a collision or upset, subject to the deductible.",
+        "gold_rationale": "p.49 provides Collision or Upset coverage as an optional section, subject to deductible."
+      },
+      {
+        "id": "ca-motor-3",
+        "question": "Is my car covered for theft, vandalism or falling objects?",
+        "search": "Comprehensive - we will pay for losses",
+        "expected_citation": "Loss or Damage - Comprehensive (p.49)",
+        "gold": "conditional",
+        "gold_reading": "Only if you purchased the optional Comprehensive coverage; it pays for losses other than collision/upset, including specified perils, falling/flying objects, missiles and vandalism, subject to the deductible.",
+        "gold_rationale": "p.49 provides Comprehensive coverage (optional) for non-collision perils."
+      },
+      {
+        "id": "ca-motor-4",
+        "question": "If I am injured in an auto accident, are my lost wages covered?",
+        "search": "Income Replacement",
+        "expected_citation": "Accident Benefits - Income Replacement (p.31)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - the statutory Income Replacement Benefit may compensate you and other insured persons for lost income if injured in an accident, regardless of fault.",
+        "gold_rationale": "p.31 describes the Income Replacement Benefit available under Accident Benefits."
+      },
+      {
+        "id": "ca-motor-5",
+        "question": "Am I covered if I drive in the United States?",
+        "search": "Where You Are Covered This policy covers you and other insured persons for incidents occurring in Canada, the United States of America",
+        "expected_citation": "Territorial - Canada and USA (p.8)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - the policy covers you and other insured persons for incidents occurring in Canada and the United States of America (and jurisdictions in the Statutory Accident Benefits Schedule), so driving in the USA is covered.",
+        "gold_rationale": "p.8 states cover applies in Canada and the United States of America."
+      },
+      {
+        "id": "ca-motor-6",
+        "question": "Is an excluded driver covered when they drive my car?",
+        "search": "An excluded driver is someone specifically not covered by this policy when driving",
+        "expected_citation": "Excluded Driver (p.9)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - an excluded driver is specifically not covered by the policy when driving the described, temporary substitute or newly acquired automobile (except for Accident Benefits).",
+        "gold_rationale": "p.9 defines an excluded driver as someone specifically not covered when driving."
+      }
+    ]
+  },
+  {
+    "market": "uk",
+    "lob": "liability",
+    "pdf": "corpus_global/uk/liability/axa__public-liability-wording.pdf",
+    "product": "AXA Public Liability Policy Wording",
+    "insurer": "AXA Insurance UK",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "uk-liability-1",
+        "question": "If a member of the public is injured on my business premises, am I covered?",
+        "search": "We will pay the amount of damages for which you",
+        "expected_citation": "Public liability - awards of damages (p.17)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - the policy pays the amount of damages for which you, or additional insured persons, are liable at law, plus claim costs, for accidental bodily injury to any person or loss/damage to material property occurring during the period of insurance in connection with the business.",
+        "gold_rationale": "p.17 covers awards of damages for accidental bodily injury/property damage to third parties."
+      },
+      {
+        "id": "uk-liability-2",
+        "question": "Does the policy cover my directors or employees in a personal capacity?",
+        "search": "Personal liability cover At your request, we will pay the amount of damages for which any of your directors",
+        "expected_citation": "Personal liability (p.19)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - at your request, the insurer pays damages your directors, partners or employed persons (or their spouse/children) are liable at law for, for accidental bodily injury or property damage not owned by them, during temporary visits anywhere in the world.",
+        "gold_rationale": "p.19 provides personal liability cover for directors/employees in a personal capacity worldwide."
+      },
+      {
+        "id": "uk-liability-3",
+        "question": "Does my public liability cover an incident that happens outside the UK?",
+        "search": "Territorial limits Great Britain, Northern Ireland, the Channel Islands and the Isle of Man",
+        "expected_citation": "Territorial limits (p.6)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - the territorial limits are Great Britain, Northern Ireland, the Channel Islands and the Isle of Man, so an incident outside these territories is not covered.",
+        "gold_rationale": "p.6 restricts cover to GB/NI/Channel Islands/Isle of Man."
+      },
+      {
+        "id": "uk-liability-4",
+        "question": "Are fines or penalties imposed by a criminal court covered?",
+        "search": "fines, penalties or awards of compensation imposed by a criminal court",
+        "expected_citation": "Criminal costs exclusion (p.19)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - the policy will not pay fines, penalties or awards of compensation imposed by a criminal court, nor the costs of appeals against them.",
+        "gold_rationale": "p.19 excludes criminal court fines/penalties and related costs."
+      },
+      {
+        "id": "uk-liability-5",
+        "question": "Will you pay my legal costs for a claim that is not actually covered by this section?",
+        "search": "we will not pay claim costs for any part of a claim not covered by this section",
+        "expected_citation": "Claim costs exclusion (p.17)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - claim costs are only paid for a claim for which an award of damages is paid or may be payable under this section; the insurer will not pay claim costs for any part of a claim not covered by this section.",
+        "gold_rationale": "p.17 carves back claim costs only to covered claims."
+      },
+      {
+        "id": "uk-liability-6",
+        "question": "Are my legal defence costs covered if I am sued under this section?",
+        "search": "We will pay claim costs in connection with a claim",
+        "expected_citation": "Claim costs cover (p.17)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - the policy pays claim costs incurred with prior written consent to investigate or defend a claim against you, for which an award of damages is paid or may be payable under this section.",
+        "gold_rationale": "p.17 covers claim costs for defended claims under the section."
+      }
+    ]
+  },
+  {
+    "market": "uk",
+    "lob": "travel",
+    "pdf": "corpus_global/uk/travel/axa__travel-policy-wording-131.pdf",
+    "product": "AXA Travel Insurance Policy Wording (Series 131)",
+    "insurer": "AXA Insurance UK",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "uk-travel-1",
+        "question": "Are my personal possessions and baggage covered if lost, stolen or damaged?",
+        "search": "We will pay you up to the personal possessions and baggage limit",
+        "expected_citation": "Personal Possessions and baggage (p.22)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - up to the personal possessions and baggage limit in your schedule, the policy pays for accidental loss, theft or damage to your personal possessions and baggage (value less wear/tear and depreciation), subject to any excess.",
+        "gold_rationale": "p.22 covers accidental loss/theft/damage to personal possessions and baggage."
+      },
+      {
+        "id": "uk-travel-2",
+        "question": "Do I have to pay anything toward a claim under most sections?",
+        "search": "Policy excess",
+        "expected_citation": "Policy excess (p.4)",
+        "gold": "conditional",
+        "gold_reading": "Yes - under most sections, claims are subject to an excess, meaning you pay the first part of each and every claim per incident per insured person; the exact excess is shown on the schedule.",
+        "gold_rationale": "p.4 states an excess applies to most sections."
+      },
+      {
+        "id": "uk-travel-3",
+        "question": "Is a medical condition I am currently being treated for covered?",
+        "search": "waiting to receive",
+        "expected_citation": "Medical conditions exclusion (p.11)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - unless you have declared the condition and the insurer has agreed to cover it (shown on the schedule), a condition you have had treatment for within the last five years is not covered.",
+        "gold_rationale": "p.11 excludes undeclared medical conditions treated within the last five years."
+      },
+      {
+        "id": "uk-travel-4",
+        "question": "If I am injured abroad, are emergency medical costs covered?",
+        "search": "unforeseen bodily injury",
+        "expected_citation": "Emergency medical and repatriation (p.14)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - up to the emergency medical and repatriation limit, the policy pays necessary expenses from unforeseen bodily injury, illness or compulsory quarantine, including emergency medical/surgical/hospital/ambulance fees incurred outside your home area.",
+        "gold_rationale": "p.14 covers emergency medical/repatriation for unforeseen bodily injury/illness."
+      },
+      {
+        "id": "uk-travel-5",
+        "question": "Are winter sports covered under my policy?",
+        "search": "winter sports must be shown as included",
+        "expected_citation": "Winter sports (p.14)",
+        "gold": "conditional",
+        "gold_reading": "Only if you paid the additional winter sports premium and it is shown as included in your policy schedule; winter sports cover is also limited to 17 days on annual multi-trip policies.",
+        "gold_rationale": "p.14 requires the winter sports premium to be paid and shown in the schedule for cover to be operative."
+      },
+      {
+        "id": "uk-travel-6",
+        "question": "If I have to cancel my trip for an unavoidable reason, are my unused costs covered?",
+        "search": "irrecoverable unused travel and accommodation costs",
+        "expected_citation": "Cancelling/cutting short your trip (p.16)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - up to the amount in your schedule, the policy pays irrecoverable unused travel and accommodation costs and reasonable additional expenses if cancellation is necessary and unavoidable or the trip is curtailed.",
+        "gold_rationale": "p.16 covers irrecoverable unused costs if cancellation is necessary and unavoidable."
+      }
+    ]
+  },
+  {
+    "market": "uk",
+    "lob": "travel_v2",
+    "pdf": "corpus_global/uk/travel_v2/axa__travel-policy-wording-v2.pdf",
+    "product": "AXA Travel Insurance (Bronze/Silver/Gold)",
+    "insurer": "AXA Insurance UK",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "uk-travel-v2-1",
+        "question": "If I need unforeseen emergency medical treatment while travelling, is it covered?",
+        "search": "unforeseen emergency medical treatment",
+        "expected_citation": "Medical emergency & repatriation (p.27)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - up to the Table of Benefits amount, the policy pays necessary expenses from unforeseen injury due to accident, illness, disease or personal quarantine, including emergency medical/surgical/hospital/ambulance fees, subject to the section excess.",
+        "gold_rationale": "p.27 covers emergency medical/repatriation for unforeseen injury/illness."
+      },
+      {
+        "id": "uk-travel-v2-2",
+        "question": "Are my personal belongings and baggage covered?",
+        "search": "Personal Belongings and Money",
+        "expected_citation": "Personal Belongings and Money (p.21)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - Section 4 covers baggage (with single-article and valuables sub-limits) and personal money up to the Table of Benefits limits, subject to the section excess.",
+        "gold_rationale": "p.21 lists Baggage and Personal Money limits in the Table of Benefits."
+      },
+      {
+        "id": "uk-travel-v2-3",
+        "question": "Do I have to pay an excess on every claim?",
+        "search": "No excess is applicable",
+        "expected_citation": "Excess (p.21)",
+        "gold": "conditional",
+        "gold_reading": "It depends - no excess applies to sections marked with an asterisk, while Bronze/Silver/Gold apply a per-person excess (GBP100/75/50, max 2 excesses) to other sections; some sections are excess-free.",
+        "gold_rationale": "p.21 shows an excess applies to most sections but not to those marked with an asterisk."
+      },
+      {
+        "id": "uk-travel-v2-4",
+        "question": "Is personal liability cover provided for all sports and activities?",
+        "search": "no cover under Section 5b – Personal Liability",
+        "expected_citation": "Personal Liability restriction (p.16)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - there is no cover under Section 5b Personal Liability for sports or activities marked with an asterisk (e.g. racing/competition); cover is limited to recreational participation in listed activities.",
+        "gold_rationale": "p.16 excludes Personal Liability cover for asterisked sports/activities."
+      },
+      {
+        "id": "uk-travel-v2-5",
+        "question": "Is a pre-existing medical condition covered?",
+        "search": "pre-existing medical condition",
+        "expected_citation": "Pre-existing medical conditions (p.15)",
+        "gold": "likely_not_covered",
+        "gold_reading": "Generally no - you are not covered under several sections for any pre-existing medical condition unless you have consulted the medical screening service and the condition is covered; specific terms apply.",
+        "gold_rationale": "p.15 excludes pre-existing medical conditions unless screened and agreed."
+      },
+      {
+        "id": "uk-travel-v2-6",
+        "question": "If I have to cancel my trip, is that covered?",
+        "search": "Cancellation or Cutting Short your Trip £1,000",
+        "expected_citation": "Cancellation or Cutting Short your Trip (p.21)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - Section 1 covers Cancellation or Cutting Short your Trip up to the Table of Benefits limit (GBP1,000/3,000/5,000), subject to the section excess.",
+        "gold_rationale": "p.21 lists Cancellation or Cutting Short your Trip as a covered section with limits."
+      }
+    ]
+  },
+  {
+    "market": "uk",
+    "lob": "travel_ipid",
+    "pdf": "corpus_global/uk/travel_ipid/wearetravelinsurance__travel-ipid.pdf",
+    "product": "WeAreTravelInsurance Policy (Great Lakes Insurance UK)",
+    "insurer": "Great Lakes Insurance UK",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "uk-travel-ipid-1",
+        "question": "Are emergency medical expenses covered?",
+        "search": "Emergency Medical Expenses",
+        "expected_citation": "Emergency Medical Expenses (IPID p.1)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - emergency medical expenses including 24/7 assistance are covered up to GBP10 million.",
+        "gold_rationale": "IPID lists Emergency Medical Expenses up to GBP10 million as covered."
+      },
+      {
+        "id": "uk-travel-ipid-2",
+        "question": "Are pre-existing medical conditions covered?",
+        "search": "Pre-existing medical conditions",
+        "expected_citation": "Pre-existing medical conditions (IPID p.1)",
+        "gold": "conditional",
+        "gold_reading": "Only if agreed with the insurer; otherwise they are not covered, and there is no cover at the start of the policy if anyone is waiting for medical investigation/test results.",
+        "gold_rationale": "IPID states pre-existing medical conditions are excluded unless agreed."
+      },
+      {
+        "id": "uk-travel-ipid-3",
+        "question": "Are my personal belongings (baggage) covered?",
+        "search": "Personal Baggage",
+        "expected_citation": "Personal Baggage (IPID p.1)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - personal baggage is covered up to GBP2,000.",
+        "gold_rationale": "IPID lists Personal Baggage up to GBP2,000 as covered."
+      },
+      {
+        "id": "uk-travel-ipid-4",
+        "question": "Are my personal money and passport covered?",
+        "search": "Personal Money",
+        "expected_citation": "Personal Money (IPID p.1)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - personal money is covered up to GBP400 and loss of passport up to GBP300.",
+        "gold_rationale": "IPID lists Personal Money up to GBP400 and Loss of Passport up to GBP300 as covered."
+      }
+    ]
+  },
+  {
+    "market": "uk",
+    "lob": "marine",
+    "pdf": "corpus_global/uk/marine/lloyd-s__institute-cargo-clauses-a-1982.pdf",
+    "product": "Institute Cargo Clauses (A) 1/1/82",
+    "insurer": "Lloyd's (Institute of London Underwriters / market standard)",
+    "license_class": "industry",
+    "examples": [
+      {
+        "id": "uk-marine-1",
+        "question": "Is my cargo covered for accidental physical loss or damage during transit?",
+        "search": "all risks of loss of or damage to the subject-matter insured",
+        "expected_citation": "Institute Cargo Clauses (A) Clause 1 (Risks Covered)",
+        "gold": "conditional",
+        "gold_reading": "Yes — ICC(A) covers all risks of loss or damage to the cargo except those excluded by Clauses 4, 5, 6 and 7; cover applies provided none of those exclusions apply.",
+        "gold_rationale": "Clause 1 (p.1) is an all-risks insuring clause expressly 'except as provided in Clauses 4, 5, 6 and 7 below'."
+      },
+      {
+        "id": "uk-marine-2",
+        "question": "Is loss caused by war, capture or seizure of the carrying vessel covered?",
+        "search": "war civil war revolution rebellion insurrection",
+        "expected_citation": "Institute Cargo Clauses (A) Clause 6 (War Exclusion)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Clause 6 expressly excludes loss caused by war, civil war, capture/seizure, restraint/detainment and derelict weapons (piracy excepted).",
+        "gold_rationale": "Clause 6 (p.1) excludes war, civil war, capture/seizure, etc."
+      },
+      {
+        "id": "uk-marine-3",
+        "question": "Is damage from inherent vice or ordinary wear and tear covered?",
+        "search": "inherent vice or nature of the subject-matter insured",
+        "expected_citation": "Institute Cargo Clauses (A) Clause 4.4 (General Exclusion)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Clause 4.4 excludes loss damage or expense caused by inherent vice or the nature of the subject-matter insured.",
+        "gold_rationale": "Clause 4 (p.1) excludes inherent vice, ordinary leakage/wear, etc."
+      },
+      {
+        "id": "uk-marine-4",
+        "question": "If a strike or a person acting from a political motive damages my cargo, is it covered?",
+        "search": "strikers, locked-out workmen, or persons taking part in labour disturbances",
+        "expected_citation": "Institute Cargo Clauses (A) Clause 7 (Strikes Exclusion)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Clause 7 excludes loss caused by strikers, labour disturbances, riots, civil commotions or persons acting from a political motive.",
+        "gold_rationale": "Clause 7 (p.1) excludes strikes / terrorism / political acts."
+      },
+      {
+        "id": "uk-marine-5",
+        "question": "Does my cover continue after the goods are delivered to my warehouse at the destination?",
+        "search": "delivery to the Consignees’ or other final warehouse",
+        "expected_citation": "Institute Cargo Clauses (A) Clause 8.1.1 (Transit Clause)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — cover terminates on delivery to the consignee's or other final warehouse (Clause 8.1.1), whichever termination event occurs first.",
+        "gold_rationale": "Clause 8 (p.2) terminates cover on delivery to the final warehouse."
+      },
+      {
+        "id": "uk-marine-6",
+        "question": "If the vessel is unseaworthy at loading and I (the Assured) was aware of it, is my cargo covered?",
+        "search": "unseaworthiness of vessel or craft, unfitness of vessel craft conveyance",
+        "expected_citation": "Institute Cargo Clauses (A) Clause 5.1 (Unseaworthiness Exclusion)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Clause 5.1 excludes loss where the vessel/craft was unseaworthy or unfit and the Assured or their servants were privy to it at loading.",
+        "gold_rationale": "Clause 5 (p.1) excludes unseaworthiness/unfitness where the insured was privy."
+      }
+    ]
+  },
+  {
+    "market": "uk",
+    "lob": "cyber",
+    "pdf": "corpus_global/uk/cyber/rsa__cyber-risk-insurance-policy-wording.pdf",
+    "product": "RSA Cyber Risk Insurance Policy Wording",
+    "insurer": "Royal & Sun Alliance Insurance plc (RSA)",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "uk-cyber-1",
+        "question": "If a hacker breaches my customer database and steals personal data, am I covered for the resulting legal liability?",
+        "search": "Data Liability Loss in respect of any Claim",
+        "expected_citation": "Cyber Risk Insuring Clauses — Data Liability (p.5)",
+        "gold": "conditional",
+        "gold_reading": "Yes — the policy indemnifies for Data Liability Loss from a Data Liability Event, subject to the Retroactive Date, Period of Insurance, Excess and the Policy Exclusions.",
+        "gold_rationale": "Section 5 clause 1 (p.5) covers Data Liability Loss; a data breach is a Data Liability Event (definition, p.12)."
+      },
+      {
+        "id": "uk-cyber-2",
+        "question": "If I suffer a ransomware attack and pay a ransom, am I covered for the extortion costs?",
+        "search": "Cyber Extortion Expenses for the sole purpose",
+        "expected_citation": "Cyber Extensions — Cyber Extortion (p.6)",
+        "gold": "conditional",
+        "gold_reading": "Possibly — Cyber Extortion Expenses are covered, but only if the ransom was paid under duress, the threat was verified as genuine, police were notified, payment is lawful, and the Excess applies.",
+        "gold_rationale": "Section 5 clause 5 / p.6 covers Cyber Extortion subject to conditions A-G."
+      },
+      {
+        "id": "uk-cyber-3",
+        "question": "If a denial-of-service attack takes my website down for days and I lose revenue, am I covered for business interruption?",
+        "search": "Cyber Business Interruption any Business Interruption Loss incurred by the Insured, after the Waiting Period",
+        "expected_citation": "Cyber Risk Insuring Clauses — Cyber Business Interruption (p.5)",
+        "gold": "conditional",
+        "gold_reading": "Yes — Cyber Business Interruption Loss is covered after the Waiting Period, provided the event is a Cyber Business Interruption Event and is notified to the Incident Manager.",
+        "gold_rationale": "Section 5 clause 4 (p.5) covers BI after the Waiting Period; a DoS is a Cyber BI Event (definition, p.11)."
+      },
+      {
+        "id": "uk-cyber-4",
+        "question": "If a war or hostile act by a belligerent power disrupts my systems, am I covered?",
+        "search": "War arising from any physical act of war, invasion, or warlike operations",
+        "expected_citation": "Policy Exclusions — War (p.9, exclusion 20)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Exclusion 20 excludes loss arising from war, invasion, warlike operations, civil war, riot, civil commotion, rebellion, revolution, insurrection or military/usurped power.",
+        "gold_rationale": "Exclusion 20 (p.9) excludes war and warlike operations."
+      },
+      {
+        "id": "uk-cyber-5",
+        "question": "Am I covered for bodily injury or death caused by a cyber incident?",
+        "search": "Bodily Injury arising directly or indirectly from any death or bodily injury",
+        "expected_citation": "Policy Exclusions — Bodily Injury (p.8, exclusion 3)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Exclusion 3 excludes bodily injury, except mental anguish or mental injury resulting from a Data Liability or Network Security Event.",
+        "gold_rationale": "Exclusion 3 (p.8) excludes bodily injury generally."
+      },
+      {
+        "id": "uk-cyber-6",
+        "question": "If I, the insured, deliberately commit fraud that causes a cyber loss, am I covered?",
+        "search": "reckless, deliberate, criminal or fraudulent acts by the Insured",
+        "expected_citation": "Policy Exclusions — Fraud or Dishonesty (p.8, exclusion 8)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Exclusion 8 excludes reckless, deliberate, criminal or fraudulent acts by the Insured (a carve-out applies only where an Employee commits the act and it gives rise to a covered event).",
+        "gold_rationale": "Exclusion 8 (p.8) excludes the Insured's own fraudulent/dishonest acts."
+      }
+    ]
+  },
+  {
+    "market": "in",
+    "lob": "cyber",
+    "pdf": "corpus_global/in/cyber/new-india-assurance__mycyber-insurance-policy.pdf",
+    "product": "MyCyber Insurance Policy (New India Assurance)",
+    "insurer": "The New India Assurance Company Ltd",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "in-cyber-1",
+        "question": "If someone steals funds from my bank account through an unauthorized online transaction, am I covered?",
+        "search": "theft of funds due to an Unauthorized Transaction",
+        "expected_citation": "Section I — Unauthorized Transaction (p.1)",
+        "gold": "conditional",
+        "gold_reading": "Yes — the policy pays your direct financial loss from theft of funds due to an Unauthorized Transaction, provided it is reported to your bank and the insurer within 48 hours and the deductible applies.",
+        "gold_rationale": "Section I (p.1) covers unauthorized-transaction theft, subject to 48-hour reporting and the deductible."
+      },
+      {
+        "id": "in-cyber-2",
+        "question": "If I am tricked into paying for goods online that are never delivered, am I covered?",
+        "search": "Online Purchase Transactions Insurer will reimburse Insured",
+        "expected_citation": "Section II — Online Purchase Transactions (p.1)",
+        "gold": "conditional",
+        "gold_reading": "Yes — you can be reimbursed for direct and pure financial loss from online purchase fraud, provided you attempted recovery from the seller, reported to your bank within 48 hours, and the bank refuses reimbursement.",
+        "gold_rationale": "Section II (p.1) covers online purchase fraud subject to those conditions."
+      },
+      {
+        "id": "in-cyber-3",
+        "question": "If I am hit by a ransomware attack and pay a ransom to regain access to my files, am I covered?",
+        "search": "Cyber Extortion Loss",
+        "expected_citation": "Definitions — Loss (p.3, includes Cyber Extortion Loss)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — the policy's insuring clauses (Sections I and II) cover only unauthorized transactions and online purchase fraud; cyber extortion/ransom is not an insured event under the insuring clause (it appears only inside the definition of 'Loss'), so a ransom payment is not covered.",
+        "gold_rationale": "The insuring grants are limited to unauthorized transactions and online purchase fraud; extortion is not separately insured."
+      },
+      {
+        "id": "in-cyber-4",
+        "question": "If I am hacked while using my work laptop for my business and suffer a loss, am I covered?",
+        "search": "action or omission in Insured’s capacity as Employee or self- employed person",
+        "expected_citation": "General Exclusions — Exclusion 2 (p.2)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Exclusion 2 excludes any loss arising from the Insured's actions in a business, professional or self-employed capacity; this is a personal cyber policy.",
+        "gold_rationale": "Exclusion 2 (p.2) excludes business/professional activity."
+      },
+      {
+        "id": "in-cyber-5",
+        "question": "If a war or terrorist act causes my cyber loss, am I covered?",
+        "search": "War, Terrorism, Looting and Governmental Acts",
+        "expected_citation": "General Exclusions — Exclusion 14 (p.2)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Exclusion 14 excludes loss arising from war, terrorism, looting and governmental acts.",
+        "gold_rationale": "Exclusion 14 (p.2) excludes war / terrorism / governmental acts."
+      },
+      {
+        "id": "in-cyber-6",
+        "question": "Am I covered for losses caused by a power cut or internet outage at my service provider?",
+        "search": "telecommunication, internet service, satellite, cable, electricity",
+        "expected_citation": "General Exclusions — Exclusion 15 (p.2)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Exclusion 15 (and 22) excludes loss from failure or interruption of third-party infrastructure such as telecom, internet, satellite, electricity, gas or water providers.",
+        "gold_rationale": "Exclusion 15 (p.2) excludes third-party infrastructure failure."
+      }
+    ]
+  },
+  {
+    "market": "in",
+    "lob": "marine",
+    "pdf": "corpus_global/in/marine/zurich-kotak__marine-clauses-wordings-commercial.pdf",
+    "product": "Marine Cargo Clause Wordings (Zurich Kotak)",
+    "insurer": "Zurich Kotak General Insurance",
+    "license_class": "insurer",
+    "examples": [
+      {
+        "id": "in-marine-1",
+        "question": "Is my cargo covered for accidental loss or damage during transit under this marine policy?",
+        "search": "This insurance covers all risks of loss of or damage to the subject-matter insured",
+        "expected_citation": "Institute Cargo Clauses (A) — Clause 1 (Risks Covered)",
+        "gold": "conditional",
+        "gold_reading": "Yes — ICC(A) covers all risks of loss or damage to the cargo except those excluded by Clauses 4-7; cover applies provided none of the exclusions apply.",
+        "gold_rationale": "Clause 1 is an all-risks insuring clause subject to Clauses 4-7."
+      },
+      {
+        "id": "in-marine-2",
+        "question": "Is loss caused by war, capture or seizure of the carrying vessel covered?",
+        "search": "war civil war revolution rebellion insurrection, or civil strife arising therefrom",
+        "expected_citation": "Institute Cargo Clauses (A) — Clause 6 (War Exclusion)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Clause 6 expressly excludes loss caused by war, civil war, capture/seizure, etc. (piracy excepted).",
+        "gold_rationale": "Clause 6 excludes war, civil war, capture/seizure."
+      },
+      {
+        "id": "in-marine-3",
+        "question": "Does the marine cover continue after the goods are delivered to my warehouse at the destination?",
+        "search": "This insurance attaches from the time the goods leave the warehouse or place of storage",
+        "expected_citation": "Institute Cargo Clauses (A) — Clause 8 (Transit Clause)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — cover terminates on delivery to the consignee's final warehouse (Clause 8.1.1), whichever termination event occurs first.",
+        "gold_rationale": "Clause 8 terminates cover on delivery to the final warehouse."
+      },
+      {
+        "id": "in-marine-4",
+        "question": "If a strike or persons acting from a political motive damage my cargo, is it covered?",
+        "search": "any person acting from a political motive",
+        "expected_citation": "Institute Cargo Clauses (A) — Clause 7 (Strikes Exclusion)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No — Clause 7 excludes loss caused by strikers, labour disturbances, riots, or persons acting from a political motive.",
+        "gold_rationale": "Clause 7 excludes strikes / terrorism / political acts."
+      }
+    ]
+  },
+  {
+    "market": "in",
+    "lob": "health",
+    "pdf": "corpus_global/in/health/irdai__health-insurance-regulations-2016.pdf",
+    "product": "IRDAI (Health Insurance) Regulations, 2016",
+    "insurer": "Insurance Regulatory and Development Authority of India (Regulator)",
+    "license_class": "regulator",
+    "examples": [
+      {
+        "id": "in-health-1",
+        "question": "If I have a pre-existing disease, is it covered from day one of my health policy?",
+        "search": "waiting period with respect to pre-existing diseases",
+        "expected_citation": "Regulation 17 — Waiting period for pre-existing diseases (p.26)",
+        "gold": "conditional",
+        "gold_reading": "No, not from day one — a waiting period for pre-existing diseases applies; however, if you port from a previous insurer, credit for prior continuous cover reduces the waiting period you must still serve.",
+        "gold_rationale": "Reg 17 (p.26) sets a PED waiting period, reduced by portability credit."
+      },
+      {
+        "id": "in-health-2",
+        "question": "Can I switch my health insurer and keep my accumulated waiting-period credit for pre-existing diseases?",
+        "search": "portability shall be applicable to the sum insured under the previous policy",
+        "expected_citation": "Regulation 18 — Portability (p.27)",
+        "gold": "conditional",
+        "gold_reading": "Yes — health policies are portable and the new insurer must give credit for your years of continuous previous cover, subject to acceptance of the proposal and any additional waiting period being explained to you.",
+        "gold_rationale": "Reg 18 (p.27) mandates portability credit for PED waiting periods."
+      },
+      {
+        "id": "in-health-3",
+        "question": "Do all health insurers have to use the same standard definitions for terms in my policy?",
+        "search": "Standard Definition of terms in health insurance policies",
+        "expected_citation": "Regulation 20 — Standard Definitions (p.12)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes — Regulation 20 requires that phrases and terms used in all health insurance policies carry the standard meanings specified by the Authority.",
+        "gold_rationale": "Reg 20 (p.12) mandates standard definitions across insurers."
+      },
+      {
+        "id": "in-health-4",
+        "question": "Are insurers required to offer a cashless treatment facility for health policies?",
+        "search": "extend to all policy holders a cashless facility",
+        "expected_citation": "Regulation 30(a) — Administration of Health Policies (p.17)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes — Regulation 30(a) requires general/health insurers to extend a cashless facility (or reimbursement) for treatment at network providers, subject to policy terms.",
+        "gold_rationale": "Reg 30(a) (p.17) requires a cashless facility."
+      }
+    ]
+  },
+  {
+    "market": "eu",
+    "lob": "travel",
+    "pdf": "corpus_global/eu/travel/gdv__travel-model-conditions-2008.pdf",
+    "product": "GDV Travel Insurance Model Conditions (AT-Reise 2008/2025) - General Part",
+    "insurer": "GDV (Gesamtverband der Deutschen Versicherungswirtschaft) - industry model wording",
+    "license_class": "industry",
+    "examples": [
+      {
+        "id": "eu-travel-1",
+        "question": "Is my daily commute to work covered by this travel insurance?",
+        "search": "Wege von und zur Arbeitsstätte",
+        "expected_citation": "Territorial scope / commute exclusion (§2.2.4, p.1)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - travel insurance only covers insured trips within the agreed territorial scope. Commuting journeys to and from your workplace are expressly excluded and are not treated as a trip.",
+        "gold_rationale": "§2.2.4 provides worldwide cover only where the distance between the insured person's residence and destination exceeds the agreed km threshold, and expressly states that 'Wege von und zur Arbeitsstätte' (journeys to and from the workplace) do not count as a trip."
+      },
+      {
+        "id": "eu-travel-2",
+        "question": "If the premium has not yet been paid when I make a claim, am I still covered?",
+        "search": "von der Verpflichtung zur Leistung frei",
+        "expected_citation": "Premium / late-payment consequences (§3.1.2, p.2)",
+        "gold": "conditional",
+        "gold_reading": "It depends - if the premium is unpaid at the time of the insured event, the insurer is released from its obligation to pay, unless you (the policyholder) are not responsible for the non-payment. The release only applies if the insurer specifically warned you in text form or via a conspicuous notice in the policy.",
+        "gold_rationale": "§3.1.2 states the insurer is free of the obligation to perform if the premium is unpaid at the time of the claim, 'es sei denn' (unless) the policyholder is not at fault; the freedom from liability only applies where the insurer gave the prescribed warning."
+      },
+      {
+        "id": "eu-travel-3",
+        "question": "If I deliberately fail to report a claim or withhold information, will the insurer still pay?",
+        "search": "vorsätzlich eine Obliegenheit",
+        "expected_citation": "Post-claim obligations / intentional breach (§6.2.1, p.3)",
+        "gold": "likely_not_covered",
+        "gold_reading": "No - if you intentionally breach a post-claim obligation (such as failing to report the loss or withholding information), the insurer is released from its obligation to pay.",
+        "gold_rationale": "§6.2.1 provides that where the policyholder/insured person intentionally breaches an obligation arising after the insured event, the insurer is free of the obligation to perform."
+      },
+      {
+        "id": "eu-travel-4",
+        "question": "If I am grossly negligent after a claim, does the insurer reduce my payment?",
+        "search": "grob fahrlässiger Verletzung der Obliegenheit",
+        "expected_citation": "Post-claim obligations / gross negligence (§6.2.2, p.3)",
+        "gold": "conditional",
+        "gold_reading": "Yes, partly - in the case of grossly negligent breach of a post-claim obligation, the insurer is entitled to reduce its payment in proportion to the degree of fault. The burden of proving no gross negligence lies with the insured.",
+        "gold_rationale": "§6.2.2 entitles the insurer to reduce its performance in proportion to the seriousness of the grossly negligent breach; the insured must prove the absence of gross negligence."
+      },
+      {
+        "id": "eu-travel-5",
+        "question": "If a third party caused my travel loss, does the insurer take over my claim against them?",
+        "search": "Ersatzansprüche gegen Dritte gehen",
+        "expected_citation": "Claims against third parties / subrogation (§7.1, p.3)",
+        "gold": "likely_covered",
+        "gold_reading": "Yes - to the extent legally provided, any claims for compensation against third parties transfer to the insurer up to the amount it has paid, and you must assign those claims to the insurer if required.",
+        "gold_rationale": "§7.1 provides that compensation claims against third parties pass to the insurer by operation of law up to the amount paid; §7.2 requires the insured to give an assignment declaration if needed."
+      },
+      {
+        "id": "eu-travel-6",
+        "question": "Which law governs this travel insurance policy?",
+        "search": "Soweit gesetzlich zulässig, gilt deutsches Recht",
+        "expected_citation": "Applicable law (§10.3, p.4)",
+        "gold": "likely_covered",
+        "gold_reading": "German law governs the policy to the extent permitted by law.",
+        "gold_rationale": "§10.3 states 'Soweit gesetzlich zulässig, gilt deutsches Recht' (to the extent legally permissible, German law applies)."
+      }
+    ]
+  }
+]

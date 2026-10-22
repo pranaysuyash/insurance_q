@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0.0",
+  "status": "Complete — filled from policy PDF extraction",
+
+  "meta": {
+    "policy_document": "assets/demo/tata_aig_motor.pdf",
+    "policy_type": "motor",
+    "insurer": "Tata AIG General Insurance",
+    "description": "Tata AIG Comprehensive Car Insurance Policy",
+    "added_by": "CoverWise team",
+    "added_date": "2026-09-01",
+    "notes": "Filled from actual policy PDF — motor policy extraction values."
+  },
+
+  "expected_extraction": {
+    "policy_number": "MCV987654321",
+    "insurer": "Tata AIG General Insurance",
+    "insurer_helpline": "1800-22-7777",
+    "insurer_email": "claims@tataaig.com",
+    "document_type": "motor",
+    "coverage_amount": 3000000.0,
+    "deductible": 2500.0,
+    "premium_amount": 12000.0,
+    "premium_frequency": "annual",
+    "effective_date": "2024-06-15",
+    "expiration_date": "2025-06-15",
+    "key_benefits": [
+      "Own damage cover",
+      "Third-party liability cover",
+      "Personal accident cover",
+      "Cashless garage network",
+      "Zero depreciation cover"
+    ],
+    "exclusions": [
+      "Driving under influence of alcohol",
+      "Unlicensed driver",
+      "Racing or speed contests",
+      "Depreciation on parts",
+      "Wear and tear",
+      "Electrical breakdowns not due to accident"
+    ],
+    "waiting_periods": [
+      "No specific waiting periods for motor insurance",
+      "Immediate coverage for own damage",
+      "Theft cover effective from policy start"
+    ],
+    "coverage_items": [
+      {
+        "name": "Insured Declared Value (IDV)",
+        "limit": 3000000.0,
+        "limit_text": "30 lakhs",
+        "covered": true,
+        "notes": "IDV is the market value of the vehicle"
+      },
+      {
+        "name": "Bonus Protection",
+        "limit": null,
+        "limit_text": null,
+        "covered": true,
+        "notes": "No claim bonus protected at extra premium"
+      }
+    ],
+    "executive_summary": [
+      "Comprehensive car insurance policy with 30 lakhs IDV",
+      "Zero depreciation cover available at extra premium",
+      "Personal accident cover of 15 lakhs for owner-driver",
+      "Cashless claims at 5000+ Tata AIG approved garages"
+    ],
+    "type_specific": {
+      "motor": {
+        "vehicle_registration_number": "MH02AB1234",
+        "fuel_type": "Petrol",
+        "vehicle_manufacturing_year": 2022,
+        "vehicle_make": "Hyundai",
+        "vehicle_model": "Creta",
+        "gear_type": "Automatic",
+        "fuel_tank_capacity": "50 litres",
+        "engine_capacity": "1493 cc"
+      }
+    }
+  },
+
+  "expected_questions": {
+    "known_answers": [
+      {
+        "question": "What is my Insured Declared Value (IDV)?",
+        "expected_answer_contains": "30 lakhs",
+        "citation_page": 2,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is my policy number?",
+        "expected_answer_contains": "MCV987654321",
+        "citation_page": 1,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the fuel type of my vehicle?",
+        "expected_answer_contains": "Petrol",
+        "citation_page": 3,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the vehicle manufacturer?",
+        "expected_answer_contains": "Hyundai",
+        "citation_page": 3,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the gear type?",
+        "expected_answer_contains": "Automatic",
+        "citation_page": 3,
+        "verification_status": "fully_backed"
+      }
+    ],
+    "known_fields_not_present": []
+  },
+
+  "expected_badges": {
+    "policy_detail": "fully_backed",
+    "question_answer": {
+      "typical": "fully_backed"
+    }
+  }
+}

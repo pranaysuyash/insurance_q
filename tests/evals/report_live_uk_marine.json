@@ -1,0 +1,55 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/uk/marine/coverage.jsonl",
+  "n": 6,
+  "correct": 4,
+  "accuracy": 0.6667,
+  "per_class": {
+    "conditional": {
+      "n": 1,
+      "correct": 0
+    },
+    "likely_not_covered": {
+      "n": 5,
+      "correct": 4
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "likely_covered": 1
+    },
+    "likely_not_covered": {
+      "conditional": 1,
+      "likely_not_covered": 4
+    }
+  },
+  "mismatches": [
+    {
+      "id": "uk-marine-1",
+      "question": "Is my cargo covered for accidental physical loss or damage during transit?",
+      "gold": "conditional",
+      "pred": "likely_covered",
+      "rationale": "Clause 1 (p.1) is an all-risks insuring clause expressly 'except as provided in Clauses 4, 5, 6 and 7 below'."
+    },
+    {
+      "id": "uk-marine-2",
+      "question": "Is loss caused by war, capture or seizure of the carrying vessel covered?",
+      "gold": "likely_not_covered",
+      "pred": "conditional",
+      "rationale": "Clause 6 (p.1) excludes war, civil war, capture/seizure, etc."
+    }
+  ],
+  "grounding_checked": 6,
+  "grounding_failed": [],
+  "latencies_ms": [
+    55095.5,
+    47410.2,
+    39145.2,
+    25250.9,
+    69109.9,
+    30186.6
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

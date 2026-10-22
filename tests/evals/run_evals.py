@@ -34,14 +34,30 @@ Usage
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Make the harness runnable both via `python tests/evals/run_evals.py` and
+# `python -m ...`; ensure the project root (the `src` package) is importable
+# regardless of the current working directory.
+_HERE = Path(__file__).resolve().parent
+_PROJECT_ROOT = _HERE.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 import argparse
+import asyncio
 import json
+import logging
 import os
 import re
 import sys
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 VALID_READINGS = ("likely_covered", "likely_not_covered", "conditional", "ambiguous")
 
@@ -59,9 +75,13 @@ class Example:
     product: str
     clause: str
     question: str
-    gold_reading: str
+    gold_reading: str          # the coverage LABEL (likely_covered / conditional / ...)
     gold_rationale: str
     expected_citation: str
+    expected_page: Optional[int] = None
+    lob: Optional[str] = None
+    insurer: Optional[str] = None      # stamp for the live-fixture document metadata
+    gold_answer: Optional[str] = None   # optional plain-language answer (informational)
 
     def validate(self) -> list[str]:
         errors = []
@@ -99,6 +119,10 @@ def load_dataset(path: Path) -> tuple[list[Example], list[str]]:
                     gold_reading=obj.get("gold_reading", ""),
                     gold_rationale=obj.get("gold_rationale", ""),
                     expected_citation=obj.get("expected_citation", ""),
+                    expected_page=obj.get("expected_page"),
+                    lob=obj.get("lob"),
+                    insurer=obj.get("insurer"),
+                    gold_answer=obj.get("gold_answer"),
                 )
             except Exception as exc:  # noqa: BLE001
                 load_errors.append(f"line {lineno}: {exc}")
@@ -135,6 +159,45 @@ def _has(text: str, keywords) -> bool:
 def _has_word(text: str, words) -> bool:
     toks = set(_WORD.findall(text.lower()))
     return any(w in toks for w in words)
+
+
+def _token_containment(needle: str, haystack: str) -> float:
+    """Fraction of `needle`'s word-tokens present in `haystack` (0..1).
+
+    Robust to paraphrasing / chunk-truncation / citation-excerpting, unlike
+    exact substring. Returns 0.0 for an empty needle rather than dividing by 0.
+    """
+    n = set(_WORD.findall(needle.lower()))
+    if not n:
+        return 0.0
+    h = set(_WORD.findall(haystack.lower()))
+    return len(n & h) / len(n)
+
+
+def is_grounded(example: "Example", sources: list, citations_text: str) -> bool:
+    """Page-aware grounding (CI-safe) with a soft token-containment fallback.
+
+    Primary signal: does at least one retrieved *source* carry the same
+    ``page_number`` as the clause's ``expected_page``? Page membership is
+    invariant to paraphrase, chunk truncation, and citation-excerpting, so it
+    does not over-fire the way the old exact-substring check did.
+
+    Fallback (rows without ``expected_page``): token containment of
+    ``expected_citation`` in the retrieved text, at a 0.5 threshold. This keeps
+    legacy rows working without silently resurrecting the over-firing substring
+    equality.
+    """
+    if example.expected_page is not None:
+        retrieved_pages = [
+            s.get("page_number") for s in sources
+            if s.get("page_number") is not None
+        ]
+        if example.expected_page in retrieved_pages:
+            return True
+        # Soft secondary so a correct answer is never penalised merely because
+        # retrieval returned an adjacent page instead of the exact one.
+        return _token_containment(example.expected_citation, citations_text) >= 0.5
+    return _token_containment(example.expected_citation, citations_text) >= 0.5
 
 
 def reference_judge(clause: str, question: str) -> str:
@@ -233,7 +296,11 @@ def run_offline(dataset_path: Path) -> Report:
         # Grounding sanity: the expected citation must at least appear in the
         # clause text (the clause is the source in offline mode).
         rep.grounding_checked += 1
-        if ex.expected_citation.lower() not in ex.clause.lower():
+        # Offline grounding is a sanity check that the citation string appears in
+        # the clause. For page-anchored (real-policy) datasets the clause is a
+        # page snippet and the real grounding happens in LIVE mode via page
+        # membership, so skip the string check when expected_page is set.
+        if ex.expected_page is None and ex.expected_citation.lower() not in ex.clause.lower():
             rep.grounding_failed.append({"id": ex.id, "expected": ex.expected_citation})
 
     scored = _score(pairs)
@@ -260,14 +327,21 @@ async def _llm_judge(pipeline, ex: Example, top_k: int = 4) -> tuple[str, float,
     only invoked when the user explicitly enables --allow-live with API keys.
     """
     t0 = time.perf_counter()
-    result = await pipeline.query_rag(ex.question, top_k=top_k, filters={"document_id": ex.id})
+    # Filter to the single ingested document. Use the fixture's real document_id
+    # (set on the pipeline) rather than ex.id, which is a row id and would never
+    # match the ingested doc id and silently empty retrieval. With no fixture doc
+    # id (shouldn't happen in the live gate) fall back to no document filter.
+    doc_id = getattr(pipeline, "_live_document_id", None)
+    filters = {"document_id": doc_id} if doc_id else None
+    result = await pipeline.query_rag(ex.question, top_k=top_k, filters=filters, lob=ex.lob)
     latency_ms = (time.perf_counter() - t0) * 1000.0
     res = result.get("result", {})
     wa = res.get("wording_assessment") or {}
     pred = wa.get("reading")
-    sources = " ".join(s.get("text", "") for s in res.get("sources", []))
-    citations = " ".join(c.get("quote", "") for c in res.get("citations", []))
-    grounded = ex.expected_citation.lower() in (sources + citations).lower()
+    sources = res.get("sources", [])
+    sources_text = " ".join(s.get("text", "") for s in sources)
+    citations_text = " ".join(c.get("quote", "") for c in res.get("citations", []))
+    grounded = is_grounded(ex, sources, sources_text + " " + citations_text)
     return pred, latency_ms, grounded
 
 
@@ -348,7 +422,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-live", action="store_true",
                         help="Required to actually run the deferred LIVE gate (needs OPENAI_API_KEY).")
     parser.add_argument("--out", type=Path, default=None, help="Write JSON report here.")
+    parser.add_argument("--lob", default=None, metavar="LOB",
+                        help="Line of business for the live gate. Accepts health/cyber/marine "
+                             "plus any global LOB (motor/property/travel/liability/life). "
+                             "With --market, auto-resolves corpus_global/<market>/<lob>/. "
+                             "Without --market, health/cyber/marine use the built-in LOB corpus; "
+                             "other LOBs require --market.")
+    parser.add_argument("--market", default=None,
+                        help="Run against corpus_global/<market>/<lob>/ (any global market). "
+                             "Requires --lob. Auto-resolves the PDF + coverage.jsonl there.")
+    parser.add_argument("--pdf", type=Path, default=None,
+                        help="Path to the LOB corpus PDF (required for --lob cyber/marine unless default exists).")
+    parser.add_argument("--product", type=str, default=None,
+                        help="Product name stamped on the ingested LOB corpus (overrides the built-in default).")
+    parser.add_argument("--insurer", type=str, default=None,
+                        help="Insurer name stamped on the ingested LOB corpus (overrides the built-in default).")
     args = parser.parse_args(argv)
+
+    # corpus_global resolution: --market + --lob auto-resolves coverage.jsonl
+    if args.market and args.lob and args.dataset == DEFAULT_DATASET:
+        cg = _PROJECT_ROOT / "corpus_global" / args.market / args.lob
+        args.dataset = cg / "coverage.jsonl"
 
     if args.mode == "live" and not args.allow_live:
         print(
@@ -362,22 +456,140 @@ def main(argv: list[str] | None = None) -> int:
         if not os.environ.get("OPENAI_API_KEY"):
             print("OPENAI_API_KEY not set; cannot run LIVE eval.", file=sys.stderr)
             return 2
-        # Build the real pipeline via the app's factory when available.
-        try:
-            from src.rag.pipeline import RAGPipeline
-            pipeline = RAGPipeline.__new__(RAGPipeline)  # caller must fully configure
-            # NOTE: full live wiring (vector store + embeddings + LLM) is supplied by
-            # the deployment/test fixture that invokes this gate; see ADR.
-            raise RuntimeError("live pipeline wiring must be injected by the caller fixture")
-        except RuntimeError:
-            print("LIVE pipeline wiring not provided in this context. Supply a configured "
-                  "RAGPipeline to run_live(). (Deferred per user directive.)", file=sys.stderr)
-            return 2
+        # The deferred acceptance gate is now one command: the fixture builds a REAL
+        # RAGPipeline over an in-memory Qdrant corpus of policy.pdf (redacted PII),
+        # and runs the actual persona. The real-policy dataset is used unless the
+        # caller overrides --dataset.
+        dataset_path = args.dataset
+        if dataset_path == DEFAULT_DATASET:
+            dataset_path = HERE / "coverage_dataset_policy.jsonl"
+        asyncio.run(_run_live_async(args))
+        return 0
 
     rep = run_offline(args.dataset)
     write_report(rep, args.out)
     _print_human(rep)
     return 0
+
+
+async def _run_live_async(args) -> None:
+    """Build the in-memory live pipeline and run the real persona over the dataset.
+
+    Resolution order:
+      * ``--market <m> --lob <l>`` -> corpus_global/<m>/<l>/ (any global market).
+        Auto-resolves the PDF + coverage.jsonl; product/insurer come from the
+        dataset rows if not overridden.
+      * ``--lob cyber`` / ``--lob marine`` -> the public LOB corpus PDF in
+        corpus_lob/ + coverage_dataset_<lob>.jsonl.
+      * default (health) -> the redacted policy.pdf fixture + coverage_dataset_policy.jsonl.
+    """
+    from live_fixture import build_live_pipeline, build_live_pipeline_from_pdf
+
+    lob = args.lob
+    market = args.market
+    dataset_path = args.dataset
+    if dataset_path == DEFAULT_DATASET:
+        dataset_path = HERE / "coverage_dataset_policy.jsonl"
+
+    pipeline = None
+
+    if market and lob:
+        # Generic GLOBAL market/LOB run — no code change needed for new markets.
+        cg = _PROJECT_ROOT / "corpus_global" / market / lob
+        pdfs = sorted(cg.glob("*.pdf"))
+        pdf = args.pdf or (pdfs[0] if pdfs else None)
+        if pdf is None or not Path(pdf).exists():
+            print(f"no corpus PDF in {cg}", file=sys.stderr)
+            raise SystemExit(2)
+        product, insurer = args.product, args.insurer
+        if not product or not insurer:
+            rows, _ = load_dataset(cg / "coverage.jsonl")
+            if rows:
+                product = product or rows[0].product
+                insurer = insurer or rows[0].insurer
+        pipeline = await build_live_pipeline_from_pdf(
+            Path(pdf), document_id=f"{market}-{lob}-pdf", product=product or "",
+            insurer=insurer or "", lob=lob,
+        )
+        if args.dataset == DEFAULT_DATASET:
+            dataset_path = cg / "coverage.jsonl"
+        print(f"[live] market={market} lob={lob} corpus={Path(pdf).name} product={product!r}")
+    elif lob and lob != "health":
+        # LOB live run over a public corpus PDF.
+        default_pdfs = {
+            "cyber": _PROJECT_ROOT / "corpus_lob" / "cyber_liberty.pdf",
+            "marine": _PROJECT_ROOT / "corpus_lob" / "marine_iffco_tokio.pdf",
+        }
+        pdf = args.pdf or default_pdfs.get(lob)
+        if pdf is None or not Path(pdf).exists():
+            print(f"--pdf required for --lob {lob}; not found: {pdf}", file=sys.stderr)
+            raise SystemExit(2)
+        default_product = {"cyber": "Liberty Cyber Safe Insurance Policy",
+                           "marine": "IFFCO Tokio Marine Cargo Policy"}
+        default_insurer = {"cyber": "Liberty General Insurance Limited",
+                           "marine": "IFFCO Tokio General Insurance"}
+        product = args.product or default_product.get(lob, "")
+        insurer = args.insurer or default_insurer.get(lob, "")
+        pipeline = await build_live_pipeline_from_pdf(
+            Path(pdf), document_id=f"{lob}-pdf", product=product,
+            insurer=insurer, lob=lob,
+        )
+        if args.dataset == DEFAULT_DATASET:
+            dataset_path = HERE / f"coverage_dataset_{lob}.jsonl"
+        print(f"[live] LOB={lob} corpus={pdf.name} product={product!r}")
+    else:
+        pipeline = await build_live_pipeline()
+        if args.dataset == DEFAULT_DATASET:
+            dataset_path = HERE / "coverage_dataset_policy.jsonl"
+
+    rep = await run_live(dataset_path, pipeline)
+    write_report(rep, args.out)
+    _print_human(rep)
+    cost = pipeline.llm.get_cost_summary()
+    print(f"\nLLM cost summary: {json.dumps(cost)}")
+    if rep.latencies_ms:
+        avg = sum(rep.latencies_ms) / len(rep.latencies_ms)
+        print(f"Avg latency/query: {avg:.0f} ms  (n={len(rep.latencies_ms)})")
+    # Cost/latency monitoring: append a trend record so runs are comparable over
+    # time (persona version, accuracy, latency, cost). The log is the lightweight
+    # dashboard for the deferred acceptance gate.
+    _log_live_metrics(rep, cost, dataset_path)
+
+
+def _log_live_metrics(rep: "Report", cost: dict, dataset_path: Path) -> None:
+    """Persist a one-line trend record and print the previous run for comparison."""
+    from src.rag.persona import get_persona_version
+
+    log_path = HERE / "live_metrics_log.jsonl"
+    record = {
+        "ts": datetime.now().isoformat(timespec="seconds"),
+        "persona_version": get_persona_version(),
+        "dataset": Path(dataset_path).name,
+        "n": rep.n,
+        "accuracy": round(rep.accuracy, 4),
+        "correct": rep.correct,
+        "grounding_failed": len(rep.grounding_failed),
+        "avg_latency_ms": round(sum(rep.latencies_ms) / len(rep.latencies_ms), 1) if rep.latencies_ms else None,
+        "p50_latency_ms": round(sorted(rep.latencies_ms)[len(rep.latencies_ms) // 2], 1) if rep.latencies_ms else None,
+        "total_cost": cost.get("total_cost"),
+        "total_calls": cost.get("total_calls"),
+    }
+    try:
+        prior = None
+        if log_path.exists():
+            lines = [ln for ln in log_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+            if lines:
+                prior = json.loads(lines[-1])
+        with log_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record) + "\n")
+        print(f"\n[monitoring] appended run to {log_path.name}")
+        if prior:
+            d_lat = record["avg_latency_ms"] - prior["avg_latency_ms"]
+            d_acc = record["accuracy"] - prior["accuracy"]
+            print(f"[monitoring] vs previous run: accuracy {d_acc:+.0%}, "
+                  f"avg latency {d_lat:+.0f} ms (was {prior['avg_latency_ms']:.0f} ms)")
+    except Exception as exc:  # never fail the gate on metrics logging
+        logger.warning("live metrics log failed: %s", exc)
 
 
 if __name__ == "__main__":

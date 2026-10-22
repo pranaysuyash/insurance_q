@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 class PolicyHolder {
+  final String? id;
   final String name;
   final String? dob;
   final String relationship;
@@ -18,6 +19,7 @@ class PolicyHolder {
   final String source;
 
   PolicyHolder({
+    this.id,
     required this.name,
     this.dob,
     required this.relationship,
@@ -26,8 +28,9 @@ class PolicyHolder {
 
   factory PolicyHolder.fromJson(Map<String, dynamic> json) {
     return PolicyHolder(
+      id: json['id']?.toString(),
       name: json['name'] ?? 'Unknown',
-      dob: json['dob'],
+      dob: json['dob'] ?? json['date_of_birth'],
       relationship: json['relationship'] ?? 'Insured',
       source: json['source'] ?? 'document',
     );
@@ -35,6 +38,7 @@ class PolicyHolder {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) 'id': id,
       'name': name,
       'dob': dob,
       'relationship': relationship,

@@ -31,6 +31,7 @@ from src.rag.persona import (
     is_policy_wording_persona_enabled,
     get_persona_version,
     WORDING_ASSESSMENT_INSTRUCTION,
+    resolve_lob,
 )
 from src.services.answer_verifier import verify_answer
 from src.services.supabase_vector_store import SupabaseVectorStore
@@ -87,6 +88,25 @@ def _citation_status_counts(citations: list[Any]) -> dict[str, int]:
         status: sum(1 for citation in citations if _citation_status(citation) == status)
         for status in ("verified", "approximate", "rejected")
     }
+
+
+def _coerce_qdrant_point_id(raw: object) -> str:
+    """Qdrant point IDs must be valid UUIDs (local AND remote backends).
+
+    Real ingestion supplies UUID chunk ids and passes through unchanged. Any
+    other stable id (e.g. test-fixture ``chunk-1``) is hashed to a deterministic
+    UUID (uuid5) so the same chunk always maps to the same point across
+    re-ingests. ``None``/empty falls back to a fresh UUID (unchanged behaviour).
+    The human-readable ``block_id`` carried in the payload is unaffected and
+    remains the citation reference.
+    """
+    s = str(raw) if raw is not None else ""
+    if s:
+        try:
+            return str(uuid.UUID(s))
+        except (ValueError, AttributeError):
+            return str(uuid.uuid5(uuid.NAMESPACE_DNS, s))
+    return str(uuid.uuid4())
 
 
 class RAGPipeline:
@@ -255,6 +275,22 @@ class RAGPipeline:
             "version": self._get_query_cache_version(),
         }
         return "rag:query:" + json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+    def _infer_product_from_hits(self, hits: object) -> "str | None":
+        """Best-effort product/insurer string from the top retrieved hits.
+
+        Used to infer the line of business when the caller did not pass one
+        explicitly. Hit payloads carry the document metadata (product/insurer)
+        merged at ingest time. Returns None if nothing useful is found.
+        """
+        for hit in (hits or []):
+            payload = getattr(hit, "payload", None) or {}
+            prod = payload.get("product") or payload.get("insurer")
+            if not prod:
+                prod = (payload.get("document_metadata") or {}).get("product")
+            if prod:
+                return str(prod)
+        return None
 
     def _normalize_cache_value(self, value: Any) -> Any:
         if isinstance(value, dict):
@@ -725,15 +761,20 @@ class RAGPipeline:
             # override the block's canonical evidence/retrieval lineage.
             payload["source_text"] = block.get("source_text", "")
             payload["retrieval_text"] = chunk_text
+            # Qdrant (local + remote) requires UUID point IDs. UUIDs pass
+            # through; stable non-UUID ids map to a deterministic UUID so
+            # re-ingests stay idempotent. The human-readable block_id in the
+            # payload (citation reference) is preserved unchanged.
+            point_id = _coerce_qdrant_point_id(block.get("id"))
             points.append(
                 qdrant_models.PointStruct(
-                    id=block.get("id", str(uuid.uuid4())),
+                    id=point_id,
                     vector=embeddings[i],
                     payload=payload,
                 )
             )
             self._upsert_hybrid_index(
-                point_id=str(block.get("id", points[-1].id)),
+                point_id=str(point_id),
                 payload=payload,
             )
 
@@ -1067,11 +1108,37 @@ class RAGPipeline:
     #  Query
     # ------------------------------------------------------------------
 
+    async def _augment_query_augmentation(
+        self, user_query: str, fast_path: bool = False
+    ) -> "tuple[list[str], str, str]":
+        """Plan retrieval augmentation (RAG-Fusion + HyDE) with latency in mind.
+
+        Returns ``(query_variants, hyde_query, embed_query)``.
+
+        - ``fast_path=True``: skip BOTH discretionary chat completions entirely.
+          This removes ~1/3 of the per-query LLM calls (Fusion + HyDE) at the
+          cost of narrower retrieval recall — the right trade for interactive use
+          where a single well-chunked policy doc is being searched.
+        - ``fast_path=False`` (default, preserves current behaviour): run Fusion
+          and HyDE concurrently via ``asyncio.gather`` (they are independent) so
+          the two calls no longer block each other serially before retrieval.
+        """
+        if fast_path:
+            return [user_query], "", user_query
+        query_variants, hyde_query = await asyncio.gather(
+            self._generate_query_variants(user_query),
+            self._generate_hyde_query(user_query),
+        )
+        embed_query = hyde_query if hyde_query else user_query
+        return query_variants, hyde_query, embed_query
+
     async def query_rag(
         self,
         user_query: str,
         top_k: int = 5,
         filters: Optional[Dict[str, Any]] = None,
+        lob: Optional[str] = None,
+        fast_path: bool = True,
     ) -> Dict[str, Any]:
         import time
         start_time = time.time()
@@ -1177,13 +1244,14 @@ class RAGPipeline:
         query_type = self._classify_query(user_query)
         logger.info("Query classified as: %s", query_type)
 
-        # RAG Fusion: generate query variants for broader coverage
-        query_variants = await self._generate_query_variants(user_query)
-        logger.info("RAG Fusion: %d query variants", len(query_variants))
-
-        # HyDE: Generate a hypothetical answer to embed instead of the raw query
-        hyde_query = await self._generate_hyde_query(user_query)
-        embed_query = hyde_query if hyde_query else user_query
+        # RAG Fusion + HyDE are discretionary recall-boosters (2 extra serial
+        # chat completions). On the fast_path we drop them to cut latency; when
+        # kept, we run them concurrently (they are independent) instead of
+        # serially before retrieval.
+        query_variants, hyde_query, embed_query = await self._augment_query_augmentation(
+            user_query, fast_path=fast_path
+        )
+        logger.info("RAG Fusion: %d query variants (fast_path=%s)", len(query_variants), fast_path)
 
         dense_error: Exception | None = None
 
@@ -1223,12 +1291,13 @@ class RAGPipeline:
             else:
                 local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
 
-            # RAG Fusion: also search for each query variant and merge all results
+            # RAG Fusion: also search for each query variant and merge all results.
+            # Batch all variant embeddings into a single call (the helper accepts a
+            # list) instead of one serial await per variant.
             if len(query_variants) > 1:
-                for variant in query_variants[1:]:  # Skip original (already searched)
-                    try:
-                        variant_emb = await self._generate_embeddings_with_fallback([variant])
-                        variant_vector = variant_emb[0]
+                try:
+                    variant_embs = await self._generate_embeddings_with_fallback(query_variants[1:])
+                    for variant_vector in variant_embs:
                         if getattr(self, "vector_backend", "qdrant") == "supabase":
                             variant_dense = await self.vector_store.search(
                                 variant_vector, max(top_k * 2, top_k), filters
@@ -1240,8 +1309,8 @@ class RAGPipeline:
                             )
                         # Merge variant results with existing dense results via RRF
                         dense_results = self._merge_hybrid_results(dense_results, variant_dense)
-                    except Exception as e:
-                        logger.warning("RAG Fusion variant search failed: %s", e)
+                except Exception as e:
+                    logger.warning("RAG Fusion variant search failed: %s", e)
 
             results = self._merge_hybrid_results(dense_results, local_results)
 
@@ -1328,8 +1397,16 @@ class RAGPipeline:
         answer_payload: Optional[RAGAnswer] = None
         llm_unavailable = False
         try:
+            # Single chokepoint for answer-identity selection (feature flag +
+            # LOB parameterisation). Resolve the LOB from the explicit arg,
+            # filters, or the retrieved product; unknown/None => Health default.
+            active_lob = resolve_lob(
+                lob,
+                filters,
+                product=self._infer_product_from_hits(ranked_results),
+            )
             # Single chokepoint for answer-identity selection (feature flag).
-            system_message = build_system_message()
+            system_message = build_system_message(lob=active_lob)
             user_instruction = (
                 "Return a grounded answer with citations, confidence, missing "
                 "information, and helpful follow-up questions."
@@ -1405,7 +1482,7 @@ class RAGPipeline:
         answer_payload.verification_status = verification_status
         # Traceability: stamp the persona version only when the persona produced it.
         answer_payload.persona_version = (
-            get_persona_version() if is_policy_wording_persona_enabled() else None
+            get_persona_version(active_lob) if is_policy_wording_persona_enabled() else None
         )
         logger.info(
             "Answer verifier: status=%s material=%d cited=%d total_citations=%d",
@@ -1465,6 +1542,8 @@ class RAGPipeline:
         user_query: str,
         top_k: int = 5,
         filters: Optional[Dict[str, Any]] = None,
+        lob: Optional[str] = None,
+        fast_path: bool = True,
     ) -> AsyncGenerator[str, None]:
         """Query with streaming response - yields tokens as they arrive."""
         import json
@@ -1498,13 +1577,14 @@ class RAGPipeline:
         query_type = self._classify_query(user_query)
         logger.info("Query classified as: %s", query_type)
 
-        # RAG Fusion: generate query variants for broader coverage
-        query_variants = await self._generate_query_variants(user_query)
-        logger.info("RAG Fusion: %d query variants", len(query_variants))
-
-        # HyDE: Generate a hypothetical answer to embed instead of the raw query
-        hyde_query = await self._generate_hyde_query(user_query)
-        embed_query = hyde_query if hyde_query else user_query
+        # RAG Fusion + HyDE are discretionary recall-boosters (2 extra serial
+        # chat completions). On the fast_path we drop them to cut latency; when
+        # kept, we run them concurrently (they are independent) instead of
+        # serially before retrieval.
+        query_variants, hyde_query, embed_query = await self._augment_query_augmentation(
+            user_query, fast_path=fast_path
+        )
+        logger.info("RAG Fusion: %d query variants (fast_path=%s)", len(query_variants), fast_path)
 
         dense_error: Exception | None = None
 
@@ -1545,12 +1625,13 @@ class RAGPipeline:
             else:
                 local_results = self._query_hybrid_index(user_query, limit=max(top_k * 3, top_k), filters=filters)
 
-            # RAG Fusion: also search for each query variant and merge all results
+            # RAG Fusion: also search for each query variant and merge all results.
+            # Batch all variant embeddings into a single call (the helper accepts a
+            # list) instead of one serial await per variant.
             if len(query_variants) > 1:
-                for variant in query_variants[1:]:  # Skip original (already searched)
-                    try:
-                        variant_emb = await self._generate_embeddings_with_fallback([variant])
-                        variant_vector = variant_emb[0]
+                try:
+                    variant_embs = await self._generate_embeddings_with_fallback(query_variants[1:])
+                    for variant_vector in variant_embs:
                         if getattr(self, "vector_backend", "qdrant") == "supabase":
                             variant_dense = await self.vector_store.search(
                                 variant_vector, max(top_k * 2, top_k), filters
@@ -1562,8 +1643,8 @@ class RAGPipeline:
                             )
                         # Merge variant results with existing dense results via RRF
                         dense_results = self._merge_hybrid_results(dense_results, variant_dense)
-                    except Exception as e:
-                        logger.warning("RAG Fusion variant search failed: %s", e)
+                except Exception as e:
+                    logger.warning("RAG Fusion variant search failed: %s", e)
 
             results = self._merge_hybrid_results(dense_results, local_results)
 
@@ -1601,8 +1682,15 @@ class RAGPipeline:
         try:
             # Use streaming LLM call
             full_answer = ""
+            # Single chokepoint for answer-identity selection (feature flag +
+            # LOB parameterisation). Resolve LOB like query_rag does.
+            active_lob = resolve_lob(
+                lob,
+                filters,
+                product=self._infer_product_from_hits(ranked_results),
+            )
             # Single chokepoint for answer-identity selection (feature flag).
-            stream_system_message = build_system_message()
+            stream_system_message = build_system_message(lob=active_lob)
             stream_user_instruction = (
                 "Return a grounded answer with citations, confidence, missing "
                 "information, and helpful follow-up questions."
@@ -1633,7 +1721,7 @@ class RAGPipeline:
                 fallback_models=["gpt-4o-mini"],
             ):
                 full_answer += token
-                yield f'{{"token": "{json.dumps(token)}"}}'
+                yield json.dumps({"token": token})
 
         except Exception as e:
             logger.warning("LLM streaming unavailable, using context-only mode: %s", e)
@@ -1650,9 +1738,50 @@ class RAGPipeline:
             yield f'{{"token": "{json.dumps(answer)}", "done": true}}'
             return
 
-        # Note: For full structured response with citations, we'd need a second pass
-        # For now, we just stream the answer text
-        yield '{"done": true}'
+        # Stream verification & grounding payload upon token completion
+        verified_citations_list = []
+        verification_status = "unverified"
+        if full_answer and sources:
+            try:
+                raw_citations = []
+                for idx, src in enumerate(sources[:3], 1):
+                    txt = src.get("text", "")
+                    if txt:
+                        raw_citations.append(RAGCitation(source_index=idx, quote=txt[:160]))
+                if raw_citations:
+                    checked = self._verify_citations(raw_citations, sources)
+                    verification_status, _, _ = verify_answer(
+                        answer_text=full_answer,
+                        citations=checked,
+                    )
+                    for c in checked:
+                        pg = None
+                        if 0 <= c.source_index - 1 < len(sources):
+                            pg = sources[c.source_index - 1].get("page_number")
+                        verified_citations_list.append({
+                            "source_index": c.source_index,
+                            "quote": c.quote,
+                            "citation_status": c.citation_status,
+                            "page_number": pg,
+                        })
+            except Exception as e:
+                logger.warning("Streaming citation verification error: %s", e)
+
+        completion_data = {
+            "done": True,
+            "verification_status": verification_status,
+            "citations": verified_citations_list,
+            "confidence": 0.9 if verification_status in ("verified", "approximate") else 0.5,
+            "sources": [
+                {
+                    "title": s.get("metadata", {}).get("title") or s.get("document_id") or "Policy Document",
+                    "text": s.get("text", "")[:200],
+                    "page_number": s.get("page_number"),
+                }
+                for s in sources[:3]
+            ],
+        }
+        yield json.dumps(completion_data)
 
     async def _log_query_trace(self, trace_data: Dict[str, Any]) -> None:
         """Asynchronously log query trace to Supabase or structured JSON."""
@@ -1699,9 +1828,13 @@ class RAGPipeline:
         response_model: type,
         top_k: int = 5,
         filters: Optional[Dict[str, Any]] = None,
+        lob: Optional[str] = None,
+        fast_path: bool = True,
     ):
         """Query with structured output (typed Pydantic model)."""
-        result = await self.query_rag(user_query, top_k=top_k, filters=filters)
+        result = await self.query_rag(
+            user_query, top_k=top_k, filters=filters, lob=lob, fast_path=fast_path
+        )
         if result.get("status") != "success":
             return result
 

@@ -6,6 +6,7 @@ import '../providers/policy_providers.dart';
 import '../widgets/shared/coverwise_components.dart';
 import '../widgets/shared/empty_state_widget.dart';
 import '../utils/document_icons.dart';
+import '../data/insurer_directory.dart';
 import 'documents_screen.dart';
 
 class EmergencyScreen extends ConsumerStatefulWidget {
@@ -105,6 +106,9 @@ class _EmergencyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = iconForDocumentType(summary.documentType);
     final color = colorForDocumentType(summary.documentType);
+    final verified = findInsurerContact(summary.insurer);
+    final helpline = summary.insurerHelpline ?? verified?.tollFreeNumber;
+    final email = summary.insurerEmail ?? verified?.claimsEmail;
 
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
@@ -174,28 +178,28 @@ class _EmergencyCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
             ],
-            if (summary.insurerHelpline != null) ...[
+            if (helpline != null) ...[
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   icon: const Icon(Icons.phone_outlined, size: 20),
-                  label: Text('Call insurer • ${summary.insurerHelpline}'),
-                  onPressed: () => _callNumber(summary.insurerHelpline!),
+                  label: Text('Call insurer • $helpline'),
+                  onPressed: () => _callNumber(helpline),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
               ),
             ],
-            if (summary.insurerEmail != null) ...[
+            if (email != null) ...[
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.email_outlined, size: 20),
-                  label: Text('Email • ${summary.insurerEmail!}'),
-                  onPressed: () => _sendEmail(summary.insurerEmail!),
+                  label: Text('Email • $email'),
+                  onPressed: () => _sendEmail(email),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),

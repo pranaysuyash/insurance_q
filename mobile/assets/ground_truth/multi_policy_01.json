@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0.0",
+  "status": "Complete — multiple policies in one file",
+
+  "meta": {
+    "policy_document": "assets/demo/multi_policy.pdf",
+    "policy_type": "health",
+    "insurer": "Multi-insurer Bundle",
+    "description": "Two policies in one PDF: Individual + Family Floater",
+    "added_by": "CoverWise team",
+    "added_date": "2026-09-01",
+    "notes": "PDF contains two distinct policies from different insurers in one document. Tests multi-policy separation and per-policy extraction."
+  },
+
+  "expected_extraction": {
+    "policy_number": "INDIVIDUAL7788",
+    "insurer": "Star Health Insurance",
+    "insurer_helpline": "1800-425-2244",
+    "insurer_email": "customercare@starhealth.in",
+    "document_type": "health",
+    "coverage_amount": 1000000.0,
+    "deductible": 5000.0,
+    "premium_amount": 8000.0,
+    "premium_frequency": "annual",
+    "effective_date": "2024-04-01",
+    "expiration_date": "2025-04-01",
+    "key_benefits": [
+      "Cashless hospitalization",
+      "Day care procedures",
+      "Maternity cover"
+    ],
+    "exclusions": [
+      "Treatment for specific diseases listed"
+    ],
+    "waiting_periods": [
+      "30 days for general diseases",
+      "2 years for pre-existing diseases"
+    ],
+    "coverage_items": [],
+    "executive_summary": [
+      "Two policies in one PDF",
+      "Individual policy: Star Health, Sum insured 10 lakhs",
+      "Family Floater: ICICI Lombard, Sum insured 50 lakhs"
+    ],
+    "type_specific": {
+      "health": {
+        "room_rent_cap": "1% of sum insured per day",
+        "pre_existing_diseases": "2 years",
+        "co_pay_percent": 2.0,
+        "network_hospitals": "Star Health network",
+        "maternity_cover": "Available with 9-month waiting period",
+        "deductible_per_claim": "5,000",
+        "cumulative_bonus": "Up to 50%",
+        "day_care_procedures": "Covered",
+        "consumables_cover": "Up to 3%",
+        "ambulance_cover": "Up to 1000 per trip",
+        "health_checkup_cover": "Annual",
+        "pre_post_hospitalization_days": "30 pre, 60 post",
+        "restoration_benefit": "Available",
+        "critical_illness_list": ["Stroke", "Heart Attack"],
+        "modern_treatment_cover": "Yes",
+        "moratorium_period": "2 years",
+        "pre_auth_time_limit": "24 hours",
+        "domiciliary_hospitalization": "Covered",
+        "sub_limits": [],
+        "no_claim_bonus_percent": "5% per year, max 50%"
+      }
+    }
+  },
+
+  "expected_questions": {
+    "known_answers": [
+      {
+        "question": "What is the first policy number?",
+        "expected_answer_contains": "INDIVIDUAL7788",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the second policy number?",
+        "expected_answer_contains": "FAMILY9900",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the first insurer?",
+        "expected_answer_contains": "Star Health",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the second insurer?",
+        "expected_answer_contains": "ICICI Lombard",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the sum insured for the first policy?",
+        "expected_answer_contains": "10 lakhs",
+        "verification_status": "fully_backed"
+      }
+    ],
+    "known_fields_not_present": [
+      "Per-policy extraction must not mix fields between the two policies"
+    ]
+  },
+
+  "expected_badges": {
+    "policy_detail": "fully_backed",
+    "question_answer": {
+      "typical": "fully_backed"
+    }
+  }
+}

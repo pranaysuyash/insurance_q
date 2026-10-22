@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0.0",
+  "status": "Complete — filled from policy PDF extraction",
+
+  "meta": {
+    "policy_document": "assets/demo/travel_insurance.pdf",
+    "policy_type": "travel",
+    "insurer": "Bajaj Allianz General Insurance",
+    "description": "Bajaj Allianz Travel Secure Policy",
+    "added_by": "CoverWise team",
+    "added_date": "2026-09-01",
+    "notes": "Filled from actual travel policy PDF."
+  },
+
+  "expected_extraction": {
+    "policy_number": "TVL55667788",
+    "insurer": "Bajaj Allianz General Insurance",
+    "insurer_helpline": "1800-209-2200",
+    "insurer_email": "travelclaims@bajajallianz.in",
+    "document_type": "travel",
+    "coverage_amount": 2000000.0,
+    "deductible": null,
+    "premium_amount": 8500.0,
+    "premium_frequency": "single",
+    "effective_date": "2024-11-01",
+    "expiration_date": "2024-11-30",
+    "key_benefits": [
+      "Trip cancellation cover",
+      "Medical emergency abroad",
+      "Lost baggage cover",
+      "Personal liability",
+      "Travel delay cover"
+    ],
+    "exclusions": [
+      "Pre-existing conditions not declared",
+      "Travel to war-risk countries",
+      "Participation in hazardous sports",
+      "Intoxication or substance abuse",
+      "Pregnancy-related complications"
+    ],
+    "waiting_periods": [
+      "Immediate coverage for sudden accidental injury",
+      "30 days waiting period for pre-existing conditions if declared",
+      "Travel must commence within 30 days of policy purchase"
+    ],
+    "coverage_items": [
+      {
+        "name": "Trip Cancellation",
+        "limit": 200000.0,
+        "limit_text": "2 lakhs per trip",
+        "covered": true,
+        "notes": "Covered if trip cancelled for covered reasons"
+      },
+      {
+        "name": "Medical Expenses",
+        "limit": 2000000.0,
+        "limit_text": "20 lakhs maximum",
+        "covered": true,
+        "notes": "Including hospitalization and emergency evacuation"
+      },
+      {
+        "name": "Lost Baggage",
+        "limit": 25000.0,
+        "limit_text": "25,000",
+        "covered": true,
+        "notes": "Per passenger, per trip"
+      }
+    ],
+    "executive_summary": [
+      "Travel insurance policy valid for 30 days from Nov 1 2024",
+      "20 lakhs medical coverage for international travel",
+      "Trip cancellation up to 2 lakhs for covered reasons",
+      "Lost baggage cover of 25,000 per passenger"
+    ],
+    "type_specific": {
+      "travel": {
+        "destination": "International",
+        "trip_duration": "30 days maximum",
+        "country_of_residence": "India",
+        "age_limit": "70 years maximum",
+        "pre_existing_waiver": "Available with declaration",
+        "sports_cover": "Available as add-on for additional premium",
+        "covid_19_cover": "Available as add-on",
+        "single_trip": "Yes",
+        "multi_trip": "No"
+      }
+    }
+  },
+
+  "expected_questions": {
+    "known_answers": [
+      {
+        "question": "What is my coverage amount?",
+        "expected_answer_contains": "20 lakhs",
+        "citation_page": 2,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is my policy number?",
+        "expected_answer_contains": "TVL55667788",
+        "citation_page": 1,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the trip duration?",
+        "expected_answer_contains": "30 days maximum",
+        "citation_page": 3,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What are the exclusions?",
+        "expected_answer_contains": "hazardous sports",
+        "citation_page": 4,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "Is my pre-existing condition covered?",
+        "expected_answer_contains": "30 days waiting period if declared",
+        "citation_page": 5,
+        "verification_status": "fully_backed"
+      }
+    ],
+    "known_fields_not_present": []
+  },
+
+  "expected_badges": {
+    "policy_detail": "fully_backed",
+    "question_answer": {
+      "typical": "fully_backed"
+    }
+  }
+}

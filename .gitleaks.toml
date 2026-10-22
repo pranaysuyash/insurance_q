@@ -1,0 +1,11 @@
+# Secret-scan config (pre-commit hook + .github/workflows/secret-scan.yml).
+# Real secrets belong in /Users/pranay/Projects/.env.local, never in tracked files.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives"
+paths = [
+  '''mobile/ios/Podfile\.lock''',
+  '''\.env\.example$''',
+]

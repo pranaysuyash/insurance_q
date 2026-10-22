@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0.0",
+  "status": "Complete — policy with annexures and endorsements",
+
+  "meta": {
+    "policy_document": "assets/demo/policy_with_annexures.pdf",
+    "policy_type": "health",
+    "insurer": "Aditya Birla Health Insurance",
+    "description": "Health Policy with Multiple Annexures and Endorsements",
+    "added_by": "CoverWise team",
+    "added_date": "2026-09-01",
+    "notes": "Policy document with 3 annexures and 2 endorsements modifying base terms. Tests extraction from attached documents and endorsement conflict detection."
+  },
+
+  "expected_extraction": {
+    "policy_number": "ABH1234567",
+    "insurer": "Aditya Birla Health Insurance",
+    "insurer_helpline": "1800-103-8800",
+    "insurer_email": "claims@adityabirlahhealth.com",
+    "document_type": "health",
+    "coverage_amount": 3000000.0,
+    "deductible": 10000.0,
+    "premium_amount": 20000.0,
+    "premium_frequency": "annual",
+    "effective_date": "2024-03-01",
+    "expiration_date": "2025-03-01",
+    "key_benefits": [
+      "Cashless hospitalization",
+      "Maternity cover",
+      "Organ donor cover",
+      "Critical illness rider"
+    ],
+    "exclusions": [
+      "War and war-like operations",
+      "Self-inflicted injury",
+      "Experimental treatment"
+    ],
+    "waiting_periods": [
+      "30 days for general diseases",
+      "2 years for pre-existing diseases",
+      "Maternity waiting period: 9 months"
+    ],
+    "coverage_items": [
+      {
+        "name": "Room Rent",
+        "limit": 4000,
+        "limit_text": "4000 per day",
+        "covered": true,
+        "notes": "Base policy"
+      }
+    ],
+    "executive_summary": [
+      "Health policy with 3 annexures and 2 endorsements",
+      "Endorsement 1: Added dental cover",
+      "Endorsement 2: Reduced room rent cap from 1% to 0.5%",
+      "Annexure 1: List of network hospitals",
+      "Annexure 2: Pre-existing disease declaration form",
+      "Annexure 3: No claim bonus schedule"
+    ],
+    "type_specific": {
+      "health": {
+        "room_rent_cap": "0.5% of sum insured per day (endorsed down from 1%)",
+        "pre_existing_diseases": "2 years",
+        "co_pay_percent": 15.0,
+        "network_hospitals": "Aditya Birla network of 5000+ hospitals",
+        "maternity_cover": "Available with 9-month waiting period",
+        "deductible_per_claim": "10,000",
+        "cumulative_bonus": "Up to 50%",
+        "day_care_procedures": "Covered",
+        "consumables_cover": "Up to 4%",
+        "ambulance_cover": "Up to 1500 per trip",
+        "health_checkup_cover": "Annual preventive check-up",
+        "pre_post_hospitalization_days": "30 pre, 60 post",
+        "restoration_benefit": "Available up to 100%",
+        "critical_illness_list": ["Cancer", "Heart Attack", "Stroke", "Kidney Failure"],
+        "modern_treatment_cover": "Yes",
+        "moratorium_period": "2 years",
+        "pre_auth_time_limit": "24 hours for emergency",
+        "domiciliary_hospitalization": "Covered up to 7 days",
+        "sub_limits": ["Room rent: 0.5% SI/day (endorsed)"],
+        "no_claim_bonus_percent": "5% per year, max 50%"
+      }
+    }
+  },
+
+  "expected_questions": {
+    "known_answers": [
+      {
+        "question": "What is my policy number?",
+        "expected_answer_contains": "ABH1234567",
+        "citation_page": 1,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the room rent cap?",
+        "expected_answer_contains": "0.5% of sum insured per day",
+        "citation_page": "endorsement 2",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "How many annexures are there?",
+        "expected_answer_contains": "3",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "How many endorsements modify the base terms?",
+        "expected_answer_contains": "2",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the critical illness list?",
+        "expected_answer_contains": "Cancer, Heart Attack, Stroke",
+        "citation_page": "base policy",
+        "verification_status": "fully_backed"
+      }
+    ],
+    "known_fields_not_present": []
+  },
+
+  "expected_badges": {
+    "policy_detail": "fully_backed",
+    "question_answer": {
+      "typical": "fully_backed"
+    }
+  }
+}

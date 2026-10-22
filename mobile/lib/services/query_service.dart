@@ -419,6 +419,9 @@ class QueryService {
                 yield '{"error": "${json['error']}"}';
                 return;
               } else if (json['done'] == true) {
+                if (json.containsKey('citations') || json.containsKey('verification_status')) {
+                  yield jsonEncode(json);
+                }
                 return;
               }
             }

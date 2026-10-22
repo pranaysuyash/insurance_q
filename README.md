@@ -36,33 +36,38 @@ for the full reconciliation.
 
 ---
 
-## Current deployment source of truth
+## Canonical deployment platform — Render
 
-The company-era AWS deployment notes below are historical records and are not the
-current launch plan. CoverWise is now being prepared as a solo product. The
-canonical platform architecture is [`docs/planning/coverwise_long_term_platform_decision_2026-07-12.md`](docs/planning/coverwise_long_term_platform_decision_2026-07-12.md),
-which selects one Cloud Run FastAPI service backed by Supabase Postgres,
-pgvector, and private Storage. The live release command is
-[`tools/deploy_cloud_run.sh`](tools/deploy_cloud_run.sh); it is not yet proof of
-a deployed production service. See [`docs/archive/deployment/README.md`](docs/archive/deployment/README.md)
-for preserved historical deployment material.
+**Single source of truth:** [`render.yaml`](render.yaml) (Infrastructure-as-Code).
 
-## Launch status — current as of 2026-07-13
+CoverWise backend runs on **Render** (Singapore region), chosen over AWS App Runner,
+Google Cloud Run, and Railway. See
+[`docs/planning/deployment/platform_decision_reassessment_2026-07-28.md`](docs/planning/deployment/platform_decision_reassessment_2026-07-28.md)
+for the full rationale.
 
-CoverWise is **not yet deployed for customer use**. The current launch path is:
+**Two services, deployed from one Docker image:**
+- `coverwise-api` — FastAPI web service (Render `web` type, auto-deploy on push)
+- `coverwise-worker` — Outbox dispatcher (Render `worker` type, always-on)
 
-- Flutter mobile client with explicit policy-processing consent and no demo
-  content in release builds.
-- One Cloud Run API service with application-level bearer authorization.
-- Supabase Postgres/pgvector and private Supabase Storage as the sole durable
-  document path.
-- Hosted legal pages, Secret Manager values, Supabase migrations, custom domain,
-  and deployed end-to-end acceptance evidence still required before release.
+**Data layer:** Supabase Postgres + pgvector + private Supabase Storage.
+All secrets are in the Render dashboard Environment tab. Never in this file.
 
-Policy analysis requires an online secure backend; local pending-upload support
-is only a transport-recovery state, not offline analysis. For current launch
-gates, see
-[`docs/review/launch_readiness_review_2026-07-12.md`](docs/review/launch_readiness_review_2026-07-12.md).
+> ⚠️ **Historical references to Cloud Run, App Runner, Azure, and Railway in older docs are
+> superseded.** The `render.yaml` in the project root is the authoritative deployment spec.
+> Updated: 2026-09-07. Resolves doc-drift items D1/M-15 from the debt register.
+
+## Launch status — current as of 2026-09-07
+
+CoverWise is **not yet deployed for customer use**. Pre-launch requirements:
+- Render services provisioned and secrets configured
+- Supabase migrations applied to production project
+- Mobile `API_BASE_URL` dart-define pointed at live Render URL
+- Hosted legal pages, custom domain, and Play Store release review
+
+Policy analysis requires an online secure backend; local `pending_upload` state
+is a transport-recovery queue (retried automatically on reconnect), not offline
+analysis. See [`docs/review/launch_readiness_review_2026-07-12.md`](docs/review/launch_readiness_review_2026-07-12.md)
+for the last gate review.
 
 > The remainder of this README is a preserved June 2025 historical snapshot.
 > It contains obsolete AWS, Azure, Qdrant, Redis, deployment, cost, and
@@ -128,42 +133,31 @@ AZURE_SUBSCRIPTION_ID=your_subscription_id
 ## 🧪 Testing
 
 ### Test Coverage
-- **Backend Tests**: 378 passed, 1 deployment-gated integration test skipped
-- **API Integration**: Run through the live staging API and targeted Supabase checks
-- **Flutter Tests**: 636 passed in the current full suite (`--concurrency=1`); `flutter analyze --no-fatal-infos` also passes
-- **Performance**: Response times < 2 seconds
+- **Backend Tests**: 828+ collected, 0 failed (as of 2026-09-07). Full suite: `./venv/bin/pytest`
+- **Flutter Tests**: Run via `flutter test --dart-define-from-file=.dartdefine.env --concurrency=1`; `flutter analyze` must show 0 errors
+- **AI Model**: `gpt-5-nano` (primary) with `gpt-4o-mini` fallback; embedding via `text-embedding-3-small`
 
 ### Running Tests
    ```bash
-# Backend tests
-tools/run_backend_tests.sh tests/ -v
+# Backend tests (from project root)
+./venv/bin/pytest -v
 
-# API tests (canonical backend is Cloud Run; start via tools/deploy_cloud_run.sh).
-# The legacy ./scripts/test_azure_apis.sh was removed with the Azure dead path.
-
-# Flutter tests (mobile/ directory)
-   cd mobile
-flutter test --dart-define-from-file=.dartdefine.env
+# Flutter tests (from mobile/ directory)
+cd mobile
+flutter test --dart-define-from-file=.dartdefine.env --concurrency=1
 ```
 
-The `.dartdefine.env` file provides `API_BASE_URL` (and optional overrides) so that
-`AppConfig.baseUri` does not throw `StateError` in the default production environment.
-See `mobile/.dartdefine.env` for details and available overrides.
-
+The `.dartdefine.env` file provides `API_BASE_URL` so that `AppConfig.baseUri` does not
+throw `StateError` in tests. See `mobile/.dartdefine.env` for details.
 
 ## 🚀 Deployment
 
-### Play Store Deployment
-1. **App Bundle Build Proof**: The release bundle was built successfully in the last staging run; the ignored `mobile/build/` outputs were later removed to recover disk pressure and must be regenerated before distribution.
-2. **Follow Checklist**: [Play Store Deployment Guide](docs/technical/deployment/play_store_deployment_checklist.md)
-3. **Upload to Play Console**: Use the App Bundle for optimal delivery
-
-### Backend Deployment
-   ```bash
-# Canonical backend deployment is Cloud Run + Supabase.
-# See tools/deploy_cloud_run.sh and tools/deploy_outbox_worker.sh.
-# (The legacy Azure deploy scripts were removed — agent-built dead path
-#  with a no-password Redis anti-pattern; see ADR-2026-08-12-01.)
+### Backend Deployment — Render
+```bash
+# Canonical deployment is Render (Infrastructure-as-Code via render.yaml).
+# Connect the repo in the Render dashboard or run: render blueprint apply
+# Set all secrets in the Render dashboard Environment tab (never commit them).
+# See render.yaml for service definitions (coverwise-api + coverwise-worker).
 ```
 
 ## 🔧 Troubleshooting

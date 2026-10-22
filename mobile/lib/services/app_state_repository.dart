@@ -8,6 +8,7 @@ import 'package:hive/hive.dart';
 import '../models/claim_record.dart';
 import '../models/document_model.dart';
 import 'app_state_store.dart';
+import 'hive_box_names.dart';
 
 /// Serialization guard for all repository mutations.
 ///
@@ -60,7 +61,7 @@ void _logQuarantine(String collection, String locator, Object error) {
 }
 
 class AppStateRepository {
-  static Box get _box => Hive.box(AppStateStore.boxName);
+  static Box get _box => Hive.box(HiveBoxNames.appState);
 
   static String? getSelectedDocumentId() {
     return _box.get(AppStateStore.selectedDocumentIdKey) as String?;
@@ -169,6 +170,73 @@ class AppStateRepository {
     await _box.delete(AppStateStore.recentlyDeletedDocsKey);
   }
 
+
+  // ---------------------------------------------------------------------------
+  // Additional Migrated Getters and Setters
+  // ---------------------------------------------------------------------------
+
+  static List<dynamic>? getQaHistoryRaw() {
+    return _box.get('qa_history') as List<dynamic>?;
+  }
+
+  static Future<void> setQaHistoryRaw(List<dynamic> history) async {
+    await _box.put('qa_history', history);
+  }
+
+  static String? getDocsSortMode() {
+    return _box.get(AppStateStore.docsSortModeKey) as String?;
+  }
+
+  static Future<void> setDocsSortMode(String mode) async {
+    await _box.put(AppStateStore.docsSortModeKey, mode);
+  }
+
+  static String? getDocsFilterType() {
+    return _box.get(AppStateStore.docsFilterTypeKey) as String?;
+  }
+
+  static Future<void> setDocsFilterType(String? type) async {
+    if (type == null) {
+      await _box.delete(AppStateStore.docsFilterTypeKey);
+    } else {
+      await _box.put(AppStateStore.docsFilterTypeKey, type);
+    }
+  }
+
+  static int? getProcessingConsentVersion() {
+    return _box.get('processing_consent_version') as int?;
+  }
+
+  static Future<void> setProcessingConsentVersion(int version) async {
+    await _box.put('processing_consent_version', version);
+  }
+
+  static String? getAnswerFeedback(String question) {
+    return _box.get('${AppStateStore.answerFeedbackKey}:$question') as String?;
+  }
+
+  static Future<void> setAnswerFeedback(String question, String value) async {
+    await _box.put('${AppStateStore.answerFeedbackKey}:$question', value);
+  }
+
+  static List<String> getPreventiveHealthShownTips() {
+    final raw = _box.get('preventive_health_shown_tips');
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList();
+    }
+    return [];
+  }
+
+  static Future<void> addPreventiveHealthShownTip(String tipId) async {
+    await _writeLock(() async {
+      final tips = getPreventiveHealthShownTips();
+      if (!tips.contains(tipId)) {
+        tips.add(tipId);
+        await _box.put('preventive_health_shown_tips', tips);
+      }
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Manual family members
   //
@@ -227,6 +295,14 @@ class AppStateRepository {
       members.removeWhere((m) =>
           m.name == name &&
           (relationship == null || m.relationship == relationship));
+      await _saveManualFamilyMembersRaw(members);
+    });
+  }
+
+  /// Sets the entire manual family members list (used by sync reconciler).
+  static Future<void> setManualFamilyMembers(
+      List<PolicyHolder> members) async {
+    await _writeLock(() async {
       await _saveManualFamilyMembersRaw(members);
     });
   }

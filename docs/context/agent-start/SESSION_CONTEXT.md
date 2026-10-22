@@ -1,21 +1,48 @@
 # Session Context
 
-- Generated: 2026-08-12T04:39:29Z
+- Generated: 2026-10-22T07:29:05Z
 - Project: `medpiper/insurance_app`
-- Provider: `local`
-- Model: `BAAI/bge-m3`
+- Provider: `ollama`
+- Model: `nomic-embed-text`
 - Project collection: `projects_proj_medpiper_insurance_app`
 - Shared collection: `projects_workspace_shared`
 
-## Project Motto
+## Doctrine Family
 
-- File: `/Users/pranay/Projects/medpiper/insurance_app/motto_v5.md`
-- Retired doctrine paths removed: `/Users/pranay/Projects/medpiper/insurance_app/motto_v4.md`, `/Users/pranay/Projects/medpiper/insurance_app/motto_v3.md`, `/Users/pranay/Projects/medpiper/insurance_app/motto_v2.md`
-- Source: `/Users/pranay/Downloads/motto_v5.md`
-- Sync status: `synced from /Users/pranay/Downloads/motto_v5.md; retired motto_v4.md, motto_v3.md, and motto_v2.md`
-- Guidance: read this before implementation or review on this project.
+- Canonical root: `/Users/pranay/Projects/agent-start/doctrines`
+- Operating doctrine: `OPERATING_DOCTRINE.md` v8.2 (sha256 `e14bab7b1964d8b7…`) — always applies
+- Project: `medpiper/insurance_app`
+- Routing mechanism: agent-start doctrine-family router v1.1 (deterministic intent-signal model)
+- Generated at: 2026-10-22T07:29:05Z
+- Generator: agent-start lib/doctrine_family.py
+
+Doctrine routing for this run (task intent not supplied; deferred):
+
+| Doctrine | Version | Status | Reason |
+|---|---:|---|---|
+| Operating | 8.2 | selected | always active: cross-cutting control plane |
+| Review | 1.3 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+| Exploration | 1.1 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+| Research | 1.0 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+| Architecture | 1.1 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+| Testing | 1.1 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+| Security / Privacy / Safety | 1.0 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+| Release Readiness | 1.0 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+| Documentation | 1.1 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+| Inquiry and Analysis | 1.0 | unknown | task intent not supplied at generation time; defer to Operating Doctrine section 16 routing |
+
+No specialist doctrine was selected for this run. The Operating Doctrine routing table (section 16) governs if the task's mode changes; canonical specialist doctrines live at the root above.
+
+## Project Doctrine Sync
+
+- File: `/Users/pranay/Projects/medpiper/insurance_app/OPERATING_DOCTRINE.md`
+- Sync status: `synced from /Users/pranay/Projects/agent-start/doctrines/OPERATING_DOCTRINE.md; legacy filenames archived or removed`
+- Guidance: read the operating doctrine before implementation or review on this project.
 
 ## Project-Focused Retrieval
+
+> NOTE: Ollama is not running/reachable. Retrieval is skipped.
+> Start Ollama () and rerun `agent-start`.
 
 ### Architecture Decisions
 - Collection: `projects_proj_medpiper_insurance_app`

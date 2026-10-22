@@ -94,6 +94,16 @@ class _ClaimsAssistantScreenState extends ConsumerState<ClaimsAssistantScreen> {
                 subtitle:
                     'Choose an incident to see a practical preparation guide. CoverWise does not file or manage the claim.',
               ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: CoverWiseInfoPanel(
+                  icon: Icons.shield_outlined,
+                  title: 'Informational Guide Only',
+                  body:
+                      'CoverWise provides educational document checklists and guidance. Claim approval decisions are determined solely by your insurer.',
+                  color: CoverWiseColors.blueDeep,
+                ),
+              ),
               const CoverWiseSectionLabel('Incident type'),
               ..._incidentTypes.map((item) {
                 final (type, label, icon, color) = item;

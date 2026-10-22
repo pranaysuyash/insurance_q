@@ -1,0 +1,60 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/uk/travel_ipid/coverage.jsonl",
+  "n": 4,
+  "correct": 1,
+  "accuracy": 0.25,
+  "per_class": {
+    "likely_covered": {
+      "n": 3,
+      "correct": 1
+    },
+    "conditional": {
+      "n": 1,
+      "correct": 0
+    }
+  },
+  "confusion": {
+    "likely_covered": {
+      "conditional": 2,
+      "likely_covered": 1
+    },
+    "conditional": {
+      "likely_not_covered": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": "uk-travel-ipid-1",
+      "question": "Are emergency medical expenses covered?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "IPID lists Emergency Medical Expenses up to GBP10 million as covered."
+    },
+    {
+      "id": "uk-travel-ipid-2",
+      "question": "Are pre-existing medical conditions covered?",
+      "gold": "conditional",
+      "pred": "likely_not_covered",
+      "rationale": "IPID states pre-existing medical conditions are excluded unless agreed."
+    },
+    {
+      "id": "uk-travel-ipid-3",
+      "question": "Are my personal belongings (baggage) covered?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "IPID lists Personal Baggage up to GBP2,000 as covered."
+    }
+  ],
+  "grounding_checked": 4,
+  "grounding_failed": [],
+  "latencies_ms": [
+    38847.0,
+    28703.2,
+    36855.7,
+    35280.5
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

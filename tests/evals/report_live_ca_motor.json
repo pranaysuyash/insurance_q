@@ -1,0 +1,72 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/ca/motor/coverage.jsonl",
+  "n": 6,
+  "correct": 4,
+  "accuracy": 0.6667,
+  "per_class": {
+    "likely_covered": {
+      "n": 3,
+      "correct": 1
+    },
+    "conditional": {
+      "n": 2,
+      "correct": 2
+    },
+    "likely_not_covered": {
+      "n": 1,
+      "correct": 1
+    }
+  },
+  "confusion": {
+    "likely_covered": {
+      "likely_covered": 1,
+      "ambiguous": 1,
+      "conditional": 1
+    },
+    "conditional": {
+      "conditional": 2
+    },
+    "likely_not_covered": {
+      "likely_not_covered": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": "ca-motor-4",
+      "question": "If I am injured in an auto accident, are my lost wages covered?",
+      "gold": "likely_covered",
+      "pred": "ambiguous",
+      "rationale": "p.31 describes the Income Replacement Benefit available under Accident Benefits."
+    },
+    {
+      "id": "ca-motor-5",
+      "question": "Am I covered if I drive in the United States?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "p.8 states cover applies in Canada and the United States of America."
+    }
+  ],
+  "grounding_checked": 6,
+  "grounding_failed": [
+    {
+      "id": "ca-motor-1",
+      "expected": "Liability Coverage - how much we will pay (p.26)"
+    },
+    {
+      "id": "ca-motor-5",
+      "expected": "Territorial - Canada and USA (p.8)"
+    }
+  ],
+  "latencies_ms": [
+    35059.3,
+    53768.1,
+    59393.4,
+    41626.1,
+    35381.4,
+    29462.5
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

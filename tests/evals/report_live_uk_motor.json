@@ -1,0 +1,53 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/uk/motor/coverage.jsonl",
+  "n": 6,
+  "correct": 4,
+  "accuracy": 0.6667,
+  "per_class": {
+    "conditional": {
+      "n": 6,
+      "correct": 4
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "conditional": 4,
+      "likely_covered": 2
+    }
+  },
+  "mismatches": [
+    {
+      "id": "uk-motor-5",
+      "question": "Is breakdown cover included automatically?",
+      "gold": "conditional",
+      "pred": "likely_covered",
+      "rationale": "p.3 lists Breakdown as Section L, an optional section that applies only if stated on the schedule."
+    },
+    {
+      "id": "uk-motor-6",
+      "question": "Am I covered if I am legally liable for injuring someone in an accident?",
+      "gold": "conditional",
+      "pred": "likely_covered",
+      "rationale": "p.11 covers legal liability up to GBP20m/GBP25m."
+    }
+  ],
+  "grounding_checked": 6,
+  "grounding_failed": [
+    {
+      "id": "uk-motor-5",
+      "expected": "Section L - Breakdown option (p.3, p.21)"
+    }
+  ],
+  "latencies_ms": [
+    54779.3,
+    44731.3,
+    39801.2,
+    39721.3,
+    46796.1,
+    43102.4
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

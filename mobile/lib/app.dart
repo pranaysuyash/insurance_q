@@ -17,6 +17,7 @@ import 'services/analytics_service.dart';
 import 'services/app_state_repository.dart';
 import 'services/auth_service.dart';
 import 'services/install_service.dart';
+import 'services/upload_retry_service.dart';
 import 'sync/reconciliation_coordinator.dart';
 import 'utils/deep_link_policy.dart';
 import 'widgets/shared/coverwise_snackbar.dart';
@@ -60,6 +61,7 @@ class _InsuranceAppState extends ConsumerState<InsuranceApp> {
   void initState() {
     super.initState();
     ref.read(analyticsServiceProvider.notifier);
+    ref.read(uploadRetryServiceProvider);
     _showOnboarding = widget.showOnboarding;
     _reconciliation = ReconciliationCoordinator(ref: ref);
 

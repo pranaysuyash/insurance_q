@@ -152,3 +152,22 @@ mobile/workspaces/
 # Supabase local runtime state; migration SQL remains tracked.
 supabase/.branches/
 supabase/.temp/
+
+# ---------------------------------------------------------------------------
+# Policy corpus — DO NOT REDISTRIBUTE the source documents.
+# corpus_global/ and corpus_lob/ hold real, publicly-posted policy wordings and
+# regulator forms. Insurer wordings are COPYRIGHTED and must stay local (eval
+# only) — see corpus_global/NOTICE.md. The manifest, NOTICE, gold-label specs
+# and coverage datasets ARE tracked (they are our own analysis / URLs), but the
+# downloaded PDFs and quarantined bot-block HTML are NOT. Re-download via
+# tools/scrape_policy_corpus.py.
+corpus_global/**/*.pdf
+corpus_global/**/*.blocked.html
+corpus_lob/*.pdf
+
+
+# Agent/tool runtime state (hook baselines contain secret-like strings; never publish)
+.mimosa/
+
+# Raw Codex audit transcripts (large, may echo file contents) — keep the .md reports, not the logs
+docs/audits/**/_codex_logs/

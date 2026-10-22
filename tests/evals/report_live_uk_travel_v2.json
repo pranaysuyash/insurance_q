@@ -1,0 +1,82 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/uk/travel_v2/coverage.jsonl",
+  "n": 6,
+  "correct": 2,
+  "accuracy": 0.3333,
+  "per_class": {
+    "likely_covered": {
+      "n": 3,
+      "correct": 2
+    },
+    "conditional": {
+      "n": 1,
+      "correct": 0
+    },
+    "likely_not_covered": {
+      "n": 2,
+      "correct": 0
+    }
+  },
+  "confusion": {
+    "likely_covered": {
+      "likely_covered": 2,
+      "conditional": 1
+    },
+    "conditional": {
+      "ambiguous": 1
+    },
+    "likely_not_covered": {
+      "ambiguous": 1,
+      "conditional": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": "uk-travel-v2-3",
+      "question": "Do I have to pay an excess on every claim?",
+      "gold": "conditional",
+      "pred": "ambiguous",
+      "rationale": "p.21 shows an excess applies to most sections but not to those marked with an asterisk."
+    },
+    {
+      "id": "uk-travel-v2-4",
+      "question": "Is personal liability cover provided for all sports and activities?",
+      "gold": "likely_not_covered",
+      "pred": "ambiguous",
+      "rationale": "p.16 excludes Personal Liability cover for asterisked sports/activities."
+    },
+    {
+      "id": "uk-travel-v2-5",
+      "question": "Is a pre-existing medical condition covered?",
+      "gold": "likely_not_covered",
+      "pred": "conditional",
+      "rationale": "p.15 excludes pre-existing medical conditions unless screened and agreed."
+    },
+    {
+      "id": "uk-travel-v2-6",
+      "question": "If I have to cancel my trip, is that covered?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "p.21 lists Cancellation or Cutting Short your Trip as a covered section with limits."
+    }
+  ],
+  "grounding_checked": 6,
+  "grounding_failed": [
+    {
+      "id": "uk-travel-v2-3",
+      "expected": "Excess (p.21)"
+    }
+  ],
+  "latencies_ms": [
+    45835.5,
+    55746.9,
+    24769.2,
+    35686.7,
+    27910.3,
+    48448.4
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
@@ -159,26 +160,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
 
     // CW-P0-010: Server sync is best-effort — offline onboarding must
-    // not be blocked. But we track the pending state so the UI can
-    // surface that consent is locally recorded but not yet verified
-    // by the server.
-    try {
-      await ConsentSyncService().syncAll();
-    } catch (e) {
-      debugPrint('onboarding server consent sync deferred: ${e.runtimeType}');
-      // CW-P0-010: Surface the sync-pending state so the user knows
-      // consent is recorded locally but not yet verified by the server.
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Consent recorded. Will sync when online.',
-            ),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    }
+    // not be blocked.
+    unawaited(
+      ConsentSyncService().syncAll().catchError((e) {
+        debugPrint('onboarding server consent sync deferred: ${e.runtimeType}');
+        return 0;
+      }),
+    );
   }
 
   @override

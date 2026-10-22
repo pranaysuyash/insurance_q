@@ -1,0 +1,92 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/tests/evals/coverage_dataset_cyber.jsonl",
+  "n": 8,
+  "correct": 3,
+  "accuracy": 0.375,
+  "per_class": {
+    "conditional": {
+      "n": 4,
+      "correct": 1
+    },
+    "likely_not_covered": {
+      "n": 3,
+      "correct": 2
+    },
+    "likely_covered": {
+      "n": 1,
+      "correct": 0
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "conditional": 1,
+      "likely_covered": 1,
+      "ambiguous": 2
+    },
+    "likely_not_covered": {
+      "conditional": 1,
+      "likely_not_covered": 2
+    },
+    "likely_covered": {
+      "likely_not_covered": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": "cyber-pdf",
+      "question": "Are we covered if we are sued for defamation in digital content we published?",
+      "gold": "conditional",
+      "pred": "likely_covered",
+      "rationale": "Multimedia liability is a granted cover, but it is capped (not to exceed the Sublimit in item 6, 1.E of the Schedule) and limited to specified wrongful acts, so it is conditional on the sub-limit and the act falling within the module."
+    },
+    {
+      "id": "cyber-pdf",
+      "question": "Is a claim about an inaccurate product price description covered under the multimedia liability module?",
+      "gold": "likely_not_covered",
+      "pred": "conditional",
+      "rationale": "The 1.E module expressly excludes Loss arising from inaccurate, inadequate or incomplete product/price descriptions, with no carve-back, so such a claim is not covered."
+    },
+    {
+      "id": "cyber-pdf",
+      "question": "If a cyber-attack takes down our systems and we lose business income, is that covered?",
+      "gold": "conditional",
+      "pred": "ambiguous",
+      "rationale": "Network Loss / business interruption is covered only after the Waiting Hours Period has expired, solely as a result of a Security Failure, and up to the Sublimit in item 6, 2.B, so it is conditional on those triggers and the sub-limit."
+    },
+    {
+      "id": "cyber-pdf",
+      "question": "Is there an amount I have to bear myself before the cyber policy responds to a loss?",
+      "gold": "conditional",
+      "pred": "ambiguous",
+      "rationale": "The policy defines a Retention (the amount specified in item 7 of the Schedule) which the insured bears; the insurer responds only above that retention, so cover is conditional on the retention being met/exhausted."
+    },
+    {
+      "id": "cyber-pdf",
+      "question": "Does the policy cover losses caused by a denial-of-service attack?",
+      "gold": "likely_covered",
+      "pred": "likely_not_covered",
+      "rationale": "A denial of service attack is expressly included within the definition of Security Failure, which is the core trigger for the insuring modules, so losses from a DoS attack fall within cover (subject to the module triggers)."
+    }
+  ],
+  "grounding_checked": 8,
+  "grounding_failed": [
+    {
+      "id": "cyber-pdf",
+      "expected": "Retention means the amounts specified"
+    }
+  ],
+  "latencies_ms": [
+    72382.4,
+    50110.8,
+    44080.3,
+    51676.4,
+    40403.6,
+    30664.9,
+    30478.9,
+    53968.4
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

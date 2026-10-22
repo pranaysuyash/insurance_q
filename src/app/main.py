@@ -19,6 +19,7 @@ from src.api.consent import router as consent_router
 from src.api.subscription import router as subscription_router
 from src.api.evidence import router as evidence_router
 from src.api.claims import router as claims_router
+from src.api.family import router as family_router
 from src.api.report_router import router as report_router
 from src.api.capabilities import router as capabilities_router
 from src.models.user import User
@@ -373,6 +374,7 @@ app.include_router(evidence_router)
 app.include_router(consent_router)
 app.include_router(subscription_router)
 app.include_router(claims_router)
+app.include_router(family_router)
 app.include_router(report_router)
 app.include_router(capabilities_router)
 
@@ -468,9 +470,7 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
         try:
             service.release(owner_id=owner_id, request_id=request_id)
         except Exception as error:
-            logger.error(
-                "qa_usage_release_failed error_type=%s", type(error).__name__
-            )
+            logger.error("qa_usage_release_failed error_type=%s", type(error).__name__)
         finally:
             qa_reservation = None
 
@@ -554,7 +554,6 @@ async def query_documents(request: QueryRequest, current_user: User = Depends(ge
         # Handle the response format
         if isinstance(result, dict):
             if result.get("status") == "error":
-                release_qa_reservation()
                 return QueryResponse(
                     answer="I encountered an error while processing your question. Please try rephrasing your question or try again later.",
                     sources=[],

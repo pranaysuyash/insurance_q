@@ -2,9 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/document_model.dart';
 import '../services/app_state_repository.dart';
+import '../services/family_sync_service.dart';
 import '../services/relationship_extraction_service.dart';
 import '../utils/ref_state.dart';
 import 'service_providers.dart';
+
+/// Provider for the [FamilySyncService].
+final familySyncServiceProvider = Provider<FamilySyncService>((ref) {
+  return FamilySyncService();
+});
 
 /// Provider for the [RelationshipExtractionService] used to extract
 /// person-to-person relationships from uploaded documents.
@@ -104,6 +110,12 @@ void refreshManualFamilyMembers(WidgetRef ref) {
 Future<void> addManualFamilyMember(WidgetRef ref, PolicyHolder member) async {
   await AppStateRepository.addManualFamilyMember(member);
   refreshManualFamilyMembers(ref);
+  // Asynchronously push to backend without blocking local completion
+  ref.read(familySyncServiceProvider).pushMember(member).then((_) {
+    refreshManualFamilyMembers(ref);
+  }).catchError((e) {
+    debugPrint('Background family push failed: $e');
+  });
 }
 
 Future<void> removeManualFamilyMember(
@@ -111,4 +123,11 @@ Future<void> removeManualFamilyMember(
   await AppStateRepository.removeManualFamilyMember(member.name,
       relationship: member.relationship);
   refreshManualFamilyMembers(ref);
+  // If member has backend ID, remove on server
+  if (member.id != null) {
+    ref.read(familySyncServiceProvider).deleteMember(member.id!).catchError((e) {
+      debugPrint('Background family delete failed: $e');
+      return false;
+    });
+  }
 }

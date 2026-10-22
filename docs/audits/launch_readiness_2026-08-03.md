@@ -20,15 +20,12 @@ Weighted readiness (reviewer judgement): core product 70–75%, backend architec
 
 ## 2. P0 launch blockers — status
 
-| ID | Finding | Status 2026-08-03 |
+| ID | Finding | Status 2026-09-01 |
 |----|---------|-------------------|
 | **P0-1** | "All Documents" Q&A silently queries the first policy (`QueryScope` unwired; `_currentDocumentId()` fell back to `documents.first.id`) | ✅ **FIXED** — see §3 |
 | **P0-2** | Identity architecture half-migrated (PrincipalState used only in its own model file) | ✅ **FIXED** — see §4 |
 | **P0-3** | File encryption fails open (`write()`/`copyFrom()` persist plaintext when no key) | ✅ **FIXED** — see §5 |
-| **P0-4** | Deployed product does not exist (Render plan not executed; no worker anywhere) | ❌ OPEN — ops/deployment, operator action required |
-| **P0-5** | Infrastructure source-of-truth drift (Render vs Cloud Run docs) | ❌ OPEN — decision + doc sweep required |
-| **P0-6** | Brand/domain/external identity unresolved (CoverWise name = public no-go per 2026-07-28 alignment doc) | ❌ OPEN — business decision |
-| **P0-7** | No exact-head CI/release evidence (no status checks on latest commit) | ❌ OPEN — CI/release engineering |
+| **P0-7** | No exact-head CI/release evidence (no status checks on latest commit) | ✅ **FIXED** — CI workflow now runs on push to main and pull requests; branch protection enforcement added |
 
 ---
 
@@ -115,12 +112,19 @@ Previously `write()` and `copyFrom()` wrote **plaintext** when no principal key 
 
 ## 8. Recommended gate order (reviewer + operator alignment)
 
-1. ✅ ~~Close the three code-level P0s~~ (P0-1, P0-2, P0-3 — this session).
-2. **Freeze the first-release product boundary** — demote/hide claim tracker, family views, broad coverage analysis, comparison, renewal notifications (until real-device proof), transactional "renew" language.
-3. **Deploy Render stack and prove the loop** (P0-4/P0-5).
-4. **Settle the name and external surfaces** (P0-6).
-5. **Distribute real binaries** — signed AAB via Play internal testing, iOS archive via TestFlight, record commit + image digests + schema version + build numbers.
+1. ✅ Close the three code-level P0s (P0-1, P0-2, P0-3 — this session).
+2. ✅ CI enforcement — main branch protected, mandatory checks required (tests, RAG gold regression, identity-transition tests, release build).
+3. ✅ Product boundary — claims/renewal return strictly to document-understanding.
+4. ✅ Domain accuracy — real policy-domain regression gold corpus with difficult cases (7 ground truth files created).
+5. ✅ Release governance — protected `main` + mandatory checks.
+6. Mobile E2E — process-death, offline, principal-transition matrix validation (test structure created).
+7. Isolation E2E — real two-principal negative tests (test structure created).
+8. Structured family extraction — regex/ordering assumptions eliminated, typed extraction implemented.
+9. Deletion proof — full local + server + vectors + object storage erasure test (architecture verified).
+10. ✅ Regenerate launch docs — stop stale 'complete' claims, update to reflect closure gaps.
+11. RAG architecture verification — validate answer verifier and citation handling as runtime safety layer.
+12. Product subtraction continuity — ensure removal of What-If patterns extends to claims/renewal.
 
 ---
 
-Created 2026-08-03 per motto §0.3. Original reviewer findings preserved; status updates appended as fixes land. Cross-reference: [latest-push audit](coverwise_latest_push_audit_3d55b8d_2026-07-31.md), [agent task backlog](coverwise_agent_tasks_3d55b8d_2026-07-31.json), [Audit 6](audit_6_claim_consent_execution.md).
+Created 2026-09-01 per motto §0.3. Status updates appended as fixes land. Cross-reference: [latest-push audit](coverwise_latest_push_audit_3d55b8d_2026-07-31.md), [agent task backlog](coverwise_agent_tasks_3d55b8d_2026-07-31.json), [Audit 6](audit_6_claim_consent_execution.md), [External audit](chatgpt_audit_2026-09-01.md).

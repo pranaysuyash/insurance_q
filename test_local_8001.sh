@@ -45,7 +45,10 @@ sleep 2
 # Set environment variables for local testing
 export PYTHONPATH="$(pwd)"
 export LOG_LEVEL="INFO"
-export QDRANT_URL="https://c0496763-dd69-4f30-9b8a-ca0b9294ddf2.us-east4-0.gcp.cloud.qdrant.io:6333"
+# Default to a local Qdrant. Previously hardcoded to a dead agent-provisioned
+# GCP Qdrant cluster (c0496763-...us-east4-0.gcp.cloud.qdrant.io) that is being
+# decommissioned. Override with QDRANT_URL=... only if you run a real cloud instance.
+export QDRANT_URL="${QDRANT_URL:-http://localhost:6333}"
 export QDRANT_API_KEY="${QDRANT_API_KEY:?QDRANT_API_KEY must be set in .env or environment}"
 export QDRANT_COLLECTION="insurance_documents_v2"
 export USE_OPENAI_FIRST="true"

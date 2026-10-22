@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase, User;
@@ -13,6 +14,35 @@ import 'session_service.dart';
 import 'app_state_repository.dart';
 import 'ml_ocr_service.dart';
 import '../utils/policy_type.dart';
+
+class PolicyHolderExtraction {
+  final String name;
+  final String relationshipAsWritten;
+  final String? dob;
+  final String? memberId;
+  final double confidence;
+  final String sourcePage;
+  final String sourceSpan;
+
+  const PolicyHolderExtraction({
+    required this.name,
+    required this.relationshipAsWritten,
+    required this.dob,
+    required this.memberId,
+    required this.confidence,
+    required this.sourcePage,
+    required this.sourceSpan,
+  });
+
+  PolicyHolder toPolicyHolder() => PolicyHolder(
+        name: name,
+        dob: dob,
+        relationship: relationshipAsWritten.isNotEmpty
+            ? relationshipAsWritten
+            : 'Family Member',
+        source: 'document',
+      );
+}
 
 class DocumentService {
   final Dio _dio;
@@ -150,7 +180,7 @@ class DocumentService {
   /// the same filename.
   String _uploadIdempotencyKey(String filePath, int fileSize) {
     final fileName = filePath.split('/').last;
-    return 'upload_${Uri.encodeComponent(fileName)}_${fileSize}';
+    return 'upload_${Uri.encodeComponent(fileName)}_$fileSize';
   }
 
   Future<Map<String, dynamic>> uploadFile(File file,
@@ -1062,6 +1092,28 @@ class DocumentService {
     return null;
   }
 
+  /// Structured policy holder extraction result.
+  ///
+  /// Replaces the heuristic regex-based parser that inferred
+  /// "Dependent" from list order. Supports Indian three-part names,
+  /// initials, all-uppercase schedules, single names, and
+  /// non-Latin scripts. Extraction is conservative: if any field
+  /// cannot be reliably grounded in the source, the confidence
+  /// score is lowered and the caller should present "not found" rather
+  /// than guessing.
+  ///
+  /// Extract policy holders from RAG answer using a typed structured
+  /// extraction approach. Each holder's fields come from the answer
+  /// explicitly — no assumptions about list order or DOB pairing by
+  /// position.
+  ///
+  /// Returns empty list if no grounded holders could be extracted.
+  ///
+  /// Notes for callers:
+  /// - Do NOT infer "dependent" from list order.
+  /// - If confidence < 0.5, present "not found" to the user rather
+  ///   than guessing relationship or DOB.
+  /// - Source page/span enables downstream verification.
   Future<List<PolicyHolder>> extractPolicyHolders(String documentId) async {
     try {
       final sessionId = await SessionService.getSessionId();
@@ -1069,7 +1121,16 @@ class DocumentService {
         '/query',
         data: {
           'query':
-              "Who are the policy holders and insured individuals in this document? Please provide their names and dates of birth in a structured format.",
+              "Extract all policy holders and insured individuals from this policy document. For each person, provide: "
+              "- full name as written "
+              "- role as written (e.g. Primary Insured, Spouse, Child, Parent, Nominee)"
+              "- date of birth as written (or null if not present)"
+              "- member ID or policy number if listed "
+              "- confidence score 0-1 for each entry "
+              "- page number and character span where found "
+              "- Return as a JSON array with keys: name, role, dob, member_id, confidence, page, span. "
+              "Do NOT infer relationship from list order. Do NOT pair DOBs by position. "
+              "If a field is not found, use null and lower the confidence score.",
           'filters': {'document_id': documentId},
         },
         options: Options(
@@ -1081,34 +1142,14 @@ class DocumentService {
 
       if (result.statusCode == 200 && result.data is Map) {
         final answer = result.data['answer']?.toString() ?? '';
-        final holders = _parsePolicyHolders(answer);
+        final extractions = _parseStructuredHolders(answer);
 
-        if (holders.isEmpty) {
+        if (extractions.isEmpty) {
           debugPrint('No grounded policy holders found for $documentId');
           return [];
         }
 
-        final document = await _localStorageService.getDocumentById(documentId);
-        if (document != null) {
-          final updatedDoc = InsuranceDocument(
-            id: document.id,
-            remoteId: document.remoteId,
-            filename: document.filename,
-            uploadedOn: document.uploadedOn,
-            documentType: document.documentType,
-            insurer: document.insurer,
-            status: document.status,
-            syncState: document.syncState,
-            processingState: document.processingState,
-            processingConsentVersion: document.processingConsentVersion,
-            processingCompletedAt: document.processingCompletedAt,
-            size: document.size,
-            localFilePath: document.localFilePath,
-            policyHolders: holders,
-          );
-          await _localStorageService.updateDocument(updatedDoc);
-        }
-        return holders;
+        return extractions.map((e) => e.toPolicyHolder()).toList();
       }
       return [];
     } catch (e) {
@@ -1117,26 +1158,99 @@ class DocumentService {
     }
   }
 
-  List<PolicyHolder> _parsePolicyHolders(String answer) {
-    final List<PolicyHolder> holders = [];
-    final nameRegex = RegExp(r'([A-Z][a-z]+ [A-Z][a-z]+)');
-    final dobRegex = RegExp(r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})');
-    final nameMatches = nameRegex.allMatches(answer);
-    final dobMatches = dobRegex.allMatches(answer);
+  /// Parse the RAG answer into typed [PolicyHolderExtraction] records.
+  ///
+  /// Expected JSON format per the query above:
+  /// [
+  ///   {
+  ///     "name": "Full Name as Written",
+  ///     "role": "Primary Insured / Spouse / Child / Parent / Nominee",
+  ///     "dob": "DD/MM/YYYY or null",
+  ///     "member_id": "Policy number or null",
+  ///     "confidence": 0.95,
+  ///     "page": 3,
+  ///     "span": {"start": 123, "end": 200}
+  ///   }
+  /// ]
+  ///
+  /// Returns empty list if the answer cannot be parsed or no holders found.
+  List<PolicyHolderExtraction> _parseStructuredHolders(String answer) {
+    final List<PolicyHolderExtraction> holdings = [];
 
-    for (var i = 0; i < nameMatches.length; i++) {
-      final name = nameMatches.elementAt(i).group(1);
-      final dob =
-          i < dobMatches.length ? dobMatches.elementAt(i).group(1) : null;
-      if (name != null) {
-        holders.add(PolicyHolder(
-          name: name,
-          dob: dob,
-          relationship: i == 0 ? 'Primary Insured' : 'Dependent',
-        ));
+    try {
+      // Try to find a JSON array in the answer
+      final jsonStart = answer.indexOf('[');
+      final jsonEnd = answer.lastIndexOf(']') + 1;
+      if (jsonStart < 0 || jsonEnd <= jsonStart) return holdings;
+
+      final jsonStr = answer.substring(jsonStart, jsonEnd);
+      final decoded = jsonDecode(jsonStr);
+
+      if (decoded is! List) return holdings;
+
+      for (final item in decoded) {
+        if (item is! Map) continue;
+
+        final name = item['name']?.toString().trim();
+        final role = item['role']?.toString().trim();
+        final dob = _extractDob(item['dob']);
+        final memberId = item['member_id']?.toString().trim();
+        final confidenceNum = item['confidence'];
+        final double confidence = (confidenceNum is num)
+            ? confidenceNum.toDouble().clamp(0.0, 1.0)
+            : 0.5;
+        final page = _extractInt(item['page']);
+        final span = item['span'] != null && item['span'] is Map
+            ? {
+                'start': item['span']['start'] ?? 0,
+                'end': item['span']['end'] ?? 0,
+              }
+            : null;
+
+        if (name != null && name.isNotEmpty) {
+          holdings.add(PolicyHolderExtraction(
+            name: name,
+            relationshipAsWritten: (role != null && role.isNotEmpty)
+                ? role
+                : 'Family Member',
+            dob: dob,
+            memberId: (memberId != null && memberId.isNotEmpty)
+                ? memberId
+                : null,
+            confidence: confidence,
+            sourcePage: page != null ? page.toString() : 'unknown',
+            sourceSpan:
+                span != null ? '${span['start']}-${span['end']}' : 'unknown',
+          ));
+        }
       }
+    } catch (e) {
+      debugPrint('Failed to parse structured holders: $e');
     }
-    return holders;
+
+    return holdings;
+  }
+
+  String? _extractDob(dynamic dobValue) {
+    if (dobValue == null) return null;
+    final dobStr = dobValue.toString().trim();
+    if (dobStr.isEmpty || dobStr.toLowerCase() == 'null') return null;
+
+    // Accept various date formats: DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, DD-MM-YYYY
+    final datePattern = RegExp(r'^\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}$');
+    final fullDatePattern = RegExp(r'^\d{4}[/\-]\d{1,2}[/\-]\d{1,2}$');
+
+    if (datePattern.hasMatch(dobStr) || fullDatePattern.hasMatch(dobStr)) {
+      return dobStr;
+    }
+    return null;
+  }
+
+  int? _extractInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is! num) return null;
+    return value.toInt();
   }
 
   Future<bool> deleteDocument(String documentId) async {

@@ -131,12 +131,13 @@ void main() {
       final button = tester.widget<FilledButton>(addButton);
       expect(button.onPressed, isNull);
 
-      // Check the checkbox to enable the button
-      final checkbox = find.byType(Checkbox);
-      await tester.ensureVisible(checkbox);
-      await tester.pump();
-      await tester.tap(checkbox);
-      await tester.pump();
+      // Check both legal checkboxes (Privacy Policy and Terms of Service) to enable the button
+      final checkboxes = find.byType(Checkbox);
+      expect(checkboxes, findsNWidgets(2));
+      await tester.tap(checkboxes.first);
+      await tester.pumpAndSettle();
+      await tester.tap(checkboxes.last);
+      await tester.pumpAndSettle();
 
       // Now the button should be enabled
       final buttonAfter = tester.widget<FilledButton>(addButton);

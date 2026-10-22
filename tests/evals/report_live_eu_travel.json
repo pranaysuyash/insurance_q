@@ -1,0 +1,88 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/eu/travel/coverage.jsonl",
+  "n": 6,
+  "correct": 1,
+  "accuracy": 0.1667,
+  "per_class": {
+    "likely_not_covered": {
+      "n": 2,
+      "correct": 0
+    },
+    "conditional": {
+      "n": 2,
+      "correct": 1
+    },
+    "likely_covered": {
+      "n": 2,
+      "correct": 0
+    }
+  },
+  "confusion": {
+    "likely_not_covered": {
+      "ambiguous": 2
+    },
+    "conditional": {
+      "conditional": 1,
+      "ambiguous": 1
+    },
+    "likely_covered": {
+      "ambiguous": 2
+    }
+  },
+  "mismatches": [
+    {
+      "id": "eu-travel-1",
+      "question": "Is my daily commute to work covered by this travel insurance?",
+      "gold": "likely_not_covered",
+      "pred": "ambiguous",
+      "rationale": "\u00a72.2.4 provides worldwide cover only where the distance between the insured person's residence and destination exceeds the agreed km threshold, and expressly states that 'Wege von und zur Arbeitsst\u00e4tte' (journeys to and from the workplace) do not count as a trip."
+    },
+    {
+      "id": "eu-travel-3",
+      "question": "If I deliberately fail to report a claim or withhold information, will the insurer still pay?",
+      "gold": "likely_not_covered",
+      "pred": "ambiguous",
+      "rationale": "\u00a76.2.1 provides that where the policyholder/insured person intentionally breaches an obligation arising after the insured event, the insurer is free of the obligation to perform."
+    },
+    {
+      "id": "eu-travel-4",
+      "question": "If I am grossly negligent after a claim, does the insurer reduce my payment?",
+      "gold": "conditional",
+      "pred": "ambiguous",
+      "rationale": "\u00a76.2.2 entitles the insurer to reduce its performance in proportion to the seriousness of the grossly negligent breach; the insured must prove the absence of gross negligence."
+    },
+    {
+      "id": "eu-travel-5",
+      "question": "If a third party caused my travel loss, does the insurer take over my claim against them?",
+      "gold": "likely_covered",
+      "pred": "ambiguous",
+      "rationale": "\u00a77.1 provides that compensation claims against third parties pass to the insurer by operation of law up to the amount paid; \u00a77.2 requires the insured to give an assignment declaration if needed."
+    },
+    {
+      "id": "eu-travel-6",
+      "question": "Which law governs this travel insurance policy?",
+      "gold": "likely_covered",
+      "pred": "ambiguous",
+      "rationale": "\u00a710.3 states 'Soweit gesetzlich zul\u00e4ssig, gilt deutsches Recht' (to the extent legally permissible, German law applies)."
+    }
+  ],
+  "grounding_checked": 6,
+  "grounding_failed": [
+    {
+      "id": "eu-travel-6",
+      "expected": "Applicable law (\u00a710.3, p.4)"
+    }
+  ],
+  "latencies_ms": [
+    31438.2,
+    33507.0,
+    30375.9,
+    32004.0,
+    26043.1,
+    18229.1
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

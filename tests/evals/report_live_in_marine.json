@@ -1,0 +1,51 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/corpus_global/in/marine/coverage.jsonl",
+  "n": 4,
+  "correct": 3,
+  "accuracy": 0.75,
+  "per_class": {
+    "conditional": {
+      "n": 1,
+      "correct": 1
+    },
+    "likely_not_covered": {
+      "n": 3,
+      "correct": 2
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "conditional": 1
+    },
+    "likely_not_covered": {
+      "likely_not_covered": 2,
+      "conditional": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": "in-marine-3",
+      "question": "Does the marine cover continue after the goods are delivered to my warehouse at the destination?",
+      "gold": "likely_not_covered",
+      "pred": "conditional",
+      "rationale": "Clause 8 terminates cover on delivery to the final warehouse."
+    }
+  ],
+  "grounding_checked": 4,
+  "grounding_failed": [
+    {
+      "id": "in-marine-3",
+      "expected": "Institute Cargo Clauses (A) \u2014 Clause 8 (Transit Clause)"
+    }
+  ],
+  "latencies_ms": [
+    43176.6,
+    33615.7,
+    32493.4,
+    40666.8
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

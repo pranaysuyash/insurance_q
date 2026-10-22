@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0.0",
+  "status": "Complete — scanned PDF with OCR corruption",
+
+  "meta": {
+    "policy_document": "assets/demo/scan_corrupt_health.pdf",
+    "policy_type": "health",
+    "insurer": "National Insurance Company",
+    "description": "National Insurance Senior Citizens Health Policy — Scanned Copy",
+    "added_by": "CoverWise team",
+    "added_date": "2026-09-01",
+    "notes": "Scanned PDF with OCR corruption — some fields may be partially extracted or missing. Tests OCR robustness and abstention behavior."
+  },
+
+  "expected_extraction": {
+    "policy_number": "SNCL112233",
+    "insurer": "National Insurance Company",
+    "insurer_helpline": null,
+    "insurer_email": null,
+    "document_type": "health",
+    "coverage_amount": null,
+    "deductible": null,
+    "premium_amount": null,
+    "premium_frequency": null,
+    "effective_date": null,
+    "expiration_date": null,
+    "key_benefits": [],
+    "exclusions": [
+      "Treatment for pre-existing diseases during initial waiting period"
+    ],
+    "waiting_periods": [
+      "2 years for pre-existing diseases (OCR may partially capture this)"
+    ],
+    "coverage_items": [],
+    "executive_summary": [
+      "Senior citizens health policy from National Insurance",
+      "Scanned copy — OCR quality variable"
+    ],
+    "type_specific": {
+      "health": {
+        "room_rent_cap": null,
+        "pre_existing_diseases": "2 years (OCR partially captured)",
+        "co_pay_percent": null,
+        "network_hospitals": null,
+        "maternity_cover": null,
+        "deductible_per_claim": null,
+        "cumulative_bonus": null,
+        "day_care_procedures": null,
+        "consumables_cover": null,
+        "ambulance_cover": null,
+        "health_checkup_cover": null,
+        "pre_post_hospitalization_days": null,
+        "restoration_benefit": null,
+        "critical_illness_list": [],
+        "modern_treatment_cover": null,
+        "moratorium_period": null,
+        "pre_auth_time_limit": null,
+        "domiciliary_hospitalization": null,
+        "sub_limits": [],
+        "no_claim_bonus_percent": null
+      }
+    }
+  },
+
+  "expected_questions": {
+    "known_answers": [
+      {
+        "question": "What insurance company is this policy from?",
+        "expected_answer_contains": "National Insurance Company",
+        "verification_status": "partially_backed"
+      },
+      {
+        "question": "What type of insurance is this?",
+        "expected_answer_contains": "health",
+        "verification_status": "partially_backed"
+      },
+      {
+        "question": "Is this a scanned copy?",
+        "expected_answer_contains": "Scanned Copy",
+        "verification_status": "abstained"
+      }
+    ],
+    "known_fields_not_present": [
+      "Many fields cannot be reliably extracted from scanned copy"
+    ]
+  },
+
+  "expected_badges": {
+    "policy_detail": "partially_backed",
+    "question_answer": {
+      "typical": "abstained"
+    }
+  }
+}

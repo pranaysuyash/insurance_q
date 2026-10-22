@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/pranay/Projects/medpiper/insurance_app/tests/evals/run_evals.py", line 596, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/Users/pranay/Projects/medpiper/insurance_app/tests/evals/run_evals.py", line 466, in main
+    asyncio.run(_run_live_async(args))
+  File "/Users/pranay/.local/share/uv/python/cpython-3.11.9-macos-aarch64-none/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/Users/pranay/.local/share/uv/python/cpython-3.11.9-macos-aarch64-none/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pranay/.local/share/uv/python/cpython-3.11.9-macos-aarch64-none/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/pranay/Projects/medpiper/insurance_app/tests/evals/run_evals.py", line 486, in _run_live_async
+    from live_fixture import build_live_pipeline, build_live_pipeline_from_pdf
+ModuleNotFoundError: No module named 'live_fixture'

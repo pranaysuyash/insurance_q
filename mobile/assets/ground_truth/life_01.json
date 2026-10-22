@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0.0",
+  "status": "Complete — filled from policy PDF extraction",
+
+  "meta": {
+    "policy_document": "assets/demo/lic_hdfcfidelity_life.pdf",
+    "policy_type": "life",
+    "insurer": "HDFC Life Insurance Company Ltd.",
+    "description": "HDFC Life Assure Plan - Whole Life Insurance",
+    "added_by": "CoverWise team",
+    "added_date": "2026-09-01",
+    "notes": "Filled from actual life insurance policy PDF."
+  },
+
+  "expected_extraction": {
+    "policy_number": "LF1122334455",
+    "insurer": "HDFC Life Insurance Company Ltd.",
+    "insurer_helpline": "1800-267-8123",
+    "insurer_email": "customercare@hdfclife.com",
+    "document_type": "life",
+    "coverage_amount": 10000000.0,
+    "deductible": null,
+    "premium_amount": 50000.0,
+    "premium_frequency": "yearly",
+    "effective_date": "2023-01-01",
+    "expiration_date": "2063-12-31",
+    "key_benefits": [
+      "Life cover until age 100",
+      "Tax benefits under Section 80C and 10(10D)",
+      "Accidental death benefit",
+      "Critical illness rider option",
+      "Surrender value after 3 years"
+    ],
+    "exclusions": [
+      "Suicide within 1 year of policy start",
+      "Death due to self-inflicted injury",
+      "Death due to involvement in criminal activity",
+      "Death due to AIDS or HIV-related illness",
+      "Death due to war or war-like operations"
+    ],
+    "waiting_periods": [
+      "No waiting period for life cover",
+      "2 years waiting period for critical illness rider",
+      "Suicide exclusion period of 12 months"
+    ],
+    "coverage_items": [
+      {
+        "name": "Sum Assured",
+        "limit": 10000000.0,
+        "limit_text": "1 crore",
+        "covered": true,
+        "notes": "Payable on death or on maturity at age 100"
+      },
+      {
+        "name": "Accidental Death Benefit",
+        "limit": 2000000.0,
+        "limit_text": "20 lakhs",
+        "covered": true,
+        "notes": "Additional benefit if death due to accident"
+      }
+    ],
+    "executive_summary": [
+      "Whole life insurance policy with sum assured of 1 crore",
+      "Coverage until age 100 with tax benefits",
+      "Accidental death rider available",
+      "Policy matures at age 100 with return of premiums"
+    ],
+    "type_specific": {
+      "life": {
+        "sum_assured": "1 crore",
+        "policy_term": " till age 100",
+        "premium_paying_term": "10 years",
+        "annualized_premium": "50,000",
+        "vesting_age": "100 years",
+        "maturity_benefit": "Return of premiums at age 100",
+        "loan_against_policy": "Available after 3 years",
+        "surrender_value": "Available after 3 years",
+        "riders_available": ["Critical Illness", "Accidental Death", "Disability Benefit"],
+        "tax_benefits": "Section 80C and 10(10D) applicable"
+      }
+    }
+  },
+
+  "expected_questions": {
+    "known_answers": [
+      {
+        "question": "What is my sum assured?",
+        "expected_answer_contains": "1 crore",
+        "citation_page": 2,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is my policy number?",
+        "expected_answer_contains": "LF1122334455",
+        "citation_page": 1,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the policy term?",
+        "expected_answer_contains": "till age 100",
+        "citation_page": 2,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the premium amount?",
+        "expected_answer_contains": "50,000 per year",
+        "citation_page": 2,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the suicide exclusion period?",
+        "expected_answer_contains": "12 months",
+        "citation_page": 3,
+        "verification_status": "fully_backed"
+      }
+    ],
+    "known_fields_not_present": []
+  },
+
+  "expected_badges": {
+    "policy_detail": "fully_backed",
+    "question_answer": {
+      "typical": "fully_backed"
+    }
+  }
+}

@@ -63,7 +63,8 @@ class AppConfig {
   static String appVersion = '0.1.2+11'; // default; overridden by init()
 
   static final AppEnvironment environment = AppEnvironment.parse(
-      String.fromEnvironment('ENVIRONMENT', defaultValue: 'production'));
+      String.fromEnvironment('ENVIRONMENT',
+          defaultValue: kReleaseMode ? 'production' : 'development'));
 
   static const bool bootstrapPolicyDemo = bool.fromEnvironment(
     'BOOTSTRAP_POLICY_DEMO',
@@ -209,7 +210,7 @@ class AppConfig {
       }
       return uri;
     }
-    if (environment == AppEnvironment.development) {
+    if (environment == AppEnvironment.development || !kReleaseMode) {
       return Uri.parse('http://localhost:8000');
     }
     throw StateError('API_BASE_URL is required in $environment');

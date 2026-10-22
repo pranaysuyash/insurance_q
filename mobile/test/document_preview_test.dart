@@ -162,6 +162,20 @@ void main() {
         );
         expect(upperPdf.filePath.toLowerCase(), endsWith('.pdf'));
       });
+
+      test('supports highlightPage, highlightQuote, and highlightRect', () {
+        const rect = Rect.fromLTWH(10, 20, 100, 50);
+        const screen = DocumentPreviewScreen(
+          filePath: '/tmp/policy.pdf',
+          filename: 'policy.pdf',
+          highlightPage: 3,
+          highlightQuote: 'Room rent is capped at 1% of sum insured.',
+          highlightRect: rect,
+        );
+        expect(screen.highlightPage, 3);
+        expect(screen.highlightQuote, contains('Room rent'));
+        expect(screen.highlightRect, rect);
+      });
     });
   });
 }

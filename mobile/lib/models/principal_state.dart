@@ -30,6 +30,7 @@
 ///     (Supabase session + install ID) at any point.
 ///   - **Observable**: The sealed class hierarchy enables exhaustive
 ///     pattern matching — callers must handle all three states.
+library;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 

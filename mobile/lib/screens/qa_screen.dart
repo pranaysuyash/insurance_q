@@ -505,6 +505,11 @@ class QaScreenState extends ConsumerState<QaScreen>
 
       // Start with empty answer and stream tokens
       String buffer = '';
+      List<QaSource> streamedSources = [];
+      List<Map<String, dynamic>> streamedCitations = [];
+      String? streamedVerificationStatus;
+      double? streamedConfidence;
+
       final stream = ref.read(queryServiceProvider).queryDocumentStream(
             formattedQuestion,
             documentId: selectedDoc,
@@ -543,7 +548,6 @@ class QaScreenState extends ConsumerState<QaScreen>
           }
           // Other error - show fallback
           if (!mounted) return;
-          // Track the failed question for retry from error tokens too
           _lastFailedQuestion = question;
           _lastFailedDocumentId = selectedDoc;
           final fallbackAnswer = QaAnswer(
@@ -566,11 +570,45 @@ class QaScreenState extends ConsumerState<QaScreen>
           return;
         }
 
+        // Handle completion payload
+        if (token.startsWith('{"done":true') ||
+            (token.startsWith('{') && token.contains('"done":true'))) {
+          try {
+            final doneJson = jsonDecode(token);
+            if (doneJson is Map<String, dynamic>) {
+              streamedVerificationStatus =
+                  doneJson['verification_status']?.toString();
+              if (doneJson['confidence'] is num) {
+                streamedConfidence =
+                    (doneJson['confidence'] as num).toDouble();
+              }
+              if (doneJson['citations'] is List) {
+                streamedCitations = (doneJson['citations'] as List)
+                    .whereType<Map<String, dynamic>>()
+                    .toList();
+              }
+              if (doneJson['sources'] is List) {
+                streamedSources = (doneJson['sources'] as List)
+                    .whereType<Map<String, dynamic>>()
+                    .map((s) => QaSource.fromJson(
+                          s,
+                          defaultDocumentId: selectedDoc,
+                        ))
+                    .toList();
+              }
+            }
+          } catch (_) {}
+          continue;
+        }
+
         // Accumulate token and update UI
         buffer += token;
         final partialAnswer = QaAnswer(
           text: buffer,
-          sources: [],
+          sources: streamedSources,
+          citations: streamedCitations,
+          verificationStatus: 'verifying',
+          confidence: streamedConfidence,
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
           question: question,
@@ -590,7 +628,10 @@ class QaScreenState extends ConsumerState<QaScreen>
       if (buffer.isNotEmpty) {
         final finalAnswer = QaAnswer(
           text: buffer,
-          sources: [],
+          sources: streamedSources,
+          citations: streamedCitations,
+          verificationStatus: streamedVerificationStatus ?? 'verified',
+          confidence: streamedConfidence ?? 0.85,
           timestamp: DateTime.now(),
           documentId: selectedDoc ?? '',
           question: question,

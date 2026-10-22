@@ -1,4 +1,7 @@
 """
+ARCHIVED / UNMOUNTED (2026-09-07): Second RAG service. Canonical live path is src/rag/pipeline.py.
+See DECISION_LOG.md Decision 11 and AGENTS.md §6. Preserved for test compatibility.
+
 FastAPI service for the RAG pipeline, with OpenAI/Hugging Face fallback mechanism.
 
 Supports:

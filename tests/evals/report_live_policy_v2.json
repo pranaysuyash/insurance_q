@@ -1,0 +1,77 @@
+{
+  "mode": "live",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/tests/evals/coverage_dataset_policy.jsonl",
+  "n": 8,
+  "correct": 6,
+  "accuracy": 0.75,
+  "per_class": {
+    "conditional": {
+      "n": 4,
+      "correct": 3
+    },
+    "likely_not_covered": {
+      "n": 3,
+      "correct": 3
+    },
+    "likely_covered": {
+      "n": 1,
+      "correct": 0
+    }
+  },
+  "confusion": {
+    "conditional": {
+      "ambiguous": 1,
+      "conditional": 3
+    },
+    "likely_not_covered": {
+      "likely_not_covered": 3
+    },
+    "likely_covered": {
+      "conditional": 1
+    }
+  },
+  "mismatches": [
+    {
+      "id": "policy-pdf",
+      "question": "Is maternity treatment covered from day one of this policy?",
+      "gold": "conditional",
+      "pred": "ambiguous",
+      "rationale": "Maternity is subject to a 36-month waiting period; it is not covered until that period is served."
+    },
+    {
+      "id": "policy-pdf",
+      "question": "Is there a deductible I must pay before the policy pays a claim?",
+      "gold": "likely_covered",
+      "pred": "conditional",
+      "rationale": "The policy states the deductible is Not Applicable, so no deductible amount is subtracted before cover applies."
+    }
+  ],
+  "grounding_checked": 8,
+  "grounding_failed": [
+    {
+      "id": "policy-pdf",
+      "expected": "Maternity waiting period: 36 months"
+    },
+    {
+      "id": "policy-pdf",
+      "expected": "Not Applicable"
+    },
+    {
+      "id": "policy-pdf",
+      "expected": "war, invasion, acts of foreign enemies"
+    }
+  ],
+  "latencies_ms": [
+    46914.1,
+    42059.5,
+    33642.5,
+    32494.4,
+    31203.1,
+    27473.9,
+    26523.2,
+    37652.2
+  ],
+  "notes": [
+    "LIVE acceptance gate: real RAGPipeline + Policy Wording Specialist persona. Latency/cost measured here; this is the implementation-commit gate per ADR."
+  ]
+}

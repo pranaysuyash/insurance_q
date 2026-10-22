@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0.0",
+  "status": "Complete — contradictory clauses in one policy",
+
+  "meta": {
+    "policy_document": "assets/demo/contradictory_policy.pdf",
+    "policy_type": "health",
+    "insurer": "ICICI Lombard",
+    "description": "ICICI Lombard Policy with Contradictory Schedule and Wording",
+    "added_by": "CoverWise team",
+    "added_date": "2026-09-01",
+    "notes": "Policy where schedule says one thing and master wording says another. Tests conflict resolution and citation accuracy."
+  },
+
+  "expected_extraction": {
+    "policy_number": "CLASH445566",
+    "insurer": "ICICI Lombard",
+    "insurer_helpline": "1800-266-1111",
+    "insurer_email": "customercare@icicilombard.com",
+    "document_type": "health",
+    "coverage_amount": 5000000.0,
+    "deductible": 15000.0,
+    "premium_amount": 18000.0,
+    "premium_frequency": "annual",
+    "effective_date": "2024-01-01",
+    "expiration_date": "2025-01-01",
+    "key_benefits": [
+      "Cashless hospitalization",
+      "Maternity cover",
+      "Pre and post-hospitalization"
+    ],
+    "exclusions": [
+      "Standard exclusions apply",
+      "But note: dental is covered up to 5000 (per schedule)"
+    ],
+    "waiting_periods": [
+      "30 days for general diseases",
+      "2 years for pre-existing diseases (schedule says 1 year, wording says 2 years — schedule prevails)"
+    ],
+    "coverage_items": [
+      {
+        "name": "Room Rent",
+        "limit": 5000,
+        "limit_text": "5000 per day",
+        "covered": true,
+        "notes": "Per schedule — but master wording overrides with 1% cap"
+      }
+    ],
+    "executive_summary": [
+      "ICICI Lombard policy with conflicting schedule vs wording",
+      "Room rent: schedule says 5000/day, wording says 1% of sum insured",
+      "Pre-existing: schedule says 1 year, wording says 2 years"
+    ],
+    "type_specific": {
+      "health": {
+        "room_rent_cap": "1% of sum insured per day (master wording prevails over schedule)",
+        "pre_existing_diseases": "2 years (master wording prevails over schedule's 1 year)",
+        "co_pay_percent": 10.0,
+        "network_hospitals": "ICICI Lombard network",
+        "maternity_cover": "Available with waiting period",
+        "deductible_per_claim": "15,000",
+        "cumulative_bonus": "Up to 50%",
+        "day_care_procedures": "Covered",
+        "consumables_cover": "Up to 5%",
+        "ambulance_cover": "Up to 2000 per trip",
+        "health_checkup_cover": "Annual",
+        "pre_post_hospitalization_days": "30 pre, 60 post",
+        "restoration_benefit": "Available up to 100%",
+        "critical_illness_list": ["Cancer", "Heart Attack", "Stroke"],
+        "modern_treatment_cover": "Yes",
+        "moratorium_period": "2 years",
+        "pre_auth_time_limit": "24 hours for emergency",
+        "domiciliary_hospitalization": "Covered up to 7 days",
+        "sub_limits": ["Room rent: 1% SI/day"],
+        "no_claim_bonus_percent": "5% per year, max 50%"
+      }
+    }
+  },
+
+  "expected_questions": {
+    "known_answers": [
+      {
+        "question": "What is the room rent cap?",
+        "expected_answer_contains": "1% of sum insured",
+        "citation_page": "master wording section",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is the pre-existing disease waiting period?",
+        "expected_answer_contains": "2 years (master wording prevails)",
+        "citation_page": "master wording section",
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "What is my policy number?",
+        "expected_answer_contains": "CLASH445566",
+        "citation_page": 1,
+        "verification_status": "fully_backed"
+      },
+      {
+        "question": "Is dental covered?",
+        "expected_answer_contains": "5000 (per schedule only)",
+        "verification_status": "partially_backed"
+      }
+    ],
+    "known_fields_not_present": [
+      "No explicit statement that schedule overrides wording or vice versa"
+    ]
+  },
+
+  "expected_badges": {
+    "policy_detail": "fully_backed",
+    "question_answer": {
+      "typical": "fully_backed"
+    }
+  }
+}

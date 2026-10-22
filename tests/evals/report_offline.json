@@ -1,0 +1,46 @@
+{
+  "mode": "offline",
+  "dataset": "/Users/pranay/Projects/medpiper/insurance_app/tests/evals/coverage_dataset.jsonl",
+  "n": 12,
+  "correct": 12,
+  "accuracy": 1.0,
+  "per_class": {
+    "likely_covered": {
+      "n": 3,
+      "correct": 3
+    },
+    "likely_not_covered": {
+      "n": 3,
+      "correct": 3
+    },
+    "conditional": {
+      "n": 3,
+      "correct": 3
+    },
+    "ambiguous": {
+      "n": 3,
+      "correct": 3
+    }
+  },
+  "confusion": {
+    "likely_covered": {
+      "likely_covered": 3
+    },
+    "likely_not_covered": {
+      "likely_not_covered": 3
+    },
+    "conditional": {
+      "conditional": 3
+    },
+    "ambiguous": {
+      "ambiguous": 3
+    }
+  },
+  "mismatches": [],
+  "grounding_checked": 12,
+  "grounding_failed": [],
+  "latencies_ms": [],
+  "notes": [
+    "Reference (heuristic) judge only. NOT the Policy Wording Specialist persona. Accuracy here validates the harness loop, not LLM quality."
+  ]
+}

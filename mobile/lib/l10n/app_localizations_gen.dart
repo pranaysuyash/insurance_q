@@ -1169,13 +1169,13 @@ abstract class AppLocalizationsGen {
   /// No description provided for @renewalContactToRenew.
   ///
   /// In en, this message translates to:
-  /// **'Contact insurer to renew'**
+  /// **'View renewal details'**
   String get renewalContactToRenew;
 
   /// No description provided for @renewalStartRenewal.
   ///
   /// In en, this message translates to:
-  /// **'Start renewal'**
+  /// **'View renewal details'**
   String get renewalStartRenewal;
 
   /// No description provided for @renewalRenewTitle.

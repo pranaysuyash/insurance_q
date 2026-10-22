@@ -23,7 +23,14 @@ from src.rag.persona import (
     get_persona_version,
     build_system_message,
     is_policy_wording_persona_enabled,
+    resolve_lob,
+    get_lob_persona_body,
     PERSONA_VERSION,
+    LOB_HEALTH,
+    LOB_CYBER,
+    LOB_MARINE,
+    LOB_GENERAL,
+    VALID_LOBS,
 )
 from src.security.prompt_injection import SYSTEM_PROMPT_PREFIX
 from src.rag.pipeline import RAGPipeline
@@ -398,3 +405,93 @@ async def test_query_rag_embeds_persona_version_and_wording_assessment():
     assert res["wording_assessment"] is not None
     assert res["wording_assessment"]["reading"] == "likely_covered"
     assert "disclaimer" in res["wording_assessment"]
+
+
+# ---------------------------------------------------------------------------
+# Line-of-business (LOB) parameterisation (pws-v2, 2026-08-12)
+# ---------------------------------------------------------------------------
+
+def test_valid_lobs_include_global_lines_of_business():
+    # Core LOBs plus the global-corpus lines CoverWise serves worldwide.
+    assert VALID_LOBS == (
+        LOB_HEALTH, LOB_CYBER, LOB_MARINE,
+        "motor", "auto", "property", "home", "travel", "liability", "life",
+    )
+    # LOB_GENERAL is the internal catch-all body, never a caller-passed value.
+    assert LOB_GENERAL not in VALID_LOBS
+
+
+def test_resolve_lob_precedence_explicit_over_filter_over_product():
+    # Explicit arg wins.
+    assert resolve_lob("cyber", {"lob": "marine"}, "Health Shield") == LOB_CYBER
+    # Filter wins over product inference.
+    assert resolve_lob(None, {"lob": "marine"}, "Health Shield") == LOB_MARINE
+    # Product inference when no explicit/filter.
+    assert resolve_lob(None, None, "ICICI Lombard Health Shield 360") == LOB_HEALTH
+    assert resolve_lob(None, None, "Cyber Risk Protect") == LOB_CYBER
+    assert resolve_lob(None, None, "Marine Cargo policy") == LOB_MARINE
+    # Unrecognised product => None (callers default to Health, never mis-flip).
+    assert resolve_lob(None, None, "Some generic plan") is None
+
+
+def test_unknown_lob_resolves_to_general_body():
+    # Any unrecognised LOB (and any recognised global LOB without a dedicated
+    # block) analyses with the GENERAL cross-cutting framing, NOT health-specific.
+    assert get_lob_persona_body("bogus") == get_lob_persona_body(LOB_GENERAL)
+    assert get_lob_persona_body("motor") == get_lob_persona_body(LOB_GENERAL)
+    assert get_lob_persona_body("property") == get_lob_persona_body(LOB_GENERAL)
+    assert get_lob_persona_body("travel_v2") == get_lob_persona_body(LOB_GENERAL)
+    # Only None preserves the historical Health default (byte-compatibility).
+    assert get_lob_persona_body(None) == get_lob_persona_body(LOB_HEALTH)
+
+
+def test_lob_bodies_are_distinct_and_nonempty():
+    # Four distinct emphasis blocks: health / cyber / marine / general. The
+    # global-corpus LOBs share the GENERAL block by design.
+    dedicated = (LOB_HEALTH, LOB_CYBER, LOB_MARINE)
+    global_lobs = ("motor", "auto", "property", "home", "travel", "liability", "life")
+    bodies = {lob: get_lob_persona_body(lob) for lob in VALID_LOBS}
+    general_body = get_lob_persona_body(LOB_GENERAL)
+    distinct = {bodies[lob] for lob in dedicated} | {general_body}
+    assert len(distinct) == 4  # health, cyber, marine, general are all distinct
+    for lob in dedicated:
+        assert bodies[lob] != general_body  # dedicated blocks differ from general
+    for lob in global_lobs:
+        assert bodies[lob] == general_body  # global LOBs collapse to general
+    for b in bodies.values():
+        assert b.strip()
+
+
+def test_system_message_is_lob_aware():
+    health = build_system_message(lob=LOB_HEALTH)
+    cyber = build_system_message(lob=LOB_CYBER)
+    marine = build_system_message(lob=LOB_MARINE)
+    # Each carries its own LOB label and lacks the others'.
+    assert "Health / Medical Insurance" in health
+    assert "Cyber Insurance" in cyber
+    assert "Marine Insurance" in marine
+    assert "Cyber Insurance" not in health
+    assert "Marine Insurance" not in cyber
+
+
+def test_shared_calibration_rule_present_in_every_lob():
+    # The waiting-period/conditional calibration fix must apply to all LOBs.
+    for lob in VALID_LOBS:
+        body = build_system_message(lob=lob)
+        assert "conditional" in body.lower()
+        assert "waiting period" in body.lower()
+        assert "do not use" in body.lower()  # the "never use likely_not_covered" rule
+
+
+def test_persona_version_suffixes_lob():
+    assert get_persona_version(LOB_CYBER) == f"{PERSONA_VERSION}:{LOB_CYBER}"
+    assert get_persona_version() == PERSONA_VERSION
+
+
+def test_pws_v4_payout_modifier_reconciliation():
+    # pws-v4: verify that LOB emphasis blocks explicitly treat sub-limits, excess,
+    # co-pay, and deductibles as PAYOUT MODIFIERS rather than gated conditions.
+    for lob in (LOB_HEALTH, LOB_CYBER, LOB_MARINE, LOB_GENERAL):
+        body = get_lob_persona_body(lob)
+        assert "PAYOUT MODIFIER" in body
+
