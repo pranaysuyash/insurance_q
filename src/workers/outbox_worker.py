@@ -108,12 +108,12 @@ def _register_handlers(dispatcher: JobDispatcher) -> None:
         )
 
     dispatcher.register(JobType.ACCOUNT_DELETION, handle_account_deletion)
+    from src.workers.qa_report_handler import handle_qa_response
+    dispatcher.register(JobType.QA_RESPONSE, handle_qa_response)
     log.info(
         "registered handlers: %s",
         [jt.value for jt in dispatcher.registered_types],
     )
-    #   from src.services.qa_handler import handle_qa_response
-    #   dispatcher.register(JobType.QA_RESPONSE, handle_qa_response)
 
 
 async def _main() -> None:
